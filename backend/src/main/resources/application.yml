@@ -1,0 +1,41 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/asistiapp_db
+    username: postgres
+    password: 1234
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: tu_email@gmail.com
+    password: tu_app_password_aqui
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+app:
+  jwt:
+    secret: TuClaveSecretaMuyLargaParaAsistiAPP_CambiarEnProduccion_2024
+    expiration-ms: 86400000 # 24 horas
+
+logging:
+  level:
+    com.asistiapp: DEBUG
+    org.springframework.security: DEBUG
