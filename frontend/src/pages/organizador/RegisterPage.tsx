@@ -75,8 +75,8 @@ export function OrganizadorRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-sm mx-auto">
+    <div className="min-h-screen bg-background lg:flex lg:items-center lg:justify-center lg:py-10">
+      <div className="max-w-sm lg:max-w-md mx-auto w-full lg:border lg:border-border lg:rounded-3xl lg:bg-card/40">
         <div className="px-6 pt-8 pb-4 border-b border-border">
           <button onClick={() => navigate("/organizador/login")} className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors">
             <ChevronLeft size={15} />

@@ -54,16 +54,28 @@ export function OrganizadorLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center bg-background px-6">
-      <div className="max-w-sm mx-auto w-full">
-        <div className="mb-10">
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
-            Asistí<span className="text-primary">APP</span>
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">Panel del Organizador</p>
-        </div>
+    <div className="min-h-screen lg:flex bg-background">
+      <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:px-16 relative overflow-hidden bg-primary">
+        <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/10" />
+        <div className="absolute -bottom-24 -left-10 w-64 h-64 rounded-full bg-white/5" />
+        <h1 className="text-4xl font-extrabold text-white tracking-tight relative">
+          Asistí<span className="text-white/70">APP</span>
+        </h1>
+        <p className="text-white/80 text-base mt-3 max-w-sm relative">
+          Vendé entradas para tus eventos sin comisiones. Publicá, gestioná tu staff y controlá el acceso, todo desde un solo panel.
+        </p>
+      </div>
 
-        {!forgot ? (
+      <div className="flex flex-col justify-center px-6 lg:w-1/2 lg:px-16 py-12">
+        <div className="max-w-sm mx-auto w-full">
+          <div className="mb-10 lg:hidden">
+            <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
+              Asistí<span className="text-primary">APP</span>
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">Panel del Organizador</p>
+          </div>
+
+          {!forgot ? (
           <div className="space-y-4">
             <div>
               <label className="text-xs text-muted-foreground block mb-1.5">Email</label>
@@ -148,7 +160,8 @@ export function OrganizadorLoginPage() {
               ← Volver al login
             </button>
           </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

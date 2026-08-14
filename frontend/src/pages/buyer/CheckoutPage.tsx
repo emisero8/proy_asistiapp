@@ -73,8 +73,8 @@ export function CheckoutPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-md mx-auto">
-        <div className="px-4 pt-6 pb-3 border-b border-border bg-background sticky top-0">
+      <div className="px-4 lg:px-8 pt-6 pb-3 border-b border-border bg-background sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors"
@@ -82,32 +82,13 @@ export function CheckoutPage() {
             <ChevronLeft size={15} />
             Volver
           </button>
-          <h2 className="text-lg font-extrabold text-foreground">Finalizar compra</h2>
+          <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Finalizar compra</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Sin registro. Solo tu nombre y email.</p>
         </div>
+      </div>
 
-        <div className="px-4 py-4 space-y-5 pb-32">
-          <div className="bg-card rounded-2xl p-4 border border-border">
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Resumen</p>
-            <div className="flex gap-3">
-              {evento.imagenPortadaUrl ? (
-                <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-16 h-16 rounded-xl object-cover flex-none bg-muted" />
-              ) : (
-                <div className="w-16 h-16 rounded-xl flex-none bg-muted" />
-              )}
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-foreground leading-tight line-clamp-2">{evento.nombre}</h4>
-                <p className="text-xs text-muted-foreground mt-0.5">{tanda.nombre}</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-              <span className="text-sm text-muted-foreground">
-                {qty} entrada{qty > 1 ? "s" : ""} × {fmt(tanda.precio)}
-              </span>
-              <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
-            </div>
-          </div>
-
+      <div className="max-w-6xl mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
+        <div className="lg:flex-1 lg:min-w-0 px-4 lg:px-0 py-4 lg:py-0 space-y-5 pb-32 lg:pb-0">
           <div>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Tus datos</p>
             <div className="space-y-3">
@@ -138,7 +119,7 @@ export function CheckoutPage() {
 
           <div>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Método de pago</p>
-            <div className="p-3.5 rounded-xl border border-primary bg-primary/10">
+            <div className="p-3.5 rounded-xl border border-primary bg-primary/10 lg:max-w-xs">
               <span className="text-xl block mb-1.5">🔵</span>
               <p className="text-xs font-bold text-foreground">MercadoPago</p>
               <p className="text-[11px] text-muted-foreground">Único método disponible por ahora</p>
@@ -149,10 +130,52 @@ export function CheckoutPage() {
             <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>
           )}
         </div>
+
+        {/* Resumen + confirmación — sticky en desktop */}
+        <div className="hidden lg:block lg:w-80 lg:flex-none lg:sticky lg:top-28">
+          <div className="bg-card rounded-2xl p-4 border border-border">
+            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Resumen</p>
+            <div className="flex gap-3">
+              {evento.imagenPortadaUrl ? (
+                <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-16 h-16 rounded-xl object-cover flex-none bg-muted" />
+              ) : (
+                <div className="w-16 h-16 rounded-xl flex-none bg-muted" />
+              )}
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-bold text-foreground leading-tight line-clamp-2">{evento.nombre}</h4>
+                <p className="text-xs text-muted-foreground mt-0.5">{tanda.nombre}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+              <span className="text-sm text-muted-foreground">
+                {qty} entrada{qty > 1 ? "s" : ""} × {fmt(tanda.precio)}
+              </span>
+              <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
+            </div>
+            <button
+              disabled={!valid || loading}
+              onClick={handleConfirm}
+              className={`mt-4 w-full py-4 rounded-2xl font-bold text-base transition-all ${
+                valid && !loading
+                  ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98]"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+              }`}
+            >
+              {loading ? "Procesando..." : `Confirmar compra · ${fmt(total)}`}
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
+      {/* Resumen + confirmación fijos — mobile */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
         <div className="max-w-md mx-auto">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs text-muted-foreground">
+              {qty} entrada{qty > 1 ? "s" : ""} × {tanda.nombre}
+            </span>
+            <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
+          </div>
           <button
             disabled={!valid || loading}
             onClick={handleConfirm}

@@ -63,23 +63,30 @@ export function OrganizadorDashboardPage() {
     : [];
 
   return (
-    <div className="max-w-md mx-auto">
-        <div className="px-4 pt-6 pb-4 border-b border-border">
+    <div className="max-w-md lg:max-w-6xl mx-auto">
+        <div className="px-4 lg:px-8 pt-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Panel del organizador</p>
-              <h2 className="text-lg font-extrabold text-foreground">Hola, {session?.nombre.split(" ")[0]} 👋</h2>
+              <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Hola, {session?.nombre.split(" ")[0]} 👋</h2>
             </div>
             <button
               onClick={handleLogout}
-              className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              className="lg:hidden w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             >
               <LogOut size={16} />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-semibold hover:text-foreground transition-colors"
+            >
+              <LogOut size={15} />
+              Cerrar sesión
             </button>
           </div>
         </div>
 
-        <div className="px-4 py-4 space-y-5">
+        <div className="px-4 lg:px-8 py-4 lg:py-6 space-y-5">
           {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
 
           {!error && eventos === null && <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />}
@@ -122,7 +129,7 @@ export function OrganizadorDashboardPage() {
 
           {metricas && (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {metricCards.map((m) => (
                   <div key={m.label} className="bg-card border border-border rounded-2xl p-3.5">
                     <div className={`w-8 h-8 rounded-xl ${m.bg} flex items-center justify-center mb-2.5`}>
@@ -140,55 +147,57 @@ export function OrganizadorDashboardPage() {
                 ))}
               </div>
 
-              {metricas.tandas.length > 0 && (
-                <div className="bg-card border border-border rounded-2xl p-4">
-                  <p className="text-xs font-bold text-foreground mb-1">Ventas por tanda</p>
-                  <p className="text-[10px] text-muted-foreground mb-4">{eventoActivo?.nombre}</p>
-                  <ResponsiveContainer width="100%" height={120}>
-                    <BarChart data={metricas.tandas} barCategoryGap="30%">
-                      <XAxis dataKey="nombreTanda" tick={{ fill: "#6e6b8f", fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <YAxis hide />
-                      <Tooltip
-                        contentStyle={{ background: "#131222", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11, color: "#f0eeff" }}
-                        cursor={{ fill: "rgba(124,58,237,0.08)" }}
-                        formatter={(v: number) => [`${v} entradas`, ""]}
-                      />
-                      <Bar dataKey="vendidas" radius={[6, 6, 0, 0]}>
-                        {metricas.tandas.map((_, i) => (
-                          <Cell key={i} fill={TANDA_COLORS[i % TANDA_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-
-              {ventasRecientes.length > 0 && (
-                <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                  <div className="px-4 pt-4 pb-2">
-                    <p className="text-xs font-bold text-foreground">Últimas ventas</p>
+              <div className="lg:grid lg:grid-cols-2 lg:gap-4 space-y-5 lg:space-y-0">
+                {metricas.tandas.length > 0 && (
+                  <div className="bg-card border border-border rounded-2xl p-4">
+                    <p className="text-xs font-bold text-foreground mb-1">Ventas por tanda</p>
+                    <p className="text-[10px] text-muted-foreground mb-4">{eventoActivo?.nombre}</p>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <BarChart data={metricas.tandas} barCategoryGap="30%">
+                        <XAxis dataKey="nombreTanda" tick={{ fill: "#6e6b8f", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis hide />
+                        <Tooltip
+                          contentStyle={{ background: "#131222", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11, color: "#f0eeff" }}
+                          cursor={{ fill: "rgba(124,58,237,0.08)" }}
+                          formatter={(v: number) => [`${v} entradas`, ""]}
+                        />
+                        <Bar dataKey="vendidas" radius={[6, 6, 0, 0]}>
+                          {metricas.tandas.map((_, i) => (
+                            <Cell key={i} fill={TANDA_COLORS[i % TANDA_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
-                  {ventasRecientes.map((v, i) => (
-                    <div key={v.id} className={`px-4 py-3 flex items-center justify-between ${i < ventasRecientes.length - 1 ? "border-b border-border" : ""}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                          {v.nombreComprador.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-foreground">{v.nombreComprador}</p>
-                          <p className="text-[10px] text-muted-foreground">{v.nombreTanda}</p>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground">{formatRelativo(v.fechaCompra)}</span>
+                )}
+
+                {ventasRecientes.length > 0 && (
+                  <div className="bg-card border border-border rounded-2xl overflow-hidden self-start">
+                    <div className="px-4 pt-4 pb-2">
+                      <p className="text-xs font-bold text-foreground">Últimas ventas</p>
                     </div>
-                  ))}
-                </div>
-              )}
+                    {ventasRecientes.map((v, i) => (
+                      <div key={v.id} className={`px-4 py-3 flex items-center justify-between ${i < ventasRecientes.length - 1 ? "border-b border-border" : ""}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                            {v.nombreComprador.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-foreground">{v.nombreComprador}</p>
+                            <p className="text-[10px] text-muted-foreground">{v.nombreTanda}</p>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground">{formatRelativo(v.fechaCompra)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
 
           {eventos !== null && eventos.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 pb-2">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pb-2">
               <button
                 onClick={() => navigate("/organizador/crear")}
                 className="bg-primary rounded-2xl p-4 flex flex-col gap-2 hover:bg-primary/90 transition-colors"

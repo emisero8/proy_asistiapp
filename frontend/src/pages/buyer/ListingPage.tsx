@@ -25,17 +25,17 @@ export function ListingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-10 px-4 pt-6 pb-3 border-b border-border bg-background">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-between mb-4">
+      <div className="sticky top-0 z-10 px-4 lg:px-8 pt-6 pb-3 border-b border-border bg-background">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-between mb-4 lg:mb-5">
             <div>
               <p className="text-[10px] text-muted-foreground tracking-[0.2em] uppercase">Buenos Aires · Arg</p>
-              <h1 className="text-xl font-extrabold text-foreground tracking-tight">
+              <h1 className="text-xl lg:text-2xl font-extrabold text-foreground tracking-tight">
                 Asistí<span className="text-primary">APP</span>
               </h1>
             </div>
           </div>
-          <div className="relative">
+          <div className="relative lg:max-w-sm">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
               value={search}
@@ -47,7 +47,7 @@ export function ListingPage() {
         </div>
       </div>
 
-      <div className="max-w-md mx-auto px-4 py-4 space-y-3">
+      <div className="max-w-6xl mx-auto px-4 lg:px-8 py-4 lg:py-6">
         {error && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">
             {error}
@@ -55,9 +55,9 @@ export function ListingPage() {
         )}
 
         {!error && eventos === null && (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-24 rounded-2xl bg-card border border-border animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-24 lg:h-64 rounded-2xl bg-card border border-border animate-pulse" />
             ))}
           </div>
         )}
@@ -71,38 +71,40 @@ export function ListingPage() {
 
         {!error && visibles.length > 0 && (
           <>
-            <p className="text-[10px] text-muted-foreground tracking-[0.15em] uppercase">Próximos eventos</p>
-            {visibles.map((ev) => (
-              <button
-                key={ev.id}
-                onClick={() => navigate(`/eventos/${ev.urlPublica}`)}
-                className="w-full text-left flex gap-3 bg-card rounded-2xl overflow-hidden border border-border hover:border-primary/40 transition-all focus:outline-none"
-              >
-                {ev.imagenPortadaUrl ? (
-                  <img src={ev.imagenPortadaUrl} alt={ev.nombre} className="w-[88px] h-24 object-cover flex-none bg-muted" />
-                ) : (
-                  <div className="w-[88px] h-24 flex-none bg-muted" />
-                )}
-                <div className="flex-1 min-w-0 py-3 pr-3 flex flex-col justify-between">
-                  <div>
-                    <h3 className="text-foreground font-semibold text-sm leading-snug line-clamp-2">{ev.nombre}</h3>
-                    <p className="text-muted-foreground text-xs mt-0.5 flex items-center gap-1">
-                      <MapPin size={9} />
-                      {ev.lugar}
-                    </p>
+            <p className="text-[10px] text-muted-foreground tracking-[0.15em] uppercase mb-3">Próximos eventos</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {visibles.map((ev) => (
+                <button
+                  key={ev.id}
+                  onClick={() => navigate(`/eventos/${ev.urlPublica}`)}
+                  className="w-full text-left flex flex-row lg:flex-col gap-3 lg:gap-0 bg-card rounded-2xl overflow-hidden border border-border hover:border-primary/40 transition-all focus:outline-none"
+                >
+                  {ev.imagenPortadaUrl ? (
+                    <img src={ev.imagenPortadaUrl} alt={ev.nombre} className="w-[88px] h-24 lg:w-full lg:h-40 object-cover flex-none bg-muted" />
+                  ) : (
+                    <div className="w-[88px] h-24 lg:w-full lg:h-40 flex-none bg-muted" />
+                  )}
+                  <div className="flex-1 min-w-0 py-3 pr-3 lg:p-4 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-foreground font-semibold text-sm leading-snug line-clamp-2">{ev.nombre}</h3>
+                      <p className="text-muted-foreground text-xs mt-0.5 flex items-center gap-1">
+                        <MapPin size={9} />
+                        {ev.lugar}
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-muted-foreground text-xs flex items-center gap-1">
+                        <Calendar size={9} />
+                        {formatFecha(ev.fechaEvento)}
+                      </span>
+                      {ev.precioDesde !== null && (
+                        <span className="text-accent font-bold text-xs">Desde {fmt(ev.precioDesde)}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground text-xs flex items-center gap-1">
-                      <Calendar size={9} />
-                      {formatFecha(ev.fechaEvento)}
-                    </span>
-                    {ev.precioDesde !== null && (
-                      <span className="text-accent font-bold text-xs">Desde {fmt(ev.precioDesde)}</span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
+            </div>
           </>
         )}
       </div>

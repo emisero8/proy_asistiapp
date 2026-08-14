@@ -58,14 +58,14 @@ export function OrganizadorStaffMgmtPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto">
-      <div className="px-4 pt-6 pb-4 border-b border-border bg-background">
-        <h2 className="text-lg font-extrabold text-foreground">Gestión de Staff</h2>
+    <div className="max-w-md lg:max-w-4xl mx-auto">
+      <div className="px-4 lg:px-8 pt-6 pb-4 border-b border-border bg-background">
+        <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Gestión de Staff</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Staff QR y Vendedor de tus eventos</p>
       </div>
 
-      <div className="px-4 py-4 space-y-4 pb-8">
-        <div className="grid grid-cols-2 gap-3">
+      <div className="px-4 lg:px-8 py-4 lg:py-6 space-y-4 pb-8">
+        <div className="grid grid-cols-2 lg:w-2/3 gap-3">
           {(Object.entries(ROLE_META) as [RolUsuario, (typeof ROLE_META)["Staff_QR"]][]).map(([key, m]) => (
             <div key={key} className="bg-card border border-border rounded-2xl p-3.5">
               <div className={`w-8 h-8 rounded-xl ${m.bg} flex items-center justify-center mb-2`}>
@@ -95,7 +95,7 @@ export function OrganizadorStaffMgmtPage() {
           ) : staff.length === 0 ? (
             <p className="text-xs text-muted-foreground">Todavía no agregaste a nadie.</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
               {staff.map((member) => {
                 const meta = ROLE_META[member.rol as "Staff_QR" | "Staff_Vendedor"];
                 return (
@@ -118,7 +118,7 @@ export function OrganizadorStaffMgmtPage() {
         </div>
 
         {showForm ? (
-          <div className="bg-card border border-primary/30 rounded-2xl p-4 space-y-3">
+          <div className="bg-card border border-primary/30 rounded-2xl p-4 space-y-3 lg:max-w-md">
             <p className="text-xs font-bold text-foreground">Nuevo miembro de staff</p>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">Nombre completo</label>
@@ -191,14 +191,14 @@ export function OrganizadorStaffMgmtPage() {
         ) : (
           <button
             onClick={() => setShowForm(true)}
-            className="w-full py-3.5 rounded-2xl border border-dashed border-border text-muted-foreground text-sm flex items-center justify-center gap-2 hover:border-primary/50 hover:text-foreground transition-all"
+            className="w-full lg:w-auto lg:px-8 py-3.5 rounded-2xl border border-dashed border-border text-muted-foreground text-sm flex items-center justify-center gap-2 hover:border-primary/50 hover:text-foreground transition-all"
           >
             <UserPlus size={15} />
             Agregar miembro de staff
           </button>
         )}
 
-        <div className="bg-primary/5 border border-primary/15 rounded-2xl px-4 py-3 flex gap-3">
+        <div className="bg-primary/5 border border-primary/15 rounded-2xl px-4 py-3 flex gap-3 lg:max-w-lg">
           <BadgeCheck size={16} className="text-primary flex-none mt-0.5" />
           <p className="text-xs text-muted-foreground leading-relaxed">
             El staff recibe sus credenciales por email y accede desde la pantalla de <strong className="text-foreground">Staff</strong> en la app.

@@ -127,13 +127,13 @@ export function OrganizadorWizardPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto">
-      <div className="px-4 pt-6 pb-4 border-b border-border bg-background">
+    <div className="max-w-md lg:max-w-2xl mx-auto">
+      <div className="px-4 lg:px-0 pt-6 pb-4 border-b border-border bg-background">
         <button onClick={() => navigate("/organizador/dashboard")} className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors">
           <ChevronLeft size={15} />
           Volver
         </button>
-        <h2 className="text-lg font-extrabold text-foreground">Crear evento</h2>
+        <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Crear evento</h2>
         <div className="flex items-center gap-2 mt-3">
           {[1, 2].map((s) => (
             <div key={s} className="flex items-center gap-2">
@@ -150,7 +150,7 @@ export function OrganizadorWizardPage() {
         </div>
       </div>
 
-      <div className="px-4 py-4 space-y-4 pb-32">
+      <div className="px-4 lg:px-0 py-4 space-y-4 pb-32 md:pb-24">
         {step === 1 && (
           <>
             <div>
@@ -305,8 +305,8 @@ export function OrganizadorWizardPage() {
         )}
       </div>
 
-      <div className="fixed bottom-16 left-0 right-0 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
-        <div className="max-w-md mx-auto">
+      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 md:left-56 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
+        <div className="max-w-md lg:max-w-2xl mx-auto">
           {step === 1 ? (
             <button
               disabled={!step1Valid || loading}
