@@ -3,12 +3,21 @@ name: Backend Tests
 on:
   push:
     branches: [master, main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
   pull_request:
     branches: [master, main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-tests.yml'
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - name: Checkout
@@ -20,6 +29,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: 'maven'
+          cache-dependency-path: backend/pom.xml
 
       - name: Run tests
         run: mvn -B test
