@@ -7,6 +7,7 @@ import com.asistiapp.backend.services.VentaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -96,5 +97,25 @@ public class VentaController {
     public ResponseEntity<List<EntradaResponseDTO>> listarEntradasPorEvento(
             @PathVariable Long eventoId) {
         return ResponseEntity.ok(ventaService.listarEntradasPorEvento(eventoId));
+    }
+
+    // ─────────────────────────────────────────────
+    // IMAGEN QR (Fase 16)
+    // ─────────────────────────────────────────────
+
+    /**
+     * Devuelve la imagen PNG del QR de una entrada, para que el Frontend la
+     * muestre en la pantalla "mi entrada" sin tener que regenerarla client-side.
+     *
+     * Ruta pública a nivel de Spring Security (el comprador nunca tiene JWT):
+     * la autorización real ocurre en VentaService.obtenerImagenQr, que exige
+     * o el codigoQr exacto (query param) o un JWT de Organizador dueño del evento.
+     */
+    @GetMapping("/{id}/qr-image")
+    public ResponseEntity<byte[]> obtenerImagenQr(
+            @PathVariable Long id,
+            @RequestParam(required = false) String codigoQr) {
+        byte[] png = ventaService.obtenerImagenQr(id, codigoQr);
+        return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(png);
     }
 }

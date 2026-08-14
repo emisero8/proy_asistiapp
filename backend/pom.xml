@@ -94,6 +94,18 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
+        <!-- ===== ZXING (generación de imagen QR real, Fase 16) ===== -->
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>core</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.zxing</groupId>
+            <artifactId>javase</artifactId>
+            <version>3.5.3</version>
+        </dependency>
+
         <!-- ===== RATE LIMITING (login, recuperar-password, webhooks de pago) ===== -->
         <dependency>
             <groupId>com.bucket4j</groupId>

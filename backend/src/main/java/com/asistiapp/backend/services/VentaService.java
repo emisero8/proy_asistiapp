@@ -1,6 +1,7 @@
 package com.asistiapp.backend.services;
 
 import com.asistiapp.backend.exceptions.BusinessRuleException;
+import com.asistiapp.backend.exceptions.ForbiddenActionException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.entrada.*;
 import com.asistiapp.backend.models.entities.Entrada;
@@ -15,6 +16,7 @@ import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
 import com.asistiapp.backend.repositories.TandaRepository;
 import com.asistiapp.backend.repositories.TransaccionPagoRepository;
+import com.asistiapp.backend.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -60,6 +62,10 @@ public class VentaService {
     private final StaffVendedorRepository staffVendedorRepository;
     private final TransaccionPagoRepository transaccionPagoRepository;
     private final EmailService emailService;
+    private final QrImageService qrImageService;
+    private final SecurityUtils securityUtils;
+
+    private static final int TAMANO_QR_DEFAULT_PX = 300;
 
     // ─────────────────────────────────────────────
     // FLUJO ONLINE — Paso 1: Iniciar compra
@@ -240,6 +246,45 @@ public class VentaService {
                 .stream()
                 .map(this::toResponseDTO)
                 .toList();
+    }
+
+    /**
+     * Genera la imagen PNG del QR de una entrada (Fase 16).
+     *
+     * Acceso permitido a dos perfiles, sin exigir que el comprador tenga JWT
+     * (nunca lo tiene, CU-015/016/017):
+     *  - Quien conoce el codigoQr exacto de la entrada (lo recibió por email) —
+     *    lo manda como query param y se compara contra el de BD.
+     *  - El Organizador dueño del evento al que pertenece la entrada, autenticado por JWT.
+     *
+     * @param idEntrada       ID de la entrada
+     * @param codigoQrParam   codigo_qr recibido por query param (puede ser null si el
+     *                        request viene con JWT de Organizador en su lugar)
+     */
+    @Transactional(readOnly = true)
+    public byte[] obtenerImagenQr(Long idEntrada, String codigoQrParam) {
+        Entrada entrada = entradaRepository.findById(idEntrada)
+                .orElseThrow(() -> new ResourceNotFoundException("Entrada no encontrada con id: " + idEntrada));
+
+        boolean tieneCodigoQrCorrecto = codigoQrParam != null && codigoQrParam.equals(entrada.getCodigoQr());
+        boolean esOrganizadorDueno = esOrganizadorDuenoDelEvento(entrada);
+
+        if (!tieneCodigoQrCorrecto && !esOrganizadorDueno) {
+            throw new ForbiddenActionException("No tenés permiso para ver el QR de esta entrada");
+        }
+
+        return qrImageService.generarPng(entrada.getCodigoQr(), TAMANO_QR_DEFAULT_PX);
+    }
+
+    private boolean esOrganizadorDuenoDelEvento(Entrada entrada) {
+        try {
+            Long idOrganizadorAutenticado = securityUtils.getOrganizadorAutenticado().getId();
+            return idOrganizadorAutenticado.equals(entrada.getTanda().getEvento().getIdOrganizador());
+        } catch (Exception e) {
+            // No autenticado, autenticado con otro rol, o el organizador no existe:
+            // ninguno de esos casos habilita el acceso por esta vía.
+            return false;
+        }
     }
 
     // ─────────────────────────────────────────────

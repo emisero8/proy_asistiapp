@@ -1,9 +1,12 @@
 package com.asistiapp.backend.services;
 
+import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -21,9 +24,13 @@ import org.springframework.stereotype.Service;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    private final QrImageService qrImageService;
+
+    private static final int TAMANO_QR_EMAIL_PX = 300;
 
     /**
-     * Envía el email de confirmación de compra con el código QR al comprador.
+     * Envía el email de confirmación de compra con la imagen del código QR
+     * embebida inline (Fase 16) — antes solo se enviaba el string como texto.
      *
      * @param emailDestino   email del comprador
      * @param nombreComprador nombre del comprador para personalizar el mensaje
@@ -40,12 +47,16 @@ public class EmailService {
             String codigoQr) {
 
         try {
-            SimpleMailMessage mensaje = new SimpleMailMessage();
-            mensaje.setTo(emailDestino);
-            mensaje.setSubject("✅ Tu entrada para " + nombreEvento + " — AsistíAPP");
-            mensaje.setText(construirCuerpoEmail(nombreComprador, nombreEvento, nombreTanda, codigoQr));
+            byte[] qrPng = qrImageService.generarPng(codigoQr, TAMANO_QR_EMAIL_PX);
 
-            mailSender.send(mensaje);
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setTo(emailDestino);
+            helper.setSubject("✅ Tu entrada para " + nombreEvento + " — AsistíAPP");
+            helper.setText(construirCuerpoEmailHtml(nombreComprador, nombreEvento, nombreTanda, codigoQr), true);
+            helper.addInline("qrImage", new ByteArrayResource(qrPng), "image/png");
+
+            mailSender.send(mimeMessage);
             log.info("Email de confirmación enviado a: {} para el evento: {}", emailDestino, nombreEvento);
 
         } catch (Exception e) {
@@ -171,26 +182,28 @@ public class EmailService {
         }
     }
 
-    private String construirCuerpoEmail(
+    private String construirCuerpoEmailHtml(
             String nombreComprador,
             String nombreEvento,
             String nombreTanda,
             String codigoQr) {
 
         return String.format("""
-                Hola %s,
-
-                ¡Tu compra fue confirmada! Aquí están los detalles de tu entrada:
-
-                🎉 Evento: %s
-                🎫 Tanda: %s
-                🔑 Código QR: %s
-
-                Presentá este código QR en la puerta del evento para ingresar.
-                Guardá este email como comprobante.
-
-                ¡Nos vemos en el evento!
-                El equipo de AsistíAPP
+                <html>
+                <body style="font-family: sans-serif; color: #222;">
+                    <p>Hola %s,</p>
+                    <p>¡Tu compra fue confirmada! Aquí están los detalles de tu entrada:</p>
+                    <p>
+                        🎉 Evento: <strong>%s</strong><br>
+                        🎫 Tanda: <strong>%s</strong><br>
+                        🔑 Código QR: <strong>%s</strong>
+                    </p>
+                    <p>Presentá este código QR en la puerta del evento para ingresar:</p>
+                    <p><img src="cid:qrImage" alt="Código QR de tu entrada" width="300" height="300"></p>
+                    <p>Guardá este email como comprobante.</p>
+                    <p>¡Nos vemos en el evento!<br>El equipo de AsistíAPP</p>
+                </body>
+                </html>
                 """,
                 nombreComprador,
                 nombreEvento,
