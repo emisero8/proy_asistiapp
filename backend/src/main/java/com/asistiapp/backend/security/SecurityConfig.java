@@ -133,6 +133,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/tickets/*/qr-image").permitAll()
                         // Webhooks de MercadoPago: los invoca el proveedor de pagos, no un usuario logueado
                         .requestMatchers(HttpMethod.POST, "/creditos/webhook/pago").permitAll()
+                        // Documentación interactiva de la API (Swagger UI + spec OpenAPI)
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         // Todo lo demás requiere autenticación
                         .anyRequest().authenticated()
                 )
