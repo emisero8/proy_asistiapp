@@ -18,7 +18,7 @@ Este plan detalla cómo llevar el mockup funcional de Figma Make (`figma-referen
 4. **Tipos/DTOs (`src/lib/types.ts` o por dominio):** interfaces TypeScript espejo de los DTOs reales del backend (`EventoResponseDTO`, `EntradaResponseDTO`, `UsuarioResponseDTO`, etc. — swagger en `/v3/api-docs` como fuente de verdad).
 5. **`.env.example`** con `VITE_API_BASE_URL=http://localhost:8080`.
 
-## Fase 2: Flujo Comprador (público, sin auth) — CU-015/016/017
+## Fase 2: Flujo Comprador (público, sin auth) — CU-015/016/017 ✅
 **Objetivo:** Primer flujo end-to-end conectado — el más simple porque no toca ninguno de los tres sistemas de auth falsos, ideal para probar el cliente API y el patrón de loading/error que se va a repetir en todas las fases siguientes.
 
 1. `ListingScreen` → `GET /public/eventos`.
@@ -26,6 +26,12 @@ Este plan detalla cómo llevar el mockup funcional de Figma Make (`figma-referen
 3. `CheckoutScreen` → `POST /tickets/comprar-online` + `POST /tickets/webhook/pago` (simula MercadoPago igual que ya lo hace el backend).
 4. `SuccessScreen` → mostrar el `codigoQr` real y la imagen (`GET /tickets/{id}/qr-image`) en vez del `QRCodeSVG seed="AST-HX7K2M"` hardcodeado.
 5. Loading states + manejo de error (acá se define el patrón — reusar en todas las fases siguientes).
+
+**Adaptaciones respecto al mockup (decisiones tomadas al conectar la API real):**
+- Se sacó el "phone frame" (marco de celular con notch simulado) — tenía sentido para la demo dentro de Figma Make, no para una app real que corre en el navegador del usuario. Las páginas ahora son mobile-first responsive normales.
+- El mockup permitía elegir cantidad de entradas en un solo submit; el backend genera **una Entrada (con su propio QR) por llamada**, no soporta "comprar 3" en una sola operación. Se resolvió haciendo `qty` llamadas secuenciales a `comprar-online` + `webhook/pago`, mostrando un QR por entrada en la pantalla de ticket — además es más correcto: cada entrada debe poder escanearse individualmente en la puerta (CU-018).
+- El selector de método de pago (MercadoPago/Transferencia/Tarjeta/WhatsApp) del mockup no tiene respaldo real — `CompraOnlineRequestDTO` no tiene campo `metodoPago`, el backend solo simula MercadoPago. Se simplificó a mostrar MercadoPago como único método.
+- Verificado end-to-end con Playwright contra un backend real (Postgres local + evento de prueba sembrado vía API): listado → detalle → checkout → ticket con QR real, sin errores de consola.
 
 ## Fase 3: Flujo Organizador — CU-001/002/010 a 014, gestión de staff CU-005/006
 **Objetivo:** El flujo con más superficie: login real, dashboard con métricas, wizard de creación/publicación, billetera de créditos, gestión de staff propio.
