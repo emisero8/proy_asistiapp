@@ -56,6 +56,26 @@ Flujo típico para probar un endpoint protegido desde Swagger:
 2. Botón **Authorize** (arriba a la derecha) → pegar el token (sin `Bearer `, Swagger lo agrega solo).
 3. Probar cualquier endpoint protegido desde la UI.
 
+## Envío de mails (SMTP)
+
+`EmailService` usa `JavaMailSender` estándar — cualquier proveedor SMTP sirve, no está atado a Gmail. Cambiar de proveedor es solo cambiar estas 4 variables, sin tocar código:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=tu_cuenta@gmail.com
+SMTP_PASSWORD=<app password de 16 caracteres, NO la contraseña normal de la cuenta>
+```
+
+**Con Gmail hace falta un "App Password"**, no la contraseña de la cuenta (Google deprecó SMTP con contraseña normal):
+1. La cuenta de Gmail tiene que tener verificación en 2 pasos activada.
+2. Generarlo en `myaccount.google.com/apppasswords` (Cuenta de Google → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones).
+3. Copiar el código de 16 caracteres que muestra una sola vez — ese es el `SMTP_PASSWORD`.
+
+Si en algún momento se necesita más volumen o visibilidad de rebotes/entregas que lo que da Gmail (tope ~500 mails/día, sin dashboard), se puede migrar a un proveedor transaccional (Brevo, SendGrid, Mailgun) con el mismo mecanismo: son SMTP compatible, solo cambian esas 4 variables.
+
+Si el envío falla (credenciales mal puestas, límite excedido), la operación de negocio (compra, alta de staff, etc.) **igual se completa** — el fallo queda solo logueado (`EmailService` está diseñado para no bloquear el flujo principal por un mail caído). Para detectar fallos sistemáticos en dev/demo, revisar los logs del backend.
+
 ## Contrato de errores
 
 Toda respuesta de error (4xx/5xx) tiene el mismo formato JSON, sin excepciones:
