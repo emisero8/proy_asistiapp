@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,12 +61,24 @@ public class Evento {
     @Column(name = "url_publica", unique = true, length = 300)
     private String urlPublica;
 
+    @Column(name = "fecha_creacion", nullable = false, updatable = false)
+    private LocalDateTime fechaCreacion;
+
+    /** Se completa al publicar el evento (EventoService.publicarEvento). */
+    @Column(name = "fecha_publicacion")
+    private LocalDateTime fechaPublicacion;
+
+    /** Se completa al cancelar el evento (EventoService.cancelarEvento). */
+    @Column(name = "fecha_cancelacion")
+    private LocalDateTime fechaCancelacion;
+
     /** Relación 1:N con Tandas. CascadeType.ALL para gestión completa. */
     @OneToMany(mappedBy = "evento", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Tanda> tandas = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
+        this.fechaCreacion = LocalDateTime.now();
         if (this.estado == null) {
             this.estado = EstadoEvento.Borrador;
         }

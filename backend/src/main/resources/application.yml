@@ -1,11 +1,12 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/asistiapp_db
-    username: postgres
-    password: 1234
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/asistiapp_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:1234}
     driver-class-name: org.postgresql.Driver
 
   jpa:
+    open-in-view: false   # Deshabilitado: API REST no usa vistas con lazy loading
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -14,10 +15,10 @@ spring:
         format_sql: true
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: tu_email@gmail.com
-    password: tu_app_password_aqui
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:tu_email@gmail.com}
+    password: ${SMTP_PASSWORD:tu_app_password_aqui}
     properties:
       mail:
         smtp:
@@ -26,14 +27,19 @@ spring:
             enable: true
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   error:
     include-message: always
 
 app:
   jwt:
-    secret: TuClaveSecretaMuyLargaParaAsistiAPP_CambiarEnProduccion_2024
-    expiration-ms: 86400000 # 24 horas
+    # Sin variable de entorno JWT_SECRET seteada, cae al valor de desarrollo de abajo.
+    # NUNCA usar ese default en producción — es público (está en el repo).
+    secret: ${JWT_SECRET:TuClaveSecretaMuyLargaParaAsistiAPP_SoloParaDesarrollo_2024}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000} # 24 horas
+  cors:
+    # Orígenes permitidos del Frontend, separados por coma. Ajustar por entorno.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
 
 logging:
   level:

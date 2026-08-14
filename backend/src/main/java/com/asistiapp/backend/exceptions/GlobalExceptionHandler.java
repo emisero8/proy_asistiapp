@@ -1,6 +1,7 @@
 package com.asistiapp.backend.exceptions;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -26,6 +27,7 @@ import java.util.Map;
  *   "timestamp": "2024-01-01T12:00:00"
  * }
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -90,7 +92,7 @@ public class GlobalExceptionHandler {
             Exception ex, HttpServletRequest request) {
 
         // Loguear en servidor para debugging, pero no exponer el stack al cliente
-        ex.printStackTrace();
+        log.error("Error inesperado en {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         return buildResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 "Ocurrió un error interno inesperado. Por favor intenta nuevamente.",

@@ -33,4 +33,8 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
     /** Cantidad de entradas vendidas para un evento. */
     @Query("SELECT COUNT(e) FROM Entrada e WHERE e.tanda.evento.id = :eventoId")
     long countByEventoId(@Param("eventoId") Long eventoId);
+
+    /** Suma de ingresos de TODAS las entradas del sistema (métricas globales del Admin, CU-027). */
+    @Query("SELECT COALESCE(SUM(e.tanda.precio), 0) FROM Entrada e")
+    Double sumaIngresosTotales();
 }

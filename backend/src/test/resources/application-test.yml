@@ -1,0 +1,33 @@
+# Configuración exclusiva para tests — reemplaza la conexión a PostgreSQL
+# por una base de datos H2 en memoria para que los tests no necesiten
+# una instancia de PostgreSQL corriendo.
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:asistiapp_test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop   # Crea el schema al arrancar y lo elimina al cerrar
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+  # Deshabilitar mail en tests
+  mail:
+    host: localhost
+    port: 25
+    username: test
+    password: test
+
+app:
+  jwt:
+    secret: ClaveSecretaParaTestingAsistiAPPMinimo32Caracteres!!
+    expiration-ms: 3600000  # 1 hora para tests
+
+logging:
+  level:
+    com.asistiapp: WARN
+    org.springframework.security: WARN
