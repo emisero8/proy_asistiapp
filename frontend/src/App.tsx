@@ -7,6 +7,8 @@ import { CheckoutPage } from "./pages/buyer/CheckoutPage";
 import { TicketPage } from "./pages/buyer/TicketPage";
 
 import { OrganizadorLoginPage } from "./pages/organizador/LoginPage";
+import { OrganizadorRegisterPage } from "./pages/organizador/RegisterPage";
+import { OrganizadorLayout } from "./pages/organizador/OrganizadorLayout";
 import { OrganizadorDashboardPage } from "./pages/organizador/DashboardPage";
 import { OrganizadorWizardPage } from "./pages/organizador/WizardPage";
 import { OrganizadorWalletPage } from "./pages/organizador/WalletPage";
@@ -35,38 +37,19 @@ export default function App() {
 
           {/* Organizador */}
           <Route path="/organizador/login" element={<OrganizadorLoginPage />} />
+          <Route path="/organizador/registro" element={<OrganizadorRegisterPage />} />
           <Route
-            path="/organizador/dashboard"
             element={
               <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">
-                <OrganizadorDashboardPage />
+                <OrganizadorLayout />
               </RequireRole>
             }
-          />
-          <Route
-            path="/organizador/crear"
-            element={
-              <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">
-                <OrganizadorWizardPage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/organizador/creditos"
-            element={
-              <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">
-                <OrganizadorWalletPage />
-              </RequireRole>
-            }
-          />
-          <Route
-            path="/organizador/staff"
-            element={
-              <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">
-                <OrganizadorStaffMgmtPage />
-              </RequireRole>
-            }
-          />
+          >
+            <Route path="/organizador/dashboard" element={<OrganizadorDashboardPage />} />
+            <Route path="/organizador/crear" element={<OrganizadorWizardPage />} />
+            <Route path="/organizador/creditos" element={<OrganizadorWalletPage />} />
+            <Route path="/organizador/staff" element={<OrganizadorStaffMgmtPage />} />
+          </Route>
 
           {/* Staff (QR y Vendedor) */}
           <Route path="/staff/login" element={<StaffLoginPage />} />

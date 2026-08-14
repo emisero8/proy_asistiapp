@@ -169,6 +169,19 @@ export interface MovimientoCreditoResponseDTO {
   idEvento: number | null;
 }
 
+export interface PaqueteCreditoDisponibleDTO {
+  id: number;
+  nombre: string;
+  cantidadCreditos: number;
+  precio: number;
+}
+
+export interface IniciarCompraCreditoResponseDTO {
+  ordenId: number;
+  urlPago: string;
+  mensaje: string;
+}
+
 // ── Staff ─────────────────────────────────────────────
 
 export interface StaffResponseDTO {

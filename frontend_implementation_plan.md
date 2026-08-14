@@ -33,7 +33,7 @@ Este plan detalla cómo llevar el mockup funcional de Figma Make (`figma-referen
 - El selector de método de pago (MercadoPago/Transferencia/Tarjeta/WhatsApp) del mockup no tiene respaldo real — `CompraOnlineRequestDTO` no tiene campo `metodoPago`, el backend solo simula MercadoPago. Se simplificó a mostrar MercadoPago como único método.
 - Verificado end-to-end con Playwright contra un backend real (Postgres local + evento de prueba sembrado vía API): listado → detalle → checkout → ticket con QR real, sin errores de consola.
 
-## Fase 3: Flujo Organizador — CU-001/002/010 a 014, gestión de staff CU-005/006
+## Fase 3: Flujo Organizador — CU-001/002/010 a 014, gestión de staff CU-005/006 ✅
 **Objetivo:** El flujo con más superficie: login real, dashboard con métricas, wizard de creación/publicación, billetera de créditos, gestión de staff propio.
 
 1. `OrgLoginScreen`/`OrgRegisterScreen` → `POST /auth/login`, `POST /auth/register`, guardar JWT.
@@ -41,6 +41,17 @@ Este plan detalla cómo llevar el mockup funcional de Figma Make (`figma-referen
 3. `WizardScreen` → `POST /eventos`, `PATCH /eventos/{id}/publicar` (el descuento de créditos "–5 créditos" hoy es un string fijo, tiene que salir de la respuesta real).
 4. `WalletScreen` → `GET /creditos/historial`, `POST /creditos/comprar` + `POST /creditos/webhook/pago` (el botón "Pagar con MercadoPago" hoy no tiene `onClick`).
 5. `StaffMgmtScreen` → endpoints de `GestionStaffController`.
+
+**Gap de backend encontrado y corregido:** no existía ningún endpoint para que el Organizador viera el catálogo de paquetes de crédito — solo había uno para Admin (`/admin/paquetes-credito`). Sin esto la Billetera no podía mostrar qué comprar. Se agregó `GET /creditos/paquetes` (`CreditoService.listarPaquetesDisponibles()`, `PaqueteCreditoDisponibleDTO`), reutilizando `PaqueteCreditoRepository.findByEstado` que ya existía pero nunca se llamaba desde ningún lado.
+
+**Adaptaciones respecto al mockup:**
+- Se agregó una `OrganizadorLayout` con la bottom tab bar (Dashboard/Crear/Créditos/Staff) que describe `DESIGN.md`, usando rutas anidadas de `react-router` en vez del switch de pantallas del mockup.
+- El registro del mockup pedía "Nombre de la organización" — `RegisterRequestDTO` no tiene ese campo, se sacó del formulario.
+- Los créditos de bienvenida (mockup: "+10" fijo) y el costo de publicar (mockup: "–5 créditos" fijo) ahora salen de la respuesta real del backend (`MovimientoCredito.saldoResultante`/`monto`), no de texto hardcodeado — en la práctica resultaron ser 5 y 1 respectivamente, distinto de lo que asumía el mockup.
+- El wizard de creación de evento crea el `Evento` (Borrador) al pasar del paso 1 al 2, y recién crea las `Tanda` + publica al confirmar en el paso 2 — si falla la publicación (ej. saldo insuficiente), el evento queda en Borrador con sus tandas ya creadas, listo para reintentar.
+- Gestión de Staff no tiene botón de eliminar: el backend no expone ningún endpoint para dar de baja un miembro de staff, solo alta y listado.
+- Bug real encontrado y corregido: el mockup anidaba un `<button>` ("Pagar con MercadoPago") dentro de otro `<button>` (la tarjeta del paquete) — HTML inválido, React lo marcaba como error de hidratación. Se cambió el contenedor externo a un `<div role="button">`.
+- Verificado end-to-end con Playwright: registro → dashboard vacío → wizard (2 pasos) → publicar → dashboard con métricas reales → wallet (compra de créditos real, saldo actualizado) → alta de Staff QR — sin errores de consola.
 
 ## Fase 4: Flujo Staff — CU-018/019
 **Objetivo:** Login real de Staff (hoy es el único con "validación", pero contraseñas en texto plano en el bundle del cliente — hay que sacarlo de ahí) y validación de QR real.

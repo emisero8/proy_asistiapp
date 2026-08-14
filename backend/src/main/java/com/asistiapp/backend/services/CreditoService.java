@@ -5,6 +5,7 @@ import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoRequestDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.MovimientoCreditoResponseDTO;
+import com.asistiapp.backend.models.dtos.credito.PaqueteCreditoDisponibleDTO;
 import com.asistiapp.backend.models.entities.MovimientoCredito;
 import com.asistiapp.backend.models.entities.Organizador;
 import com.asistiapp.backend.models.entities.PaqueteCredito;
@@ -105,6 +106,20 @@ public class CreditoService {
                 organizador.getId(), paquete.getCantidadCreditos(), movimiento.getSaldoResultante());
 
         return toResponseDTO(movimiento);
+    }
+
+    /** Catálogo de paquetes que el Organizador puede comprar — solo los que el Admin dejó Activos. */
+    @Transactional(readOnly = true)
+    public List<PaqueteCreditoDisponibleDTO> listarPaquetesDisponibles() {
+        return paqueteCreditoRepository.findByEstado(EstadoPaquete.Activo)
+                .stream()
+                .map(p -> PaqueteCreditoDisponibleDTO.builder()
+                        .id(p.getId())
+                        .nombre(p.getNombre())
+                        .cantidadCreditos(p.getCantidadCreditos())
+                        .precio(p.getPrecio())
+                        .build())
+                .toList();
     }
 
     @Transactional(readOnly = true)

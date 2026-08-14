@@ -19,3 +19,15 @@ export function formatFecha(fechaEvento: string): string {
 export function formatHora(horaEvento: string): string {
   return `${horaEvento.slice(0, 5)} hs`;
 }
+
+/** Timestamp ISO (LocalDateTime del backend, sin zona) → `"hace 3 min"` / `"hace 2 h"` / `"hace 5 d"`. */
+export function formatRelativo(fechaIso: string): string {
+  const diffMs = Date.now() - new Date(fechaIso).getTime();
+  const minutos = Math.floor(diffMs / 60000);
+  if (minutos < 1) return "recién";
+  if (minutos < 60) return `hace ${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  if (horas < 24) return `hace ${horas} h`;
+  const dias = Math.floor(horas / 24);
+  return `hace ${dias} d`;
+}

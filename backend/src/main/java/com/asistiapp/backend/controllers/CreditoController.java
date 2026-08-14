@@ -3,6 +3,7 @@ package com.asistiapp.backend.controllers;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoRequestDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.MovimientoCreditoResponseDTO;
+import com.asistiapp.backend.models.dtos.credito.PaqueteCreditoDisponibleDTO;
 import com.asistiapp.backend.models.entities.Organizador;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.services.CreditoService;
@@ -56,5 +57,12 @@ public class CreditoController {
     public ResponseEntity<List<MovimientoCreditoResponseDTO>> historial() {
         Organizador organizador = securityUtils.getOrganizadorAutenticado();
         return ResponseEntity.ok(creditoService.listarHistorial(organizador.getId()));
+    }
+
+    /** Catálogo de paquetes disponibles para comprar — antes solo existía la vista de Admin. */
+    @GetMapping("/paquetes")
+    @PreAuthorize("hasRole('Organizador')")
+    public ResponseEntity<List<PaqueteCreditoDisponibleDTO>> paquetesDisponibles() {
+        return ResponseEntity.ok(creditoService.listarPaquetesDisponibles());
     }
 }
