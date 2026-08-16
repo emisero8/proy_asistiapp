@@ -30,3 +30,14 @@
 .countdown-bar-red {
   animation: countdown 4s linear forwards;
 }
+
+/* Ticker infinito (listado del comprador) — el contenido se duplica una vez
+   en el componente y esto desplaza esa copia exactamente a la mitad, así el
+   loop no se nota. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 26s linear infinite;
+}

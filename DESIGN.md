@@ -188,6 +188,65 @@ box-shadow: same as phone
 <button className={`flex-none px-3 py-1 rounded-full text-xs font-semibold transition-all
   ${active ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
 ```
+Buyer Listing uses a slightly larger variant (`px-3.5 py-1.5`) for the date-range chips (Todos/Hoy/Este finde/Próximo finde) — same active/inactive logic, just more tap-friendly since it's the primary filter on that screen.
+
+### Poster Card (Buyer Listing)
+Real event `imagenPortadaUrl` at `aspect-[3/4]`, not a small thumbnail — the artwork carries the card, same idea as the hero carousel below. Used both in the "Destacados" carousel and the main grid.
+```tsx
+<button className="group text-left" onClick={...}>
+  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted">
+    {imagenPortadaUrl ? (
+      <img src={imagenPortadaUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+    ) : (
+      <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-background flex items-center justify-center">
+        <Sparkles size={22} className="text-primary/40" />
+      </div>
+    )}
+    <span className="absolute top-2.5 right-2.5 bg-background/85 backdrop-blur-sm text-accent
+      text-[11px] font-bold px-2.5 py-1 rounded-full">Desde {fmt(precioDesde)}</span>
+  </div>
+  <div className="mt-2.5">
+    <h3 className="text-foreground font-semibold text-sm leading-snug line-clamp-2">{nombre}</h3>
+    {/* fecha + lugar, text-xs text-muted-foreground, con ícono de 11px */}
+  </div>
+</button>
+```
+No cover image → gradient placeholder (`from-primary/20 via-card to-background`) with a centered `Sparkles` icon at low opacity. Never leave a bare empty `bg-muted` box.
+
+### Hero Carousel (Buyer Listing "Destacados")
+Same poster card, bigger (`w-[62%] sm:w-[38%] lg:w-[24%]`), horizontal scroll-snap, with title+date overlaid on a bottom gradient instead of below the image (there's no room for a caption at that width, and it reads as "featured" rather than "browsable grid item"):
+```tsx
+<div className="flex gap-3 lg:gap-4 overflow-x-auto hide-scrollbar snap-x snap-mandatory px-4 lg:px-8">
+  <button className="relative flex-none w-[62%] sm:w-[38%] lg:w-[24%] aspect-[3/4] snap-start rounded-2xl overflow-hidden">
+    {/* imagen o gradient placeholder, igual que la poster card */}
+    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+    <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
+      <p className="text-white font-extrabold text-sm leading-tight line-clamp-2">{nombre}</p>
+      <p className="text-white/70 text-[11px] mt-1">{formatFecha(fechaEvento)}</p>
+    </div>
+  </button>
+</div>
+```
+
+### Ticker / Marquee
+Infinite horizontal scroll for a short list of value props. The content is duplicated once in the component (two `flex-none` groups with identical children) and CSS shifts exactly by `-50%`, so the loop seam never shows:
+```tsx
+<div className="overflow-hidden border-y border-border bg-card/60 py-2.5">
+  <div className="flex w-max marquee-track">
+    {[0, 1].map(copia => (
+      <div key={copia} className="flex items-center flex-none">
+        {ITEMS.map(item => (
+          <span key={item} className="flex items-center gap-2 px-6 text-[11px] font-bold
+            tracking-widest uppercase text-muted-foreground whitespace-nowrap">
+            <span className="text-primary">✦</span>{item}
+          </span>
+        ))}
+      </div>
+    ))}
+  </div>
+</div>
+```
+`.marquee-track` (`marquee` keyframe, `translateX(0)` → `translateX(-50%)`, 26s linear infinite) lives in `globals.css` next to the other animation classes.
 
 ### Badges / Pills
 
@@ -281,6 +340,7 @@ Always add `<div className="h-8" />` (or `h-24` above sticky footers) at the bot
 | `scan-line-anim` | `scan-line` 2s ease-in-out infinite | QR scanner sweep line |
 | `countdown-bar` | `countdown` 3.5s linear forwards | Valid overlay auto-dismiss bar |
 | `countdown-bar-red` | `countdown` 4s linear forwards | Invalid overlay auto-dismiss bar |
+| `marquee-track` | `marquee` 26s linear infinite | Ticker en Buyer Listing (ver Poster Card / Ticker arriba) |
 
 ---
 
