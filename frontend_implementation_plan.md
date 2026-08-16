@@ -113,8 +113,18 @@ Este plan detalla cómo llevar el mockup funcional de Figma Make (`figma-referen
 - **Punto 5 (sesión expirada):** implementado en `lib/api.ts`, con un hallazgo real en el camino — el backend no tiene un `AuthenticationEntryPoint` propio, así que un JWT rechazado (vencido o inválido) nunca llega al `GlobalExceptionHandler`: Spring Security corta antes con un 401/403 **sin body JSON**. Un 403 legítimo de la app (rol correcto pero sin permiso, ej. Organizador pegándole a un endpoint de Admin) sí trae el JSON de siempre. La detección se hizo por la ausencia de body, no por el código de estado solo — así no se confunde un "no tenés permiso" real con una sesión vencida. Al detectarse, limpia la sesión de `localStorage` y redirige al login del rol que tenía (`/organizador/login`, `/staff/login` o `/admin/login`). No aplica a un 401 de `/auth/login` con contraseña incorrecta porque esa request nunca lleva token adjunto.
 - Verificado end-to-end con Playwright contra un backend real y el build de producción, en mobile y desktop: alta de staff con toast de confirmación → login Admin → suspender usuario con toast → forzar un JWT inválido en `localStorage` → cualquier acción siguiente redirige automáticamente a `/admin/login` con la sesión local ya limpia — sin errores de consola.
 
-## Fase 7: Tests (opcional, no bloqueante)
+## Fase 7: Tests (opcional, no bloqueante) ✅
 Mismo criterio que la Fase 17 del backend — tests de componentes/integración si el tiempo lo permite, no bloquea nada de lo anterior.
+
+Se instaló Vitest + React Testing Library + jsdom (`npm test`). Siguiendo el mismo criterio que la Fase 17 del backend (probar un representante de cada patrón de acceso, no cada endpoint/pantalla una por una), se cubrieron los dos puntos con más superficie de bug real en vez de las ~25 páginas una por una:
+
+- **`lib/api.ts`** (10 tests): adjunta/omite el JWT según corresponda, parsea `ApiError` con el contrato de `GlobalExceptionHandler`, y en particular la detección de sesión vencida que se implementó en la Fase 6 — un 403/401 "legítimo" (con body JSON) no debe desloguear, uno "sin body" (JWT rechazado por Spring Security) sí. Es la lógica más sutil y con más potencial de romperse en un refactor futuro sin que se note a simple vista.
+- **`lib/auth.tsx`** (8 tests): `RequireRole` redirige correctamente según sesión/rol (incluyendo el caso de múltiples roles permitidos, ej. Staff_QR/Staff_Vendedor), y `AuthProvider` persiste/limpia la sesión en `localStorage`.
+- **`StaffLoginPage`** (5 tests) y **`AdminUsersPage`** (4 tests) como representantes de los dos patrones que se repiten en el resto de las pantallas: login → `POST /auth/login` → redirect por rol; y listado con skeleton de carga → mutación → toast de confirmación.
+
+No se armó una suite de tests end-to-end versionada — la verificación e2e con Playwright contra un backend real que se vino hacienda al cerrar cada fase anterior cubre ese nivel, y mantenerla como suite corriendo en CI hubiera implicado levantar Postgres + backend + frontend en el pipeline, un costo que no se justificaba para una fase opcional.
+
+Se agregó `.github/workflows/frontend-tests.yml` (typecheck + lint + tests + build en cada push/PR), mismo patrón que `backend-tests.yml` ya existente. Se actualizó `frontend/README.md` (hasta ahora el boilerplate default de Vite, nunca se había tocado) con instrucciones reales de setup, estructura del proyecto y cómo correr los tests — mismo estilo que `backend/README.md`.
 
 ---
 
