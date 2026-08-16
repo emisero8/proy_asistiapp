@@ -76,13 +76,24 @@ Este plan detalla cómo llevar el mockup funcional de Figma Make (`figma-referen
 - Se agregó layout desktop propio al POS (dos columnas con resumen sticky, igual patrón que el checkout del comprador) — el mockup original y el primer borrador de esta fase solo contemplaban mobile. El Scanner se dejó como "cámara centrada" en una tarjeta con bordes redondeados en desktop en vez de forzar una grilla, coherente con el carácter full-bleed/inmersivo que ya describía `DESIGN.md` para esta pantalla.
 - Verificado end-to-end con Playwright contra un backend real (Postgres local, organizador + evento publicado + Staff_QR + Staff_Vendedor sembrados vía API y limpiados después): login Vendedor → POS → venta manual → QR real → logout → login Staff_QR → Scanner → validación manual del QR recién generado (✅ válida, con nombre real del comprador) → segunda validación del mismo QR correctamente rechazada (ya usada) → sin errores de consola, verificado contra el build de producción (`vite preview`) en 1440px y 390px.
 
-## Fase 5: Flujo Admin — CU-021 a CU-028
+## Fase 5: Flujo Admin — CU-021 a CU-028 ✅
 **Objetivo:** Backoffice completo — hoy `AdminLoginScreen` acepta cualquier click, cero validación.
 
 1. `AdminLoginScreen` → `POST /auth/login` (rol Administrador).
 2. `AdminUsers` → `AdminUsuarioController` (listar/suspender/reasignar rol/eliminar).
 3. `AdminEvents` → `AdminEventoController` (listar/editar/cancelar/eliminar).
 4. `AdminConfig` → `AdminConfiguracionController` (paquetes de crédito, config global) + `AdminMetricasService` para `AdminDashboard`.
+
+**Sin gaps de backend esta vez** — los 6 controllers de Admin (`AdminUsuarioController`, `AdminEventoController`, `AdminConfiguracionController`, `AdminPaqueteCreditoController`, `AdminMetricasController`) ya cubrían uno a uno cada acción que necesitaba el mockup; no hizo falta agregar ni corregir nada del lado del backend.
+
+**Adaptaciones respecto al mockup:**
+- Se agregó `AdminLayout` (sidebar 208px en desktop / bottom tab bar en mobile), igual patrón que `OrganizadorLayout` — el mockup de Admin era desktop-only (`DESIGN.md` solo definía ese panel para desktop), pero la regla de responsive real ya establecida en fases anteriores aplica igual acá.
+- **Gestión de Usuarios:** el mockup simplificaba a 3 roles con un botón que los rotaba en ciclo (`organizador → staff → admin`). El sistema real tiene 4 roles (`Administrador`, `Organizador`, `Staff_QR`, `Staff_Vendedor`) — se reemplazó por un submenú que deja elegir el rol destino explícitamente, más correcto que un ciclo que no puede representar los 4 estados con una sola dirección.
+- **Gestión de Eventos:** el mockup mostraba "Organizador" como texto suelto (nombre de fantasía); `EventoResponseDTO` solo trae `idOrganizador` (no hace join con el nombre), así que la tabla muestra `#id` en esa columna. "Editar" en el mockup no tenía `onClick` (placeholder explícito) — acá se implementó completo con un modal (nombre, descripción, fecha, hora, lugar, URL de portada) contra `PUT /admin/eventos/{id}`, que el Admin puede usar sobre un evento en cualquier estado (a diferencia del Organizador, que solo puede editar en Borrador).
+- **Configuración Global:** de los 4 campos que mostraba el mockup, solo 2 están conectados a lógica de negocio real (`creditos_bienvenida` que lee `AuthService`, `creditos_por_publicacion` que lee `EventoService` al publicar) — son los únicos que quedaron en la pantalla. "Máximo de eventos activos por organizador" y "Email de soporte visible" no tienen ningún lugar del backend que los lea ni los aplique, así que no se incluyeron (agregar un input que no hace nada sería peor que no tenerlo).
+- **Dashboard:** el bloque "Actividad reciente" del mockup era 100% hardcodeado y no hay ningún endpoint de feed de actividad en el alcance de esta fase (existe `GET /admin/auditoria`, pero devuelve logs de auditoría técnicos, no un feed pensado para mostrarse así — queda para una fase de pulido si se decide usarlo). Se sacó y se dejó el dashboard con las 4 métricas reales (`GET /admin/metricas`) y los 3 accesos directos.
+- Acciones destructivas (eliminar usuario, eliminar evento) piden confirmación con `window.confirm` — no hay ningún componente de modal de confirmación establecido en el proyecto todavía, así que se usó el patrón nativo más simple en vez de construir uno nuevo para esto solo.
+- Verificado end-to-end con Playwright contra un backend real y el build de producción, en mobile (390px) y desktop (1440px): login → dashboard con métricas reales → usuarios (buscar, suspender, reactivar) → eventos (editar, cancelar) → config (crear paquete de crédito, guardar config global) — sin errores de consola. Datos de prueba sembrados vía API/SQL y eliminados después.
 
 ## Fase 6: Pulido Transversal
 **Objetivo:** Elevar el nivel de UX ahora que todo está conectado — hoy no hay ni un loading spinner ni un toast en toda la app, pese a que `skeleton.tsx` y `sonner.tsx` (shadcn) ya están instalados sin usar.

@@ -10,6 +10,7 @@ export type EstadoEntrada = "Pagada" | "Usada";
 export type CanalVenta = "Online" | "Manual";
 export type TipoMovimiento = "Bienvenida" | "Recarga" | "Consumo_Publicacion";
 export type EstadoTransaccion = "Pendiente" | "Aprobada" | "Rechazada";
+export type EstadoPaquete = "Activo" | "Deshabilitado";
 
 // ── Auth ──────────────────────────────────────────────
 
@@ -213,6 +214,56 @@ export interface UsuarioResponseDTO {
   rol: RolUsuario;
   estado: EstadoUsuario;
   fechaCreacion: string;
+}
+
+export interface ReasignarRolRequestDTO {
+  nuevoRol: RolUsuario;
+}
+
+export interface ConfiguracionSistemaResponseDTO {
+  id: number;
+  clave: string;
+  valor: string;
+  descripcion: string | null;
+  fechaActualizacion: string | null;
+  idAdministrador: number | null;
+}
+
+export interface ActualizarConfiguracionRequestDTO {
+  valor: string;
+  descripcion?: string;
+}
+
+export interface PaqueteCreditoResponseDTO {
+  id: number;
+  nombre: string;
+  cantidadCreditos: number;
+  precio: number;
+  estado: EstadoPaquete;
+}
+
+export interface PaqueteCreditoRequestDTO {
+  nombre: string;
+  cantidadCreditos: number;
+  precio: number;
+}
+
+export interface LogAuditoriaResponseDTO {
+  id: number;
+  idAdmin: number;
+  accion: string;
+  entidadAfectada: string;
+  idEntidadAfectada: number | null;
+  detalle: string | null;
+  fechaHora: string;
+}
+
+export interface AdminMetricasResponseDTO {
+  eventosActivos: number;
+  eventosTotales: number;
+  entradasVendidas: number;
+  ingresosTotales: number;
+  organizadoresActivos: number;
 }
 
 // ── Métricas ──────────────────────────────────────────
