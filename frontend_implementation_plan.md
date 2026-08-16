@@ -54,12 +54,27 @@ Este plan detalla cómo llevar el mockup funcional de Figma Make (`figma-referen
 - Bug real encontrado y corregido: el mockup anidaba un `<button>` ("Pagar con MercadoPago") dentro de otro `<button>` (la tarjeta del paquete) — HTML inválido, React lo marcaba como error de hidratación. Se cambió el contenedor externo a un `<div role="button">`.
 - Verificado end-to-end con Playwright: registro → dashboard vacío → wizard (2 pasos) → publicar → dashboard con métricas reales → wallet (compra de créditos real, saldo actualizado) → alta de Staff QR — sin errores de consola.
 
-## Fase 4: Flujo Staff — CU-018/019
+## Fase 4: Flujo Staff — CU-018/019 ✅
 **Objetivo:** Login real de Staff (hoy es el único con "validación", pero contraseñas en texto plano en el bundle del cliente — hay que sacarlo de ahí) y validación de QR real.
 
 1. `StaffLoginScreen` → `POST /auth/login` (roles Staff_QR/Staff_Vendedor).
 2. `ScannerScreen` → reemplazar el coin-flip (`Math.random() > 0.3`) y los overlays con datos random por `POST /tickets/validate` real. Acá también entra la **cámara real de QR** (`html5-qrcode` o similar) — hoy no hay ninguna librería de lectura de cámara, los botones "Simular válido/inválido" son placeholders explícitos.
 3. `StaffVendedorScreen` (POS) → `POST /tickets/venta-manual` (reemplaza el ticket ID fake generado client-side).
+
+**Gaps de backend encontrados y corregidos:**
+- No existía forma de que un Staff_Vendedor supiera para qué evento(s) de su organizador podía vender — `/eventos` es exclusivo Organizador. Se agregó `GET /eventos/vendedor` (`EventoController`, override del `@PreAuthorize` de la clase a `Staff_Vendedor`), reutilizando `EventoService.listarEventosPublicadosDeOrganizador()` sobre el `findByIdOrganizadorAndEstado` que ya existía.
+- **IDOR real:** `VentaService.realizarVentaManual()` nunca verificaba que la tanda vendida perteneciera a un evento del organizador del Staff_Vendedor autenticado — cualquier Staff_Vendedor podía vender entradas de **cualquier organizador** con solo conocer/adivinar un `idTanda` ajeno (ni el ID de tanda es difícil de adivinar, son secuenciales). Se agregó la verificación de ownership (`tanda.evento.idOrganizador == staffVendedor.idOrganizador`, 403 `ForbiddenActionException` si no coincide) antes de tocar el cupo. Confirmado con un organizador y tanda de prueba aparte: el intento cruzado devuelve 403 con mensaje claro.
+
+**Adaptaciones respecto al mockup:**
+- `ScannerScreen` real no muestra "aforo total" (el mockup lo hardcodeaba en 400) porque no hay ningún endpoint que exponga esa cifra al rol Staff_QR (los `/eventos/*/metricas` son exclusivos Organizador) — se simplificó a mostrar solo los contadores de Válidos/Inválidos de la sesión actual del staff (se resetean al re-loguearse), que sí surgen 100% de las respuestas reales de `/tickets/validate`.
+- Cámara real con `html5-qrcode` (`Html5Qrcode.start`, `facingMode: "environment"`) en vez del coin-flip; se mantiene el input de código manual como fallback, llamando al mismo endpoint. El botón de linterna usa `applyVideoConstraints({ advanced: [{ torch }] })` con fallback silencioso si el dispositivo/navegador no lo soporta.
+- **Bug real encontrado y corregido en la propia integración:** `Html5Qrcode.stop()` tira una excepción síncrona ("Cannot stop, scanner is not running or paused") si se llama antes de que `start()` termine de negociar la cámara — pasa de verdad si el componente se desmonta rápido (ej. React StrictMode en dev, o navegación apurada). Se resolvió trackeando el estado real (`getState()`) en el cleanup del efecto y, si `start()` resuelve después de desmontado, deteniendo la cámara recién en ese momento.
+- `StaffVendedorScreen` (POS) del mockup no pedía email del comprador — `VentaManualRequestDTO` lo exige (es a donde se manda la entrada), así que se agregó el campo. El método de pago (efectivo/transferencia/POS) del mockup no tiene respaldo real (`VentaManualRequestDTO` no lo contempla) y se sacó, igual que se hizo con el selector de método de pago del comprador en la Fase 2.
+- "Vendidas hoy" es un contador de sesión (no persiste ni viene del backend, se resetea al re-loguearse) — no hay endpoint de reporte diario por vendedor.
+- Igual que en Fase 2/3, "vender qty entradas" son qty llamadas secuenciales a `venta-manual` (una Entrada con su propio QR por llamada).
+- El QR se muestra con `GET /tickets/{id}/qr-image?codigoQr=...` (mismo patrón que Fase 2) — el Staff_Vendedor no es Organizador, así que la única vía de autorización que le aplica es el `codigoQr` exacto, que ya tiene en la respuesta de `venta-manual`.
+- Se agregó layout desktop propio al POS (dos columnas con resumen sticky, igual patrón que el checkout del comprador) — el mockup original y el primer borrador de esta fase solo contemplaban mobile. El Scanner se dejó como "cámara centrada" en una tarjeta con bordes redondeados en desktop en vez de forzar una grilla, coherente con el carácter full-bleed/inmersivo que ya describía `DESIGN.md` para esta pantalla.
+- Verificado end-to-end con Playwright contra un backend real (Postgres local, organizador + evento publicado + Staff_QR + Staff_Vendedor sembrados vía API y limpiados después): login Vendedor → POS → venta manual → QR real → logout → login Staff_QR → Scanner → validación manual del QR recién generado (✅ válida, con nombre real del comprador) → segunda validación del mismo QR correctamente rechazada (ya usada) → sin errores de consola, verificado contra el build de producción (`vite preview`) en 1440px y 390px.
 
 ## Fase 5: Flujo Admin — CU-021 a CU-028
 **Objetivo:** Backoffice completo — hoy `AdminLoginScreen` acepta cualquier click, cero validación.

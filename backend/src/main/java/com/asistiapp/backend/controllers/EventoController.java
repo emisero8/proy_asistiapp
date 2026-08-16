@@ -4,6 +4,7 @@ import com.asistiapp.backend.models.dtos.evento.EventoRequestDTO;
 import com.asistiapp.backend.models.dtos.evento.EventoResponseDTO;
 import com.asistiapp.backend.models.dtos.metricas.EventoMetricasResponseDTO;
 import com.asistiapp.backend.models.entities.Organizador;
+import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.services.EventoService;
 import com.asistiapp.backend.services.MetricasOrganizadorService;
@@ -50,6 +51,19 @@ public class EventoController {
     public ResponseEntity<EventoResponseDTO> obtenerEvento(@PathVariable Long id) {
         Organizador org = securityUtils.getOrganizadorAutenticado();
         return ResponseEntity.ok(eventoService.obtenerEvento(id, org.getId()));
+    }
+
+    /**
+     * Eventos Publicados del organizador al que pertenece el Staff Vendedor autenticado —
+     * para que el POS (CU-019) pueda ofrecer un selector de evento/tanda al vender.
+     * Sobrescribe el @PreAuthorize de la clase (Organizador) porque este endpoint es
+     * exclusivo para Staff_Vendedor.
+     */
+    @GetMapping("/vendedor")
+    @PreAuthorize("hasRole('Staff_Vendedor')")
+    public ResponseEntity<List<EventoResponseDTO>> listarEventosParaVendedor() {
+        StaffVendedor staff = securityUtils.getStaffVendedorAutenticado();
+        return ResponseEntity.ok(eventoService.listarEventosPublicadosDeOrganizador(staff.getIdOrganizador()));
     }
 
     @PostMapping

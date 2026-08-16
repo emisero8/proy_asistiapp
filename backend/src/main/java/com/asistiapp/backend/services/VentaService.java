@@ -208,6 +208,13 @@ public class VentaService {
         Tanda tanda = tandaRepository.findByIdWithLock(dto.getIdTanda())
                 .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada con id: " + dto.getIdTanda()));
 
+        // El vendedor solo puede vender entradas de eventos de SU organizador —
+        // sin esto, cualquier Staff_Vendedor podía vender para el evento de otro
+        // organizador con solo adivinar/conocer un idTanda ajeno.
+        if (!tanda.getEvento().getIdOrganizador().equals(staffVendedor.getIdOrganizador())) {
+            throw new ForbiddenActionException("Esta tanda no pertenece a un evento de tu organizador");
+        }
+
         validarTandaDisponible(tanda);
 
         // Decrementar cupo de forma atómica

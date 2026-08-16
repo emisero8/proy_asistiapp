@@ -69,6 +69,18 @@ public class EventoService {
         return toResponseDTO(evento);
     }
 
+    /**
+     * Retorna los eventos Publicados de un organizador — usado por el Staff Vendedor
+     * (CU-019) para elegir en qué evento está vendiendo entradas manualmente.
+     */
+    @Transactional(readOnly = true)
+    public List<EventoResponseDTO> listarEventosPublicadosDeOrganizador(Long idOrganizador) {
+        return eventoRepository.findByIdOrganizadorAndEstado(idOrganizador, EstadoEvento.Publicado)
+                .stream()
+                .map(this::toResponseDTO)
+                .toList();
+    }
+
     // ─────────────────────────────────────────────
     // Creación
     // ─────────────────────────────────────────────
