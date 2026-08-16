@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { fmt } from "../../lib/format";
 import type { ConfiguracionSistemaResponseDTO, PaqueteCreditoRequestDTO, PaqueteCreditoResponseDTO } from "../../lib/types";
@@ -46,8 +47,11 @@ export function AdminConfigPage() {
       const path = p.estado === "Activo" ? `/admin/paquetes-credito/${p.id}/deshabilitar` : `/admin/paquetes-credito/${p.id}/habilitar`;
       const updated = await api.patch<PaqueteCreditoResponseDTO>(path);
       setPacks((ps) => ps!.map((x) => (x.id === p.id ? updated : x)));
+      toast.success(updated.estado === "Activo" ? `Pack ${p.nombre} activado` : `Pack ${p.nombre} desactivado`);
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos actualizar el paquete.");
+      const message = e instanceof ApiError ? e.message : "No pudimos actualizar el paquete.";
+      setError(message);
+      toast.error(message);
     } finally {
       setPackBusy(null);
     }
@@ -72,8 +76,11 @@ export function AdminConfigPage() {
         precio,
       } satisfies PaqueteCreditoRequestDTO);
       setPacks((ps) => ps!.map((x) => (x.id === p.id ? updated : x)));
+      toast.success(`Precio de ${p.nombre} actualizado a ${fmt(precio)}`);
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos actualizar el precio.");
+      const message = e instanceof ApiError ? e.message : "No pudimos actualizar el precio.";
+      setError(message);
+      toast.error(message);
     } finally {
       setPackBusy(null);
       setEditPackId(null);
@@ -95,8 +102,11 @@ export function AdminConfigPage() {
       setPacks((ps) => [...(ps ?? []), created]);
       setNewPack({ nombre: "", cantidadCreditos: "", precio: "" });
       setNewPackOpen(false);
+      toast.success(`Pack ${created.nombre} creado`);
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos crear el paquete.");
+      const message = e instanceof ApiError ? e.message : "No pudimos crear el paquete.";
+      setError(message);
+      toast.error(message);
     } finally {
       setCreatingPack(false);
     }
@@ -118,7 +128,9 @@ export function AdminConfigPage() {
       setTimeout(() => setSaved(false), 2200);
       load();
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos guardar la configuración.");
+      const message = e instanceof ApiError ? e.message : "No pudimos guardar la configuración.";
+      setError(message);
+      toast.error(message);
     } finally {
       setSavingConfig(false);
     }
@@ -246,8 +258,10 @@ export function AdminConfigPage() {
                 </div>
               )}
               {packs === null && (
-                <div className="py-10 text-center">
-                  <p className="text-muted-foreground text-sm">Cargando…</p>
+                <div className="p-5 space-y-2.5">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="h-14 rounded-xl bg-background/60 animate-pulse" />
+                  ))}
                 </div>
               )}
             </div>

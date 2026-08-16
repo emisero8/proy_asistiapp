@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, CircleX, Search, Trash2, UserCheck } from "lucide-react";
+import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
 
@@ -44,8 +45,11 @@ export function AdminUsersPage() {
       const path = u.estado === "Activo" ? `/admin/usuarios/${u.id}/suspender` : `/admin/usuarios/${u.id}/activar`;
       const updated = await api.patch<UsuarioResponseDTO>(path);
       setUsers((us) => us!.map((x) => (x.id === u.id ? updated : x)));
+      toast.success(updated.estado === "Activo" ? `${u.nombre} reactivado` : `${u.nombre} suspendido`);
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos actualizar el estado.");
+      const message = e instanceof ApiError ? e.message : "No pudimos actualizar el estado.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
@@ -58,8 +62,11 @@ export function AdminUsersPage() {
     try {
       const updated = await api.patch<UsuarioResponseDTO>(`/admin/usuarios/${u.id}/rol`, { nuevoRol });
       setUsers((us) => us!.map((x) => (x.id === u.id ? updated : x)));
+      toast.success(`${u.nombre} ahora es ${nuevoRol}`);
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos reasignar el rol.");
+      const message = e instanceof ApiError ? e.message : "No pudimos reasignar el rol.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
@@ -72,8 +79,11 @@ export function AdminUsersPage() {
     try {
       await api.delete(`/admin/usuarios/${u.id}`);
       setUsers((us) => us!.filter((x) => x.id !== u.id));
+      toast.success(`${u.nombre} eliminado`);
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos eliminar el usuario.");
+      const message = e instanceof ApiError ? e.message : "No pudimos eliminar el usuario.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
@@ -119,6 +129,15 @@ export function AdminUsersPage() {
 
         {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
 
+        {users === null && !error && (
+          <div className="space-y-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-14 rounded-2xl bg-card border border-border animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {users !== null && (
         <div className="bg-card border border-border rounded-2xl overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead>
@@ -219,17 +238,13 @@ export function AdminUsersPage() {
               ))}
             </tbody>
           </table>
-          {users !== null && filtered.length === 0 && (
+          {filtered.length === 0 && (
             <div className="py-12 text-center">
               <p className="text-muted-foreground text-sm">No se encontraron usuarios.</p>
             </div>
           )}
-          {users === null && !error && (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground text-sm">Cargando…</p>
-            </div>
-          )}
         </div>
+        )}
       </div>
     </div>
   );

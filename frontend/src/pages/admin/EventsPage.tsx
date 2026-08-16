@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CircleX, Search, Sparkles, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { formatFecha } from "../../lib/format";
 import type { EventoRequestDTO, EventoResponseDTO } from "../../lib/types";
@@ -40,6 +41,7 @@ export function AdminEventsPage() {
       });
       setEventos((evs) => evs!.map((x) => (x.id === editing.id ? updated : x)));
       setEditing(null);
+      toast.success(`${updated.nombre} actualizado`);
     } catch (err: unknown) {
       setEditError(err instanceof ApiError ? err.message : "No pudimos guardar los cambios.");
     } finally {
@@ -66,8 +68,11 @@ export function AdminEventsPage() {
     try {
       const updated = await api.patch<EventoResponseDTO>(`/admin/eventos/${e.id}/cancelar`);
       setEventos((evs) => evs!.map((x) => (x.id === e.id ? updated : x)));
+      toast.success(`${e.nombre} cancelado`);
     } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : "No pudimos cancelar el evento.");
+      const message = err instanceof ApiError ? err.message : "No pudimos cancelar el evento.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
@@ -80,8 +85,11 @@ export function AdminEventsPage() {
     try {
       await api.delete(`/admin/eventos/${e.id}`);
       setEventos((evs) => evs!.filter((x) => x.id !== e.id));
+      toast.success(`${e.nombre} eliminado`);
     } catch (err: unknown) {
-      setError(err instanceof ApiError ? err.message : "No pudimos eliminar el evento.");
+      const message = err instanceof ApiError ? err.message : "No pudimos eliminar el evento.";
+      setError(message);
+      toast.error(message);
     } finally {
       setBusyId(null);
     }
@@ -113,6 +121,15 @@ export function AdminEventsPage() {
 
         {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
 
+        {eventos === null && !error && (
+          <div className="space-y-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-14 rounded-2xl bg-card border border-border animate-pulse" />
+            ))}
+          </div>
+        )}
+
+        {eventos !== null && (
         <div className="bg-card border border-border rounded-2xl overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead>
@@ -182,17 +199,13 @@ export function AdminEventsPage() {
               ))}
             </tbody>
           </table>
-          {eventos !== null && filtered.length === 0 && (
+          {filtered.length === 0 && (
             <div className="py-12 text-center">
               <p className="text-muted-foreground text-sm">No se encontraron eventos.</p>
             </div>
           )}
-          {eventos === null && !error && (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground text-sm">Cargando…</p>
-            </div>
-          )}
         </div>
+        )}
       </div>
 
       {editing && (

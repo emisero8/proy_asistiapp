@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { UserPlus, QrCode, Store, BadgeCheck, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, RolUsuario, StaffResponseDTO } from "../../lib/types";
 
@@ -47,6 +48,7 @@ export function OrganizadorStaffMgmtPage() {
         const dto: CrearStaffVendedorRequestDTO = { nombre: form.nombre, email: form.email };
         await api.post("/organizador/staff/vendedor", dto);
       }
+      toast.success(`${form.nombre} se agregó como ${ROLE_META[form.role].label}`);
       setForm({ nombre: "", email: "", role: "Staff_QR", idEvento: "" });
       setShowForm(false);
       cargarStaff();

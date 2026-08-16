@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
 
 import { ListingPage } from "./pages/buyer/ListingPage";
@@ -28,6 +29,17 @@ import { AdminConfigPage } from "./pages/admin/ConfigPage";
 export default function App() {
   return (
     <AuthProvider>
+      <Toaster
+        position="top-center"
+        theme="dark"
+        toastOptions={{
+          style: {
+            background: "#131222",
+            border: "1px solid rgba(255,255,255,0.08)",
+            color: "#f0eeff",
+          },
+        }}
+      />
       <BrowserRouter>
         <Routes>
           {/* Comprador — público, sin auth (CU-015/016/017) */}
