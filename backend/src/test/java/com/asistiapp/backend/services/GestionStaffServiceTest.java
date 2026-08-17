@@ -9,6 +9,7 @@ import com.asistiapp.backend.models.dtos.staff.StaffResponseDTO;
 import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.StaffQR;
 import com.asistiapp.backend.models.entities.StaffVendedor;
+import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.StaffQRRepository;
@@ -175,6 +176,82 @@ class GestionStaffServiceTest {
         assertThat(resultado).hasSize(2);
         assertThat(resultado).extracting(StaffResponseDTO::getRol)
                 .containsExactlyInAnyOrder(RolUsuario.Staff_QR, RolUsuario.Staff_Vendedor);
+    }
+
+    // ─────────────────────────────────────────────
+    // desactivarStaff / reactivarStaff
+    // ─────────────────────────────────────────────
+
+    @Test
+    void desactivarStaff_staffVendedorPropio_quedaInactivo() {
+        StaffVendedor staff = new StaffVendedor();
+        staff.setId(2L);
+        staff.setEstado(EstadoUsuario.Activo);
+        staff.setIdOrganizador(ID_ORGANIZADOR);
+        when(staffVendedorRepository.findById(2L)).thenReturn(Optional.of(staff));
+        when(staffVendedorRepository.save(any(StaffVendedor.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StaffResponseDTO response = gestionStaffService.desactivarStaff(2L, ID_ORGANIZADOR);
+
+        assertThat(response.getEstado()).isEqualTo(EstadoUsuario.Inactivo);
+    }
+
+    @Test
+    void desactivarStaff_staffVendedorDeOtroOrganizador_lanzaForbiddenActionException() {
+        StaffVendedor staff = new StaffVendedor();
+        staff.setId(2L);
+        staff.setEstado(EstadoUsuario.Activo);
+        staff.setIdOrganizador(ID_OTRO_ORGANIZADOR);
+        when(staffVendedorRepository.findById(2L)).thenReturn(Optional.of(staff));
+
+        assertThatThrownBy(() -> gestionStaffService.desactivarStaff(2L, ID_ORGANIZADOR))
+                .isInstanceOf(ForbiddenActionException.class);
+
+        verify(staffVendedorRepository, never()).save(any());
+    }
+
+    @Test
+    void desactivarStaff_staffQrDeEventoDeOtroOrganizador_lanzaForbiddenActionException() {
+        StaffQR staff = new StaffQR();
+        staff.setId(1L);
+        staff.setEstado(EstadoUsuario.Activo);
+        staff.setIdEvento(evento.getId());
+        when(staffVendedorRepository.findById(1L)).thenReturn(Optional.empty());
+        when(staffQRRepository.findById(1L)).thenReturn(Optional.of(staff));
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> gestionStaffService.desactivarStaff(1L, ID_OTRO_ORGANIZADOR))
+                .isInstanceOf(ForbiddenActionException.class);
+
+        verify(staffQRRepository, never()).save(any());
+    }
+
+    @Test
+    void desactivarStaff_yaInactivo_lanzaBusinessRuleException() {
+        StaffVendedor staff = new StaffVendedor();
+        staff.setId(2L);
+        staff.setEstado(EstadoUsuario.Inactivo);
+        staff.setIdOrganizador(ID_ORGANIZADOR);
+        when(staffVendedorRepository.findById(2L)).thenReturn(Optional.of(staff));
+
+        assertThatThrownBy(() -> gestionStaffService.desactivarStaff(2L, ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class);
+    }
+
+    @Test
+    void reactivarStaff_staffQrPropio_quedaActivo() {
+        StaffQR staff = new StaffQR();
+        staff.setId(1L);
+        staff.setEstado(EstadoUsuario.Inactivo);
+        staff.setIdEvento(evento.getId());
+        when(staffVendedorRepository.findById(1L)).thenReturn(Optional.empty());
+        when(staffQRRepository.findById(1L)).thenReturn(Optional.of(staff));
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(staffQRRepository.save(any(StaffQR.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StaffResponseDTO response = gestionStaffService.reactivarStaff(1L, ID_ORGANIZADOR);
+
+        assertThat(response.getEstado()).isEqualTo(EstadoUsuario.Activo);
     }
 
     // ─────────────────────────────────────────────

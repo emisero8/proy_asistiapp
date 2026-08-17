@@ -1,9 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { ChevronLeft, Eye, EyeOff, AlertCircle, Check, UserPlus, BadgeCheck } from "lucide-react";
+import { ChevronLeft, Eye, EyeOff, AlertCircle, Check, UserPlus, BadgeCheck, Zap, ShieldCheck, TrendingUp } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import type { AuthResponseDTO, MovimientoCreditoResponseDTO, RegisterRequestDTO } from "../../lib/types";
+
+const PITCH_STATS = [
+  { value: "0%", label: "comisión al organizador" },
+  { value: "100%", label: "entradas digitales con QR" },
+  { value: "24/7", label: "panel de ventas en vivo" },
+];
+
+const PITCH_FEATURES = [
+  { icon: Zap, title: "Publicá en minutos", desc: "Cargá tu evento, tandas de precios y ya está online." },
+  { icon: ShieldCheck, title: "Validación QR en la puerta", desc: "Sin planillas ni entradas duplicadas el día del show." },
+  { icon: TrendingUp, title: "Ventas en tiempo real", desc: "Seguí cuánto vendiste y quién compró, desde cualquier lado." },
+];
 
 export function OrganizadorRegisterPage() {
   const navigate = useNavigate();
@@ -76,7 +88,42 @@ export function OrganizadorRegisterPage() {
 
   return (
     <div className="min-h-screen bg-background lg:flex lg:items-center lg:justify-center lg:py-10">
-      <div className="max-w-sm lg:max-w-md mx-auto w-full lg:border lg:border-border lg:rounded-3xl lg:bg-card/40">
+      <div className="w-full lg:max-w-5xl lg:mx-auto lg:grid lg:grid-cols-2 lg:gap-12 lg:items-center lg:px-8">
+        {/* Pitch — solo desktop, para no alargar el flujo corto de mobile */}
+        <div className="hidden lg:block">
+          <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-3">Para organizadores</p>
+          <h1 className="text-3xl xl:text-4xl font-extrabold text-foreground leading-tight mb-4">
+            Vendé entradas <span className="text-primary">sin comisión</span> y con todo bajo control
+          </h1>
+          <p className="text-sm text-muted-foreground mb-8 max-w-md">
+            Publicá tu evento, vendé online o en la puerta y validá cada entrada con QR — todo desde un mismo panel.
+          </p>
+
+          <div className="flex gap-6 mb-8">
+            {PITCH_STATS.map((s) => (
+              <div key={s.label}>
+                <p className="text-2xl font-extrabold text-foreground">{s.value}</p>
+                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 max-w-[9rem]">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            {PITCH_FEATURES.map((f) => (
+              <div key={f.title} className="flex items-start gap-3 bg-card/60 border border-border rounded-2xl p-4">
+                <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center flex-none">
+                  <f.icon size={16} className="text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">{f.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="max-w-sm lg:max-w-md mx-auto w-full lg:border lg:border-border lg:rounded-3xl lg:bg-card/40">
         <div className="px-6 pt-8 pb-4 border-b border-border">
           <button onClick={() => navigate("/organizador/login")} className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors">
             <ChevronLeft size={15} />
@@ -204,6 +251,7 @@ export function OrganizadorRegisterPage() {
               Iniciá sesión
             </span>
           </p>
+        </div>
         </div>
       </div>
     </div>

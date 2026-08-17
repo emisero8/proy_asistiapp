@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, AlertCircle, Zap, ShieldCheck, TrendingUp } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import type { AuthResponseDTO, LoginRequestDTO } from "../../lib/types";
+
+const LOGIN_FEATURES = [
+  { icon: Zap, text: "Publicá tu evento en minutos" },
+  { icon: ShieldCheck, text: "Validación QR sin planillas" },
+  { icon: TrendingUp, text: "Ventas en vivo desde cualquier lado" },
+];
 
 export function OrganizadorLoginPage() {
   const navigate = useNavigate();
@@ -55,23 +61,48 @@ export function OrganizadorLoginPage() {
 
   return (
     <div className="min-h-screen lg:flex bg-background">
-      <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:px-16 relative overflow-hidden bg-primary">
-        <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/10" />
-        <div className="absolute -bottom-24 -left-10 w-64 h-64 rounded-full bg-white/5" />
-        <h1 className="text-4xl font-extrabold text-white tracking-tight relative">
-          Asistí<span className="text-white/70">APP</span>
-        </h1>
-        <p className="text-white/80 text-base mt-3 max-w-sm relative">
-          Vendé entradas para tus eventos sin comisiones. Publicá, gestioná tu staff y controlá el acceso, todo desde un solo panel.
+      <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:px-16 relative overflow-hidden bg-[radial-gradient(circle_at_20%_20%,rgba(124,58,237,0.35),transparent_55%),radial-gradient(circle_at_80%_80%,rgba(124,58,237,0.25),transparent_50%)] bg-card">
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "22px 22px" }}
+        />
+        <div className="absolute top-1/4 -right-16 w-72 h-72 rounded-full bg-primary/25 blur-3xl" />
+        <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-primary/15 blur-3xl" />
+
+        <button onClick={() => navigate("/")} className="relative text-left w-fit mb-8 group">
+          <h1 className="text-3xl font-extrabold text-white tracking-tight">
+            Asistí<span className="text-primary">APP</span>
+          </h1>
+          <span className="block h-0.5 w-0 bg-primary transition-all duration-300 group-hover:w-full mt-0.5" />
+        </button>
+
+        <h2 className="text-4xl font-extrabold text-white tracking-tight relative leading-tight">
+          Tu evento, <span className="text-primary">sin comisión</span>
+        </h2>
+        <p className="text-white/70 text-base mt-3 max-w-sm relative">
+          Publicá, gestioná tu staff y controlá el acceso — todo desde un solo panel.
         </p>
+
+        <div className="relative mt-10 space-y-3.5">
+          {LOGIN_FEATURES.map((f) => (
+            <div key={f.text} className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center flex-none">
+                <f.icon size={14} className="text-primary" />
+              </div>
+              <span className="text-sm text-white/80">{f.text}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col justify-center px-6 lg:w-1/2 lg:px-16 py-12">
         <div className="max-w-sm mx-auto w-full">
           <div className="mb-10 lg:hidden">
-            <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
-              Asistí<span className="text-primary">APP</span>
-            </h1>
+            <button onClick={() => navigate("/")} className="text-left">
+              <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
+                Asistí<span className="text-primary">APP</span>
+              </h1>
+            </button>
             <p className="text-muted-foreground text-sm mt-1">Panel del Organizador</p>
           </div>
 

@@ -47,4 +47,16 @@ public class GestionStaffController {
         Organizador org = securityUtils.getOrganizadorAutenticado();
         return ResponseEntity.ok(gestionStaffService.listarMiStaff(org.getId()));
     }
+
+    @PatchMapping("/{id}/desactivar")
+    public ResponseEntity<StaffResponseDTO> desactivarStaff(@PathVariable Long id) {
+        Organizador org = securityUtils.getOrganizadorAutenticado();
+        return ResponseEntity.ok(gestionStaffService.desactivarStaff(id, org.getId()));
+    }
+
+    @PatchMapping("/{id}/reactivar")
+    public ResponseEntity<StaffResponseDTO> reactivarStaff(@PathVariable Long id) {
+        Organizador org = securityUtils.getOrganizadorAutenticado();
+        return ResponseEntity.ok(gestionStaffService.reactivarStaff(id, org.getId()));
+    }
 }

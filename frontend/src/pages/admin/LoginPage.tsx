@@ -38,15 +38,20 @@ export function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-6">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-background px-6 relative overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
+      <div className="w-full max-w-sm relative bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
         <div className="mb-10 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4">
-            <ShieldCheck size={22} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-            Admin · Asistí<span className="text-primary">APP</span>
-          </h1>
+          <button onClick={() => navigate("/")} className="mx-auto mb-4 block">
+            <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors">
+              <ShieldCheck size={22} className="text-white" />
+            </div>
+          </button>
+          <button onClick={() => navigate("/")} className="block w-full">
+            <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+              Admin · Asistí<span className="text-primary">APP</span>
+            </h1>
+          </button>
           <p className="text-muted-foreground text-sm mt-1">Ingresá con tu cuenta de administrador</p>
         </div>
 

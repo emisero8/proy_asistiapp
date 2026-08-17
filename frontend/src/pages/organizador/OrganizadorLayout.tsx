@@ -12,14 +12,15 @@ export function OrganizadorLayout() {
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-56">
       {/* Sidebar — desktop (md+) */}
-      <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-56 md:border-r md:border-border md:bg-card/40">
-        <div className="px-5 pt-6 pb-8">
+      <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-56 md:border-r md:border-border md:bg-card/40 relative overflow-hidden">
+        <div className="absolute -top-20 -left-16 w-56 h-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
+        <div className="px-5 pt-6 pb-8 relative">
           <h1 className="text-lg font-extrabold text-foreground tracking-tight">
             Asistí<span className="text-primary">APP</span>
           </h1>
           <p className="text-[10px] text-muted-foreground tracking-widest uppercase mt-0.5">Organizador</p>
         </div>
-        <nav className="flex-1 px-3 space-y-1">
+        <nav className="flex-1 px-3 space-y-1 relative">
           {TABS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}

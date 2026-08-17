@@ -64,8 +64,9 @@ export function OrganizadorDashboardPage() {
 
   return (
     <div className="max-w-md lg:max-w-6xl mx-auto">
-        <div className="px-4 lg:px-8 pt-6 pb-4 border-b border-border">
-          <div className="flex items-center justify-between">
+        <div className="relative overflow-hidden px-4 lg:px-8 pt-6 pb-4 border-b border-border">
+          <div className="absolute -top-16 right-0 w-64 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+          <div className="relative flex items-center justify-between">
             <div>
               <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Panel del organizador</p>
               <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Hola, {session?.nombre.split(" ")[0]} 👋</h2>
@@ -105,16 +106,25 @@ export function OrganizadorDashboardPage() {
           )}
 
           {!error && eventoActivo && (
-            <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-3 flex items-center justify-between">
-              <div>
+            <div className="bg-primary/10 border border-primary/20 rounded-2xl pl-3 pr-4 py-3 flex items-center gap-3">
+              {eventoActivo.imagenPortadaUrl ? (
+                <img
+                  src={eventoActivo.imagenPortadaUrl}
+                  alt={eventoActivo.nombre}
+                  className="w-11 aspect-[3/4] rounded-lg object-cover flex-none bg-muted"
+                />
+              ) : (
+                <div className="w-11 aspect-[3/4] rounded-lg flex-none bg-gradient-to-br from-primary/25 via-card to-background" />
+              )}
+              <div className="flex-1 min-w-0">
                 <p className="text-[10px] text-primary uppercase tracking-widest font-bold">Evento activo</p>
-                <p className="text-sm font-semibold text-foreground">{eventoActivo.nombre}</p>
+                <p className="text-sm font-semibold text-foreground truncate">{eventoActivo.nombre}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                   <Calendar size={10} />
                   {formatFecha(eventoActivo.fechaEvento)} · {formatHora(eventoActivo.horaEvento)}
                 </p>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-none">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                 <span className="text-xs text-green-400 font-semibold">En venta</span>
               </div>

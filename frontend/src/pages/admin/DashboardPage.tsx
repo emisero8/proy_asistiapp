@@ -1,13 +1,34 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Calendar, CalendarCheck, ChevronRight, CircleDollarSign, Ticket, Users } from "lucide-react";
+import { Calendar, CalendarCheck, ChevronRight, CircleDollarSign, History, Ticket, Users } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
-import { fmt } from "../../lib/format";
-import type { AdminMetricasResponseDTO } from "../../lib/types";
+import { fmt, formatRelativo } from "../../lib/format";
+import type { AdminMetricasResponseDTO, LogAuditoriaResponseDTO } from "../../lib/types";
+
+const ACCION_LABELS: Record<string, string> = {
+  SUSPENDER_USUARIO: "suspendió al usuario",
+  ACTIVAR_USUARIO: "reactivó al usuario",
+  CAMBIAR_ROL: "cambió el rol del usuario",
+  ELIMINAR_USUARIO: "eliminó al usuario",
+  CREAR_PAQUETE: "creó el paquete de créditos",
+  ACTUALIZAR_PAQUETE: "actualizó el paquete de créditos",
+  DESHABILITAR_PAQUETE: "deshabilitó el paquete de créditos",
+  HABILITAR_PAQUETE: "habilitó el paquete de créditos",
+  EDITAR_EVENTO_ADMIN: "editó el evento",
+  CANCELAR_EVENTO_ADMIN: "canceló el evento",
+  ELIMINAR_EVENTO_ADMIN: "eliminó el evento",
+  ACTUALIZAR_CONFIGURACION: "actualizó la configuración global",
+};
+
+function describirAccion(log: LogAuditoriaResponseDTO): string {
+  const verbo = ACCION_LABELS[log.accion] ?? log.accion.toLowerCase().replace(/_/g, " ");
+  return `Admin #${log.idAdmin} ${verbo} #${log.idEntidadAfectada}`;
+}
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
   const [metrics, setMetrics] = useState<AdminMetricasResponseDTO | null>(null);
+  const [actividad, setActividad] = useState<LogAuditoriaResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -15,6 +36,10 @@ export function AdminDashboardPage() {
       .get<AdminMetricasResponseDTO>("/admin/metricas")
       .then(setMetrics)
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar las métricas."));
+    api
+      .get<LogAuditoriaResponseDTO[]>("/admin/auditoria")
+      .then((logs) => setActividad(logs.slice(0, 6)))
+      .catch(() => setActividad([]));
   }, []);
 
   const cards = metrics
@@ -34,9 +59,10 @@ export function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="px-4 lg:px-8 pt-8 pb-5 border-b border-border">
-        <p className="text-[10px] text-muted-foreground tracking-[0.2em] uppercase font-semibold">Sistema · Backoffice</p>
-        <h1 className="text-xl font-extrabold text-foreground mt-0.5">Dashboard Global</h1>
+      <div className="relative overflow-hidden px-4 lg:px-8 pt-8 pb-5 border-b border-border">
+        <div className="absolute -top-16 right-0 w-64 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+        <p className="relative text-[10px] text-muted-foreground tracking-[0.2em] uppercase font-semibold">Sistema · Backoffice</p>
+        <h1 className="relative text-xl font-extrabold text-foreground mt-0.5">Dashboard Global</h1>
       </div>
 
       <div className="px-4 lg:px-8 py-5 space-y-5">
@@ -74,6 +100,29 @@ export function AdminDashboardPage() {
               </div>
             </button>
           ))}
+        </div>
+
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-border flex items-center gap-2">
+            <History size={14} className="text-muted-foreground" />
+            <p className="text-xs font-bold text-foreground">Actividad reciente</p>
+          </div>
+          {actividad === null ? (
+            <div className="p-4 space-y-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-9 rounded-xl bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : actividad.length === 0 ? (
+            <p className="text-xs text-muted-foreground p-4">Todavía no hay actividad registrada.</p>
+          ) : (
+            actividad.map((log, i) => (
+              <div key={log.id} className={`px-4 py-3 flex items-center justify-between gap-3 ${i < actividad.length - 1 ? "border-b border-border" : ""}`}>
+                <p className="text-xs text-foreground/90 truncate">{describirAccion(log)}</p>
+                <span className="text-[10px] text-muted-foreground flex-none">{formatRelativo(log.fechaHora)}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

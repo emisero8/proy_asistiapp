@@ -61,6 +61,7 @@ class VentaServiceTest {
         evento.setId(1L);
         evento.setNombre("Evento de prueba");
         evento.setEstado(EstadoEvento.Publicado);
+        evento.setIdOrganizador(100L);
 
         tanda = new Tanda();
         tanda.setId(10L);
@@ -205,6 +206,7 @@ class VentaServiceTest {
     void realizarVentaManual_sinCupo_lanzaBusinessRuleException() {
         StaffVendedor staff = new StaffVendedor();
         staff.setId(1L);
+        staff.setIdOrganizador(100L);
         when(staffVendedorRepository.findById(1L)).thenReturn(Optional.of(staff));
         when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
         when(tandaRepository.decrementarCupo(tanda.getId())).thenReturn(0);
@@ -218,6 +220,7 @@ class VentaServiceTest {
     void realizarVentaManual_exitoso_creaEntradaConCanalManual() {
         StaffVendedor staff = new StaffVendedor();
         staff.setId(1L);
+        staff.setIdOrganizador(100L);
         when(staffVendedorRepository.findById(1L)).thenReturn(Optional.of(staff));
         when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
         when(tandaRepository.decrementarCupo(tanda.getId())).thenReturn(1);

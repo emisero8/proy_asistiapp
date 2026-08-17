@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Search, MapPin, Calendar, Sparkles } from "lucide-react";
+import { Search, MapPin, Calendar, Sparkles, ArrowRight } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha } from "../../lib/format";
 import type { EventoPublicoListItemDTO } from "../../lib/types";
@@ -254,6 +254,28 @@ export function ListingPage() {
             </div>
           </>
         )}
+      </div>
+
+      {/* CTA organizadores — franja angosta al pie, no compite con la vidriera de eventos */}
+      <div className="border-t border-border bg-gradient-to-r from-primary/10 via-card to-background">
+        <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8 lg:py-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          <div>
+            <p className="text-primary text-[10px] font-bold tracking-[0.2em] uppercase mb-1.5">Para organizadores</p>
+            <h2 className="text-lg lg:text-xl font-extrabold text-foreground leading-tight">
+              ¿Organizás un evento? Vendé sin comisión
+            </h2>
+            <p className="text-xs lg:text-sm text-muted-foreground mt-1.5 max-w-md">
+              Publicá en minutos, cobrá online y validá cada entrada con QR en la puerta — todo desde un mismo panel.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate("/organizador/registro")}
+            className="flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all"
+          >
+            Quiero publicar mi evento
+            <ArrowRight size={15} />
+          </button>
+        </div>
       </div>
     </div>
   );

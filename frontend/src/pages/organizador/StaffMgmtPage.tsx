@@ -15,6 +15,7 @@ export function OrganizadorStaffMgmtPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
   const [form, setForm] = useState<{ nombre: string; email: string; role: "Staff_QR" | "Staff_Vendedor"; idEvento: string }>({
     nombre: "",
     email: "",
@@ -59,6 +60,23 @@ export function OrganizadorStaffMgmtPage() {
     }
   }
 
+  async function toggleEstado(member: StaffResponseDTO) {
+    setBusyId(member.id);
+    setError(null);
+    try {
+      const accion = member.estado === "Inactivo" ? "reactivar" : "desactivar";
+      const updated = await api.patch<StaffResponseDTO>(`/organizador/staff/${member.id}/${accion}`);
+      setStaff((s) => s!.map((m) => (m.id === member.id ? updated : m)));
+      toast.success(accion === "reactivar" ? `${member.nombre} fue reactivado` : `${member.nombre} fue dado de baja`);
+    } catch (e: unknown) {
+      const message = e instanceof ApiError ? e.message : "No pudimos actualizar el estado.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="max-w-md lg:max-w-4xl mx-auto">
       <div className="px-4 lg:px-8 pt-6 pb-4 border-b border-border bg-background">
@@ -100,18 +118,32 @@ export function OrganizadorStaffMgmtPage() {
             <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
               {staff.map((member) => {
                 const meta = ROLE_META[member.rol as "Staff_QR" | "Staff_Vendedor"];
+                const inactivo = member.estado === "Inactivo";
                 return (
-                  <div key={member.id} className="bg-card border border-border rounded-2xl px-4 py-3.5 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/20 flex items-center justify-center text-sm font-bold text-primary">
+                  <div key={member.id} className={`bg-card border border-border rounded-2xl px-4 py-3.5 flex items-center justify-between gap-2 ${inactivo ? "opacity-60" : ""}`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-none">
                         {member.nombre.charAt(0)}
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{member.nombre}</p>
-                        <p className="text-[10px] text-muted-foreground">{member.email}</p>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground truncate">{member.nombre}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{member.email}</p>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${meta?.bg} ${meta?.color}`}>{meta?.label ?? member.rol}</span>
+                    <div className="flex items-center gap-2 flex-none">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${inactivo ? "bg-muted text-muted-foreground" : `${meta?.bg} ${meta?.color}`}`}>
+                        {inactivo ? "Inactivo" : (meta?.label ?? member.rol)}
+                      </span>
+                      <button
+                        disabled={busyId === member.id}
+                        onClick={() => toggleEstado(member)}
+                        className={`text-[10px] font-semibold px-2 py-1 rounded-lg transition-colors disabled:opacity-50 ${
+                          inactivo ? "text-primary hover:bg-primary/10" : "text-red-400 hover:bg-red-400/10"
+                        }`}
+                      >
+                        {inactivo ? "Reactivar" : "Dar de baja"}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
