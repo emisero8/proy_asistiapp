@@ -137,9 +137,9 @@ export function CheckoutPage() {
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Resumen</p>
             <div className="flex gap-3">
               {evento.imagenPortadaUrl ? (
-                <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-16 h-16 rounded-xl object-cover flex-none bg-muted" />
+                <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-16 aspect-[3/4] rounded-xl object-cover flex-none bg-muted" />
               ) : (
-                <div className="w-16 h-16 rounded-xl flex-none bg-muted" />
+                <div className="w-16 aspect-[3/4] rounded-xl flex-none bg-gradient-to-br from-primary/20 via-card to-background" />
               )}
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-bold text-foreground leading-tight line-clamp-2">{evento.nombre}</h4>

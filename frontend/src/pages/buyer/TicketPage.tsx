@@ -50,13 +50,14 @@ export function TicketPage() {
         <div className="px-4 lg:px-8 py-4 lg:py-6">
           <div className="relative rounded-2xl overflow-hidden mb-4">
             {evento.imagenPortadaUrl ? (
-              <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-32 lg:h-40 object-cover bg-muted" />
+              <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-44 lg:h-60 object-cover bg-muted" />
             ) : (
-              <div className="w-full h-32 lg:h-40 bg-muted" />
+              <div className="w-full h-44 lg:h-60 bg-gradient-to-br from-primary/25 via-card to-background" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
-            <div className="absolute bottom-3 left-4 right-4">
-              <h3 className="text-foreground font-extrabold text-sm lg:text-base leading-tight">{evento.nombre}</h3>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+            <div className="absolute bottom-4 left-4 right-4">
+              <h3 className="text-white font-extrabold text-lg lg:text-2xl leading-tight">{evento.nombre}</h3>
+              <p className="text-white/70 text-xs mt-1">{formatFecha(evento.fechaEvento)} · {evento.lugar}</p>
             </div>
           </div>
 
