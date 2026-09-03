@@ -3,6 +3,7 @@
 - **Repo:** monorepo en GitHub (`proy_asistiapp`), raíz en `AsistiApp/`. `backend/` (Java/Spring Boot) y `frontend/` (React/Vite) son hermanos en el mismo repo.
 - **Frontend real:** `frontend/` — proyecto Vite + React + TypeScript **nuevo y limpio**, desarrollado y buildeado directo con `npm install && npm run dev` / `npm run build` (NO es el harness de Figma Make). Estructura multi-archivo normal: `src/App.tsx` (router), `src/lib/` (api.ts, auth.tsx, types.ts, format.ts), `src/pages/{buyer,organizador,staff,admin}/`.
 - **`figma-reference/`:** el export crudo original de Figma Make (single-file `App.tsx`, mock data). Es **solo material de consulta** de diseño/patrones — nunca se edita ni se shipea. Cuando haga falta ver cómo resolvía una pantalla el mockup, mirar ahí.
+- **`nuevo-diseño/`:** referencias visuales sueltas (mockups de Stitch/Figma Make, `code.html` + `DESIGN.md` + captura) que se van sumando cuando el usuario quiere adoptar una nueva estética. Igual que `figma-reference/`: **solo material de consulta**, nunca se edita ni se shipea. La adopción de "TicketVibe" (celeste/violeta/lima, tipografía Anybody/JetBrains Mono) está documentada en `DESIGN.md`.
 - **Stack Frontend:** React + TypeScript + Tailwind CSS v4, `react-router` (v7, paquete unificado, no hace falta `react-router-dom`), `recharts` para gráficos.
 - **Stack Backend:** Java + Spring Boot + PostgreSQL.
 - **Iconos (Frontend):** lucide-react v0.487.0 (IMPORTANTE: Usa `CircleX`, NUNCA `XCircle`).

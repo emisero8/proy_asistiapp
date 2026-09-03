@@ -2,6 +2,8 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
+import { ThemeProvider, useTheme } from "./lib/theme";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 const ListingPage = lazy(() => import("./pages/buyer/ListingPage").then((m) => ({ default: m.ListingPage })));
 const DetailPage = lazy(() => import("./pages/buyer/DetailPage").then((m) => ({ default: m.DetailPage })));
@@ -38,15 +40,26 @@ function RouteFallback() {
 
 export default function App() {
   return (
+    <ThemeProvider>
+      <AppShell />
+    </ThemeProvider>
+  );
+}
+
+function AppShell() {
+  const { theme } = useTheme();
+
+  return (
     <AuthProvider>
+      <ThemeToggle />
       <Toaster
         position="top-center"
-        theme="dark"
+        theme={theme}
         toastOptions={{
           style: {
-            background: "#131222",
-            border: "1px solid rgba(255,255,255,0.08)",
-            color: "#f0eeff",
+            background: "var(--card)",
+            border: "1px solid var(--border)",
+            color: "var(--foreground)",
           },
         }}
       />

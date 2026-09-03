@@ -184,7 +184,7 @@ export function AdminEventsPage() {
                           {e.estado !== "Cancelado" && (
                             <button
                               onClick={() => cancelarEvento(e)}
-                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-amber-400 hover:bg-amber-400/10 transition-colors flex items-center gap-2"
+                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
                             >
                               <CircleX size={13} />
                               Cancelar Evento
@@ -193,7 +193,7 @@ export function AdminEventsPage() {
                           <div className="border-t border-border" />
                           <button
                             onClick={() => eliminarEvento(e)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-400/10 transition-colors flex items-center gap-2"
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
                           >
                             <Trash2 size={13} />
                             Eliminar
@@ -286,7 +286,7 @@ export function AdminEventsPage() {
               <button
                 disabled={saving || !editForm.nombre || !editForm.fechaEvento || !editForm.horaEvento || !editForm.lugar}
                 onClick={saveEdit}
-                className="w-full py-3 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {saving ? "Guardando..." : "Guardar cambios"}
               </button>

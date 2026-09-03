@@ -71,15 +71,15 @@ export function OrganizadorWalletPage() {
             <div className="relative overflow-hidden rounded-3xl bg-primary p-5">
               <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10" />
               <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full bg-white/5" />
-              <p className="text-white/70 text-xs uppercase tracking-widest font-semibold relative">Saldo disponible</p>
-              <p className="text-4xl font-extrabold text-white mt-1 relative">
-                {saldo} <span className="text-xl font-semibold text-white/70">créditos</span>
+              <p className="text-primary-foreground/70 text-xs uppercase tracking-widest font-semibold relative">Saldo disponible</p>
+              <p className="text-4xl font-extrabold text-primary-foreground mt-1 relative">
+                {saldo} <span className="text-xl font-semibold text-primary-foreground/70">créditos</span>
               </p>
-              <p className="text-white/60 text-xs mt-2 relative">
+              <p className="text-primary-foreground/60 text-xs mt-2 relative">
                 {session?.nombre} · {session?.email}
               </p>
               <div className="mt-4 relative">
-                <div className="bg-white/20 rounded-full px-3 py-1 text-xs font-semibold text-white inline-flex items-center gap-1.5">
+                <div className="bg-primary-foreground/20 rounded-full px-3 py-1 text-xs font-semibold text-primary-foreground inline-flex items-center gap-1.5">
                   <CreditCard size={11} />
                   Sin comisiones por venta
                 </div>
@@ -129,7 +129,7 @@ export function OrganizadorWalletPage() {
                           e.stopPropagation();
                           handleComprar(pack.id);
                         }}
-                        className="mt-3 w-full py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                        className="mt-3 w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                       >
                         {comprando ? "Procesando..." : "Pagar con MercadoPago"}
                       </button>

@@ -44,17 +44,17 @@ export function AdminDashboardPage() {
 
   const cards = metrics
     ? [
-        { label: "Organizadores activos", value: metrics.organizadoresActivos.toLocaleString("es-AR"), icon: Users, color: "text-violet-400", bg: "bg-violet-400/10" },
+        { label: "Organizadores activos", value: metrics.organizadoresActivos.toLocaleString("es-AR"), icon: Users, color: "text-primary", bg: "bg-primary/10" },
         { label: "Eventos activos", value: metrics.eventosActivos.toLocaleString("es-AR"), sub: `${metrics.eventosTotales.toLocaleString("es-AR")} en total`, icon: Calendar, color: "text-emerald-400", bg: "bg-emerald-400/10" },
-        { label: "Ingresos totales", value: fmt(metrics.ingresosTotales), icon: CircleDollarSign, color: "text-amber-400", bg: "bg-amber-400/10" },
-        { label: "Entradas vendidas", value: metrics.entradasVendidas.toLocaleString("es-AR"), icon: Ticket, color: "text-sky-400", bg: "bg-sky-400/10" },
+        { label: "Ingresos totales", value: fmt(metrics.ingresosTotales), icon: CircleDollarSign, color: "text-foreground", bg: "bg-muted" },
+        { label: "Entradas vendidas", value: metrics.entradasVendidas.toLocaleString("es-AR"), icon: Ticket, color: "text-muted-foreground", bg: "bg-muted" },
       ]
     : [];
 
   const shortcuts = [
-    { label: "Gestión de Usuarios", desc: "Ver y administrar todos los usuarios", to: "/admin/usuarios", icon: Users, color: "text-violet-400", bg: "bg-violet-400/10" },
+    { label: "Gestión de Usuarios", desc: "Ver y administrar todos los usuarios", to: "/admin/usuarios", icon: Users, color: "text-primary", bg: "bg-primary/10" },
     { label: "Gestión de Eventos", desc: "Supervisar eventos de toda la plataforma", to: "/admin/eventos", icon: CalendarCheck, color: "text-emerald-400", bg: "bg-emerald-400/10" },
-    { label: "Configuración y Paquetes", desc: "Paquetes de créditos y ajustes globales", to: "/admin/config", icon: CircleDollarSign, color: "text-amber-400", bg: "bg-amber-400/10" },
+    { label: "Configuración y Paquetes", desc: "Paquetes de créditos y ajustes globales", to: "/admin/config", icon: CircleDollarSign, color: "text-foreground", bg: "bg-muted" },
   ];
 
   return (

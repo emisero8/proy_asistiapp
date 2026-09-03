@@ -249,7 +249,7 @@ export function StaffPosPage() {
               <span className="text-lg font-bold text-foreground w-4 text-center">{qty}</span>
               <button
                 onClick={() => setQty((q) => Math.min(tanda?.cupoDisponible ?? 1, q + 1))}
-                className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white hover:bg-primary/80 transition-colors"
+                className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors"
               >
                 <Plus size={13} />
               </button>
@@ -295,7 +295,7 @@ export function StaffPosPage() {
               disabled={!valid || selling}
               onClick={handleGenerate}
               className={`mt-4 w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
-                valid && !selling ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
+                valid && !selling ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
               <QrCode size={18} />
@@ -318,7 +318,7 @@ export function StaffPosPage() {
             disabled={!valid || selling}
             onClick={handleGenerate}
             className={`w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
-              valid && !selling ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
+              valid && !selling ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >
             <QrCode size={18} />

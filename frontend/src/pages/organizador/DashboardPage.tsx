@@ -7,7 +7,8 @@ import { useAuth } from "../../lib/auth";
 import { fmt, formatFecha, formatHora, formatRelativo } from "../../lib/format";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
-const TANDA_COLORS = ["#7c3aed", "#9d5cf6", "#c084fc", "#e0b3ff"];
+// Un solo color de marca (azul marino): las tandas se distinguen por intensidad, no por matiz — sólido, claro, oscuro, y gris neutro como 4ta.
+const TANDA_COLORS = ["#2b3c64", "#4a5d8f", "#17223d", "#94a3b8"];
 
 export function OrganizadorDashboardPage() {
   const navigate = useNavigate();
@@ -48,16 +49,16 @@ export function OrganizadorDashboardPage() {
 
   const metricCards = metricas
     ? [
-        { label: "Entradas vendidas", value: String(metricas.entradasVendidas), icon: Ticket, color: "text-violet-400", bg: "bg-violet-400/10" },
+        { label: "Entradas vendidas", value: String(metricas.entradasVendidas), icon: Ticket, color: "text-primary", bg: "bg-primary/10" },
         { label: "Ingresos totales", value: fmt(metricas.ingresosTotales), icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-400/10" },
-        { label: "Aforo disponible", value: String(metricas.cupoDisponible), sub: `de ${metricas.cupoTotal} cap.`, icon: Users, color: "text-sky-400", bg: "bg-sky-400/10" },
+        { label: "Aforo disponible", value: String(metricas.cupoDisponible), sub: `de ${metricas.cupoTotal} cap.`, icon: Users, color: "text-foreground", bg: "bg-muted" },
         {
           label: "Validados en puerta",
           value: String(metricas.entradasValidadas),
           sub: metricas.entradasVendidas > 0 ? `${Math.round((metricas.entradasValidadas / metricas.entradasVendidas) * 100)}% del total` : undefined,
           icon: ShieldCheck,
-          color: "text-amber-400",
-          bg: "bg-amber-400/10",
+          color: "text-muted-foreground",
+          bg: "bg-muted",
         },
       ]
     : [];
@@ -97,7 +98,7 @@ export function OrganizadorDashboardPage() {
               <p className="text-sm text-muted-foreground">Todavía no creaste ningún evento.</p>
               <button
                 onClick={() => navigate("/organizador/crear")}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
               >
                 <Sparkles size={16} />
                 Crear tu primer evento
@@ -164,10 +165,10 @@ export function OrganizadorDashboardPage() {
                     <p className="text-[10px] text-muted-foreground mb-4">{eventoActivo?.nombre}</p>
                     <ResponsiveContainer width="100%" height={120}>
                       <BarChart data={metricas.tandas} barCategoryGap="30%">
-                        <XAxis dataKey="nombreTanda" tick={{ fill: "#6e6b8f", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="nombreTanda" tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} axisLine={false} tickLine={false} />
                         <YAxis hide />
                         <Tooltip
-                          contentStyle={{ background: "#131222", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11, color: "#f0eeff" }}
+                          contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 11, color: "var(--foreground)" }}
                           cursor={{ fill: "rgba(124,58,237,0.08)" }}
                           formatter={(v: number) => [`${v} entradas`, ""]}
                         />
@@ -212,8 +213,8 @@ export function OrganizadorDashboardPage() {
                 onClick={() => navigate("/organizador/crear")}
                 className="bg-primary rounded-2xl p-4 flex flex-col gap-2 hover:bg-primary/90 transition-colors"
               >
-                <Sparkles size={18} className="text-white" />
-                <p className="text-sm font-bold text-white">Crear evento</p>
+                <Sparkles size={18} className="text-primary-foreground" />
+                <p className="text-sm font-bold text-primary-foreground">Crear evento</p>
               </button>
               <button
                 onClick={() => navigate("/organizador/staff")}

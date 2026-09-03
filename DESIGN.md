@@ -17,49 +17,89 @@ There are **four audience modes**, each with its own frame:
 
 ## Color Tokens
 
-All tokens are CSS custom properties set in `src/styles/theme.css`.
+All tokens are CSS custom properties set in `src/styles/theme.css`. **Brand identity: monocromática — azul marino** como único color de marca, en tono pastel/desaturado (nada de neón). Reemplaza al esquema de 3 matices (celeste/violeta/lima, "TicketVibe" — ver referencia [nuevo-diseño/stitch_ticketvibe_modern_ticketing_platform](../nuevo-diseño/stitch_ticketvibe_modern_ticketing_platform/)) tras confirmar que, para este producto, menos matices con más contraste de intensidad lee más prolijo que varios colores compitiendo entre sí.
 
-| Token | Value | Usage |
-|---|---|---|
-| `--background` | `#09090f` | App / screen background |
-| `--foreground` | `#f0eeff` | Primary text |
-| `--card` | `#131222` | Card surface |
-| `--card-foreground` | `#f0eeff` | Text on cards |
-| `--primary` | `#7c3aed` | Violet — CTA buttons, active states, brand accent |
-| `--primary-foreground` | `#ffffff` | Text on primary buttons |
-| `--secondary` | `#1e1b33` | Secondary surface |
-| `--muted` | `#1e1b33` | Muted inputs, disabled buttons |
-| `--muted-foreground` | `#6e6b8f` | Placeholder text, secondary labels |
-| `--accent` | `#f59e0b` | Amber — prices, highlights, popular badges |
-| `--accent-foreground` | `#09090f` | Text on accent elements |
-| `--destructive` | `#ef4444` | Errors, cancel actions |
-| `--border` | `rgba(255,255,255,0.08)` | Subtle card/input borders |
-| `--ring` | `#7c3aed` | Focus ring color |
+- `--primary` **=** `--accent` (mismo valor): azul marino. Es el único color de marca — CTA, links, foco, precios, urgencia, identidad. No hay un segundo matiz "de marca"; la diferenciación entre elementos se logra con **intensidad**, no con hue: sólido (`bg-primary`), suave (`bg-primary/10`), o solo borde/texto (`text-primary`).
+- `--secondary` es neutro (mismo valor que `--muted`) — dejó de ser un color de marca. Existe como token por la estructura de `@theme inline`, pero no aporta un matiz propio.
+- `--destructive` (bordó apagado) es la **única excepción real**, y no cuenta como color de marca: es señal de sistema para error/cancelar, tan necesaria como `--border` o `--ring`. Se eligió deliberadamente lejos en la rueda cromática del azul (bordó, no el rojo-anaranjado que tenía antes) para que nunca se confunda con nada de marca.
+
+`--primary`/`--accent` son claros/saturados y como TEXTO sobre fondo blanco (modo claro) pierden contraste, así que usan el patrón de **valor distinto por modo** (no `dark:` por-uso en cada archivo — el propio token resuelve distinto según el modo, así el código siempre usa `bg-primary`/`text-accent` sin condicionales).
+
+| Token | Claro (`:root`) | Oscuro (`.dark`) | Uso |
+|---|---|---|---|
+| `--background` | `#f8fafc` | `#020617` | Fondo de pantalla |
+| `--foreground` | `#0f172a` | `#f8fafc` | Texto principal |
+| `--card` | `#ffffff` | `#0f172a` | Superficie de tarjetas |
+| `--card-foreground` | `#0f172a` | `#f8fafc` | Texto sobre tarjetas |
+| `--primary` / `--accent` | `#2b3c64` (azul marino) | `#9cadd3` (azul marino pastel) | Único color de marca — **valor distinto por modo**, ver nota arriba |
+| `--primary-foreground` / `--accent-foreground` | `#ffffff` | `#0d1a2b` | Texto sobre botones primary/accent |
+| `--secondary` | `#f1f5f9` | `#1e293b` | Neutro — igual a `--muted`, no es color de marca |
+| `--secondary-foreground` | `#0f172a` | `#f8fafc` | Texto sobre `--secondary` |
+| `--muted` | `#f1f5f9` | `#1e293b` | Superficie secundaria, inputs, chips inactivos |
+| `--muted-foreground` | `#64748b` | `#94a3b8` | Texto placeholder, labels secundarias |
+| `--destructive` | `#772238` (bordó) | `#ac394d` (bordó claro) | Errores, cancelar, eliminar — única excepción, no es de marca |
+| `--destructive-foreground` | `#ffffff` | `#ffffff` | Texto sobre `--destructive` (mismo en los dos modos, no es pastel a propósito) |
+| `--border` | `rgba(15,23,42,0.1)` | `rgba(248,250,252,0.08)` | Bordes sutiles de tarjetas/inputs |
+| `--ring` | `#2b3c64` | `#9cadd3` | Color del focus ring — sigue a `--primary` |
+
+Los neutros son una escala fría (familia *slate*, ~222° de matiz) que casualmente es **el mismo matiz que el azul marino** — todo el sistema de color gira sobre un solo eje azul, con el bordó como único contraste que se permite.
+
+**Regla para agregar un token nuevo:** si el color es claro/muy saturado (piensa "¿esto se lee bien como texto sobre blanco?"), necesita el patrón de dos valores como `--primary`. Si es un color medio (como `--destructive`), un solo valor sirve para los dos modos. **No agregar un cuarto/quinto color "para diferenciar"** (roles, tandas, tarjetas de métrica) — usar intensidad del azul (sólido/`/10`/borde) o neutro (`text-foreground` / `text-muted-foreground`) en su lugar, ver tabla de abajo.
+
+**Excepción documentada:** el panel de marca del login de Organizador (`OrganizadorLoginPage`) usa hex literal (`#09090b` translúcido + acentos `#9cadd3`) a propósito — es un panel siempre-oscuro que no depende del tema, no un olvido de tokens.
 
 ### Semantic Color Usage
 
+Clases literales de Tailwind (no tokens custom). Dos categorías bien separadas:
+
+**Estados reales (universales, se mantienen sin importar la paleta de marca):**
+
 | Context | Color |
 |---|---|
-| Success / Valid entry | `text-emerald-400`, `bg-emerald-400/10–15` |
-| Error / Invalid entry | `text-red-400`, `bg-red-400/10–15` |
-| Prices | `text-accent` (`#f59e0b`) |
+| Success / Valid entry / crédito | `text-emerald-400`, `bg-emerald-400/10–15` |
+| Error / Invalid entry / débito | `text-red-400`, `bg-red-400/10–15` (nota: distinto de `--destructive`, que es el bordó de marca para error/cancelar en formularios y menús — este rojo puro queda reservado al overlay de escaneo y al historial de créditos, que ya eran así antes de este sistema) |
 | Active pulse indicator | `bg-green-400 animate-pulse` |
-| Violet metric | `text-violet-400`, `bg-violet-400/10` |
-| Sky/Info metric | `text-sky-400`, `bg-sky-400/10` |
-| Amber metric | `text-amber-400`, `bg-amber-400/10` |
+
+**Diferenciadores decorativos (4 tarjetas de métrica, roles de usuario, etc.) — ya NO usan un color por elemento.** Se resuelven así, rotando entre azul marino y neutro:
+
+| Rol visual | Clases |
+|---|---|
+| Azul marino sólido | `bg-primary text-primary-foreground` (o `text-primary` / `bg-primary/10` para íconos-chip) |
+| Azul marino suave | `bg-primary/15 text-primary` |
+| Neutro fuerte | `bg-muted text-foreground` |
+| Neutro suave | `bg-muted text-muted-foreground` |
+
+Ejemplo real: `ROLE_COLORS` en `admin/UsersPage.tsx` (Administrador/Organizador/Staff QR/Staff Vendedor) usa exactamente estos 4 en ese orden.
+
+---
+
+## Light / Dark Mode
+
+Toda la app soporta modo claro y oscuro — **no es mobile-only ni dark-only**, cualquier pantalla nueva tiene que verse bien en ambos.
+
+- **Mecanismo:** clase `.dark` en `<html>`, agregada/sacada por `src/lib/theme.tsx` (`ThemeProvider` + hook `useTheme()`). Tailwind ya está configurado para esto (`@custom-variant dark (&:is(.dark *))` en `theme.css`) — no hace falta tocar esa parte.
+- **Persistencia:** el modo elegido se guarda en `localStorage` (`asistiapp_theme`). Default: **oscuro** (identidad original de la app).
+- **Toggle:** `src/components/ThemeToggle.tsx` — un botón flotante (`fixed`, `z-50`, esquina superior derecha) montado una sola vez en `App.tsx`, visible en cualquier pantalla sin que cada layout tenga que hacerle lugar en su header.
+- **Regla para código nuevo:** usar siempre los tokens (`bg-card`, `text-foreground`, `border-border`, `bg-primary`, etc.), nunca hex/rgb literal para colores que deban adaptarse al modo. Si de verdad necesitás un color que **no** cambie con el tema (ej. un panel de marca siempre-oscuro como en `OrganizadorLoginPage`), usá hex literal a propósito y dejalo comentado como tal — es la excepción, no la regla.
+- **`recharts` (gráficos):** los `contentStyle`/`fill` de `Tooltip`/`Cell` son estilos inline de JS, no CSS — ahí hay que pasar `"var(--card)"`, `"var(--foreground)"`, etc. explícitamente como string (ver `DashboardPage.tsx` del Organizador) en vez de hex hardcodeado, si no el tooltip queda fijo en un modo.
 
 ---
 
 ## Typography
 
-Font: **Inter** (weights 400, 500, 600, 700, 800). Imported in `src/styles/fonts.css` from Google Fonts.
+Tres familias, cada una con un rol fijo — todas importadas en `src/styles/fonts.css` desde Google Fonts y expuestas como utilidades Tailwind vía `--font-sans`/`--font-display`/`--font-mono` en el `@theme inline` de `theme.css`:
+
+- **Inter** (`font-sans`, default — no hace falta la clase, es la familia base del `body`): weights 400–800. Texto de UI, body, labels, botones.
+- **Anybody** (`font-display`): weights 700–900. Solo para titulares grandes de alto impacto — hero de la Home, encabezados de sección en mayúsculas (`Todos los eventos`, `Tu entrada, sin vueltas`). Siempre en mayúsculas (`uppercase`) y bien condensado/extendido, nunca para texto de UI normal.
+- **JetBrains Mono** (`font-mono`): weights 500–700. Códigos de ticket, IDs, y cualquier dato "técnico" (ya se usaba como `font-mono` genérico antes de sumar la fuente real).
 
 Do **not** add Tailwind font-size / font-weight classes unless overriding—the `theme.css` base layer handles default sizing for `h1–h4`, `label`, `button`, `input`.
 
 | Element | Class pattern |
 |---|---|
 | Brand wordmark | `text-xl font-extrabold` + `<span className="text-primary">APP</span>` |
-| Section heading | `text-lg font-extrabold text-foreground` |
+| Hero / display heading | `font-display uppercase font-extrabold` + gradiente `bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary` (ver Home) |
+| Section heading | `text-lg font-extrabold text-foreground` (o `font-display uppercase` si es un heading grande de sección, ver Home) |
 | Card title | `text-sm font-bold text-foreground` |
 | Body / description | `text-sm text-muted-foreground leading-relaxed` |
 | Overline label | `text-[10px] text-muted-foreground tracking-[0.2em] uppercase` |

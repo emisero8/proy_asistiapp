@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Eye, EyeOff, AlertCircle, Zap, ShieldCheck, TrendingUp } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { AuthBackground } from "../../components/AuthBackground";
 import type { AuthResponseDTO, LoginRequestDTO } from "../../lib/types";
 
 const LOGIN_FEATURES = [
@@ -60,43 +61,47 @@ export function OrganizadorLoginPage() {
   }
 
   return (
-    <div className="min-h-screen lg:flex bg-background">
-      <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:px-16 relative overflow-hidden bg-[radial-gradient(circle_at_20%_20%,rgba(124,58,237,0.35),transparent_55%),radial-gradient(circle_at_80%_80%,rgba(124,58,237,0.25),transparent_50%)] bg-card">
+    <div className="min-h-screen lg:flex bg-background relative">
+      {/* La foto de fondo solo se ve del lado derecho, detrás de la tarjeta de login —
+          el panel izquierdo es sólido y la tapa por completo. */}
+      <AuthBackground />
+      {/* Panel de marca — negro sólido fijo (no depende del tema) con acentos azul marino pastel, con vidrio esmerilado. */}
+      <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:px-16 relative overflow-hidden bg-[#09090b]">
         <div
-          className="absolute inset-0 opacity-[0.06]"
+          className="absolute inset-0 opacity-[0.07]"
           style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "22px 22px" }}
         />
-        <div className="absolute top-1/4 -right-16 w-72 h-72 rounded-full bg-primary/25 blur-3xl" />
-        <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-primary/15 blur-3xl" />
+        <div className="absolute -top-24 -right-20 w-96 h-96 rounded-full bg-[#9cadd3]/15 blur-3xl" />
+        <div className="absolute -bottom-24 -left-16 w-80 h-80 rounded-full bg-[#9cadd3]/10 blur-3xl" />
 
         <button onClick={() => navigate("/")} className="relative text-left w-fit mb-8 group">
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Asistí<span className="text-primary">APP</span>
+            Asistí<span className="text-[#9cadd3]">APP</span>
           </h1>
-          <span className="block h-0.5 w-0 bg-primary transition-all duration-300 group-hover:w-full mt-0.5" />
+          <span className="block h-0.5 w-0 bg-[#9cadd3] transition-all duration-300 group-hover:w-full mt-0.5" />
         </button>
 
         <h2 className="text-4xl font-extrabold text-white tracking-tight relative leading-tight">
-          Tu evento, <span className="text-primary">sin comisión</span>
+          Tu evento, <span className="text-[#9cadd3]">sin comisión</span>
         </h2>
         <p className="text-white/70 text-base mt-3 max-w-sm relative">
           Publicá, gestioná tu staff y controlá el acceso — todo desde un solo panel.
         </p>
 
-        <div className="relative mt-10 space-y-3.5">
+        <div className="relative mt-10 space-y-2.5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-xl shadow-black/20">
           {LOGIN_FEATURES.map((f) => (
             <div key={f.text} className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center flex-none">
-                <f.icon size={14} className="text-primary" />
+              <div className="w-8 h-8 rounded-xl bg-[#9cadd3]/15 backdrop-blur-md border border-[#9cadd3]/25 flex items-center justify-center flex-none">
+                <f.icon size={14} className="text-[#9cadd3]" />
               </div>
-              <span className="text-sm text-white/80">{f.text}</span>
+              <span className="text-sm text-white/90 font-medium">{f.text}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="flex flex-col justify-center px-6 lg:w-1/2 lg:px-16 py-12">
-        <div className="max-w-sm mx-auto w-full">
+      <div className="relative z-10 flex flex-col justify-center px-6 lg:w-1/2 lg:px-16 py-12">
+        <div className="max-w-sm mx-auto w-full lg:bg-card/60 lg:backdrop-blur-xl lg:border lg:border-border lg:rounded-3xl lg:p-8 lg:shadow-xl lg:shadow-black/5">
           <div className="mb-10 lg:hidden">
             <button onClick={() => navigate("/")} className="text-left">
               <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
@@ -143,7 +148,7 @@ export function OrganizadorLoginPage() {
             <button
               disabled={loading || !email || !pass}
               onClick={handleLogin}
-              className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Ingresando..." : "Ingresar al panel"}
             </button>
@@ -183,7 +188,7 @@ export function OrganizadorLoginPage() {
             <button
               disabled={loading || !email}
               onClick={handleRecovery}
-              className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-base hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Enviando..." : "Enviar link de recupero"}
             </button>

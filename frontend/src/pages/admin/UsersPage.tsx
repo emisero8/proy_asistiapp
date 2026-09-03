@@ -5,10 +5,10 @@ import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
 
 const ROLE_COLORS: Record<RolUsuario, string> = {
-  Administrador: "bg-sky-400/15 text-sky-400",
-  Organizador: "bg-violet-400/15 text-violet-400",
-  Staff_QR: "bg-amber-400/15 text-amber-400",
-  Staff_Vendedor: "bg-amber-400/15 text-amber-400",
+  Administrador: "bg-primary text-primary-foreground",
+  Organizador: "bg-primary/15 text-primary",
+  Staff_QR: "bg-muted text-foreground",
+  Staff_Vendedor: "bg-muted text-muted-foreground",
 };
 
 const ROLES: RolUsuario[] = ["Administrador", "Organizador", "Staff_QR", "Staff_Vendedor"];
@@ -225,7 +225,7 @@ export function AdminUsersPage() {
                           <div className="border-t border-border" />
                           <button
                             onClick={() => deleteUser(u)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-400/10 transition-colors flex items-center gap-2"
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
                           >
                             <Trash2 size={13} />
                             Eliminar

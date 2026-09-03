@@ -157,7 +157,7 @@ export function CheckoutPage() {
               onClick={handleConfirm}
               className={`mt-4 w-full py-4 rounded-2xl font-bold text-base transition-all ${
                 valid && !loading
-                  ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98]"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
@@ -181,7 +181,7 @@ export function CheckoutPage() {
             onClick={handleConfirm}
             className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
               valid && !loading
-                ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98]"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >

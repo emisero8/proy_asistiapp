@@ -189,7 +189,7 @@ export function AdminConfigPage() {
                   <button
                     disabled={creatingPack}
                     onClick={createPack}
-                    className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
                   >
                     {creatingPack ? "..." : "Crear"}
                   </button>
@@ -224,7 +224,7 @@ export function AdminConfigPage() {
                               onChange={(e) => setEditPrice(e.target.value)}
                               className="w-20 px-2 py-1 bg-background border border-primary/50 rounded-lg text-xs text-foreground focus:outline-none"
                             />
-                            <button onClick={() => savePrice(pack)} className="px-2 py-1 bg-primary text-white text-xs rounded-lg font-bold">
+                            <button onClick={() => savePrice(pack)} className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-lg font-bold">
                               OK
                             </button>
                           </div>
@@ -306,7 +306,7 @@ export function AdminConfigPage() {
                 disabled={savingConfig}
                 onClick={handleSaveConfig}
                 className={`w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${
-                  saved ? "bg-emerald-500 text-white" : "bg-primary text-white hover:bg-primary/90"
+                  saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
                 }`}
               >
                 {saved ? (

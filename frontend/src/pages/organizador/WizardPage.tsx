@@ -118,7 +118,7 @@ export function OrganizadorWizardPage() {
         )}
         <button
           onClick={() => navigate("/organizador/dashboard")}
-          className="w-full max-w-sm py-4 rounded-2xl bg-primary text-white font-bold text-base hover:bg-primary/90 transition-all"
+          className="w-full max-w-sm py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 transition-all"
         >
           Volver al dashboard
         </button>
@@ -137,7 +137,7 @@ export function OrganizadorWizardPage() {
         <div className="flex items-center gap-2 mt-3">
           {[1, 2].map((s) => (
             <div key={s} className="flex items-center gap-2">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step >= s ? "bg-primary text-white" : "bg-muted text-muted-foreground"}`}>
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
                 {s}
               </div>
               {s === 1 && <div className={`h-0.5 w-20 rounded-full transition-all ${step >= 2 ? "bg-primary" : "bg-muted"}`} />}
@@ -290,8 +290,8 @@ export function OrganizadorWizardPage() {
               <Plus size={15} />
               Agregar tanda
             </button>
-            <div className="bg-amber-400/10 border border-amber-400/20 rounded-2xl px-4 py-3 flex gap-3">
-              <CircleDollarSign size={16} className="text-amber-400 flex-none mt-0.5" />
+            <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-3 flex gap-3">
+              <CircleDollarSign size={16} className="text-primary flex-none mt-0.5" />
               <p className="text-xs text-foreground">Publicar el evento va a consumir créditos de tu saldo.</p>
             </div>
           </>
@@ -312,7 +312,7 @@ export function OrganizadorWizardPage() {
               disabled={!step1Valid || loading}
               onClick={handleNext}
               className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all ${
-                step1Valid && !loading ? "bg-primary text-white hover:bg-primary/90" : "bg-muted text-muted-foreground cursor-not-allowed"
+                step1Valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
               {loading ? "Guardando..." : "Siguiente: configurar tandas"} <ChevronRight size={18} />
@@ -329,7 +329,7 @@ export function OrganizadorWizardPage() {
                 disabled={!step2Valid || loading}
                 onClick={handlePublicar}
                 className={`flex-1 py-4 rounded-2xl font-bold text-sm transition-all ${
-                  step2Valid && !loading ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
+                  step2Valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 {loading ? "Publicando..." : "Publicar evento"}

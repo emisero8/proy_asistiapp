@@ -141,7 +141,7 @@ export function StaffScannerPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={toggleTorch}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${torch ? "bg-amber-400 text-black" : "bg-white/10 text-white/70"}`}
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${torch ? "bg-white text-black" : "bg-white/10 text-white/70"}`}
             >
               {torch ? <Flashlight size={16} /> : <FlashlightOff size={16} />}
             </button>
@@ -199,7 +199,7 @@ export function StaffScannerPage() {
               <button
                 disabled={manualLoading || !manualCode.trim()}
                 onClick={handleManualValidate}
-                className="px-4 py-2.5 bg-primary rounded-xl text-white text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="px-4 py-2.5 bg-primary rounded-xl text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {manualLoading ? "..." : "Validar"}
               </button>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { AuthBackground } from "../../components/AuthBackground";
 import type { AuthResponseDTO, LoginRequestDTO } from "../../lib/types";
 
 export function AdminLoginPage() {
@@ -39,12 +40,13 @@ export function AdminLoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6 relative overflow-hidden">
+      <AuthBackground />
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
       <div className="w-full max-w-sm relative bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
         <div className="mb-10 text-center">
           <button onClick={() => navigate("/")} className="mx-auto mb-4 block">
             <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors">
-              <ShieldCheck size={22} className="text-white" />
+              <ShieldCheck size={22} className="text-primary-foreground" />
             </div>
           </button>
           <button onClick={() => navigate("/")} className="block w-full">
@@ -94,7 +96,7 @@ export function AdminLoginPage() {
           <button
             disabled={loading || !email || !pass}
             onClick={handleLogin}
-            className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Ingresando..." : "Ingresar al sistema"}
           </button>

@@ -44,7 +44,7 @@ export function AdminLayout() {
             onClick={logout}
             className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted hover:bg-muted/70 transition-colors text-left"
           >
-            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-white flex-none">
+            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground flex-none">
               {session?.nombre?.charAt(0) ?? "A"}
             </div>
             <div className="min-w-0">

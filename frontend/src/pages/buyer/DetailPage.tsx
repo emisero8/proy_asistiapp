@@ -126,7 +126,7 @@ export function DetailPage() {
                 <span className="text-lg font-bold text-foreground w-4 text-center">{qty}</span>
                 <button
                   onClick={() => setQty((q) => Math.min(sel.cupoDisponible || 1, q + 1))}
-                  className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white hover:bg-primary/80 transition-colors"
+                  className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors"
                 >
                   <Plus size={13} />
                 </button>
@@ -146,7 +146,7 @@ export function DetailPage() {
             <button
               disabled={sel.cupoDisponible <= 0}
               onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty } })}
-              className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Comprar entradas
             </button>
@@ -165,7 +165,7 @@ export function DetailPage() {
           <button
             disabled={sel.cupoDisponible <= 0}
             onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty } })}
-            className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Comprar entradas
           </button>

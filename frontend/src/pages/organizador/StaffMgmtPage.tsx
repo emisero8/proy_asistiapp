@@ -5,8 +5,8 @@ import { api, ApiError } from "../../lib/api";
 import type { CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, RolUsuario, StaffResponseDTO } from "../../lib/types";
 
 const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: string; icon: typeof QrCode; color: string; bg: string }> = {
-  Staff_QR: { label: "Staff QR", desc: "Escanea entradas en la puerta", icon: QrCode, color: "text-violet-400", bg: "bg-violet-400/10" },
-  Staff_Vendedor: { label: "Staff Vendedor", desc: "Vende y genera entradas en el evento", icon: Store, color: "text-amber-400", bg: "bg-amber-400/10" },
+  Staff_QR: { label: "Staff QR", desc: "Escanea entradas en la puerta", icon: QrCode, color: "text-primary", bg: "bg-primary/10" },
+  Staff_Vendedor: { label: "Staff Vendedor", desc: "Vende y genera entradas en el evento", icon: Store, color: "text-muted-foreground", bg: "bg-muted" },
 };
 
 export function OrganizadorStaffMgmtPage() {
@@ -138,7 +138,7 @@ export function OrganizadorStaffMgmtPage() {
                         disabled={busyId === member.id}
                         onClick={() => toggleEstado(member)}
                         className={`text-[10px] font-semibold px-2 py-1 rounded-lg transition-colors disabled:opacity-50 ${
-                          inactivo ? "text-primary hover:bg-primary/10" : "text-red-400 hover:bg-red-400/10"
+                          inactivo ? "text-primary hover:bg-primary/10" : "text-destructive hover:bg-destructive/10"
                         }`}
                       >
                         {inactivo ? "Reactivar" : "Dar de baja"}
@@ -216,7 +216,7 @@ export function OrganizadorStaffMgmtPage() {
               <button
                 disabled={saving}
                 onClick={addStaff}
-                className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {saving ? "Agregando..." : "Agregar"}
               </button>

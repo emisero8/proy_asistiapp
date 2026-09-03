@@ -78,7 +78,7 @@ export function OrganizadorRegisterPage() {
         )}
         <button
           onClick={() => navigate("/organizador/dashboard")}
-          className="w-full max-w-sm py-4 rounded-2xl bg-primary text-white font-bold text-base hover:bg-primary/90 transition-all"
+          className="w-full max-w-sm py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 transition-all"
         >
           Ir a mi panel
         </button>
@@ -224,7 +224,7 @@ export function OrganizadorRegisterPage() {
                 agreed ? "bg-primary border-primary" : "border-border"
               }`}
             >
-              {agreed && <Check size={12} className="text-white" />}
+              {agreed && <Check size={12} className="text-primary-foreground" />}
             </div>
             <span className="text-xs text-muted-foreground leading-relaxed">
               Acepto los <span className="text-primary underline">Términos y Condiciones</span> y la{" "}
@@ -240,7 +240,7 @@ export function OrganizadorRegisterPage() {
             disabled={!valid || loading}
             onClick={handleSubmit}
             className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
-              valid && !loading ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
+              valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >
             {loading ? "Creando cuenta..." : "Crear cuenta gratis"}
