@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
@@ -6,6 +6,7 @@ import { ThemeProvider, useTheme } from "./lib/theme";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 const ListingPage = lazy(() => import("./pages/buyer/ListingPage").then((m) => ({ default: m.ListingPage })));
+const AllEventsPage = lazy(() => import("./pages/buyer/AllEventsPage").then((m) => ({ default: m.AllEventsPage })));
 const DetailPage = lazy(() => import("./pages/buyer/DetailPage").then((m) => ({ default: m.DetailPage })));
 const CheckoutPage = lazy(() => import("./pages/buyer/CheckoutPage").then((m) => ({ default: m.CheckoutPage })));
 const TicketPage = lazy(() => import("./pages/buyer/TicketPage").then((m) => ({ default: m.TicketPage })));
@@ -43,11 +44,17 @@ function RouteFallback() {
     una transición de página consistente sin tener que tocar cada pantalla. */
 function AnimatedRoutes() {
   const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   return (
     <div key={location.pathname} className="page-transition">
       <Routes location={location}>
         {/* Comprador — público, sin auth (CU-015/016/017) */}
         <Route path="/" element={<ListingPage />} />
+        <Route path="/eventos" element={<AllEventsPage />} />
         <Route path="/eventos/:urlPublica" element={<DetailPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/ticket/:id" element={<TicketPage />} />

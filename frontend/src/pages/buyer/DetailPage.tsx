@@ -48,23 +48,25 @@ export function DetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-[1800px] mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
-        <div className="lg:flex-1 lg:min-w-0">
-          <div className="relative lg:rounded-2xl lg:overflow-hidden">
-            {evento.imagenPortadaUrl ? (
-              <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-56 lg:h-80 xl:h-[26rem] 2xl:h-[30rem] object-cover bg-muted" />
-            ) : (
-              <div className="w-full h-56 lg:h-80 xl:h-[26rem] 2xl:h-[30rem] bg-muted" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent" />
-            <button
-              onClick={() => navigate(-1)}
-              className="absolute top-4 left-4 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-            >
-              <ChevronLeft size={18} />
-            </button>
-          </div>
+      <div className="max-w-[1800px] mx-auto lg:px-8 lg:py-8">
+        <div className="lg:max-w-5xl lg:mx-auto">
+        <div className="relative lg:max-w-2xl lg:mx-auto lg:rounded-2xl lg:overflow-hidden">
+          {evento.imagenPortadaUrl ? (
+            <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-56 lg:h-72 xl:h-80 object-cover bg-muted" />
+          ) : (
+            <div className="w-full h-56 lg:h-72 xl:h-80 bg-muted" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent" />
+          <button
+            onClick={() => navigate(-1)}
+            className="absolute top-4 left-4 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+          >
+            <ChevronLeft size={18} />
+          </button>
+        </div>
 
+        <div className="lg:flex lg:gap-8 lg:items-start lg:mt-8">
+        <div className="lg:flex-1 lg:min-w-0">
           <div className="px-4 lg:px-0 pt-5 pb-4">
             <h1 className="text-2xl lg:text-3xl font-extrabold text-foreground leading-tight">{evento.nombre}</h1>
             <div className="mt-3 space-y-2">
@@ -151,6 +153,8 @@ export function DetailPage() {
               Comprar entradas
             </button>
           </div>
+        </div>
+        </div>
         </div>
       </div>
 

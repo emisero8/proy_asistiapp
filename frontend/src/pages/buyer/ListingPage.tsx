@@ -1,18 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Search, MapPin, Calendar, Sparkles, ArrowRight, Zap, ShieldCheck, TrendingUp } from "lucide-react";
+import { MapPin, Calendar, Sparkles, ArrowRight, Zap, ShieldCheck, TrendingUp } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha } from "../../lib/format";
 import type { EventoPublicoListItemDTO } from "../../lib/types";
 
-type FiltroFecha = "todos" | "hoy" | "este-finde" | "proximo-finde";
-
-const FILTROS: { id: FiltroFecha; label: string }[] = [
-  { id: "todos", label: "Todos" },
-  { id: "hoy", label: "Hoy" },
-  { id: "este-finde", label: "Este finde" },
-  { id: "proximo-finde", label: "Próximo finde" },
-];
+const EVENTOS_HOME = 16; // 4 filas de 4 columnas en desktop
 
 const TICKER_ITEMS = [
   "Sin comisión para el organizador",
@@ -27,30 +20,10 @@ const FEATURES = [
   { icon: TrendingUp, title: "Sin comisión oculta", desc: "El organizador vende directo — vos pagás lo que ves." },
 ];
 
-/** [inicio, fin] del próximo viernes-a-domingo, en offset de semanas (0 = el que viene o el actual). */
-function rangoFinDeSemana(offsetSemanas: number): [Date, Date] {
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const dia = hoy.getDay(); // 0=domingo … 6=sábado
-  const diasHastaViernes = dia <= 5 ? 5 - dia : 5 - dia + 7;
-  const viernes = new Date(hoy);
-  viernes.setDate(hoy.getDate() + diasHastaViernes + offsetSemanas * 7);
-  const domingo = new Date(viernes);
-  domingo.setDate(viernes.getDate() + 2);
-  return [viernes, domingo];
-}
-
-function fechaEnRango(fechaEvento: string, [inicio, fin]: [Date, Date]): boolean {
-  const fecha = new Date(`${fechaEvento}T00:00:00`);
-  return fecha >= inicio && fecha <= fin;
-}
-
 export function ListingPage() {
   const navigate = useNavigate();
   const [eventos, setEventos] = useState<EventoPublicoListItemDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>("todos");
 
   useEffect(() => {
     api
@@ -87,19 +60,7 @@ export function ListingPage() {
     return () => clearInterval(id);
   }, [pausado, destacados.length]);
 
-  const visibles = ordenados.filter((e) => {
-    const q = search.toLowerCase();
-    const matchesSearch = e.nombre.toLowerCase().includes(q) || e.lugar.toLowerCase().includes(q);
-    const matchesFecha =
-      filtroFecha === "todos"
-        ? true
-        : filtroFecha === "hoy"
-          ? e.fechaEvento === hoyStr
-          : filtroFecha === "este-finde"
-            ? fechaEnRango(e.fechaEvento, rangoFinDeSemana(0))
-            : fechaEnRango(e.fechaEvento, rangoFinDeSemana(1));
-    return matchesSearch && matchesFecha;
-  });
+  const visibles = ordenados.slice(0, EVENTOS_HOME);
 
   return (
     <div className="min-h-screen bg-background">
@@ -223,32 +184,7 @@ export function ListingPage() {
         </div>
       </div>
 
-      <div id="eventos-grid" className="max-w-[1800px] mx-auto px-4 lg:px-8 pb-6 lg:pb-10 scroll-mt-4">
-        <div className="mb-4 space-y-3">
-          <div className="relative lg:max-w-sm">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Eventos, lugares..."
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-muted text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-            />
-          </div>
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-            {FILTROS.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setFiltroFecha(f.id)}
-                className={`flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                  filtroFecha === f.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <div id="eventos-grid" className="max-w-5xl mx-auto px-4 lg:px-8 pb-6 lg:pb-10 scroll-mt-4">
         {error && (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">
             {error}
@@ -256,7 +192,7 @@ export function ListingPage() {
         )}
 
         {!error && eventos === null && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="aspect-[3/4] rounded-2xl bg-card border border-border animate-pulse" />
             ))}
@@ -266,55 +202,73 @@ export function ListingPage() {
         {!error && eventos !== null && visibles.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-4xl mb-3">🎭</p>
-            <p className="text-sm text-muted-foreground">No hay eventos para tu búsqueda.</p>
+            <p className="text-sm text-muted-foreground">Todavía no hay eventos publicados.</p>
           </div>
         )}
 
         {!error && visibles.length > 0 && (
           <>
             <p className="font-display uppercase text-lg lg:text-xl font-extrabold text-foreground tracking-tight mb-4">
-              Todos los eventos
+              Próximos eventos
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 lg:gap-5">
-              {visibles.map((ev, i) => (
-                <button
-                  key={ev.id}
-                  onClick={() => navigate(`/eventos/${ev.urlPublica}`)}
-                  style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
-                  className="group text-left focus:outline-none animate-fade-in-up"
-                >
-                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-lg shadow-transparent group-hover:shadow-primary/25 group-hover:-translate-y-1 transition-all duration-300">
-                    {ev.imagenPortadaUrl ? (
-                      <img
-                        src={ev.imagenPortadaUrl}
-                        alt={ev.nombre}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-background flex items-center justify-center">
-                        <Sparkles size={22} className="text-primary/40" />
-                      </div>
-                    )}
-                    {ev.precioDesde !== null && (
-                      <span className="absolute top-2.5 right-2.5 bg-background/85 backdrop-blur-sm text-accent text-[11px] font-bold px-2.5 py-1 rounded-full">
-                        Desde {fmt(ev.precioDesde)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-2.5">
-                    <h3 className="text-foreground font-semibold text-sm leading-snug line-clamp-2">{ev.nombre}</h3>
-                    <p className="text-muted-foreground text-xs mt-1 flex items-center gap-1">
-                      <Calendar size={11} />
-                      {formatFecha(ev.fechaEvento)}
-                    </p>
-                    <p className="text-muted-foreground text-xs mt-0.5 flex items-center gap-1">
-                      <MapPin size={11} />
-                      <span className="truncate">{ev.lugar}</span>
-                    </p>
-                  </div>
-                </button>
-              ))}
+            <div className="relative">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-5">
+                {visibles.map((ev, i) => (
+                  <button
+                    key={ev.id}
+                    onClick={() => navigate(`/eventos/${ev.urlPublica}`)}
+                    style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
+                    className="group text-left focus:outline-none animate-fade-in-up"
+                  >
+                    <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-lg shadow-transparent group-hover:shadow-primary/25 group-hover:-translate-y-1 transition-all duration-300">
+                      {ev.imagenPortadaUrl ? (
+                        <img
+                          src={ev.imagenPortadaUrl}
+                          alt={ev.nombre}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-background flex items-center justify-center">
+                          <Sparkles size={22} className="text-primary/40" />
+                        </div>
+                      )}
+                      {ev.precioDesde !== null && (
+                        <span className="absolute top-2.5 right-2.5 bg-background/85 backdrop-blur-sm text-accent text-[11px] font-bold px-2.5 py-1 rounded-full">
+                          Desde {fmt(ev.precioDesde)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2.5">
+                      <h3 className="text-foreground font-semibold text-sm leading-snug line-clamp-2">{ev.nombre}</h3>
+                      <p className="text-muted-foreground text-xs mt-1 flex items-center gap-1">
+                        <Calendar size={11} />
+                        {formatFecha(ev.fechaEvento)}
+                      </p>
+                      <p className="text-muted-foreground text-xs mt-0.5 flex items-center gap-1">
+                        <MapPin size={11} />
+                        <span className="truncate">{ev.lugar}</span>
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {ordenados.length > EVENTOS_HOME && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 sm:h-56 lg:h-64 bg-gradient-to-b from-background/0 via-background/75 to-background" />
+              )}
             </div>
+
+            {ordenados.length > EVENTOS_HOME && (
+              <div className="flex justify-center -mt-10 sm:-mt-12 relative">
+                <button
+                  onClick={() => navigate("/eventos")}
+                  className="px-7 py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm flex items-center gap-2 shadow-xl shadow-primary/30 hover:opacity-90 hover:scale-[1.04] active:scale-[0.97] transition-all duration-200"
+                >
+                  Ir a ver todos los eventos
+                  <ArrowRight size={15} className="animate-[bounce-x_1.4s_ease-in-out_infinite]" />
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
