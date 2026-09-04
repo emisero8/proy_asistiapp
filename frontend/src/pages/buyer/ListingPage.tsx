@@ -82,7 +82,7 @@ export function ListingPage() {
       const avance = (tarjeta?.getBoundingClientRect().width ?? el.clientWidth * 0.6) + 12; // ancho de tarjeta + gap
       const alFinal = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
       el.scrollTo({ left: alFinal ? 0 : el.scrollLeft + avance, behavior: "smooth" });
-    }, 3500);
+    }, 2200);
 
     return () => clearInterval(id);
   }, [pausado, destacados.length]);
@@ -105,7 +105,7 @@ export function ListingPage() {
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <div className="px-4 lg:px-8 pt-5 pb-2 relative z-10">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+        <div className="max-w-[1800px] mx-auto flex items-center justify-between">
           <div>
             <p className="text-[10px] text-muted-foreground tracking-[0.2em] uppercase">Buenos Aires · Arg</p>
             <h2 className="text-lg lg:text-xl font-extrabold text-foreground tracking-tight">
@@ -128,7 +128,7 @@ export function ListingPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/60 to-background" />
         </div>
 
-        <div className="relative z-10 max-w-3xl mx-auto text-center flex flex-col items-center py-16">
+        <div className="relative z-10 max-w-3xl mx-auto text-center flex flex-col items-center py-16 animate-fade-in-up">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur-xl border border-white/10 mb-6">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
             <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-accent">
@@ -148,14 +148,14 @@ export function ListingPage() {
           <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
             <a
               href="#eventos-grid"
-              className="px-7 py-3.5 rounded-2xl bg-accent text-accent-foreground font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all"
+              className="px-7 py-3.5 rounded-2xl bg-accent text-accent-foreground font-bold text-sm uppercase tracking-wide flex items-center justify-center gap-2 hover:opacity-90 hover:scale-[1.03] active:scale-[0.97] transition-all duration-200"
             >
               Ver eventos
               <ArrowRight size={16} />
             </a>
             <button
               onClick={() => navigate("/organizador/registro")}
-              className="px-7 py-3.5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 text-foreground font-bold text-sm uppercase tracking-wide hover:bg-white/10 transition-colors"
+              className="px-7 py-3.5 rounded-2xl bg-white/5 backdrop-blur-xl border border-white/15 text-foreground font-bold text-sm uppercase tracking-wide hover:bg-white/10 hover:scale-[1.03] active:scale-[0.97] transition-all duration-200"
             >
               Publicá tu evento
             </button>
@@ -177,7 +177,8 @@ export function ListingPage() {
               <button
                 key={ev.id}
                 onClick={() => navigate(`/eventos/${ev.urlPublica}`)}
-                className="group relative flex-none w-[62%] sm:w-[38%] lg:w-[24%] aspect-[3/4] snap-start rounded-2xl overflow-hidden bg-muted border border-border focus:outline-none shadow-lg shadow-transparent hover:shadow-primary/30 transition-shadow"
+                style={{ animationDelay: `${i * 60}ms` }}
+                className="group relative flex-none w-[62%] sm:w-[30%] lg:w-[19%] aspect-[3/4] snap-start rounded-2xl overflow-hidden bg-muted border border-border focus:outline-none shadow-lg shadow-transparent hover:shadow-primary/30 hover:-translate-y-1.5 transition-all duration-300 animate-fade-in-up"
               >
                 {ev.imagenPortadaUrl ? (
                   <img
@@ -222,7 +223,7 @@ export function ListingPage() {
         </div>
       </div>
 
-      <div id="eventos-grid" className="max-w-6xl mx-auto px-4 lg:px-8 pb-6 lg:pb-10 scroll-mt-4">
+      <div id="eventos-grid" className="max-w-[1800px] mx-auto px-4 lg:px-8 pb-6 lg:pb-10 scroll-mt-4">
         <div className="mb-4 space-y-3">
           <div className="relative lg:max-w-sm">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -255,7 +256,7 @@ export function ListingPage() {
         )}
 
         {!error && eventos === null && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="aspect-[3/4] rounded-2xl bg-card border border-border animate-pulse" />
             ))}
@@ -274,14 +275,15 @@ export function ListingPage() {
             <p className="font-display uppercase text-lg lg:text-xl font-extrabold text-foreground tracking-tight mb-4">
               Todos los eventos
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-5">
-              {visibles.map((ev) => (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 lg:gap-5">
+              {visibles.map((ev, i) => (
                 <button
                   key={ev.id}
                   onClick={() => navigate(`/eventos/${ev.urlPublica}`)}
-                  className="group text-left focus:outline-none"
+                  style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
+                  className="group text-left focus:outline-none animate-fade-in-up"
                 >
-                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-lg shadow-transparent group-hover:shadow-primary/25 transition-shadow">
+                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-lg shadow-transparent group-hover:shadow-primary/25 group-hover:-translate-y-1 transition-all duration-300">
                     {ev.imagenPortadaUrl ? (
                       <img
                         src={ev.imagenPortadaUrl}
@@ -319,13 +321,16 @@ export function ListingPage() {
 
       {/* Showcase — por qué comprar acá, mismo trío de íconos que usa el login de organizador */}
       <div className="border-t border-border bg-card/40">
-        <div className="max-w-6xl mx-auto px-4 lg:px-8 py-12 lg:py-14">
+        <div className="max-w-[1800px] mx-auto px-4 lg:px-8 py-12 lg:py-14">
           <h2 className="font-display uppercase text-xl lg:text-2xl font-extrabold text-foreground tracking-tight text-center mb-8">
             Tu entrada, <span className="text-primary">sin vueltas</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-5">
             {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-2xl bg-card border border-border p-5 text-center sm:text-left">
+              <div
+                key={f.title}
+                className="rounded-2xl bg-card border border-border p-5 text-center sm:text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/10"
+              >
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 mx-auto sm:mx-0">
                   <f.icon size={18} className="text-primary" />
                 </div>
@@ -339,7 +344,7 @@ export function ListingPage() {
 
       {/* CTA organizadores — franja al pie, no compite con la vidriera de eventos */}
       <div className="border-t border-border bg-gradient-to-r from-primary/10 via-card to-primary/5">
-        <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8 lg:py-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+        <div className="max-w-[1800px] mx-auto px-4 lg:px-8 py-8 lg:py-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
           <div>
             <p className="text-primary text-[10px] font-bold tracking-[0.2em] uppercase mb-1.5">Para organizadores</p>
             <h2 className="text-lg lg:text-xl font-extrabold text-foreground leading-tight">
@@ -351,7 +356,7 @@ export function ListingPage() {
           </div>
           <button
             onClick={() => navigate("/organizador/registro")}
-            className="flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 active:scale-[0.98] transition-all"
+            className="flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 hover:scale-[1.03] active:scale-[0.97] transition-all duration-200"
           >
             Quiero publicar mi evento
             <ArrowRight size={15} />
@@ -361,7 +366,7 @@ export function ListingPage() {
 
       {/* Footer */}
       <footer className="border-t border-border">
-        <div className="max-w-6xl mx-auto px-4 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="max-w-[1800px] mx-auto px-4 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-muted-foreground">
             Asistí<span className="text-primary font-bold">APP</span> · Buenos Aires, Argentina
           </p>

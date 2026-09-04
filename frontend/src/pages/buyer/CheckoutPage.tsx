@@ -74,7 +74,7 @@ export function CheckoutPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="px-4 lg:px-8 pt-6 pb-3 border-b border-border bg-background sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-[1800px] mx-auto">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors"
@@ -87,7 +87,7 @@ export function CheckoutPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
+      <div className="max-w-[1800px] mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
         <div className="lg:flex-1 lg:min-w-0 px-4 lg:px-0 py-4 lg:py-0 space-y-5 pb-32 lg:pb-0">
           <div>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Tus datos</p>
@@ -157,7 +157,7 @@ export function CheckoutPage() {
               onClick={handleConfirm}
               className={`mt-4 w-full py-4 rounded-2xl font-bold text-base transition-all ${
                 valid && !loading
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
@@ -181,7 +181,7 @@ export function CheckoutPage() {
             onClick={handleConfirm}
             className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
               valid && !loading
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]"
+                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >

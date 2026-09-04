@@ -148,7 +148,7 @@ export function OrganizadorLoginPage() {
             <button
               disabled={loading || !email || !pass}
               onClick={handleLogin}
-              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Ingresando..." : "Ingresar al panel"}
             </button>

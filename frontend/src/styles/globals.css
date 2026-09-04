@@ -41,3 +41,45 @@
 .marquee-track {
   animation: marquee 26s linear infinite;
 }
+
+/* ---------------------------------------------------------------------
+   Animaciones generales del sistema — transición de página, entrada de
+   contenido (hero, grillas de tarjetas con stagger) y aparición de menús
+   flotantes (dropdowns de tres puntos). Todo respeta prefers-reduced-motion.
+   ------------------------------------------------------------------- */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out both;
+}
+.animate-scale-in {
+  animation: scale-in 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Se re-monta en cada cambio de ruta (key={pathname} en App.tsx) — le da
+   una entrada suave a toda pantalla nueva sin tocar cada page individual. */
+.page-transition {
+  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .animate-scale-in,
+  .page-transition {
+    animation: none;
+  }
+}

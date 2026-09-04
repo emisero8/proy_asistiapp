@@ -183,7 +183,7 @@ export function AdminUsersPage() {
                         ···
                       </button>
                       {openMenu === u.id && (
-                        <div className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl shadow-black/40 overflow-hidden min-w-[170px]">
+                        <div className="absolute right-0 top-9 z-50 bg-card border border-border origin-top-right animate-scale-in rounded-xl shadow-xl shadow-black/40 overflow-hidden min-w-[170px]">
                           <button
                             onClick={() => toggleStatus(u)}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"

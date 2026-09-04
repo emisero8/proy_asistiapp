@@ -295,7 +295,7 @@ export function StaffPosPage() {
               disabled={!valid || selling}
               onClick={handleGenerate}
               className={`mt-4 w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
-                valid && !selling ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
+                valid && !selling ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
             >
               <QrCode size={18} />
@@ -318,7 +318,7 @@ export function StaffPosPage() {
             disabled={!valid || selling}
             onClick={handleGenerate}
             className={`w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
-              valid && !selling ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
+              valid && !selling ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >
             <QrCode size={18} />

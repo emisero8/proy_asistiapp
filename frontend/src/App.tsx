@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
 import { ThemeProvider, useTheme } from "./lib/theme";
@@ -38,6 +38,76 @@ function RouteFallback() {
   );
 }
 
+/** Envuelve las Routes en un div con key={pathname} — al cambiar de ruta se remonta y
+    dispara la animación .page-transition (fade + slide sutil), dándole a toda la app
+    una transición de página consistente sin tener que tocar cada pantalla. */
+function AnimatedRoutes() {
+  const location = useLocation();
+  return (
+    <div key={location.pathname} className="page-transition">
+      <Routes location={location}>
+        {/* Comprador — público, sin auth (CU-015/016/017) */}
+        <Route path="/" element={<ListingPage />} />
+        <Route path="/eventos/:urlPublica" element={<DetailPage />} />
+        <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/ticket/:id" element={<TicketPage />} />
+
+        {/* Organizador */}
+        <Route path="/organizador/login" element={<OrganizadorLoginPage />} />
+        <Route path="/organizador/registro" element={<OrganizadorRegisterPage />} />
+        <Route
+          element={
+            <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">
+              <OrganizadorLayout />
+            </RequireRole>
+          }
+        >
+          <Route path="/organizador/dashboard" element={<OrganizadorDashboardPage />} />
+          <Route path="/organizador/crear" element={<OrganizadorWizardPage />} />
+          <Route path="/organizador/creditos" element={<OrganizadorWalletPage />} />
+          <Route path="/organizador/staff" element={<OrganizadorStaffMgmtPage />} />
+        </Route>
+
+        {/* Staff (QR y Vendedor) */}
+        <Route path="/staff/login" element={<StaffLoginPage />} />
+        <Route
+          path="/staff/scanner"
+          element={
+            <RequireRole roles={["Staff_QR"]} redirectTo="/staff/login">
+              <StaffScannerPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/staff/pos"
+          element={
+            <RequireRole roles={["Staff_Vendedor"]} redirectTo="/staff/login">
+              <StaffPosPage />
+            </RequireRole>
+          }
+        />
+
+        {/* Admin */}
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route
+          element={
+            <RequireRole roles={["Administrador"]} redirectTo="/admin/login">
+              <AdminLayout />
+            </RequireRole>
+          }
+        >
+          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+          <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+          <Route path="/admin/eventos" element={<AdminEventsPage />} />
+          <Route path="/admin/config" element={<AdminConfigPage />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -65,65 +135,7 @@ function AppShell() {
       />
       <BrowserRouter>
         <Suspense fallback={<RouteFallback />}>
-          <Routes>
-            {/* Comprador — público, sin auth (CU-015/016/017) */}
-            <Route path="/" element={<ListingPage />} />
-            <Route path="/eventos/:urlPublica" element={<DetailPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/ticket/:id" element={<TicketPage />} />
-
-            {/* Organizador */}
-            <Route path="/organizador/login" element={<OrganizadorLoginPage />} />
-            <Route path="/organizador/registro" element={<OrganizadorRegisterPage />} />
-            <Route
-              element={
-                <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">
-                  <OrganizadorLayout />
-                </RequireRole>
-              }
-            >
-              <Route path="/organizador/dashboard" element={<OrganizadorDashboardPage />} />
-              <Route path="/organizador/crear" element={<OrganizadorWizardPage />} />
-              <Route path="/organizador/creditos" element={<OrganizadorWalletPage />} />
-              <Route path="/organizador/staff" element={<OrganizadorStaffMgmtPage />} />
-            </Route>
-
-            {/* Staff (QR y Vendedor) */}
-            <Route path="/staff/login" element={<StaffLoginPage />} />
-            <Route
-              path="/staff/scanner"
-              element={
-                <RequireRole roles={["Staff_QR"]} redirectTo="/staff/login">
-                  <StaffScannerPage />
-                </RequireRole>
-              }
-            />
-            <Route
-              path="/staff/pos"
-              element={
-                <RequireRole roles={["Staff_Vendedor"]} redirectTo="/staff/login">
-                  <StaffPosPage />
-                </RequireRole>
-              }
-            />
-
-            {/* Admin */}
-            <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route
-              element={
-                <RequireRole roles={["Administrador"]} redirectTo="/admin/login">
-                  <AdminLayout />
-                </RequireRole>
-              }
-            >
-              <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-              <Route path="/admin/usuarios" element={<AdminUsersPage />} />
-              <Route path="/admin/eventos" element={<AdminEventsPage />} />
-              <Route path="/admin/config" element={<AdminConfigPage />} />
-            </Route>
-
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AnimatedRoutes />
         </Suspense>
       </BrowserRouter>
     </AuthProvider>

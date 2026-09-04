@@ -48,13 +48,13 @@ export function DetailPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
+      <div className="max-w-[1800px] mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
         <div className="lg:flex-1 lg:min-w-0">
           <div className="relative lg:rounded-2xl lg:overflow-hidden">
             {evento.imagenPortadaUrl ? (
-              <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-56 lg:h-80 object-cover bg-muted" />
+              <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-56 lg:h-80 xl:h-[26rem] 2xl:h-[30rem] object-cover bg-muted" />
             ) : (
-              <div className="w-full h-56 lg:h-80 bg-muted" />
+              <div className="w-full h-56 lg:h-80 xl:h-[26rem] 2xl:h-[30rem] bg-muted" />
             )}
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent" />
             <button
@@ -146,7 +146,7 @@ export function DetailPage() {
             <button
               disabled={sel.cupoDisponible <= 0}
               onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty } })}
-              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Comprar entradas
             </button>
@@ -165,7 +165,7 @@ export function DetailPage() {
           <button
             disabled={sel.cupoDisponible <= 0}
             onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty } })}
-            className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Comprar entradas
           </button>

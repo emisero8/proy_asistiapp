@@ -329,7 +329,7 @@ export function OrganizadorWizardPage() {
                 disabled={!step2Valid || loading}
                 onClick={handlePublicar}
                 className={`flex-1 py-4 rounded-2xl font-bold text-sm transition-all ${
-                  step2Valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
+                  step2Valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 {loading ? "Publicando..." : "Publicar evento"}

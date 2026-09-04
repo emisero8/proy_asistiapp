@@ -240,7 +240,7 @@ export function OrganizadorRegisterPage() {
             disabled={!valid || loading}
             onClick={handleSubmit}
             className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
-              valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
+              valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >
             {loading ? "Creando cuenta..." : "Crear cuenta gratis"}

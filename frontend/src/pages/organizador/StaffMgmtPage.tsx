@@ -78,7 +78,7 @@ export function OrganizadorStaffMgmtPage() {
   }
 
   return (
-    <div className="max-w-md lg:max-w-4xl mx-auto">
+    <div className="max-w-md lg:max-w-[1600px] mx-auto">
       <div className="px-4 lg:px-8 pt-6 pb-4 border-b border-border bg-background">
         <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Gestión de Staff</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Staff QR y Vendedor de tus eventos</p>

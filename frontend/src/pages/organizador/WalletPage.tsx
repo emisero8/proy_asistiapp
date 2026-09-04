@@ -55,7 +55,7 @@ export function OrganizadorWalletPage() {
   const saldo = historial?.[0]?.saldoResultante ?? 0;
 
   return (
-    <div className="max-w-md lg:max-w-5xl mx-auto">
+    <div className="max-w-md lg:max-w-[1800px] mx-auto">
       <div className="px-4 lg:px-8 pt-6 pb-4 border-b border-border bg-background">
         <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Billetera de créditos</h2>
         <p className="text-xs text-muted-foreground mt-0.5">Recargá para publicar nuevos eventos</p>

@@ -64,7 +64,7 @@ export function OrganizadorDashboardPage() {
     : [];
 
   return (
-    <div className="max-w-md lg:max-w-6xl mx-auto">
+    <div className="max-w-md lg:max-w-[1800px] mx-auto">
         <div className="relative overflow-hidden px-4 lg:px-8 pt-6 pb-4 border-b border-border">
           <div className="absolute -top-16 right-0 w-64 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
           <div className="relative flex items-center justify-between">
