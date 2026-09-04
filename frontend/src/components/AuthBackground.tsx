@@ -10,7 +10,7 @@
 export function AuthBackground() {
   return (
     <div className="fixed inset-0 z-0 overflow-hidden">
-      <img src="/ticket.png" alt="" aria-hidden="true" className="w-full h-full object-cover scale-105 blur-sm opacity-70 dark:opacity-35" />
+      <img src="/ticket2.png" alt="" aria-hidden="true" className="w-full h-full object-cover scale-105 blur-sm opacity-70 dark:opacity-35" />
       <div className="absolute inset-0 bg-background/55" />
     </div>
   );

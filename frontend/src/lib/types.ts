@@ -177,6 +177,12 @@ export interface PaqueteCreditoDisponibleDTO {
   precio: number;
 }
 
+export interface EstadisticasPublicasResponseDTO {
+  organizadoresActivos: number;
+  entradasVendidas: number;
+  eventosPublicados: number;
+}
+
 export interface IniciarCompraCreditoResponseDTO {
   ordenId: number;
   urlPago: string;
