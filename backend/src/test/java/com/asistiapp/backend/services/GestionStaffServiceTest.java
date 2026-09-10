@@ -131,6 +131,7 @@ class GestionStaffServiceTest {
 
     @Test
     void crearStaffVendedor_emailYaRegistrado_lanzaBusinessRuleException() {
+        when(eventoRepository.findById(10L)).thenReturn(Optional.of(evento));
         when(usuarioRepository.existsByEmail("vendedor@test.com")).thenReturn(true);
 
         assertThatThrownBy(() -> gestionStaffService.crearStaffVendedor(staffVendedorDto(), ID_ORGANIZADOR))
@@ -140,7 +141,19 @@ class GestionStaffServiceTest {
     }
 
     @Test
-    void crearStaffVendedor_exitoso_quedaAsociadoAlOrganizador() {
+    void crearStaffVendedor_eventoDeOtroOrganizador_lanzaForbiddenActionException() {
+        evento.setIdOrganizador(999L);
+        when(eventoRepository.findById(10L)).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> gestionStaffService.crearStaffVendedor(staffVendedorDto(), ID_ORGANIZADOR))
+                .isInstanceOf(ForbiddenActionException.class);
+
+        verify(staffVendedorRepository, never()).save(any());
+    }
+
+    @Test
+    void crearStaffVendedor_exitoso_quedaAsociadoAlOrganizadorYAlEvento() {
+        when(eventoRepository.findById(10L)).thenReturn(Optional.of(evento));
         when(usuarioRepository.existsByEmail("vendedor@test.com")).thenReturn(false);
         when(passwordEncoder.encode(anyString())).thenReturn("hash-encriptado");
         when(staffVendedorRepository.save(any(StaffVendedor.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -148,8 +161,9 @@ class GestionStaffServiceTest {
         StaffResponseDTO response = gestionStaffService.crearStaffVendedor(staffVendedorDto(), ID_ORGANIZADOR);
 
         assertThat(response.getRol()).isEqualTo(RolUsuario.Staff_Vendedor);
-        assertThat(response.getIdEvento()).isNull();
-        verify(staffVendedorRepository).save(argThat(s -> s.getIdOrganizador().equals(ID_ORGANIZADOR)));
+        assertThat(response.getIdEvento()).isEqualTo(10L);
+        verify(staffVendedorRepository).save(argThat(s ->
+                s.getIdOrganizador().equals(ID_ORGANIZADOR) && s.getIdEvento().equals(10L)));
     }
 
     // ─────────────────────────────────────────────
@@ -270,6 +284,7 @@ class GestionStaffServiceTest {
         CrearStaffVendedorRequestDTO dto = new CrearStaffVendedorRequestDTO();
         dto.setNombre("Staff Vendedor Nuevo");
         dto.setEmail("vendedor@test.com");
+        dto.setIdEvento(10L);
         return dto;
     }
 }

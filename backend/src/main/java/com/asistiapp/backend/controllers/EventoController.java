@@ -63,6 +63,12 @@ public class EventoController {
     @PreAuthorize("hasRole('Staff_Vendedor')")
     public ResponseEntity<List<EventoResponseDTO>> listarEventosParaVendedor() {
         StaffVendedor staff = securityUtils.getStaffVendedorAutenticado();
+        // El vendedor solo vende para el evento que tiene asignado. Los
+        // registros viejos sin evento asignado ven todos los del organizador.
+        if (staff.getIdEvento() != null) {
+            return ResponseEntity.ok(eventoService.listarEventoPublicadoDeVendedor(
+                    staff.getIdEvento(), staff.getIdOrganizador()));
+        }
         return ResponseEntity.ok(eventoService.listarEventosPublicadosDeOrganizador(staff.getIdOrganizador()));
     }
 

@@ -76,6 +76,12 @@ public class GestionStaffService {
 
     @Transactional
     public StaffResponseDTO crearStaffVendedor(CrearStaffVendedorRequestDTO dto, Long idOrganizador) {
+        Evento evento = eventoRepository.findById(dto.getIdEvento())
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + dto.getIdEvento()));
+        if (!evento.getIdOrganizador().equals(idOrganizador)) {
+            throw new ForbiddenActionException("No podés asignar un vendedor a un evento que no te pertenece");
+        }
+
         verificarEmailDisponible(dto.getEmail());
 
         String passwordTemporal = generarPasswordTemporal();
@@ -88,14 +94,15 @@ public class GestionStaffService {
         staff.setEstado(EstadoUsuario.Activo);
         staff.setCreadoPor(idOrganizador);
         staff.setIdOrganizador(idOrganizador);
+        staff.setIdEvento(dto.getIdEvento());
 
         StaffVendedor saved = staffVendedorRepository.save(staff);
-        log.info("Staff Vendedor creado: id={}, organizador={}", saved.getId(), idOrganizador);
+        log.info("Staff Vendedor creado: id={}, evento={}, organizador={}", saved.getId(), dto.getIdEvento(), idOrganizador);
 
         emailService.enviarCredencialesStaff(saved.getEmail(), saved.getNombre(), "Staff Vendedor", passwordTemporal);
 
         return toResponseDTO(saved.getId(), saved.getNombre(), saved.getEmail(), RolUsuario.Staff_Vendedor,
-                saved.getEstado(), null);
+                saved.getEstado(), saved.getIdEvento());
     }
 
     @Transactional(readOnly = true)
@@ -109,7 +116,7 @@ public class GestionStaffService {
                 .toList();
 
         List<StaffResponseDTO> staffVendedores = staffVendedorRepository.findByIdOrganizador(idOrganizador).stream()
-                .map(s -> toResponseDTO(s.getId(), s.getNombre(), s.getEmail(), RolUsuario.Staff_Vendedor, s.getEstado(), null))
+                .map(s -> toResponseDTO(s.getId(), s.getNombre(), s.getEmail(), RolUsuario.Staff_Vendedor, s.getEstado(), s.getIdEvento()))
                 .toList();
 
         return Stream.concat(staffQR.stream(), staffVendedores.stream()).toList();

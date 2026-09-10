@@ -223,6 +223,12 @@ public class VentaService {
             throw new ForbiddenActionException("Esta tanda no pertenece a un evento de tu organizador");
         }
 
+        // El vendedor solo puede vender entradas del evento que tiene asignado.
+        if (staffVendedor.getIdEvento() != null
+                && !tanda.getEvento().getId().equals(staffVendedor.getIdEvento())) {
+            throw new ForbiddenActionException("Solo podés vender entradas para el evento que tenés asignado");
+        }
+
         validarTandaDisponible(tanda);
         validarLimitePorComprador(tanda, dto.getEmailComprador());
 

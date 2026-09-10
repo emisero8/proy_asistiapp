@@ -10,7 +10,7 @@ import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
-const TANDA_COLORS = ["#4a5d8f", "#9cadd3", "#5b6f9c", "#64748b"];
+const TANDA_COLORS = ["#7c3aed", "#4a5d8f", "#b794f6", "#9cadd3"];
 
 function formatFechaHora(iso: string): string {
   const d = new Date(iso);
@@ -221,7 +221,7 @@ export function OrganizadorEventoDetallePage() {
                     <YAxis hide />
                     <Tooltip
                       contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 11, color: "var(--foreground)" }}
-                      cursor={{ fill: "rgba(156,173,211,0.1)" }}
+                      cursor={{ fill: "rgba(124,58,237,0.1)" }}
                       formatter={(v: number, n: string) => [n === "ingresos" ? fmt(v) : `${v} entradas`, ""]}
                     />
                     <Bar dataKey="vendidas" radius={[6, 6, 0, 0]}>

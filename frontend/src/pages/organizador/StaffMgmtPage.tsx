@@ -36,8 +36,7 @@ export function OrganizadorStaffMgmtPage() {
   }, []);
 
   async function addStaff() {
-    if (!form.nombre.trim() || !form.email.trim()) return;
-    if (form.role === "Staff_QR" && !form.idEvento) return;
+    if (!form.nombre.trim() || !form.email.trim() || !form.idEvento) return;
 
     setSaving(true);
     setError(null);
@@ -46,7 +45,7 @@ export function OrganizadorStaffMgmtPage() {
         const dto: CrearStaffQRRequestDTO = { nombre: form.nombre, email: form.email, idEvento: Number(form.idEvento) };
         await api.post("/organizador/staff/qr", dto);
       } else {
-        const dto: CrearStaffVendedorRequestDTO = { nombre: form.nombre, email: form.email };
+        const dto: CrearStaffVendedorRequestDTO = { nombre: form.nombre, email: form.email, idEvento: Number(form.idEvento) };
         await api.post("/organizador/staff/vendedor", dto);
       }
       toast.success(`${form.nombre} se agregó como ${ROLE_META[form.role].label}`);
@@ -140,6 +139,7 @@ export function OrganizadorStaffMgmtPage() {
               {staff.map((member) => {
                 const meta = ROLE_META[member.rol as "Staff_QR" | "Staff_Vendedor"];
                 const inactivo = member.estado === "Inactivo";
+                const eventoAsignado = eventos.find((e) => e.id === member.idEvento)?.nombre;
                 return (
                   <div key={member.id} className={`bg-card border border-border rounded-2xl px-4 py-3.5 flex items-center justify-between gap-2 ${inactivo ? "opacity-60" : ""}`}>
                     <div className="flex items-center gap-3 min-w-0">
@@ -149,6 +149,7 @@ export function OrganizadorStaffMgmtPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground truncate">{member.nombre}</p>
                         <p className="text-[10px] text-muted-foreground truncate">{member.email}</p>
+                        {eventoAsignado && <p className="text-[10px] text-primary truncate">{eventoAsignado}</p>}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 flex-none">
@@ -218,23 +219,26 @@ export function OrganizadorStaffMgmtPage() {
                 ))}
               </div>
             </div>
-            {form.role === "Staff_QR" && (
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Evento asignado</label>
-                <select
-                  value={form.idEvento}
-                  onChange={(e) => setForm((f) => ({ ...f, idEvento: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                >
-                  <option value="">Elegí un evento...</option>
-                  {eventos.map((ev) => (
-                    <option key={ev.id} value={ev.id}>
-                      {ev.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Evento asignado</label>
+              <select
+                value={form.idEvento}
+                onChange={(e) => setForm((f) => ({ ...f, idEvento: e.target.value }))}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              >
+                <option value="">Elegí un evento...</option>
+                {eventos.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.nombre}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {form.role === "Staff_QR"
+                  ? "Solo va a poder validar entradas de este evento."
+                  : "Solo va a poder vender entradas de este evento."}
+              </p>
+            </div>
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setShowForm(false)}

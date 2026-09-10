@@ -210,6 +210,7 @@ export interface CrearStaffQRRequestDTO {
 export interface CrearStaffVendedorRequestDTO {
   nombre: string;
   email: string;
+  idEvento: number;
 }
 
 // ── Admin ─────────────────────────────────────────────

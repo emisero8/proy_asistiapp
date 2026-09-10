@@ -82,6 +82,20 @@ public class EventoService {
                 .toList();
     }
 
+    /**
+     * El evento asignado a un Staff Vendedor (CU-019). Devuelve una lista de 0 o
+     * 1 elemento: vacía si el evento no existe, no pertenece al organizador del
+     * vendedor, o no está Publicado.
+     */
+    @Transactional(readOnly = true)
+    public List<EventoResponseDTO> listarEventoPublicadoDeVendedor(Long idEvento, Long idOrganizador) {
+        return eventoRepository.findById(idEvento)
+                .filter(e -> e.getIdOrganizador().equals(idOrganizador))
+                .filter(e -> e.getEstado() == EstadoEvento.Publicado)
+                .map(e -> List.of(toResponseDTO(e)))
+                .orElseGet(List::of);
+    }
+
     // ─────────────────────────────────────────────
     // Creación
     // ─────────────────────────────────────────────
