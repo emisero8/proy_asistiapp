@@ -36,6 +36,10 @@ public class EventoRequestDTO {
     @Size(max = 300, message = "El lugar no puede superar los 300 caracteres")
     private String lugar;
 
+    /** Coordenadas del lugar (opcionales) — el frontend las obtiene geocodificando la dirección. */
+    private Double latitud;
+    private Double longitud;
+
     /** URL de imagen de portada — opcional al crear, se puede agregar luego. */
     @Size(max = 500, message = "La URL de la imagen no puede superar los 500 caracteres")
     private String imagenPortadaUrl;

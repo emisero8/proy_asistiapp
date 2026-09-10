@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, MapPin, Calendar, Clock, Minus, Plus } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
+import { MapView } from "../../components/EventMap";
 import type { EventoPublicoDetalleDTO, TandaResponseDTO } from "../../lib/types";
 
 export function DetailPage() {
@@ -85,6 +86,12 @@ export function DetailPage() {
               ))}
             </div>
             {evento.descripcion && <p className="mt-4 text-sm text-muted-foreground leading-relaxed lg:max-w-2xl">{evento.descripcion}</p>}
+
+            {evento.latitud != null && evento.longitud != null && (
+              <div className="mt-5 lg:max-w-2xl">
+                <MapView coords={{ lat: evento.latitud, lng: evento.longitud }} lugar={evento.lugar} />
+              </div>
+            )}
 
             <div className="mt-6 lg:max-w-2xl">
               <h3 className="text-base font-bold text-foreground mb-3">Elegí tu tanda</h3>

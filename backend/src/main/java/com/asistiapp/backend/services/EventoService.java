@@ -299,6 +299,8 @@ public class EventoService {
         evento.setFechaEvento(dto.getFechaEvento());
         evento.setHoraEvento(dto.getHoraEvento());
         evento.setLugar(dto.getLugar());
+        evento.setLatitud(dto.getLatitud());
+        evento.setLongitud(dto.getLongitud());
         evento.setImagenPortadaUrl(dto.getImagenPortadaUrl());
     }
 
@@ -338,6 +340,8 @@ public class EventoService {
                 .fechaEvento(evento.getFechaEvento())
                 .horaEvento(evento.getHoraEvento())
                 .lugar(evento.getLugar())
+                .latitud(evento.getLatitud())
+                .longitud(evento.getLongitud())
                 .imagenPortadaUrl(evento.getImagenPortadaUrl())
                 .estado(evento.getEstado())
                 .urlPublica(evento.getUrlPublica())

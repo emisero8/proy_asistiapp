@@ -47,6 +47,13 @@ public class Evento {
     @Column(nullable = false, length = 300)
     private String lugar;
 
+    /** Coordenadas del lugar para mostrarlo en el mapa (opcional). */
+    @Column(name = "latitud")
+    private Double latitud;
+
+    @Column(name = "longitud")
+    private Double longitud;
+
     @Column(name = "imagen_portada_url", length = 500)
     private String imagenPortadaUrl;
 

@@ -21,6 +21,8 @@ public class EventoPublicoDetalleDTO {
     private LocalDate fechaEvento;
     private LocalTime horaEvento;
     private String lugar;
+    private Double latitud;
+    private Double longitud;
     private String imagenPortadaUrl;
     private String urlPublica;
     private List<TandaResponseDTO> tandas;

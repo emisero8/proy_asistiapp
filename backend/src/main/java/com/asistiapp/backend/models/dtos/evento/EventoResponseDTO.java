@@ -27,6 +27,8 @@ public class EventoResponseDTO {
     private LocalDate fechaEvento;
     private LocalTime horaEvento;
     private String lugar;
+    private Double latitud;
+    private Double longitud;
     private String imagenPortadaUrl;
     private EstadoEvento estado;
     private String urlPublica;

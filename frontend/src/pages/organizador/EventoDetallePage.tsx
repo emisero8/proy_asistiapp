@@ -8,6 +8,7 @@ import {
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
+import { MapView } from "../../components/EventMap";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
 const TANDA_COLORS = ["#7c3aed", "#4a5d8f", "#b794f6", "#9cadd3"];
@@ -186,6 +187,10 @@ export function OrganizadorEventoDetallePage() {
           <AlertCircle size={15} className="flex-none mt-0.5" />
           {error}
         </div>
+      )}
+
+      {evento.latitud != null && evento.longitud != null && (
+        <MapView coords={{ lat: evento.latitud, lng: evento.longitud }} lugar={evento.lugar} alto="h-44" />
       )}
 
       {evento.estado === "Borrador" && (

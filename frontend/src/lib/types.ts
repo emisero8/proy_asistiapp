@@ -63,6 +63,8 @@ export interface EventoResponseDTO {
   fechaEvento: string; // LocalDate → "YYYY-MM-DD"
   horaEvento: string; // LocalTime → "HH:mm:ss"
   lugar: string;
+  latitud: number | null;
+  longitud: number | null;
   imagenPortadaUrl: string | null;
   estado: EstadoEvento;
   urlPublica: string;
@@ -78,6 +80,8 @@ export interface EventoRequestDTO {
   fechaEvento: string;
   horaEvento: string;
   lugar: string;
+  latitud?: number | null;
+  longitud?: number | null;
   imagenPortadaUrl?: string;
 }
 
@@ -101,6 +105,8 @@ export interface EventoPublicoDetalleDTO {
   fechaEvento: string;
   horaEvento: string;
   lugar: string;
+  latitud: number | null;
+  longitud: number | null;
   imagenPortadaUrl: string | null;
   urlPublica: string;
   tandas: TandaResponseDTO[];

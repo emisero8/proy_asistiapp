@@ -4,6 +4,7 @@ import { ChevronLeft, Plus, Trash2, AlertCircle, CheckCircle2, ImagePlus, Save }
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt } from "../../lib/format";
+import { MapPicker, type Coords } from "../../components/EventMap";
 import { validarTandaContraEvento } from "./WizardPage";
 import type { EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
 
@@ -53,6 +54,7 @@ export function OrganizadorEditEventPage() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [venue, setVenue] = useState("");
+  const [coords, setCoords] = useState<Coords | null>(null);
   const [img, setImg] = useState("");
   const [savingData, setSavingData] = useState(false);
 
@@ -68,6 +70,7 @@ export function OrganizadorEditEventPage() {
     setDate(ev.fechaEvento);
     setTime(ev.horaEvento.slice(0, 5));
     setVenue(ev.lugar);
+    setCoords(ev.latitud != null && ev.longitud != null ? { lat: ev.latitud, lng: ev.longitud } : null);
     setImg(ev.imagenPortadaUrl ?? "");
     setTandas(ev.tandas.map(tandaFromResponse));
   }
@@ -122,6 +125,8 @@ export function OrganizadorEditEventPage() {
         fechaEvento: date,
         horaEvento: `${time}:00`,
         lugar: venue.trim(),
+        latitud: coords?.lat ?? null,
+        longitud: coords?.lng ?? null,
         imagenPortadaUrl: img.trim() || undefined,
       };
       const actualizado = await api.put<EventoResponseDTO>(base, dto);
@@ -317,8 +322,12 @@ export function OrganizadorEditEventPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Lugar *</label>
+              <label className="text-xs text-muted-foreground block mb-1.5">Lugar / dirección *</label>
               <input value={venue} onChange={(e) => setVenue(e.target.value)} className={`${inputBase} border-border`} />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1.5">Ubicación en el mapa</label>
+              <MapPicker direccion={venue} value={coords} onChange={setCoords} />
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1.5">URL imagen de portada</label>

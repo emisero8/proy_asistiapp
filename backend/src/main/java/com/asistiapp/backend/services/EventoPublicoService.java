@@ -86,6 +86,8 @@ public class EventoPublicoService {
                 .fechaEvento(evento.getFechaEvento())
                 .horaEvento(evento.getHoraEvento())
                 .lugar(evento.getLugar())
+                .latitud(evento.getLatitud())
+                .longitud(evento.getLongitud())
                 .imagenPortadaUrl(evento.getImagenPortadaUrl())
                 .urlPublica(evento.getUrlPublica())
                 .tandas(tandas)
