@@ -13,10 +13,10 @@
 :root {
   color-scheme: light;
   --font-size: 16px;
-  /* Fondo crema cálido: las tarjetas (blanco cálido) resaltan sobre él sin
-     necesidad de sombras fuertes. El azul marino de marca queda como "tinta"
-     fría sobre "papel" cálido. */
-  --background: #f6f2e9;
+  /* Fondo crema cálido (apenas más profundo que un beige claro): las tarjetas
+     (blanco cálido) resaltan sobre él sin necesidad de sombras fuertes. El
+     azul marino de marca queda como "tinta" fría sobre "papel" cálido. */
+  --background: #ece4d1;
   --foreground: #1c1a15;
   --card: #fffdf8;
   --card-foreground: #1c1a15;
@@ -24,18 +24,18 @@
   --popover-foreground: #1c1a15;
   --primary: #2b3c64;
   --primary-foreground: #ffffff;
-  --secondary: #efe8d9;
+  --secondary: #e2d7bf;
   --secondary-foreground: #1c1a15;
-  --muted: #efe8d9;
+  --muted: #e2d7bf;
   --muted-foreground: #6b6659;
   --accent: #2b3c64;
   --accent-foreground: #ffffff;
   --destructive: #772238;
   --destructive-foreground: #ffffff;
-  --border: rgba(51, 42, 24, 0.13);
+  --border: rgba(51, 42, 24, 0.15);
   --input: transparent;
   --input-background: #fffdf8;
-  --switch-background: #e5dcc8;
+  --switch-background: #dccfb2;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: #2b3c64;
