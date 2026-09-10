@@ -91,7 +91,13 @@ export function CheckoutPage() {
         <div className="lg:flex-1 lg:min-w-0 px-4 lg:px-0 py-4 lg:py-0 space-y-5 pb-32 lg:pb-0">
           <div>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Tus datos</p>
-            <div className="space-y-3">
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (valid && !loading) handleConfirm();
+              }}
+            >
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5">Nombre completo</label>
                 <input
@@ -114,7 +120,11 @@ export function CheckoutPage() {
                   <span className="text-green-400 font-bold">✓</span> Recibís la entrada en este email.
                 </p>
               </div>
-            </div>
+              {/* submit oculto: habilita enviar con Enter; el botón visible está en el panel lateral */}
+              <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>
+                Confirmar
+              </button>
+            </form>
           </div>
 
           <div>

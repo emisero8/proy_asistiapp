@@ -57,7 +57,13 @@ export function AdminLoginPage() {
           <p className="text-muted-foreground text-sm mt-1">Ingresá con tu cuenta de administrador</p>
         </div>
 
-        <div className="space-y-4">
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!loading && email && pass) handleLogin();
+          }}
+        >
           <div>
             <label className="text-xs text-muted-foreground block mb-1.5">Email de administrador</label>
             <input
@@ -85,6 +91,7 @@ export function AdminLoginPage() {
                 className={`w-full px-4 py-3.5 pr-11 bg-card border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${error ? "border-destructive/60" : "border-border"}`}
               />
               <button
+                type="button"
                 onClick={() => setShow((s) => !s)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -94,13 +101,13 @@ export function AdminLoginPage() {
             {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
           </div>
           <button
+            type="submit"
             disabled={loading || !email || !pass}
-            onClick={handleLogin}
             className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Ingresando..." : "Ingresar al sistema"}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

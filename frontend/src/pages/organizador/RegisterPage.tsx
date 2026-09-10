@@ -140,6 +140,12 @@ export function OrganizadorRegisterPage() {
           </div>
         </div>
 
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (valid && !loading) handleSubmit();
+          }}
+        >
         <div className="px-6 py-5 space-y-4">
           <div className="bg-primary/8 border border-primary/20 rounded-2xl px-4 py-3 flex flex-wrap gap-3">
             {["Créditos gratis al registrarte", "Sin comisiones", "Soporte 24/7"].map((b) => (
@@ -182,7 +188,7 @@ export function OrganizadorRegisterPage() {
                 placeholder="••••••••"
                 className="w-full px-4 py-3.5 pr-11 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
-              <button onClick={() => setShow((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+              <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                 {show ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -200,7 +206,7 @@ export function OrganizadorRegisterPage() {
                   pass2 && !passMatch ? "border-red-500/60" : "border-border"
                 }`}
               />
-              <button onClick={() => setShow2((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+              <button type="button" onClick={() => setShow2((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                 {show2 ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -218,7 +224,7 @@ export function OrganizadorRegisterPage() {
             )}
           </div>
 
-          <button onClick={() => setAgreed((a) => !a)} className="flex items-start gap-3 w-full text-left">
+          <button type="button" onClick={() => setAgreed((a) => !a)} className="flex items-start gap-3 w-full text-left">
             <div
               className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-none mt-0.5 transition-all ${
                 agreed ? "bg-primary border-primary" : "border-border"
@@ -237,8 +243,8 @@ export function OrganizadorRegisterPage() {
 
         <div className="px-6 py-4">
           <button
+            type="submit"
             disabled={!valid || loading}
-            onClick={handleSubmit}
             className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
               valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
@@ -252,6 +258,7 @@ export function OrganizadorRegisterPage() {
             </span>
           </p>
         </div>
+        </form>
         </div>
       </div>
     </div>
