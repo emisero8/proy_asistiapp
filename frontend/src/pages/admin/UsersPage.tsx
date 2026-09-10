@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, CircleX, Search, Trash2, UserCheck } from "lucide-react";
+import { Check, CircleX, KeyRound, Search, Trash2, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
@@ -65,6 +65,27 @@ export function AdminUsersPage() {
       toast.success(`${u.nombre} ahora es ${nuevoRol}`);
     } catch (e: unknown) {
       const message = e instanceof ApiError ? e.message : "No pudimos reasignar el rol.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function resetPassword(u: UsuarioResponseDTO) {
+    setOpenMenu(null);
+    const nueva = window.prompt(`Nueva contraseña para ${u.nombre} (${u.email}) — mínimo 8 caracteres:`);
+    if (nueva === null) return;
+    if (nueva.trim().length < 8) {
+      toast.error("La contraseña debe tener al menos 8 caracteres.");
+      return;
+    }
+    setBusyId(u.id);
+    try {
+      await api.patch(`/admin/usuarios/${u.id}/password`, { nuevaPassword: nueva });
+      toast.success(`Contraseña de ${u.nombre} actualizada`);
+    } catch (e: unknown) {
+      const message = e instanceof ApiError ? e.message : "No pudimos cambiar la contraseña.";
       setError(message);
       toast.error(message);
     } finally {
@@ -222,6 +243,13 @@ export function AdminUsersPage() {
                               </div>
                             )}
                           </div>
+                          <button
+                            onClick={() => resetPassword(u)}
+                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+                          >
+                            <KeyRound size={13} className="text-primary" />
+                            Cambiar contraseña
+                          </button>
                           <div className="border-t border-border" />
                           <button
                             onClick={() => deleteUser(u)}

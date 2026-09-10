@@ -1,53 +1,18 @@
 import { useEffect, useState } from "react";
-import { CircleX, Search, Sparkles, Trash2, X } from "lucide-react";
+import { useNavigate } from "react-router";
+import { CircleX, Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { formatFecha } from "../../lib/format";
-import type { EventoRequestDTO, EventoResponseDTO } from "../../lib/types";
+import type { EventoResponseDTO } from "../../lib/types";
 
 export function AdminEventsPage() {
+  const navigate = useNavigate();
   const [eventos, setEventos] = useState<EventoResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [editing, setEditing] = useState<EventoResponseDTO | null>(null);
-  const [editForm, setEditForm] = useState<EventoRequestDTO>({ nombre: "", fechaEvento: "", horaEvento: "", lugar: "" });
-  const [editError, setEditError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  function startEdit(e: EventoResponseDTO) {
-    setOpenMenu(null);
-    setEditing(e);
-    setEditError(null);
-    setEditForm({
-      nombre: e.nombre,
-      descripcion: e.descripcion ?? "",
-      fechaEvento: e.fechaEvento,
-      horaEvento: e.horaEvento.slice(0, 5),
-      lugar: e.lugar,
-      imagenPortadaUrl: e.imagenPortadaUrl ?? "",
-    });
-  }
-
-  async function saveEdit() {
-    if (!editing) return;
-    setSaving(true);
-    setEditError(null);
-    try {
-      const updated = await api.put<EventoResponseDTO>(`/admin/eventos/${editing.id}`, {
-        ...editForm,
-        horaEvento: `${editForm.horaEvento}:00`,
-      });
-      setEventos((evs) => evs!.map((x) => (x.id === editing.id ? updated : x)));
-      setEditing(null);
-      toast.success(`${updated.nombre} actualizado`);
-    } catch (err: unknown) {
-      setEditError(err instanceof ApiError ? err.message : "No pudimos guardar los cambios.");
-    } finally {
-      setSaving(false);
-    }
-  }
 
   useEffect(() => {
     api
@@ -174,10 +139,10 @@ export function AdminEventsPage() {
                       {openMenu === e.id && (
                         <div className="absolute right-0 top-9 z-50 bg-card border border-border origin-top-right animate-scale-in rounded-xl shadow-xl shadow-black/40 overflow-hidden min-w-[170px]">
                           <button
-                            onClick={() => startEdit(e)}
+                            onClick={() => navigate(`/admin/eventos/${e.id}/editar`)}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"
                           >
-                            <Sparkles size={13} className="text-primary" />
+                            <Pencil size={13} className="text-primary" />
                             Editar
                           </button>
                           <div className="border-t border-border" />
@@ -214,86 +179,6 @@ export function AdminEventsPage() {
         </div>
         )}
       </div>
-
-      {editing && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setEditing(null)}>
-          <div
-            className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <p className="text-sm font-bold text-foreground">Editar evento</p>
-              <button onClick={() => setEditing(null)} className="w-7 h-7 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground">
-                <X size={15} />
-              </button>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Nombre</label>
-                <input
-                  value={editForm.nombre}
-                  onChange={(e) => setEditForm((f) => ({ ...f, nombre: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Descripción</label>
-                <textarea
-                  value={editForm.descripcion}
-                  onChange={(e) => setEditForm((f) => ({ ...f, descripcion: e.target.value }))}
-                  rows={3}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Fecha</label>
-                  <input
-                    type="date"
-                    value={editForm.fechaEvento}
-                    onChange={(e) => setEditForm((f) => ({ ...f, fechaEvento: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Hora</label>
-                  <input
-                    type="time"
-                    value={editForm.horaEvento}
-                    onChange={(e) => setEditForm((f) => ({ ...f, horaEvento: e.target.value }))}
-                    className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Lugar</label>
-                <input
-                  value={editForm.lugar}
-                  onChange={(e) => setEditForm((f) => ({ ...f, lugar: e.target.value }))}
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">URL de imagen de portada</label>
-                <input
-                  value={editForm.imagenPortadaUrl}
-                  onChange={(e) => setEditForm((f) => ({ ...f, imagenPortadaUrl: e.target.value }))}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-              </div>
-              {editError && <p className="text-xs text-destructive">{editError}</p>}
-              <button
-                disabled={saving || !editForm.nombre || !editForm.fechaEvento || !editForm.horaEvento || !editForm.lugar}
-                onClick={saveEdit}
-                className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? "Guardando..." : "Guardar cambios"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

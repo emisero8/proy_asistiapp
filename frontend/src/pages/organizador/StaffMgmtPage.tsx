@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UserPlus, QrCode, Store, BadgeCheck, AlertCircle } from "lucide-react";
+import { UserPlus, QrCode, Store, BadgeCheck, AlertCircle, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, RolUsuario, StaffResponseDTO } from "../../lib/types";
@@ -57,6 +57,27 @@ export function OrganizadorStaffMgmtPage() {
       setError(e instanceof ApiError ? e.message : "No pudimos agregar el miembro de staff.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function resetPassword(member: StaffResponseDTO) {
+    if (!window.confirm(`¿Generar una contraseña nueva para ${member.nombre}? La anterior deja de funcionar.`)) return;
+    setBusyId(member.id);
+    setError(null);
+    try {
+      const { passwordTemporal } = await api.post<{ passwordTemporal: string }>(
+        `/organizador/staff/${member.id}/resetear-password`,
+      );
+      toast.success(`Contraseña nueva de ${member.nombre}: ${passwordTemporal}`, { duration: 30000 });
+      window.alert(
+        `Contraseña temporal de ${member.nombre} (${member.email}):\n\n${passwordTemporal}\n\nPasásela al staff. También se le envió por email.`,
+      );
+    } catch (e: unknown) {
+      const message = e instanceof ApiError ? e.message : "No pudimos resetear la contraseña.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -130,10 +151,18 @@ export function OrganizadorStaffMgmtPage() {
                         <p className="text-[10px] text-muted-foreground truncate">{member.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 flex-none">
+                    <div className="flex items-center gap-1.5 flex-none">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${inactivo ? "bg-muted text-muted-foreground" : `${meta?.bg} ${meta?.color}`}`}>
                         {inactivo ? "Inactivo" : (meta?.label ?? member.rol)}
                       </span>
+                      <button
+                        disabled={busyId === member.id}
+                        onClick={() => resetPassword(member)}
+                        title="Resetear contraseña"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                      >
+                        <KeyRound size={13} />
+                      </button>
                       <button
                         disabled={busyId === member.id}
                         onClick={() => toggleEstado(member)}

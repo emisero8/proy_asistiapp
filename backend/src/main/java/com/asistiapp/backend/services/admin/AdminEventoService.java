@@ -4,12 +4,15 @@ import com.asistiapp.backend.exceptions.BusinessRuleException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.evento.EventoRequestDTO;
 import com.asistiapp.backend.models.dtos.evento.EventoResponseDTO;
+import com.asistiapp.backend.models.dtos.tanda.TandaRequestDTO;
+import com.asistiapp.backend.models.dtos.tanda.TandaResponseDTO;
 import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.security.audit.Auditable;
 import com.asistiapp.backend.services.EventoService;
+import com.asistiapp.backend.services.TandaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,12 @@ public class AdminEventoService {
     private final EventoRepository eventoRepository;
     private final EntradaRepository entradaRepository;
     private final EventoService eventoService;
+    private final TandaService tandaService;
+
+    @Transactional(readOnly = true)
+    public EventoResponseDTO obtenerEvento(Long idEvento) {
+        return eventoService.toResponseDTO(getEventoOrThrow(idEvento));
+    }
 
     @Transactional(readOnly = true)
     public List<EventoResponseDTO> listarTodos() {
@@ -40,21 +49,38 @@ public class AdminEventoService {
                 .toList();
     }
 
+    /**
+     * El Admin edita cualquier evento del sistema. Se delega en EventoService /
+     * TandaService pasando el organizador dueño del evento como actor, de modo
+     * que aplican exactamente las mismas reglas de negocio que ve el
+     * Organizador (ventana de venta de tandas, cupo vendido, etc.).
+     */
     @Transactional
     @Auditable(accion = "EDITAR_EVENTO_ADMIN", entidad = "Evento")
     public EventoResponseDTO editarEvento(Long idEvento, EventoRequestDTO dto) {
         Evento evento = getEventoOrThrow(idEvento);
+        return eventoService.actualizarEvento(idEvento, dto, evento.getIdOrganizador());
+    }
 
-        evento.setNombre(dto.getNombre());
-        evento.setDescripcion(dto.getDescripcion());
-        evento.setFechaEvento(dto.getFechaEvento());
-        evento.setHoraEvento(dto.getHoraEvento());
-        evento.setLugar(dto.getLugar());
-        evento.setImagenPortadaUrl(dto.getImagenPortadaUrl());
+    @Transactional
+    @Auditable(accion = "CREAR_TANDA_ADMIN", entidad = "Tanda")
+    public TandaResponseDTO crearTanda(Long idEvento, TandaRequestDTO dto) {
+        Evento evento = getEventoOrThrow(idEvento);
+        return tandaService.crearTanda(idEvento, dto, evento.getIdOrganizador());
+    }
 
-        Evento saved = eventoRepository.save(evento);
-        log.info("Evento editado por Admin: id={}", idEvento);
-        return eventoService.toResponseDTO(saved);
+    @Transactional
+    @Auditable(accion = "EDITAR_TANDA_ADMIN", entidad = "Tanda")
+    public TandaResponseDTO actualizarTanda(Long idEvento, Long idTanda, TandaRequestDTO dto) {
+        Evento evento = getEventoOrThrow(idEvento);
+        return tandaService.actualizarTanda(idEvento, idTanda, dto, evento.getIdOrganizador());
+    }
+
+    @Transactional
+    @Auditable(accion = "ELIMINAR_TANDA_ADMIN", entidad = "Tanda")
+    public void eliminarTanda(Long idEvento, Long idTanda) {
+        Evento evento = getEventoOrThrow(idEvento);
+        tandaService.eliminarTanda(idEvento, idTanda, evento.getIdOrganizador());
     }
 
     @Transactional

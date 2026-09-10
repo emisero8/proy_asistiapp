@@ -110,6 +110,7 @@ function AnimatedRoutes() {
           <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
           <Route path="/admin/usuarios" element={<AdminUsersPage />} />
           <Route path="/admin/eventos" element={<AdminEventsPage />} />
+          <Route path="/admin/eventos/:id/editar" element={<OrganizadorEditEventPage />} />
           <Route path="/admin/config" element={<AdminConfigPage />} />
         </Route>
 

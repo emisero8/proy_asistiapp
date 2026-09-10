@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
@@ -40,6 +40,14 @@ export function OrganizadorWizardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [movimiento, setMovimiento] = useState<MovimientoCreditoResponseDTO | null>(null);
+  const [saldo, setSaldo] = useState<number | null>(null);
+
+  useEffect(() => {
+    api
+      .get<MovimientoCreditoResponseDTO[]>("/creditos/historial")
+      .then((h) => setSaldo(h[0]?.saldoResultante ?? 0))
+      .catch(() => setSaldo(0));
+  }, []);
 
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -59,8 +67,11 @@ export function OrganizadorWizardPage() {
   const step1Valid = title.trim() && date && time && venue.trim() && !fechaEnPasado;
 
   const tandaErrors = tandas.map((t) => validarTandaContraEvento(t, date));
+  const sinCreditos = saldo !== null && saldo < 1;
   const step2Valid =
-    tandas.every((t) => t.nombre && t.precio && t.cupoMaximo) && tandaErrors.every((e) => e === null);
+    tandas.every((t) => t.nombre && t.precio && t.cupoMaximo) &&
+    tandaErrors.every((e) => e === null) &&
+    !sinCreditos;
 
   async function handleNext() {
     setLoading(true);
@@ -332,10 +343,31 @@ export function OrganizadorWizardPage() {
               <Plus size={15} />
               Agregar tanda
             </button>
-            <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-3 flex gap-3">
-              <CircleDollarSign size={16} className="text-primary flex-none mt-0.5" />
-              <p className="text-xs text-foreground">Publicar el evento va a consumir créditos de tu saldo.</p>
-            </div>
+            {sinCreditos ? (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-2xl px-4 py-3 flex gap-3">
+                <AlertCircle size={16} className="text-destructive flex-none mt-0.5" />
+                <div className="text-xs">
+                  <p className="text-foreground font-semibold">No te alcanzan los créditos para publicar.</p>
+                  <p className="text-muted-foreground mt-0.5">
+                    Publicar consume al menos 1 crédito y tu saldo es {saldo}.{" "}
+                    <button
+                      type="button"
+                      onClick={() => navigate("/organizador/creditos")}
+                      className="text-primary font-semibold underline"
+                    >
+                      Comprar créditos
+                    </button>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-3 flex gap-3">
+                <CircleDollarSign size={16} className="text-primary flex-none mt-0.5" />
+                <p className="text-xs text-foreground">
+                  Publicar consume 1 crédito.{saldo !== null && ` Tenés ${saldo} disponible${saldo === 1 ? "" : "s"}.`}
+                </p>
+              </div>
+            )}
           </>
         )}
 

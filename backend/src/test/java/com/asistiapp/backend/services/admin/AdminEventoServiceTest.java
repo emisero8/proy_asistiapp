@@ -9,6 +9,7 @@ import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.services.EventoService;
+import com.asistiapp.backend.services.TandaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +41,8 @@ class AdminEventoServiceTest {
     private EntradaRepository entradaRepository;
     @Mock
     private EventoService eventoService;
+    @Mock
+    private TandaService tandaService;
 
     @InjectMocks
     private AdminEventoService adminEventoService;
@@ -64,22 +67,21 @@ class AdminEventoServiceTest {
     }
 
     @Test
-    void editarEvento_deCualquierOrganizador_seEditaSinChequeoDePropiedad() {
+    void editarEvento_delegaEnEventoServiceConElOrganizadorDuenoDelEvento() {
         when(eventoRepository.findById(50L)).thenReturn(Optional.of(evento));
-        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(eventoService.toResponseDTO(any(Evento.class))).thenAnswer(inv ->
-                EventoResponseDTO.builder().nombre(((Evento) inv.getArgument(0)).getNombre()).build());
-
         EventoRequestDTO dto = new EventoRequestDTO();
         dto.setNombre("Nombre editado por Admin");
         dto.setFechaEvento(LocalDate.now().plusDays(10));
         dto.setHoraEvento(LocalTime.of(20, 0));
         dto.setLugar("Nuevo lugar");
+        when(eventoService.actualizarEvento(50L, dto, 999L))
+                .thenReturn(EventoResponseDTO.builder().nombre("Nombre editado por Admin").build());
 
         EventoResponseDTO response = adminEventoService.editarEvento(50L, dto);
 
         assertThat(response.getNombre()).isEqualTo("Nombre editado por Admin");
-        assertThat(evento.getLugar()).isEqualTo("Nuevo lugar");
+        // usa el organizador dueño del evento (999) como actor, no chequea propiedad del Admin
+        verify(eventoService).actualizarEvento(50L, dto, 999L);
     }
 
     @Test

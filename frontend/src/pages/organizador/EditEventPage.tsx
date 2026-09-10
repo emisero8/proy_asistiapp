@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, Plus, Trash2, AlertCircle, CheckCircle2, ImagePlus, Save } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { fmt } from "../../lib/format";
 import { validarTandaContraEvento } from "./WizardPage";
 import type { EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
@@ -35,6 +36,13 @@ function tandaFromResponse(t: TandaResponseDTO): EditTanda {
 export function OrganizadorEditEventPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { session } = useAuth();
+
+  // La misma pantalla la usan el Organizador y el Admin. El Admin pega contra
+  // /admin/eventos/* (sin chequeo de propiedad); el Organizador contra /eventos/*.
+  const esAdmin = session?.rol === "Administrador";
+  const base = esAdmin ? `/admin/eventos/${id}` : `/eventos/${id}`;
+  const volverA = esAdmin ? "/admin/eventos" : "/organizador/dashboard";
 
   const [evento, setEvento] = useState<EventoResponseDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,10 +75,11 @@ export function OrganizadorEditEventPage() {
   useEffect(() => {
     if (!id) return;
     api
-      .get<EventoResponseDTO>(`/eventos/${id}`)
+      .get<EventoResponseDTO>(base)
       .then(hidratar)
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar el evento."));
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, base]);
 
   const bloqueado = evento?.estado === "Cancelado";
   const publicado = evento?.estado === "Publicado";
@@ -90,8 +99,8 @@ export function OrganizadorEditEventPage() {
   const tandaErrors = useMemo(
     () =>
       tandas.map((t) => {
-        const base = validarTandaContraEvento(t, date);
-        if (base) return base;
+        const err = validarTandaContraEvento(t, date);
+        if (err) return err;
         if (t.id !== null && t.cupoMaximo !== "" && Number(t.cupoMaximo) < vendidasDe(t)) {
           return `El cupo no puede bajar de las ${vendidasDe(t)} entradas ya vendidas.`;
         }
@@ -115,7 +124,7 @@ export function OrganizadorEditEventPage() {
         lugar: venue.trim(),
         imagenPortadaUrl: img.trim() || undefined,
       };
-      const actualizado = await api.put<EventoResponseDTO>(`/eventos/${id}`, dto);
+      const actualizado = await api.put<EventoResponseDTO>(base, dto);
       hidratar(actualizado);
       setOkMsg("Datos del evento guardados.");
     } catch (e: unknown) {
@@ -149,11 +158,11 @@ export function OrganizadorEditEventPage() {
     setOkMsg(null);
     try {
       if (t.id === null) {
-        await api.post<TandaResponseDTO>(`/eventos/${id}/tandas`, tandaDto(t));
+        await api.post<TandaResponseDTO>(`${base}/tandas`, tandaDto(t));
       } else {
-        await api.put<TandaResponseDTO>(`/eventos/${id}/tandas/${t.id}`, tandaDto(t));
+        await api.put<TandaResponseDTO>(`${base}/tandas/${t.id}`, tandaDto(t));
       }
-      const refrescado = await api.get<EventoResponseDTO>(`/eventos/${id}`);
+      const refrescado = await api.get<EventoResponseDTO>(base);
       hidratar(refrescado);
       setOkMsg("Tanda guardada.");
     } catch (e: unknown) {
@@ -174,8 +183,8 @@ export function OrganizadorEditEventPage() {
     setBusyTanda(t.id);
     setError(null);
     try {
-      await api.delete(`/eventos/${id}/tandas/${t.id}`);
-      const refrescado = await api.get<EventoResponseDTO>(`/eventos/${id}`);
+      await api.delete(`${base}/tandas/${t.id}`);
+      const refrescado = await api.get<EventoResponseDTO>(base);
       hidratar(refrescado);
       setOkMsg("Tanda eliminada.");
     } catch (e: unknown) {
@@ -216,11 +225,11 @@ export function OrganizadorEditEventPage() {
   return (
     <div className="max-w-md lg:max-w-3xl mx-auto px-4 lg:px-8 pt-6 pb-28 md:pb-12">
       <button
-        onClick={() => navigate("/organizador/dashboard")}
+        onClick={() => navigate(volverA)}
         className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors"
       >
         <ChevronLeft size={15} />
-        Volver al dashboard
+        {esAdmin ? "Volver a eventos" : "Volver al dashboard"}
       </button>
 
       <div className="flex items-center gap-3 mb-1">
@@ -445,13 +454,9 @@ export function OrganizadorEditEventPage() {
             </button>
           </div>
 
-          {evento.estado === "Borrador" && (
+          {evento.estado === "Borrador" && !esAdmin && (
             <p className="text-[11px] text-muted-foreground mt-4">
-              Este evento todavía está en borrador. Para ponerlo en venta, publicalo desde{" "}
-              <button onClick={() => navigate("/organizador/crear")} className="text-primary font-semibold underline">
-                Crear
-              </button>{" "}
-              o desde el dashboard.
+              Este evento todavía está en borrador. El organizador lo publica desde su panel (consume 1 crédito).
             </p>
           )}
         </>
