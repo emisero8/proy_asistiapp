@@ -25,9 +25,7 @@
   --secondary-foreground: #0f172a;
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  /* --accent es el segundo color de marca: violeta. Le da energía a precios,
-     CTAs secundarios y badges sin tocar la identidad azul marino de --primary. */
-  --accent: #6d28d9;
+  --accent: #2b3c64;
   --accent-foreground: #ffffff;
   --destructive: #772238;
   --destructive-foreground: #ffffff;
@@ -39,10 +37,10 @@
   --font-weight-normal: 400;
   --ring: #2b3c64;
   --chart-1: #2b3c64;
-  --chart-2: #7c3aed;
-  --chart-3: #4a5d8f;
-  --chart-4: #a78bfa;
-  --chart-5: #94a3b8;
+  --chart-2: #4a5d8f;
+  --chart-3: #17223d;
+  --chart-4: #94a3b8;
+  --chart-5: #772238;
   --radius: 0.75rem;
 }
 
@@ -64,9 +62,8 @@
   --secondary-foreground: #f8fafc;
   --muted: #253247;
   --muted-foreground: #9aa8bd;
-  /* violeta pastel para que resalte sobre el fondo casi negro */
-  --accent: #b794f6;
-  --accent-foreground: #1e1338;
+  --accent: #9cadd3;
+  --accent-foreground: #0d1a2b;
   --destructive: #ac394d;
   --destructive-foreground: #ffffff;
   --border: rgba(238, 242, 250, 0.14);
@@ -77,10 +74,10 @@
   --font-weight-normal: 400;
   --ring: #9cadd3;
   --chart-1: #9cadd3;
-  --chart-2: #b794f6;
+  --chart-2: #c3cee6;
   --chart-3: #5b6f9c;
-  --chart-4: #8b6fd4;
-  --chart-5: #64748b;
+  --chart-4: #64748b;
+  --chart-5: #ac394d;
   --radius: 0.75rem;
 }
 
