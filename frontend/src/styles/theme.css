@@ -13,26 +13,29 @@
 :root {
   color-scheme: light;
   --font-size: 16px;
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  /* Fondo crema cálido: las tarjetas (blanco cálido) resaltan sobre él sin
+     necesidad de sombras fuertes. El azul marino de marca queda como "tinta"
+     fría sobre "papel" cálido. */
+  --background: #f6f2e9;
+  --foreground: #1c1a15;
+  --card: #fffdf8;
+  --card-foreground: #1c1a15;
+  --popover: #fffdf8;
+  --popover-foreground: #1c1a15;
   --primary: #2b3c64;
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --secondary: #efe8d9;
+  --secondary-foreground: #1c1a15;
+  --muted: #efe8d9;
+  --muted-foreground: #6b6659;
   --accent: #2b3c64;
   --accent-foreground: #ffffff;
   --destructive: #772238;
   --destructive-foreground: #ffffff;
-  --border: rgba(15, 23, 42, 0.1);
+  --border: rgba(51, 42, 24, 0.13);
   --input: transparent;
-  --input-background: #ffffff;
-  --switch-background: #e2e8f0;
+  --input-background: #fffdf8;
+  --switch-background: #e5dcc8;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: #2b3c64;
