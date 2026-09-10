@@ -1,5 +1,6 @@
-import { NavLink, Outlet } from "react-router";
-import { LayoutDashboard, Sparkles, Wallet, Users } from "lucide-react";
+import { NavLink, Outlet, useNavigate } from "react-router";
+import { LayoutDashboard, Sparkles, Wallet, Users, LogOut } from "lucide-react";
+import { useAuth } from "../../lib/auth";
 
 const TABS = [
   { to: "/organizador/dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -9,8 +10,28 @@ const TABS = [
 ];
 
 export function OrganizadorLayout() {
+  const { session, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function handleLogout() {
+    logout();
+    navigate("/organizador/login");
+  }
+
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-56">
+      {/* Cerrar sesión — fijo arriba a la derecha, a la izquierda del toggle de tema,
+          visible en todas las pantallas de Organizador. */}
+      <button
+        onClick={handleLogout}
+        title="Cerrar sesión"
+        aria-label="Cerrar sesión"
+        className="fixed top-3 right-14 z-50 h-9 pl-2.5 pr-3 rounded-full bg-card border border-border shadow-lg shadow-black/10 flex items-center gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+      >
+        <LogOut size={15} />
+        <span className="text-xs font-semibold hidden sm:inline">Salir</span>
+      </button>
+
       {/* Sidebar — desktop (md+) */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-56 md:border-r md:border-border md:bg-card/40 relative overflow-hidden">
         <div className="absolute -top-20 -left-16 w-56 h-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
@@ -36,6 +57,14 @@ export function OrganizadorLayout() {
             </NavLink>
           ))}
         </nav>
+        <div className="px-4 pb-5 relative">
+          <div className="flex items-center gap-2.5 px-1">
+            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground flex-none">
+              {session?.nombre?.charAt(0) ?? "O"}
+            </div>
+            <p className="text-xs font-semibold text-foreground truncate">{session?.nombre}</p>
+          </div>
+        </div>
       </aside>
 
       <Outlet />

@@ -13,6 +13,25 @@ interface WizardTanda {
   hasta: string;
 }
 
+/**
+ * Valida una tanda contra la fecha del evento. Devuelve el primer problema
+ * encontrado o null si está bien. Refleja las reglas del backend
+ * (TandaService.validarVentana) para avisar antes de mandar el request.
+ */
+export function validarTandaContraEvento(
+  t: { precio: string; cupoMaximo: string; desde: string; hasta: string },
+  fechaEvento: string,
+): string | null {
+  const precio = Number(t.precio);
+  if (t.precio !== "" && (!Number.isFinite(precio) || precio < 0)) return "El precio no puede ser negativo.";
+  const cupo = Number(t.cupoMaximo);
+  if (t.cupoMaximo !== "" && (!Number.isInteger(cupo) || cupo < 1)) return "El cupo debe ser un número entero de 1 o más.";
+  if (t.desde && t.hasta && t.desde > t.hasta) return "El inicio de la venta debe ser anterior al cierre.";
+  if (fechaEvento && t.hasta && t.hasta > fechaEvento) return "La venta no puede cerrar después de la fecha del evento.";
+  if (fechaEvento && t.desde && t.desde > fechaEvento) return "La venta no puede empezar después de la fecha del evento.";
+  return null;
+}
+
 export function OrganizadorWizardPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -35,8 +54,13 @@ export function OrganizadorWizardPage() {
   const updateTanda = (id: number, field: keyof WizardTanda, val: string) =>
     setTandas((t) => t.map((x) => (x.id === id ? { ...x, [field]: val } : x)));
 
-  const step1Valid = title.trim() && date && time && venue.trim();
-  const step2Valid = tandas.every((t) => t.nombre && t.precio && t.cupoMaximo);
+  const hoyStr = new Date().toISOString().slice(0, 10);
+  const fechaEnPasado = date !== "" && date < hoyStr;
+  const step1Valid = title.trim() && date && time && venue.trim() && !fechaEnPasado;
+
+  const tandaErrors = tandas.map((t) => validarTandaContraEvento(t, date));
+  const step2Valid =
+    tandas.every((t) => t.nombre && t.precio && t.cupoMaximo) && tandaErrors.every((e) => e === null);
 
   async function handleNext() {
     setLoading(true);
@@ -68,12 +92,15 @@ export function OrganizadorWizardPage() {
     setError(null);
     try {
       for (const t of tandas) {
+        // Si el "hasta" cae el mismo día del evento, la venta cierra cuando
+        // empieza el evento (no a las 23:59) para no chocar con la validación.
+        const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
         const dto: TandaRequestDTO = {
           nombre: t.nombre,
           precio: Number(t.precio),
           cupoMaximo: Number(t.cupoMaximo),
           fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
-          fechaFinVigencia: t.hasta ? `${t.hasta}T23:59:59` : undefined,
+          fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
         };
         await api.post(`/eventos/${eventoId}/tandas`, dto);
       }
@@ -178,9 +205,13 @@ export function OrganizadorWizardPage() {
                 <input
                   type="date"
                   value={date}
+                  min={hoyStr}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full px-3 py-3 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                  className={`w-full px-3 py-3 bg-card border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${
+                    fechaEnPasado ? "border-red-500/60" : "border-border"
+                  }`}
                 />
+                {fechaEnPasado && <p className="text-[11px] text-red-400 mt-1">La fecha no puede estar en el pasado.</p>}
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5">Hora *</label>
@@ -221,7 +252,7 @@ export function OrganizadorWizardPage() {
           <>
             <p className="text-xs text-muted-foreground">Configurá las tandas de precios y sus cupos.</p>
             {tandas.map((t, i) => (
-              <div key={t.id} className="bg-card border border-border rounded-2xl p-4 space-y-3">
+              <div key={t.id} className={`bg-card border rounded-2xl p-4 space-y-3 ${tandaErrors[i] ? "border-red-500/50" : "border-border"}`}>
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-foreground uppercase tracking-wider">Tanda {i + 1}</p>
                   {tandas.length > 1 && (
@@ -263,24 +294,35 @@ export function OrganizadorWizardPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Desde</label>
+                    <label className="text-xs text-muted-foreground block mb-1">Venta desde</label>
                     <input
                       type="date"
                       value={t.desde}
+                      max={date || undefined}
                       onChange={(e) => updateTanda(t.id, "desde", e.target.value)}
                       className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Hasta</label>
+                    <label className="text-xs text-muted-foreground block mb-1">Venta hasta</label>
                     <input
                       type="date"
                       value={t.hasta}
+                      max={date || undefined}
                       onChange={(e) => updateTanda(t.id, "hasta", e.target.value)}
                       className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     />
                   </div>
                 </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Si dejás las fechas vacías, la tanda se vende desde que publicás hasta que empieza el evento.
+                </p>
+                {tandaErrors[i] && (
+                  <p className="text-[11px] text-red-400 flex items-start gap-1">
+                    <AlertCircle size={12} className="flex-none mt-0.5" />
+                    {tandaErrors[i]}
+                  </p>
+                )}
               </div>
             ))}
             <button

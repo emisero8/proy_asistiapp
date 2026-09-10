@@ -25,7 +25,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -48,6 +50,8 @@ class VentaServiceTest {
     private TransaccionPagoRepository transaccionPagoRepository;
     @Mock
     private EmailService emailService;
+    @Mock
+    private com.asistiapp.backend.services.ConfiguracionService configuracionService;
 
     @InjectMocks
     private VentaService ventaService;
@@ -70,6 +74,9 @@ class VentaServiceTest {
         tanda.setPrecio(1000.0);
         tanda.setCupoMaximo(50);
         tanda.setCupoDisponible(5);
+
+        lenient().when(configuracionService.obtenerEntero(eq("max_entradas_por_comprador"), anyInt()))
+                .thenReturn(6);
     }
 
     // ─────────────────────────────────────────────

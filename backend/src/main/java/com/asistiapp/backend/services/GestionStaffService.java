@@ -9,6 +9,7 @@ import com.asistiapp.backend.models.dtos.staff.StaffResponseDTO;
 import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.StaffQR;
 import com.asistiapp.backend.models.entities.StaffVendedor;
+import com.asistiapp.backend.models.entities.Usuario;
 import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
 import com.asistiapp.backend.repositories.EventoRepository;
@@ -112,6 +113,44 @@ public class GestionStaffService {
                 .toList();
 
         return Stream.concat(staffQR.stream(), staffVendedores.stream()).toList();
+    }
+
+    /**
+     * El Organizador restablece la contraseña de un miembro de su staff que
+     * perdió el acceso. Genera una contraseña temporal nueva, la guarda, la
+     * manda por email y además la devuelve para que el Organizador pueda
+     * pasársela a mano (el email del staff puede no llegar en la demo).
+     */
+    @Transactional
+    public String resetearPasswordStaff(Long idStaff, Long idOrganizador) {
+        var vendedor = staffVendedorRepository.findById(idStaff);
+        Usuario staff;
+        String rolLabel;
+        if (vendedor.isPresent()) {
+            if (!vendedor.get().getIdOrganizador().equals(idOrganizador)) {
+                throw new ForbiddenActionException("No podés resetear la contraseña de un staff que no te pertenece");
+            }
+            staff = vendedor.get();
+            rolLabel = "Staff Vendedor";
+        } else {
+            StaffQR sq = staffQRRepository.findById(idStaff)
+                    .orElseThrow(() -> new ResourceNotFoundException("Staff no encontrado con id: " + idStaff));
+            Evento evento = eventoRepository.findById(sq.getIdEvento())
+                    .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + sq.getIdEvento()));
+            if (!evento.getIdOrganizador().equals(idOrganizador)) {
+                throw new ForbiddenActionException("No podés resetear la contraseña de un staff que no te pertenece");
+            }
+            staff = sq;
+            rolLabel = "Staff QR";
+        }
+
+        String passwordTemporal = generarPasswordTemporal();
+        staff.setPasswordHash(passwordEncoder.encode(passwordTemporal));
+        usuarioRepository.save(staff);
+        log.info("Contraseña de staff id={} restablecida por el organizador id={}", idStaff, idOrganizador);
+
+        emailService.enviarCredencialesStaff(staff.getEmail(), staff.getNombre(), rolLabel, passwordTemporal);
+        return passwordTemporal;
     }
 
     @Transactional

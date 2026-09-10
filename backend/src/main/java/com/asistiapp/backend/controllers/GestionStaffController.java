@@ -59,4 +59,11 @@ public class GestionStaffController {
         Organizador org = securityUtils.getOrganizadorAutenticado();
         return ResponseEntity.ok(gestionStaffService.reactivarStaff(id, org.getId()));
     }
+
+    @PostMapping("/{id}/resetear-password")
+    public ResponseEntity<java.util.Map<String, String>> resetearPassword(@PathVariable Long id) {
+        Organizador org = securityUtils.getOrganizadorAutenticado();
+        String passwordTemporal = gestionStaffService.resetearPasswordStaff(id, org.getId());
+        return ResponseEntity.ok(java.util.Map.of("passwordTemporal", passwordTemporal));
+    }
 }

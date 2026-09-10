@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -64,8 +65,13 @@ public class VentaService {
     private final EmailService emailService;
     private final QrImageService qrImageService;
     private final SecurityUtils securityUtils;
+    private final ConfiguracionService configuracionService;
 
     private static final int TAMANO_QR_DEFAULT_PX = 300;
+
+    /** Tope de entradas que una misma persona (email) puede comprar para un mismo evento. */
+    static final String CLAVE_MAX_ENTRADAS_POR_COMPRADOR = "max_entradas_por_comprador";
+    static final int MAX_ENTRADAS_POR_COMPRADOR_DEFAULT = 6;
 
     // ─────────────────────────────────────────────
     // FLUJO ONLINE — Paso 1: Iniciar compra
@@ -87,6 +93,7 @@ public class VentaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada con id: " + dto.getIdTanda()));
 
         validarTandaDisponible(tanda);
+        validarLimitePorComprador(tanda, dto.getEmailComprador());
 
         TransaccionPago transaccion = new TransaccionPago();
         transaccion.setIdTanda(tanda.getId());
@@ -144,6 +151,7 @@ public class VentaService {
                         "Tanda no encontrada: " + transaccion.getIdTanda()));
 
         validarTandaDisponible(tanda);
+        validarLimitePorComprador(tanda, transaccion.getEmailComprador());
 
         // Decrementar cupo de forma atómica
         int filasActualizadas = tandaRepository.decrementarCupo(tanda.getId());
@@ -216,6 +224,7 @@ public class VentaService {
         }
 
         validarTandaDisponible(tanda);
+        validarLimitePorComprador(tanda, dto.getEmailComprador());
 
         // Decrementar cupo de forma atómica
         int filasActualizadas = tandaRepository.decrementarCupo(tanda.getId());
@@ -301,6 +310,8 @@ public class VentaService {
     /**
      * Valida que la tanda esté disponible para la venta:
      *  - El evento debe estar Publicado.
+     *  - El momento actual debe caer dentro de la ventana de venta de la tanda
+     *    (fecha_inicio/fin_vigencia), si es que tiene una configurada.
      *  - El cupo_disponible debe ser > 0.
      */
     private void validarTandaDisponible(Tanda tanda) {
@@ -309,9 +320,34 @@ public class VentaService {
                     "El evento no está disponible para la venta. " +
                     "Estado: " + tanda.getEvento().getEstado());
         }
+        LocalDateTime ahora = LocalDateTime.now();
+        if (tanda.getFechaInicioVigencia() != null && ahora.isBefore(tanda.getFechaInicioVigencia())) {
+            throw new BusinessRuleException(
+                    "La venta de la tanda \"" + tanda.getNombre() + "\" todavía no está abierta.");
+        }
+        if (tanda.getFechaFinVigencia() != null && ahora.isAfter(tanda.getFechaFinVigencia())) {
+            throw new BusinessRuleException(
+                    "La venta de la tanda \"" + tanda.getNombre() + "\" ya cerró.");
+        }
         if (tanda.getCupoDisponible() <= 0) {
             throw new BusinessRuleException(
                     "Lo sentimos, la tanda \"" + tanda.getNombre() + "\" está agotada");
+        }
+    }
+
+    /**
+     * Impide que una misma persona (identificada por email) supere el tope de
+     * entradas configurado para un evento. El límite lo fija el Admin
+     * (clave "max_entradas_por_comprador"), con un default razonable.
+     */
+    private void validarLimitePorComprador(Tanda tanda, String email) {
+        int limite = configuracionService.obtenerEntero(
+                CLAVE_MAX_ENTRADAS_POR_COMPRADOR, MAX_ENTRADAS_POR_COMPRADOR_DEFAULT);
+        long yaCompradas = entradaRepository.countByEventoIdAndEmailComprador(
+                tanda.getEvento().getId(), email);
+        if (yaCompradas >= limite) {
+            throw new BusinessRuleException(
+                    "Alcanzaste el máximo de " + limite + " entradas por persona para este evento.");
         }
     }
 

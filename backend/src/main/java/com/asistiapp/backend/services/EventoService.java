@@ -8,6 +8,7 @@ import com.asistiapp.backend.models.dtos.evento.EventoResponseDTO;
 import com.asistiapp.backend.models.dtos.tanda.TandaResponseDTO;
 import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.Organizador;
+import com.asistiapp.backend.models.entities.Tanda;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.entities.Entrada;
 import com.asistiapp.backend.repositories.EntradaRepository;
@@ -95,6 +96,8 @@ public class EventoService {
         organizadorRepository.findById(idOrganizador)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
 
+        validarFechaHoraFutura(dto);
+
         Evento evento = new Evento();
         mapDtoToEvento(dto, evento);
         evento.setIdOrganizador(idOrganizador);
@@ -117,11 +120,28 @@ public class EventoService {
     public EventoResponseDTO actualizarEvento(Long idEvento, EventoRequestDTO dto, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
-        verificarEstadoBorrador(evento, "editar");
+
+        if (evento.getEstado() == EstadoEvento.Cancelado) {
+            throw new BusinessRuleException("No podés editar un evento cancelado.");
+        }
+
+        validarFechaHoraFutura(dto);
 
         mapDtoToEvento(dto, evento);
+
+        // Si se movió la fecha/hora, ninguna tanda puede quedar con la venta
+        // abierta más allá del nuevo comienzo del evento.
+        LocalDateTime inicioEvento = LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento());
+        for (Tanda t : evento.getTandas()) {
+            if (t.getFechaFinVigencia() != null && t.getFechaFinVigencia().isAfter(inicioEvento)) {
+                throw new BusinessRuleException(
+                        "No podés mover el evento a esa fecha: la tanda \"" + t.getNombre() +
+                        "\" tiene la venta abierta hasta después del nuevo comienzo. Ajustá esa tanda primero.");
+            }
+        }
+
         Evento saved = eventoRepository.save(evento);
-        log.info("Evento actualizado: id={}", idEvento);
+        log.info("Evento actualizado: id={}, estado={}", idEvento, evento.getEstado());
         return toResponseDTO(saved);
     }
 
@@ -149,6 +169,20 @@ public class EventoService {
         if (evento.getTandas().isEmpty()) {
             throw new BusinessRuleException(
                     "El evento debe tener al menos una tanda configurada antes de publicarse");
+        }
+
+        // El evento no puede publicarse si ya pasó, ni con tandas cuya venta
+        // cierre después de que arranca.
+        LocalDateTime inicioEvento = LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento());
+        if (inicioEvento.isBefore(LocalDateTime.now())) {
+            throw new BusinessRuleException("No podés publicar un evento cuya fecha ya pasó.");
+        }
+        for (Tanda t : evento.getTandas()) {
+            if (t.getFechaFinVigencia() != null && t.getFechaFinVigencia().isAfter(inicioEvento)) {
+                throw new BusinessRuleException(
+                        "La tanda \"" + t.getNombre() + "\" tiene la venta abierta más allá del " +
+                        "comienzo del evento. Ajustá su ventana de venta antes de publicar.");
+            }
         }
 
         // Verificar y descontar créditos del organizador
@@ -234,6 +268,14 @@ public class EventoService {
             throw new BusinessRuleException(
                     "Solo podés " + accion + " un evento en estado Borrador. " +
                     "Estado actual: " + evento.getEstado());
+        }
+    }
+
+    /** El evento no puede quedar agendado para un momento que ya pasó. */
+    private void validarFechaHoraFutura(EventoRequestDTO dto) {
+        LocalDateTime inicio = LocalDateTime.of(dto.getFechaEvento(), dto.getHoraEvento());
+        if (inicio.isBefore(LocalDateTime.now())) {
+            throw new BusinessRuleException("La fecha y hora del evento no pueden estar en el pasado.");
         }
     }
 

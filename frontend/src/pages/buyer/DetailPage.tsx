@@ -46,6 +46,9 @@ export function DetailPage() {
     );
   }
 
+  const maxPorCompra = Math.max(1, Math.min(sel.cupoDisponible || 1, evento.maxEntradasPorCompra ?? 6));
+  const qtyEfectivo = Math.min(qty, maxPorCompra);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-[1800px] mx-auto lg:px-8 lg:py-8">
@@ -116,23 +119,27 @@ export function DetailPage() {
               </div>
             </div>
 
-            <div className="mt-4 lg:max-w-2xl flex items-center justify-between bg-card rounded-xl px-4 py-3.5 border border-border">
-              <span className="text-sm font-semibold text-foreground">Cantidad</span>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setQty((q) => Math.max(1, q - 1))}
-                  className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors"
-                >
-                  <Minus size={13} />
-                </button>
-                <span className="text-lg font-bold text-foreground w-4 text-center">{qty}</span>
-                <button
-                  onClick={() => setQty((q) => Math.min(sel.cupoDisponible || 1, q + 1))}
-                  className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors"
-                >
-                  <Plus size={13} />
-                </button>
+            <div className="mt-4 lg:max-w-2xl bg-card rounded-xl px-4 py-3.5 border border-border">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-foreground">Cantidad</span>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors"
+                  >
+                    <Minus size={13} />
+                  </button>
+                  <span className="text-lg font-bold text-foreground w-4 text-center">{qtyEfectivo}</span>
+                  <button
+                    onClick={() => setQty((q) => Math.min(maxPorCompra, q + 1))}
+                    disabled={qtyEfectivo >= maxPorCompra}
+                    className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Plus size={13} />
+                  </button>
+                </div>
               </div>
+              <p className="text-[11px] text-muted-foreground mt-2">Máximo {evento.maxEntradasPorCompra} entradas por persona para este evento.</p>
             </div>
             <div className="h-32 lg:hidden" />
           </div>
@@ -142,12 +149,12 @@ export function DetailPage() {
         <div className="hidden lg:block lg:w-80 lg:flex-none lg:sticky lg:top-8">
           <div className="bg-card border border-border rounded-2xl p-5">
             <p className="text-xs text-muted-foreground mb-1">
-              {qty} × {sel.nombre}
+              {qtyEfectivo} × {sel.nombre}
             </p>
-            <p className="text-2xl font-extrabold text-foreground mb-4">{fmt(sel.precio * qty)}</p>
+            <p className="text-2xl font-extrabold text-foreground mb-4">{fmt(sel.precio * qtyEfectivo)}</p>
             <button
               disabled={sel.cupoDisponible <= 0}
-              onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty } })}
+              onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } })}
               className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Comprar entradas
@@ -162,13 +169,13 @@ export function DetailPage() {
         <div className="max-w-md mx-auto">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-muted-foreground">
-              {qty} × {sel.nombre}
+              {qtyEfectivo} × {sel.nombre}
             </span>
-            <span className="text-base font-extrabold text-foreground">{fmt(sel.precio * qty)}</span>
+            <span className="text-base font-extrabold text-foreground">{fmt(sel.precio * qtyEfectivo)}</span>
           </div>
           <button
             disabled={sel.cupoDisponible <= 0}
-            onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty } })}
+            onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } })}
             className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Comprar entradas

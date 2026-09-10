@@ -68,6 +68,8 @@ class EventoServiceTest {
         evento.setIdOrganizador(ID_ORGANIZADOR);
         evento.setNombre("Fiesta de Prueba");
         evento.setEstado(EstadoEvento.Borrador);
+        evento.setFechaEvento(LocalDate.now().plusDays(30));
+        evento.setHoraEvento(LocalTime.of(22, 0));
 
         organizador = new Organizador();
         organizador.setId(ID_ORGANIZADOR);
@@ -148,17 +150,40 @@ class EventoServiceTest {
     }
 
     // ─────────────────────────────────────────────
-    // actualizarEvento — solo en Borrador
+    // actualizarEvento — permitido en Borrador y Publicado, no en Cancelado
     // ─────────────────────────────────────────────
 
     @Test
-    void actualizarEvento_eventoPublicado_lanzaBusinessRuleException() {
+    void actualizarEvento_eventoPublicado_ahoraEsPermitido() {
         evento.setEstado(EstadoEvento.Publicado);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        EventoResponseDTO response = eventoService.actualizarEvento(evento.getId(), requestDto(), ID_ORGANIZADOR);
+
+        assertThat(response.getEstado()).isEqualTo(EstadoEvento.Publicado);
+        verify(eventoRepository).save(any(Evento.class));
+    }
+
+    @Test
+    void actualizarEvento_eventoCancelado_lanzaBusinessRuleException() {
+        evento.setEstado(EstadoEvento.Cancelado);
         when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
 
         assertThatThrownBy(() -> eventoService.actualizarEvento(evento.getId(), requestDto(), ID_ORGANIZADOR))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("Borrador");
+                .hasMessageContaining("cancelado");
+    }
+
+    @Test
+    void actualizarEvento_fechaEnElPasado_lanzaBusinessRuleException() {
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        EventoRequestDTO dto = requestDto();
+        dto.setFechaEvento(LocalDate.now().minusDays(1));
+
+        assertThatThrownBy(() -> eventoService.actualizarEvento(evento.getId(), dto, ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("pasado");
     }
 
     // ─────────────────────────────────────────────

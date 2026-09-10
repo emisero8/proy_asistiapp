@@ -104,6 +104,7 @@ export interface EventoPublicoDetalleDTO {
   imagenPortadaUrl: string | null;
   urlPublica: string;
   tandas: TandaResponseDTO[];
+  maxEntradasPorCompra: number;
 }
 
 // ── Entradas / Ventas ─────────────────────────────────
@@ -276,9 +277,10 @@ export interface AdminMetricasResponseDTO {
 
 export interface TandaMetricasDTO {
   idTanda: number;
-  nombreTanda: string;
-  vendidas: number;
+  nombre: string;
   cupoMaximo: number;
+  cupoDisponible: number;
+  vendidas: number;
   ingresos: number;
 }
 

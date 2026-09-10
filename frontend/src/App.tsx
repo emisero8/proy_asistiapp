@@ -16,6 +16,8 @@ const OrganizadorRegisterPage = lazy(() => import("./pages/organizador/RegisterP
 const OrganizadorLayout = lazy(() => import("./pages/organizador/OrganizadorLayout").then((m) => ({ default: m.OrganizadorLayout })));
 const OrganizadorDashboardPage = lazy(() => import("./pages/organizador/DashboardPage").then((m) => ({ default: m.OrganizadorDashboardPage })));
 const OrganizadorWizardPage = lazy(() => import("./pages/organizador/WizardPage").then((m) => ({ default: m.OrganizadorWizardPage })));
+const OrganizadorEditEventPage = lazy(() => import("./pages/organizador/EditEventPage").then((m) => ({ default: m.OrganizadorEditEventPage })));
+const OrganizadorEventoDetallePage = lazy(() => import("./pages/organizador/EventoDetallePage").then((m) => ({ default: m.OrganizadorEventoDetallePage })));
 const OrganizadorWalletPage = lazy(() => import("./pages/organizador/WalletPage").then((m) => ({ default: m.OrganizadorWalletPage })));
 const OrganizadorStaffMgmtPage = lazy(() => import("./pages/organizador/StaffMgmtPage").then((m) => ({ default: m.OrganizadorStaffMgmtPage })));
 
@@ -71,6 +73,8 @@ function AnimatedRoutes() {
         >
           <Route path="/organizador/dashboard" element={<OrganizadorDashboardPage />} />
           <Route path="/organizador/crear" element={<OrganizadorWizardPage />} />
+          <Route path="/organizador/eventos/:id" element={<OrganizadorEventoDetallePage />} />
+          <Route path="/organizador/eventos/:id/editar" element={<OrganizadorEditEventPage />} />
           <Route path="/organizador/creditos" element={<OrganizadorWalletPage />} />
           <Route path="/organizador/staff" element={<OrganizadorStaffMgmtPage />} />
         </Route>

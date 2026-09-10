@@ -44,28 +44,31 @@
   --radius: 0.75rem;
 }
 
-/* Modo oscuro — mismo azul marino, ahora como pastel claro sobre fondo casi negro. */
+/* Modo oscuro — mismo azul marino, ahora como pastel claro sobre fondo casi negro.
+   Las superficies suben en pasos claros de luminancia (fondo → card → muted/
+   popover) y el borde tiene suficiente opacidad para separar cada caja del
+   fondo sin depender solo del relleno. */
 .dark {
   color-scheme: dark;
-  --background: #020617;
+  --background: #0a0f1e;
   --foreground: #f8fafc;
-  --card: #0f172a;
+  --card: #161f33;
   --card-foreground: #f8fafc;
-  --popover: #0f172a;
+  --popover: #1c273d;
   --popover-foreground: #f8fafc;
   --primary: #9cadd3;
   --primary-foreground: #0d1a2b;
-  --secondary: #1e293b;
+  --secondary: #263349;
   --secondary-foreground: #f8fafc;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
+  --muted: #253247;
+  --muted-foreground: #9aa8bd;
   --accent: #9cadd3;
   --accent-foreground: #0d1a2b;
   --destructive: #ac394d;
   --destructive-foreground: #ffffff;
-  --border: rgba(248, 250, 252, 0.08);
+  --border: rgba(238, 242, 250, 0.14);
   --input: transparent;
-  --input-background: #1e293b;
+  --input-background: #253247;
   --switch-background: #334155;
   --font-weight-medium: 500;
   --font-weight-normal: 400;

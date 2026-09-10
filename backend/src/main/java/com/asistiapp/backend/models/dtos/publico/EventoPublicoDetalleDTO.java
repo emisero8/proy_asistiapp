@@ -24,4 +24,7 @@ public class EventoPublicoDetalleDTO {
     private String imagenPortadaUrl;
     private String urlPublica;
     private List<TandaResponseDTO> tandas;
+
+    /** Tope de entradas que una misma persona puede comprar para este evento. */
+    private Integer maxEntradasPorCompra;
 }

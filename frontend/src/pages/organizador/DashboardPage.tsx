@@ -1,231 +1,230 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { Calendar, LogOut, Sparkles, Users, Ticket, TrendingUp, ShieldCheck, ArrowUpRight } from "lucide-react";
+import { Sparkles, Ticket, TrendingUp, ShieldCheck, Pencil, ExternalLink, Ban, Plus, ChevronRight } from "lucide-react";
+import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { fmt, formatFecha, formatHora, formatRelativo } from "../../lib/format";
-import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
+import { fmt, formatFecha } from "../../lib/format";
+import type { EventoMetricasResponseDTO, EventoResponseDTO, EstadoEvento } from "../../lib/types";
 
-// Un solo color de marca (azul marino): las tandas se distinguen por intensidad, no por matiz — sólido, claro, oscuro, y gris neutro como 4ta.
-const TANDA_COLORS = ["#2b3c64", "#4a5d8f", "#17223d", "#94a3b8"];
+const ESTADO_ORDEN: Record<EstadoEvento, number> = { Publicado: 0, Borrador: 1, Cancelado: 2 };
+const ESTADO_BADGE: Record<EstadoEvento, string> = {
+  Publicado: "bg-green-400/15 text-green-400",
+  Borrador: "bg-amber-400/15 text-amber-400",
+  Cancelado: "bg-red-400/15 text-red-400",
+};
 
 export function OrganizadorDashboardPage() {
   const navigate = useNavigate();
-  const { session, logout } = useAuth();
+  const { session } = useAuth();
 
   const [eventos, setEventos] = useState<EventoResponseDTO[] | null>(null);
-  const [eventoActivo, setEventoActivo] = useState<EventoResponseDTO | null>(null);
-  const [metricas, setMetricas] = useState<EventoMetricasResponseDTO | null>(null);
-  const [ventasRecientes, setVentasRecientes] = useState<EntradaResponseDTO[]>([]);
+  const [totales, setTotales] = useState<{ vendidas: number; ingresos: number; validadas: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cancelandoId, setCancelandoId] = useState<number | null>(null);
 
-  useEffect(() => {
+  function cargar() {
     api
       .get<EventoResponseDTO[]>("/eventos")
       .then(async (lista) => {
         setEventos(lista);
         const publicados = lista.filter((e) => e.estado === "Publicado");
-        const activo = [...publicados].sort((a, b) => (b.fechaPublicacion ?? "").localeCompare(a.fechaPublicacion ?? ""))[0] ?? null;
-        setEventoActivo(activo);
-        if (activo) {
-          const [m, ventas] = await Promise.all([
-            api.get<EventoMetricasResponseDTO>(`/eventos/${activo.id}/metricas`),
-            api.get<EntradaResponseDTO[]>(`/tickets/evento/${activo.id}`),
-          ]);
-          setMetricas(m);
-          setVentasRecientes(
-            [...ventas].sort((a, b) => b.fechaCompra.localeCompare(a.fechaCompra)).slice(0, 4),
-          );
+        if (publicados.length === 0) {
+          setTotales({ vendidas: 0, ingresos: 0, validadas: 0 });
+          return;
         }
+        const metricas = await Promise.all(
+          publicados.map((e) =>
+            api.get<EventoMetricasResponseDTO>(`/eventos/${e.id}/metricas`).catch(() => null),
+          ),
+        );
+        setTotales(
+          metricas.reduce(
+            (acc, m) => ({
+              vendidas: acc.vendidas + (m?.entradasVendidas ?? 0),
+              ingresos: acc.ingresos + (m?.ingresosTotales ?? 0),
+              validadas: acc.validadas + (m?.entradasValidadas ?? 0),
+            }),
+            { vendidas: 0, ingresos: 0, validadas: 0 },
+          ),
+        );
       })
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar tu panel."));
-  }, []);
-
-  function handleLogout() {
-    logout();
-    navigate("/organizador/login");
   }
 
-  const metricCards = metricas
-    ? [
-        { label: "Entradas vendidas", value: String(metricas.entradasVendidas), icon: Ticket, color: "text-primary", bg: "bg-primary/10" },
-        { label: "Ingresos totales", value: fmt(metricas.ingresosTotales), icon: TrendingUp, color: "text-emerald-400", bg: "bg-emerald-400/10" },
-        { label: "Aforo disponible", value: String(metricas.cupoDisponible), sub: `de ${metricas.cupoTotal} cap.`, icon: Users, color: "text-foreground", bg: "bg-muted" },
-        {
-          label: "Validados en puerta",
-          value: String(metricas.entradasValidadas),
-          sub: metricas.entradasVendidas > 0 ? `${Math.round((metricas.entradasValidadas / metricas.entradasVendidas) * 100)}% del total` : undefined,
-          icon: ShieldCheck,
-          color: "text-muted-foreground",
-          bg: "bg-muted",
-        },
-      ]
-    : [];
+  useEffect(cargar, []);
+
+  async function cancelarEvento(ev: EventoResponseDTO, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!window.confirm(`¿Cancelar "${ev.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`)) return;
+    setCancelandoId(ev.id);
+    try {
+      await api.patch(`/eventos/${ev.id}/cancelar`);
+      toast.success(`"${ev.nombre}" cancelado`);
+      cargar();
+    } catch (err: unknown) {
+      toast.error(err instanceof ApiError ? err.message : "No pudimos cancelar el evento.");
+    } finally {
+      setCancelandoId(null);
+    }
+  }
+
+  const eventosOrdenados = [...(eventos ?? [])].sort((a, b) => {
+    const est = ESTADO_ORDEN[a.estado] - ESTADO_ORDEN[b.estado];
+    return est !== 0 ? est : a.fechaEvento.localeCompare(b.fechaEvento);
+  });
+
+  const publicadosCount = (eventos ?? []).filter((e) => e.estado === "Publicado").length;
+
+  const resumen =
+    totales && publicadosCount > 0
+      ? [
+          { label: "Entradas vendidas", value: String(totales.vendidas), icon: Ticket },
+          { label: "Ingresos totales", value: fmt(totales.ingresos), icon: TrendingUp, strong: true },
+          { label: "Validadas en puerta", value: String(totales.validadas), icon: ShieldCheck },
+        ]
+      : [];
+
+  function vendidasEvento(ev: EventoResponseDTO): number {
+    return ev.tandas.reduce((acc, t) => acc + (t.cupoMaximo - t.cupoDisponible), 0);
+  }
 
   return (
-    <div className="max-w-md lg:max-w-[1800px] mx-auto">
-        <div className="relative overflow-hidden px-4 lg:px-8 pt-6 pb-4 border-b border-border">
-          <div className="absolute -top-16 right-0 w-64 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-          <div className="relative flex items-center justify-between">
-            <div>
-              <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Panel del organizador</p>
-              <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Hola, {session?.nombre.split(" ")[0]} 👋</h2>
+    <div className="max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-6 lg:py-8 space-y-6">
+      <div>
+        <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Panel del organizador</p>
+        <h2 className="text-xl lg:text-2xl font-extrabold text-foreground mt-0.5">
+          Hola, {session?.nombre.split(" ")[0]} 👋
+        </h2>
+      </div>
+
+      {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
+
+      {!error && eventos === null && (
+        <div className="space-y-3">
+          <div className="h-24 rounded-2xl bg-card border border-border animate-pulse" />
+          <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />
+        </div>
+      )}
+
+      {!error && eventos !== null && eventos.length === 0 && (
+        <div className="rounded-2xl border border-dashed border-border bg-card/60 text-center py-14 px-6">
+          <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto mb-4">
+            <Sparkles size={20} className="text-primary" />
+          </div>
+          <p className="text-sm font-semibold text-foreground mb-1">Todavía no creaste ningún evento</p>
+          <p className="text-xs text-muted-foreground mb-5">Creá tu primer evento y publicalo en minutos.</p>
+          <button
+            onClick={() => navigate("/organizador/crear")}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
+          >
+            <Plus size={15} />
+            Crear evento
+          </button>
+        </div>
+      )}
+
+      {/* Resumen global */}
+      {resumen.length > 0 && (
+        <section className="grid grid-cols-3 gap-3">
+          {resumen.map((s) => (
+            <div key={s.label} className={`rounded-2xl border p-4 ${s.strong ? "border-primary/30 bg-primary/[0.08]" : "border-border bg-card"}`}>
+              <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
+                <s.icon size={13} />
+                <span className="text-[10px] font-semibold uppercase tracking-wider hidden sm:inline">{s.label}</span>
+              </div>
+              <p className={`text-lg lg:text-xl font-extrabold ${s.strong ? "text-primary" : "text-foreground"}`}>{s.value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 sm:hidden">{s.label}</p>
             </div>
+          ))}
+        </section>
+      )}
+
+      {/* Mis eventos */}
+      {!error && eventos !== null && eventos.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-foreground">Mis eventos ({eventos.length})</h3>
             <button
-              onClick={handleLogout}
-              className="lg:hidden w-9 h-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => navigate("/organizador/crear")}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
             >
-              <LogOut size={16} />
-            </button>
-            <button
-              onClick={handleLogout}
-              className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-semibold hover:text-foreground transition-colors"
-            >
-              <LogOut size={15} />
-              Cerrar sesión
+              <Plus size={13} />
+              Crear evento
             </button>
           </div>
-        </div>
-
-        <div className="px-4 lg:px-8 py-4 lg:py-6 space-y-5">
-          {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
-
-          {!error && eventos === null && <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />}
-
-          {!error && eventos !== null && eventos.length === 0 && (
-            <div className="text-center py-12 space-y-4">
-              <p className="text-sm text-muted-foreground">Todavía no creaste ningún evento.</p>
-              <button
-                onClick={() => navigate("/organizador/crear")}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
-              >
-                <Sparkles size={16} />
-                Crear tu primer evento
-              </button>
-            </div>
-          )}
-
-          {!error && eventoActivo && (
-            <div className="bg-primary/10 border border-primary/20 rounded-2xl pl-3 pr-4 py-3 flex items-center gap-3">
-              {eventoActivo.imagenPortadaUrl ? (
-                <img
-                  src={eventoActivo.imagenPortadaUrl}
-                  alt={eventoActivo.nombre}
-                  className="w-11 aspect-[3/4] rounded-lg object-cover flex-none bg-muted"
-                />
-              ) : (
-                <div className="w-11 aspect-[3/4] rounded-lg flex-none bg-gradient-to-br from-primary/25 via-card to-background" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-primary uppercase tracking-widest font-bold">Evento activo</p>
-                <p className="text-sm font-semibold text-foreground truncate">{eventoActivo.nombre}</p>
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                  <Calendar size={10} />
-                  {formatFecha(eventoActivo.fechaEvento)} · {formatHora(eventoActivo.horaEvento)}
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 flex-none">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-xs text-green-400 font-semibold">En venta</span>
-              </div>
-            </div>
-          )}
-
-          {!error && eventos !== null && eventos.length > 0 && !eventoActivo && (
-            <div className="rounded-xl border border-border bg-card text-muted-foreground text-sm p-4">
-              No tenés ningún evento publicado todavía. Publicá uno para ver sus métricas acá.
-            </div>
-          )}
-
-          {metricas && (
-            <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {metricCards.map((m) => (
-                  <div key={m.label} className="bg-card border border-border rounded-2xl p-3.5">
-                    <div className={`w-8 h-8 rounded-xl ${m.bg} flex items-center justify-center mb-2.5`}>
-                      <m.icon size={16} className={m.color} />
+          <div className="space-y-2">
+            {eventosOrdenados.map((ev) => {
+              const vendidas = vendidasEvento(ev);
+              return (
+                <button
+                  key={ev.id}
+                  onClick={() => navigate(`/organizador/eventos/${ev.id}`)}
+                  className={`w-full text-left rounded-xl border border-border bg-card p-3 flex items-center gap-3 hover:border-primary/40 transition-all ${
+                    cancelandoId === ev.id ? "opacity-50" : ""
+                  }`}
+                >
+                  {ev.imagenPortadaUrl ? (
+                    <img src={ev.imagenPortadaUrl} alt="" className="w-12 h-12 rounded-lg object-cover flex-none bg-muted" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg flex-none bg-gradient-to-br from-primary/25 to-muted flex items-center justify-center">
+                      <Sparkles size={16} className="text-primary/40" />
                     </div>
-                    <p className="text-lg font-extrabold text-foreground leading-none">{m.value}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{m.label}</p>
-                    {m.sub && (
-                      <p className="text-[10px] text-primary mt-1 font-semibold flex items-center gap-0.5">
-                        <ArrowUpRight size={10} />
-                        {m.sub}
-                      </p>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground truncate">{ev.nombre}</p>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-none ${ESTADO_BADGE[ev.estado]}`}>
+                        {ev.estado}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {formatFecha(ev.fechaEvento)} · {ev.tandas.length} tanda{ev.tandas.length !== 1 ? "s" : ""}
+                      {ev.estado === "Publicado" && ` · ${vendidas} vendidas`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-0.5 flex-none">
+                    {ev.estado === "Publicado" && (
+                      <span
+                        role="button"
+                        tabIndex={-1}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/eventos/${ev.urlPublica}`); }}
+                        title="Ver página pública"
+                        className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ExternalLink size={14} />
+                      </span>
                     )}
+                    {ev.estado !== "Cancelado" && (
+                      <>
+                        <span
+                          role="button"
+                          tabIndex={-1}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/organizador/eventos/${ev.id}/editar`); }}
+                          title="Editar"
+                          className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <Pencil size={14} />
+                        </span>
+                        <span
+                          role="button"
+                          tabIndex={-1}
+                          onClick={(e) => cancelarEvento(ev, e)}
+                          title="Cancelar evento"
+                          className="w-8 h-8 rounded-lg hover:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Ban size={14} />
+                        </span>
+                      </>
+                    )}
+                    <ChevronRight size={15} className="text-muted-foreground ml-0.5" />
                   </div>
-                ))}
-              </div>
-
-              <div className="lg:grid lg:grid-cols-2 lg:gap-4 space-y-5 lg:space-y-0">
-                {metricas.tandas.length > 0 && (
-                  <div className="bg-card border border-border rounded-2xl p-4">
-                    <p className="text-xs font-bold text-foreground mb-1">Ventas por tanda</p>
-                    <p className="text-[10px] text-muted-foreground mb-4">{eventoActivo?.nombre}</p>
-                    <ResponsiveContainer width="100%" height={120}>
-                      <BarChart data={metricas.tandas} barCategoryGap="30%">
-                        <XAxis dataKey="nombreTanda" tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <YAxis hide />
-                        <Tooltip
-                          contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 11, color: "var(--foreground)" }}
-                          cursor={{ fill: "rgba(124,58,237,0.08)" }}
-                          formatter={(v: number) => [`${v} entradas`, ""]}
-                        />
-                        <Bar dataKey="vendidas" radius={[6, 6, 0, 0]}>
-                          {metricas.tandas.map((_, i) => (
-                            <Cell key={i} fill={TANDA_COLORS[i % TANDA_COLORS.length]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                )}
-
-                {ventasRecientes.length > 0 && (
-                  <div className="bg-card border border-border rounded-2xl overflow-hidden self-start">
-                    <div className="px-4 pt-4 pb-2">
-                      <p className="text-xs font-bold text-foreground">Últimas ventas</p>
-                    </div>
-                    {ventasRecientes.map((v, i) => (
-                      <div key={v.id} className={`px-4 py-3 flex items-center justify-between ${i < ventasRecientes.length - 1 ? "border-b border-border" : ""}`}>
-                        <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                            {v.nombreComprador.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-xs font-semibold text-foreground">{v.nombreComprador}</p>
-                            <p className="text-[10px] text-muted-foreground">{v.nombreTanda}</p>
-                          </div>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground">{formatRelativo(v.fechaCompra)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-
-          {eventos !== null && eventos.length > 0 && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pb-2">
-              <button
-                onClick={() => navigate("/organizador/crear")}
-                className="bg-primary rounded-2xl p-4 flex flex-col gap-2 hover:bg-primary/90 transition-colors"
-              >
-                <Sparkles size={18} className="text-primary-foreground" />
-                <p className="text-sm font-bold text-primary-foreground">Crear evento</p>
-              </button>
-              <button
-                onClick={() => navigate("/organizador/staff")}
-                className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-2 hover:border-primary/40 transition-colors"
-              >
-                <Users size={18} className="text-primary" />
-                <p className="text-sm font-bold text-foreground">Gestionar staff</p>
-              </button>
-            </div>
-          )}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

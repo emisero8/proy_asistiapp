@@ -15,13 +15,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * Servicio de gestión de Tandas para el rol Organizador.
  *
  * Reglas de negocio:
- *  - Las tandas solo pueden crearse/editarse si el evento está en Borrador.
+ *  - Las tandas se pueden crear/editar mientras el evento no esté Cancelado
+ *    (en Borrador se puede todo; en Publicado con restricciones — no reducir
+ *    cupo por debajo de lo vendido, no borrar la última tanda, etc.).
+ *  - La ventana de venta (fecha_inicio/fin_vigencia) no puede terminar después
+ *    del comienzo del evento ni empezar después de que el evento arrancó.
  *  - El cupo_disponible se inicializa igual al cupo_maximo (@PrePersist de Tanda).
  *  - Al actualizar cupo_maximo, se ajusta cupo_disponible proporcionalmente.
  *  - El Organizador solo puede gestionar tandas de sus propios eventos.
@@ -71,7 +76,8 @@ public class TandaService {
     public TandaResponseDTO crearTanda(Long idEvento, TandaRequestDTO dto, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
-        verificarEventoEditable(evento);
+        verificarEventoModificable(evento);
+        validarVentana(dto, evento);
 
         Tanda tanda = new Tanda();
         tanda.setEvento(evento);
@@ -96,7 +102,8 @@ public class TandaService {
     public TandaResponseDTO actualizarTanda(Long idEvento, Long idTanda, TandaRequestDTO dto, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
-        verificarEventoEditable(evento);
+        verificarEventoModificable(evento);
+        validarVentana(dto, evento);
 
         Tanda tanda = getTandaOrThrow(idTanda);
         verificarTandaDelEvento(tanda, idEvento);
@@ -131,7 +138,7 @@ public class TandaService {
     public void eliminarTanda(Long idEvento, Long idTanda, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
-        verificarEventoEditable(evento);
+        verificarEventoModificable(evento);
 
         Tanda tanda = getTandaOrThrow(idTanda);
         verificarTandaDelEvento(tanda, idEvento);
@@ -141,6 +148,14 @@ public class TandaService {
             throw new BusinessRuleException(
                     "No podés eliminar una tanda con entradas vendidas. " +
                     "Entradas vendidas: " + entradasVendidas);
+        }
+
+        // Un evento publicado no puede quedarse sin ninguna tanda que vender.
+        if (evento.getEstado() == EstadoEvento.Publicado
+                && tandaRepository.findByEventoId(idEvento).size() <= 1) {
+            throw new BusinessRuleException(
+                    "Un evento publicado necesita al menos una tanda. " +
+                    "No podés eliminar la última — cancelá el evento si querés bajarlo.");
         }
 
         tandaRepository.delete(tanda);
@@ -173,11 +188,35 @@ public class TandaService {
         }
     }
 
-    private void verificarEventoEditable(Evento evento) {
-        if (evento.getEstado() != EstadoEvento.Borrador) {
+    private void verificarEventoModificable(Evento evento) {
+        if (evento.getEstado() == EstadoEvento.Cancelado) {
+            throw new BusinessRuleException("No podés modificar las tandas de un evento cancelado.");
+        }
+    }
+
+    /**
+     * La ventana de venta de una tanda tiene que ser coherente con el evento:
+     *  - "desde" anterior a "hasta" (si ambas están cargadas);
+     *  - ni "desde" ni "hasta" pueden caer después del comienzo del evento —
+     *    no tiene sentido vender una entrada para un evento que ya arrancó.
+     */
+    private void validarVentana(TandaRequestDTO dto, Evento evento) {
+        LocalDateTime inicioEvento = LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento());
+        LocalDateTime desde = dto.getFechaInicioVigencia();
+        LocalDateTime hasta = dto.getFechaFinVigencia();
+
+        if (desde != null && hasta != null && !desde.isBefore(hasta)) {
             throw new BusinessRuleException(
-                    "Solo podés modificar tandas de un evento en estado Borrador. " +
-                    "Estado actual: " + evento.getEstado());
+                    "El inicio de la venta de la tanda tiene que ser anterior al cierre.");
+        }
+        if (hasta != null && hasta.isAfter(inicioEvento)) {
+            throw new BusinessRuleException(
+                    "La venta de la tanda no puede cerrar después del comienzo del evento (" +
+                    evento.getFechaEvento() + " " + evento.getHoraEvento() + ").");
+        }
+        if (desde != null && desde.isAfter(inicioEvento)) {
+            throw new BusinessRuleException(
+                    "La venta de la tanda no puede empezar después del comienzo del evento.");
         }
     }
 

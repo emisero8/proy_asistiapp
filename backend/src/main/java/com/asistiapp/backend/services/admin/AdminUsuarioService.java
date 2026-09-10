@@ -31,6 +31,7 @@ public class AdminUsuarioService {
     private final EventoRepository eventoRepository;
     private final StaffVendedorRepository staffVendedorRepository;
     private final SecurityUtils securityUtils;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public List<UsuarioResponseDTO> listarUsuarios(RolUsuario rolFiltro, EstadoUsuario estadoFiltro) {
@@ -114,6 +115,20 @@ public class AdminUsuarioService {
 
         usuarioRepository.delete(usuario);
         log.info("Usuario eliminado: id={}, rol={}", idUsuario, usuario.getRol());
+    }
+
+    /**
+     * El Administrador fija una contraseña nueva para un usuario que perdió su
+     * acceso (CU de soporte). No exige la contraseña anterior — es una acción
+     * administrativa, queda auditada.
+     */
+    @Transactional
+    @Auditable(accion = "CAMBIAR_PASSWORD_USUARIO", entidad = "Usuario")
+    public void cambiarPassword(Long idUsuario, String nuevaPassword) {
+        Usuario usuario = getUsuarioOrThrow(idUsuario);
+        usuario.setPasswordHash(passwordEncoder.encode(nuevaPassword));
+        usuarioRepository.save(usuario);
+        log.info("Contraseña restablecida por el Admin para el usuario id={}", idUsuario);
     }
 
     private Usuario getUsuarioOrThrow(Long idUsuario) {
