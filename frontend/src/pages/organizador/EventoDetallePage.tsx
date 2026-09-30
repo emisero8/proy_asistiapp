@@ -10,6 +10,7 @@ import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useDialog } from "../../lib/dialogs";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
 const TANDA_COLORS = ["#4a5d8f", "#9cadd3", "#5b6f9c", "#64748b"];
@@ -33,6 +34,7 @@ export function OrganizadorEventoDetallePage() {
   const [cancelando, setCancelando] = useState(false);
 
   useDocumentTitle(evento?.nombre);
+  const { confirm } = useDialog();
 
   const [q, setQ] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Online" | "Manual">("todas");
@@ -61,7 +63,14 @@ export function OrganizadorEventoDetallePage() {
 
   async function cancelarEvento() {
     if (!evento) return;
-    if (!window.confirm(`¿Cancelar "${evento.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`)) return;
+    const ok = await confirm({
+      titulo: "Cancelar evento",
+      mensaje: `¿Cancelar "${evento.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`,
+      confirmarTexto: "Cancelar evento",
+      cancelarTexto: "No, volver",
+      variante: "destructiva",
+    });
+    if (!ok) return;
     setCancelando(true);
     try {
       await api.patch(`/eventos/${evento.id}/cancelar`);

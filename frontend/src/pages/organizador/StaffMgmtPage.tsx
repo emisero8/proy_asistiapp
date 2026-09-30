@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, RolUsuario, StaffResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useDialog } from "../../lib/dialogs";
 
 const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: string; icon: typeof QrCode; color: string; bg: string }> = {
   Staff_QR: { label: "Staff QR", desc: "Escanea entradas en la puerta", icon: QrCode, color: "text-primary", bg: "bg-primary/10" },
@@ -12,6 +13,7 @@ const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: st
 
 export function OrganizadorStaffMgmtPage() {
   useDocumentTitle("Staff");
+  const { confirm, alert } = useDialog();
   const [staff, setStaff] = useState<StaffResponseDTO[] | null>(null);
   const [eventos, setEventos] = useState<EventoResponseDTO[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +64,12 @@ export function OrganizadorStaffMgmtPage() {
   }
 
   async function resetPassword(member: StaffResponseDTO) {
-    if (!window.confirm(`¿Generar una contraseña nueva para ${member.nombre}? La anterior deja de funcionar.`)) return;
+    const ok = await confirm({
+      titulo: "Generar contraseña nueva",
+      mensaje: `¿Generar una contraseña nueva para ${member.nombre}? La anterior deja de funcionar.`,
+      confirmarTexto: "Generar",
+    });
+    if (!ok) return;
     setBusyId(member.id);
     setError(null);
     try {
@@ -70,9 +77,11 @@ export function OrganizadorStaffMgmtPage() {
         `/organizador/staff/${member.id}/resetear-password`,
       );
       toast.success(`Contraseña nueva de ${member.nombre}: ${passwordTemporal}`, { duration: 30000 });
-      window.alert(
-        `Contraseña temporal de ${member.nombre} (${member.email}):\n\n${passwordTemporal}\n\nPasásela al staff. También se le envió por email.`,
-      );
+      await alert({
+        titulo: "Contraseña temporal",
+        mensaje: `Contraseña temporal de ${member.nombre} (${member.email}). Pasásela al staff; también se le envió por email.`,
+        copiable: passwordTemporal,
+      });
     } catch (e: unknown) {
       const message = e instanceof ApiError ? e.message : "No pudimos resetear la contraseña.";
       setError(message);

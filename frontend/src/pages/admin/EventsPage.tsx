@@ -6,9 +6,11 @@ import { api, ApiError } from "../../lib/api";
 import { formatFecha } from "../../lib/format";
 import type { EventoResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useDialog } from "../../lib/dialogs";
 
 export function AdminEventsPage() {
   useDocumentTitle("Eventos · Admin");
+  const { confirm } = useDialog();
   const navigate = useNavigate();
   const [eventos, setEventos] = useState<EventoResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +49,13 @@ export function AdminEventsPage() {
 
   async function eliminarEvento(e: EventoResponseDTO) {
     setOpenMenu(null);
-    if (!window.confirm(`¿Eliminar "${e.nombre}" definitivamente? Esta acción no se puede deshacer.`)) return;
+    const ok = await confirm({
+      titulo: "Eliminar evento",
+      mensaje: `¿Eliminar "${e.nombre}" definitivamente? Esta acción no se puede deshacer.`,
+      confirmarTexto: "Eliminar",
+      variante: "destructiva",
+    });
+    if (!ok) return;
     setBusyId(e.id);
     try {
       await api.delete(`/admin/eventos/${e.id}`);

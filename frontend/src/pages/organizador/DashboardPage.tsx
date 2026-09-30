@@ -7,6 +7,7 @@ import { useAuth } from "../../lib/auth";
 import { fmt, formatFecha } from "../../lib/format";
 import type { EventoMetricasResponseDTO, EventoResponseDTO, EstadoEvento } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useDialog } from "../../lib/dialogs";
 
 const ESTADO_ORDEN: Record<EstadoEvento, number> = { Publicado: 0, Borrador: 1, Cancelado: 2 };
 const ESTADO_BADGE: Record<EstadoEvento, string> = {
@@ -17,6 +18,7 @@ const ESTADO_BADGE: Record<EstadoEvento, string> = {
 
 export function OrganizadorDashboardPage() {
   useDocumentTitle("Panel del organizador");
+  const { confirm } = useDialog();
   const navigate = useNavigate();
   const { session } = useAuth();
 
@@ -56,9 +58,15 @@ export function OrganizadorDashboardPage() {
 
   useEffect(cargar, []);
 
-  async function cancelarEvento(ev: EventoResponseDTO, e: React.MouseEvent) {
-    e.stopPropagation();
-    if (!window.confirm(`¿Cancelar "${ev.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`)) return;
+  async function cancelarEvento(ev: EventoResponseDTO) {
+    const ok = await confirm({
+      titulo: "Cancelar evento",
+      mensaje: `¿Cancelar "${ev.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`,
+      confirmarTexto: "Cancelar evento",
+      cancelarTexto: "No, volver",
+      variante: "destructiva",
+    });
+    if (!ok) return;
     setCancelandoId(ev.id);
     try {
       await api.patch(`/eventos/${ev.id}/cancelar`);
@@ -159,69 +167,78 @@ export function OrganizadorDashboardPage() {
             {eventosOrdenados.map((ev) => {
               const vendidas = vendidasEvento(ev);
               return (
-                <button
+                // La tarjeta es un contenedor (no un <button>): un control dentro de otro <button> es HTML inválido y las acciones
+                // no se alcanzaban con teclado. El botón principal cubre toda la tarjeta con ::after ("enlace extendido") y las
+                // acciones son botones reales por encima (z-10), así que con mouse se comporta igual que antes.
+                <div
                   key={ev.id}
-                  onClick={() => navigate(`/organizador/eventos/${ev.id}`)}
-                  className={`w-full text-left rounded-xl border border-border bg-card p-3 flex items-center gap-3 hover:border-primary/40 transition-all ${
+                  className={`relative rounded-xl border border-border bg-card p-3 flex items-center gap-3 hover:border-primary/40 focus-within:border-primary/40 transition-all ${
                     cancelandoId === ev.id ? "opacity-50" : ""
                   }`}
                 >
-                  {ev.imagenPortadaUrl ? (
-                    <img src={ev.imagenPortadaUrl} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded-lg object-cover flex-none bg-muted" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-lg flex-none bg-gradient-to-br from-primary/25 to-muted flex items-center justify-center">
-                      <Sparkles size={16} className="text-primary/40" />
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/organizador/eventos/${ev.id}`)}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 after:absolute after:inset-0 after:rounded-xl after:content-['']"
+                  >
+                    {ev.imagenPortadaUrl ? (
+                      <img src={ev.imagenPortadaUrl} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded-lg object-cover flex-none bg-muted" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg flex-none bg-gradient-to-br from-primary/25 to-muted flex items-center justify-center">
+                        <Sparkles size={16} className="text-primary/40" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground truncate">{ev.nombre}</p>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-none ${ESTADO_BADGE[ev.estado]}`}>
+                          {ev.estado}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {formatFecha(ev.fechaEvento)} · {ev.tandas.length} tanda{ev.tandas.length !== 1 ? "s" : ""}
+                        {ev.estado === "Publicado" && ` · ${vendidas} vendidas`}
+                      </p>
                     </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground truncate">{ev.nombre}</p>
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-none ${ESTADO_BADGE[ev.estado]}`}>
-                        {ev.estado}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      {formatFecha(ev.fechaEvento)} · {ev.tandas.length} tanda{ev.tandas.length !== 1 ? "s" : ""}
-                      {ev.estado === "Publicado" && ` · ${vendidas} vendidas`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-0.5 flex-none">
+                  </button>
+                  <div className="relative z-10 flex items-center gap-0.5 flex-none">
                     {ev.estado === "Publicado" && (
-                      <span
-                        role="button"
-                        tabIndex={-1}
-                        onClick={(e) => { e.stopPropagation(); navigate(`/eventos/${ev.urlPublica}`); }}
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/eventos/${ev.urlPublica}`)}
                         title="Ver página pública"
-                        className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                        aria-label={`Ver la página pública de ${ev.nombre}`}
+                        className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                       >
                         <ExternalLink size={14} />
-                      </span>
+                      </button>
                     )}
                     {ev.estado !== "Cancelado" && (
                       <>
-                        <span
-                          role="button"
-                          tabIndex={-1}
-                          onClick={(e) => { e.stopPropagation(); navigate(`/organizador/eventos/${ev.id}/editar`); }}
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/organizador/eventos/${ev.id}/editar`)}
                           title="Editar"
-                          className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
+                          aria-label={`Editar ${ev.nombre}`}
+                          className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                         >
                           <Pencil size={14} />
-                        </span>
-                        <span
-                          role="button"
-                          tabIndex={-1}
-                          onClick={(e) => cancelarEvento(ev, e)}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => cancelarEvento(ev)}
+                          disabled={cancelandoId === ev.id}
                           title="Cancelar evento"
-                          className="w-8 h-8 rounded-lg hover:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors"
+                          aria-label={`Cancelar ${ev.nombre}`}
+                          className="w-8 h-8 rounded-lg hover:bg-destructive/10 flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:opacity-50"
                         >
                           <Ban size={14} />
-                        </span>
+                        </button>
                       </>
                     )}
-                    <ChevronRight size={15} className="text-muted-foreground ml-0.5" />
+                    <ChevronRight size={15} aria-hidden="true" className="text-muted-foreground ml-0.5 pointer-events-none" />
                   </div>
-                </button>
+                </div>
               );
             })}
           </div>

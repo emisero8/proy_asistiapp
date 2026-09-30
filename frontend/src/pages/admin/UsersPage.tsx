@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useDialog } from "../../lib/dialogs";
 
 const ROLE_COLORS: Record<RolUsuario, string> = {
   Administrador: "bg-primary text-primary-foreground",
@@ -16,6 +17,7 @@ const ROLES: RolUsuario[] = ["Administrador", "Organizador", "Staff_QR", "Staff_
 
 export function AdminUsersPage() {
   useDocumentTitle("Usuarios · Admin");
+  const { confirm, prompt } = useDialog();
   const [users, setUsers] = useState<UsuarioResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -76,12 +78,16 @@ export function AdminUsersPage() {
 
   async function resetPassword(u: UsuarioResponseDTO) {
     setOpenMenu(null);
-    const nueva = window.prompt(`Nueva contraseña para ${u.nombre} (${u.email}) — mínimo 8 caracteres:`);
+    const nueva = await prompt({
+      titulo: "Cambiar contraseña",
+      mensaje: `Nueva contraseña para ${u.nombre} (${u.email}).`,
+      etiqueta: "Nueva contraseña",
+      placeholder: "Mínimo 8 caracteres",
+      tipo: "password",
+      confirmarTexto: "Guardar",
+      validar: (v) => (v.trim().length >= 8 ? null : "La contraseña debe tener al menos 8 caracteres."),
+    });
     if (nueva === null) return;
-    if (nueva.trim().length < 8) {
-      toast.error("La contraseña debe tener al menos 8 caracteres.");
-      return;
-    }
     setBusyId(u.id);
     try {
       await api.patch(`/admin/usuarios/${u.id}/password`, { nuevaPassword: nueva });
@@ -97,7 +103,13 @@ export function AdminUsersPage() {
 
   async function deleteUser(u: UsuarioResponseDTO) {
     setOpenMenu(null);
-    if (!window.confirm(`¿Eliminar a ${u.nombre} (${u.email}) definitivamente?`)) return;
+    const ok = await confirm({
+      titulo: "Eliminar usuario",
+      mensaje: `¿Eliminar a ${u.nombre} (${u.email}) definitivamente? Esta acción no se puede deshacer.`,
+      confirmarTexto: "Eliminar",
+      variante: "destructiva",
+    });
+    if (!ok) return;
     setBusyId(u.id);
     try {
       await api.delete(`/admin/usuarios/${u.id}`);

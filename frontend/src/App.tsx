@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
 import { ThemeProvider, useTheme } from "./lib/theme";
+import { DialogProvider } from "./components/DialogProvider";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 const ListingPage = lazy(() => import("./pages/buyer/ListingPage").then((m) => ({ default: m.ListingPage })));
@@ -145,11 +146,13 @@ function AppShell() {
           },
         }}
       />
-      <BrowserRouter>
-        <Suspense fallback={<RouteFallback />}>
-          <AnimatedRoutes />
-        </Suspense>
-      </BrowserRouter>
+      <DialogProvider>
+        <BrowserRouter>
+          <Suspense fallback={<RouteFallback />}>
+            <AnimatedRoutes />
+          </Suspense>
+        </BrowserRouter>
+      </DialogProvider>
     </AuthProvider>
   );
 }

@@ -8,6 +8,7 @@ import { MapPicker, type Coords } from "../../components/EventMap";
 import { validarTandaContraEvento } from "./WizardPage";
 import type { EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useDialog } from "../../lib/dialogs";
 
 interface EditTanda {
   id: number | null; // null = tanda nueva sin guardar
@@ -37,6 +38,7 @@ function tandaFromResponse(t: TandaResponseDTO): EditTanda {
 
 export function OrganizadorEditEventPage() {
   useDocumentTitle("Editar evento");
+  const { confirm } = useDialog();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -186,7 +188,13 @@ export function OrganizadorEditEventPage() {
       return;
     }
     if (!id) return;
-    if (!window.confirm(`¿Eliminar la tanda "${t.nombre}"?`)) return;
+    const ok = await confirm({
+      titulo: "Eliminar tanda",
+      mensaje: `¿Eliminar la tanda "${t.nombre}"?`,
+      confirmarTexto: "Eliminar",
+      variante: "destructiva",
+    });
+    if (!ok) return;
     setBusyTanda(t.id);
     setError(null);
     try {

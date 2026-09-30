@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { Toaster } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AdminUsersPage } from "./UsersPage";
+import { DialogProvider } from "../../components/DialogProvider";
 import { api } from "../../lib/api";
 import type { UsuarioResponseDTO } from "../../lib/types";
 
@@ -22,10 +23,10 @@ const USUARIO: UsuarioResponseDTO = {
 
 function renderPage() {
   return render(
-    <>
+    <DialogProvider>
       <Toaster />
       <AdminUsersPage />
-    </>,
+    </DialogProvider>,
   );
 }
 
@@ -72,6 +73,59 @@ describe("AdminUsersPage", () => {
     expect(api.patch).toHaveBeenCalledWith("/admin/usuarios/7/suspender");
     await waitFor(() => expect(within(fila).getByText("Suspendido")).toBeInTheDocument());
     expect(await screen.findByText("Marta Suspendible suspendido")).toBeInTheDocument();
+  });
+
+  it("eliminar pide confirmación con un diálogo propio y solo borra si se confirma", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockResolvedValueOnce([USUARIO]);
+    vi.mocked(api.delete).mockResolvedValueOnce(undefined);
+
+    renderPage();
+    await screen.findByText("Marta Suspendible");
+    const fila = screen.getByText("Marta Suspendible").closest("tr")!;
+
+    // 1) Cancelar: no se borra nada.
+    await user.click(within(fila).getByRole("button", { name: "···" }));
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    let dialogo = await screen.findByRole("alertdialog");
+    expect(within(dialogo).getByText(/definitivamente/)).toBeInTheDocument();
+    await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(api.delete).not.toHaveBeenCalled();
+
+    // 2) Confirmar: se borra y se muestra el toast.
+    await user.click(within(fila).getByRole("button", { name: "···" }));
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    dialogo = await screen.findByRole("alertdialog");
+    await user.click(within(dialogo).getByRole("button", { name: "Eliminar" }));
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/admin/usuarios/7"));
+    expect(await screen.findByText("Marta Suspendible eliminado")).toBeInTheDocument();
+  });
+
+  it("cambiar contraseña valida el mínimo de 8 caracteres antes de llamar a la API", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockResolvedValueOnce([USUARIO]);
+    vi.mocked(api.patch).mockResolvedValueOnce(undefined);
+
+    renderPage();
+    await screen.findByText("Marta Suspendible");
+    const fila = screen.getByText("Marta Suspendible").closest("tr")!;
+
+    await user.click(within(fila).getByRole("button", { name: "···" }));
+    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+    const dialogo = await screen.findByRole("dialog");
+    const input = within(dialogo).getByLabelText("Nueva contraseña");
+
+    await user.type(input, "corta{Enter}");
+    expect(await within(dialogo).findByRole("alert")).toHaveTextContent("al menos 8 caracteres");
+    expect(api.patch).not.toHaveBeenCalled();
+
+    await user.clear(input);
+    await user.type(input, "unaClaveLarga1{Enter}");
+    await waitFor(() =>
+      expect(api.patch).toHaveBeenCalledWith("/admin/usuarios/7/password", { nuevaPassword: "unaClaveLarga1" }),
+    );
+    expect(await screen.findByText("Contraseña de Marta Suspendible actualizada")).toBeInTheDocument();
   });
 
   it("filtra por texto de búsqueda", async () => {

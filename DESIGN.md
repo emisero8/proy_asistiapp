@@ -345,6 +345,34 @@ Infinite horizontal scroll for a short list of value props. The content is dupli
 </button>
 ```
 
+### Dialogs (confirm / alert / prompt)
+**Nunca usar `window.confirm` / `window.alert` / `window.prompt`** (cartel nativo del navegador, rompe el diseño y no sigue el tema). Se usa `useDialog()` (`lib/dialogs.ts`), provisto por `<DialogProvider>` en `App.tsx` (`components/DialogProvider.tsx`). API con promesas, así cada llamada cambia en una sola línea:
+```tsx
+const { confirm, alert, prompt } = useDialog();
+
+const ok = await confirm({
+  titulo: "Cancelar evento",
+  mensaje: `¿Cancelar "${ev.nombre}"? Se avisa por email a los compradores.`,
+  confirmarTexto: "Cancelar evento",
+  cancelarTexto: "No, volver",        // cuando "Cancelar" sería ambiguo
+  variante: "destructiva",
+});
+if (!ok) return;                      // false si cancela, Escape o clic afuera
+
+await alert({ titulo: "Contraseña temporal", mensaje: "…", copiable: passwordTemporal }); // `copiable` agrega el botón "Copiar"
+
+const nueva = await prompt({          // null si cancela
+  titulo: "Cambiar contraseña", etiqueta: "Nueva contraseña", tipo: "password",
+  validar: (v) => (v.length >= 8 ? null : "Mínimo 8 caracteres"), // el diálogo no se cierra mientras devuelva un error
+});
+```
+Reglas de diseño y comportamiento (ya resueltas en el componente, no se reimplementan por pantalla):
+- Panel: `max-w-sm rounded-2xl bg-card border border-border shadow-2xl p-5` sobre un fondo `bg-black/60 backdrop-blur-sm` (`z-[100]`). En mobile los botones se apilan a todo el ancho (acción principal arriba); desde `sm:` van en fila, a la derecha.
+- Ícono en cuadro redondeado: `TriangleAlert` con `bg-destructive/15 text-destructive` en la variante `destructiva`, `Info` con `bg-primary/10 text-primary` en el resto. El botón de confirmar destructivo usa `bg-destructive text-destructive-foreground`.
+- Accesibilidad: `role="alertdialog"` si es destructivo, `dialog` si no; `aria-modal`, `aria-labelledby`/`aria-describedby`. **Foco inicial** en "Cancelar" si es destructivo (un Enter distraído no borra nada), en "Confirmar" si no, en el input en un `prompt`. Tab queda atrapado dentro, Escape cancela, se bloquea el scroll del fondo y al cerrar el foco vuelve al botón que lo abrió.
+- Si se piden varios a la vez se muestran de a uno, en orden.
+- En los tests, renderizar la pantalla dentro de `<DialogProvider>` (sin él, `useDialog()` tira un error explícito).
+
 ### QR Code Component
 Custom SVG-based generator (no external library). `<QRCodeSVG seed="string" />` produces a deterministic 25-module QR-like grid with real finder patterns. Used in Buyer success screen and Staff Vendedor generated ticket.
 
