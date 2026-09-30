@@ -138,7 +138,7 @@ export function ListingPage() {
       <section className="relative overflow-hidden min-h-[62vh] flex items-center justify-center px-4">
         <div className="absolute inset-0 z-0">
           <img
-            src="/ticket2.png"
+            src="/ticket2.webp"
             alt=""
             aria-hidden="true"
             className="w-full h-full object-cover opacity-70 dark:opacity-40 blur-[2px] scale-105"
