@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
+import { hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import type { EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
 
@@ -64,7 +65,7 @@ export function OrganizadorWizardPage() {
   const updateTanda = (id: number, field: keyof WizardTanda, val: string) =>
     setTandas((t) => t.map((x) => (x.id === id ? { ...x, [field]: val } : x)));
 
-  const hoyStr = new Date().toISOString().slice(0, 10);
+  const hoyStr = hoyLocal();
   const fechaEnPasado = date !== "" && date < hoyStr;
   const step1Valid = title.trim() && date && time && venue.trim() && !fechaEnPasado;
 

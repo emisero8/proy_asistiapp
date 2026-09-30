@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, Plus, Trash2, AlertCircle, CheckCircle2, ImagePlus, Save } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { fmt } from "../../lib/format";
+import { fmt, hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { validarTandaContraEvento } from "./WizardPage";
 import type { EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
@@ -61,7 +61,7 @@ export function OrganizadorEditEventPage() {
   const [tandas, setTandas] = useState<EditTanda[]>([]);
   const [busyTanda, setBusyTanda] = useState<number | "nueva" | null>(null);
 
-  const hoyStr = new Date().toISOString().slice(0, 10);
+  const hoyStr = hoyLocal();
 
   function hidratar(ev: EventoResponseDTO) {
     setEvento(ev);

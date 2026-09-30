@@ -137,6 +137,44 @@ Con las 7 fases anteriores cerradas, este bloque cubre trabajo posterior sin num
 
 Verificado end-to-end con Playwright contra un backend real (reiniciado para levantar el código nuevo) y datos demo persistentes: alta de un Staff Vendedor de prueba → "Dar de baja" → estado pasa a Inactivo con toast → "Reactivar" → vuelve a Activo, probado también sobre el Staff QR Demo real (dado de baja y reactivado en el mismo pase, sin dejarlo inactivo) → Admin Dashboard mostrando actividad reciente real y legible — sin errores de consola, en mobile y desktop. Fixture de staff de prueba eliminado de la base por SQL al terminar (no hay endpoint de borrado real, ver Gap 1).
 
+## Fase 9: Calidad y robustez del frontend (revisión post-rediseño)
+**Objetivo:** Cerrar los hallazgos de una revisión completa del frontend hecha después del rediseño y de la tanda de features nuevas (edición de eventos, detalle de evento, mapa, gestión de contraseñas). La base está sana (typecheck limpio, 27/27 tests, code-splitting funcionando); esta fase ataca un bug real y deuda de accesibilidad, performance, consistencia y cobertura de tests.
+
+Se divide en sub-fases independientes, **en este orden**, cada una cerrada y verificada por separado (typecheck + lint + tests + build + Playwright contra backend real en mobile y desktop), con pausa para confirmar antes de pasar a la siguiente y antes de commitear.
+
+### 9.1 — Bug: "hoy" calculado en UTC en vez de hora local 🔴 ✅
+`new Date().toISOString().slice(0, 10)` devuelve la fecha **UTC**. En Argentina (UTC-3), entre las 21:00 y las 00:00 ya devuelve el día siguiente.
+- **Impacto:** en `WizardPage.tsx:67` y `EditEventPage.tsx:64` el `min` del selector de fecha pasa a ser mañana → **de noche no se puede crear/editar un evento para hoy** (el backend sí lo aceptaría: `@FutureOrPresent` valida con la hora local del servidor). En `ListingPage.tsx:72` y `AllEventsPage.tsx:36`, el badge "Hay shows hoy" y el filtro "Hoy" muestran el día equivocado.
+- **Solución:** helper `hoyLocal()` en `lib/format.ts` (arma `YYYY-MM-DD` con `getFullYear/getMonth/getDate` locales), usado en los 4 lugares. `formatFecha` y `lib/eventFilters.ts` ya parsean bien (`T00:00:00` local), no se tocan.
+- **Test:** unit test de `hoyLocal()` fijando el reloj a las 22:30 hora argentina con `vi.setSystemTime` + `TZ=America/Argentina/Buenos_Aires` → debe devolver el mismo día, no el siguiente.
+- **Verificación:** Playwright con `timezoneId: "America/Argentina/Buenos_Aires"` y reloj a las 22:30 → el Wizard permite elegir la fecha de hoy.
+- **Resultado:** hecho como estaba planeado. El test usa `vi.stubEnv("TZ", ...)` en lugar de tocar `process.env` a mano, porque el `tsconfig` de la app no incluye los tipos de Node (con `process` el build fallaba aunque vitest corriera bien). Verificado contra el backend real a las 22:30 hora argentina, en mobile y desktop: la fecha UTC del navegador ya era el día siguiente (lo que el código anterior habría usado como mínimo), el `min` del selector quedó en el día local y elegir hoy no muestra error; sin errores de consola. De paso se descartó que el mapa se vea gris: era un efecto de congelar el reloj en el test (los tiles cargan bien con el reloj normal).
+
+### 9.2 — Accesibilidad y detalles de navegador 🟡
+- `index.html`: `<html lang="en">` → `lang="es-AR"` (lectores de pantalla pronuncian en inglés y Chrome ofrece traducir).
+- Links hechos con `<span onClick>` ("Registrate gratis" en `organizador/LoginPage.tsx:164`, "Iniciá sesión" en `RegisterPage.tsx:256`) → `<button type="button">`, para que se pueda llegar con teclado.
+- `aria-label` en los botones que son solo un ícono: ojito de contraseña (3 logins + registro), tacho de tandas (Wizard/Editar), `+`/`−` de cantidad (POS y Detalle), logout. Hoy hay solo 8 `aria-label` en toda la app.
+- Título de pestaña por pantalla: hook `useDocumentTitle()` en `lib/`, aplicado al menos en el Detalle del evento (nombre del evento) y en los paneles (Organizador/Staff/Admin). Hoy todas las pestañas dicen "AsistíAPP".
+- **Verificación:** recorrido con teclado (Tab/Enter) en Playwright por login, registro y checkout.
+
+### 9.3 — Performance: carga diferida de imágenes 🟡
+Ninguna imagen usa `loading="lazy"`; la Home descarga ~22 fotos de 800px al abrirse, incluso las que están muy abajo.
+- `loading="lazy"` + `decoding="async"` en las imágenes de las grillas (`ListingPage`, `AllEventsPage`, miniaturas de `admin/EventsPage`).
+- Se dejan con carga normal el banner del hero y las primeras tarjetas del carrusel (son lo primero que se ve; diferirlas empeoraría el tiempo de carga percibido).
+- **Verificación:** Playwright contando las requests de imágenes en la carga inicial de la Home, antes vs. después.
+
+### 9.4 — `ConfirmDialog` propio en lugar de `window.confirm` 🟡
+Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, que rompen el diseño: `admin/UsersPage.tsx:98` (eliminar usuario), `admin/EventsPage.tsx:48` (eliminar evento), `organizador/DashboardPage.tsx:59` y `EventoDetallePage.tsx:61` (cancelar evento), `EditEventPage.tsx:187` (eliminar tanda), `StaffMgmtPage.tsx:63` (resetear contraseña).
+- Componente `components/ConfirmDialog.tsx` con los tokens de `DESIGN.md`, variante destructiva (rojo), `role="alertdialog"`, cierre con Escape / click afuera, foco inicial en "Cancelar".
+- API con promesa (`const ok = await confirm({...})`) vía un provider/hook `useConfirm()`, para que cada llamada cambie en una sola línea.
+- Test del componente (confirmar → `true`; cancelar/Escape → `false`) y el patrón documentado en `DESIGN.md` → Component Patterns.
+
+### 9.5 — Errores silenciosos y cobertura de tests 🟢
+- `StaffMgmtPage.tsx:35`: si falla la carga de eventos, hoy el `.catch(() => {})` deja el selector "Evento asignado" vacío sin explicación → mostrar un aviso. Los `.catch` silenciosos de stats/paquetes en `ListingPage` se dejan: ahí ocultar la sección es el comportamiento correcto.
+- Tests nuevos para las pantallas con más lógica de negocio y hoy sin cobertura, siguiendo el patrón ya establecido (mock de `api`): `WizardPage` (fecha en el pasado, validaciones de tandas), `EditEventPage` (carga, guardado, eliminar tanda con confirmación) y `EventoDetallePage` (render + cancelar evento).
+
+**Fuera de alcance (a propósito):** los 3 warnings de lint `only-export-components` (solo afectan el hot-reload en desarrollo, no la app), las 2 vulnerabilidades moderadas de `npm audit` (tema aparte, se evalúa por separado) y los colores hardcodeados del panel de marca del login de Organizador (fijo en oscuro por diseño, documentado en el propio código).
+
 ---
 
 **Orden de ejecución recomendado:** 1 → 2 → 3 → 4 → 5 → 6 → (7). La Fase 1 es la única bloqueante real — nada del resto se puede hacer sin cliente API y sesión real. La Fase 2 (Comprador) va segunda a propósito: es el flujo con menos fricción (sin auth) para validar que el patrón cliente-API + loading/error funciona antes de meterse con los tres sistemas de login falsos de las Fases 3-5.

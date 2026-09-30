@@ -3,6 +3,18 @@ export function fmt(n: number): string {
   return `$${Math.abs(n).toLocaleString("es-AR")}`;
 }
 
+/**
+ * Fecha de hoy en hora local como `"YYYY-MM-DD"` (mismo formato que un LocalDate del backend).
+ * No usar `toISOString().slice(0, 10)`: eso devuelve la fecha UTC, que en Argentina (UTC-3)
+ * ya es "mañana" entre las 21:00 y la medianoche.
+ */
+export function hoyLocal(): string {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
+
 /** `"2025-07-19"` (LocalDate del backend) → `"Sáb 19 Jul, 2025"`. */
 export function formatFecha(fechaEvento: string): string {
   const date = new Date(`${fechaEvento}T00:00:00`);

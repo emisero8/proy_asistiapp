@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, ChevronRight, Search, MapPin, Calendar, Sparkles, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
-import { fmt, formatFecha } from "../../lib/format";
+import { fmt, formatFecha, hoyLocal } from "../../lib/format";
 import { FILTROS_FECHA, fechaEnRango, rangoFinDeSemana, type FiltroFecha } from "../../lib/eventFilters";
 import { DateRangeFilter } from "../../components/DateRangeFilter";
 import type { EventoPublicoListItemDTO } from "../../lib/types";
@@ -33,7 +33,7 @@ export function AllEventsPage() {
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar los eventos."));
   }, []);
 
-  const hoyStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const hoyStr = useMemo(() => hoyLocal(), []);
 
   const ordenados = useMemo(
     () => [...(eventos ?? [])].sort((a, b) => a.fechaEvento.localeCompare(b.fechaEvento)),

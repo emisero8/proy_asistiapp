@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { MapPin, Calendar, Sparkles, ArrowRight, Zap, ShieldCheck, TrendingUp, Wallet, Users, Ticket, Check } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
-import { fmt, formatFecha } from "../../lib/format";
+import { fmt, formatFecha, hoyLocal } from "../../lib/format";
 import type { EstadisticasPublicasResponseDTO, EventoPublicoListItemDTO, PaqueteCreditoDisponibleDTO } from "../../lib/types";
 
 const EVENTOS_HOME = 16; // 4 filas de 4 columnas en desktop
@@ -69,7 +69,7 @@ export function ListingPage() {
 
   const destacados = ordenados.slice(0, 6);
 
-  const hoyStr = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const hoyStr = useMemo(() => hoyLocal(), []);
   const hayShowsHoy = ordenados.some((e) => e.fechaEvento === hoyStr);
 
   const carruselRef = useRef<HTMLDivElement>(null);
