@@ -16,6 +16,7 @@ export function OrganizadorStaffMgmtPage() {
   const { confirm, alert } = useDialog();
   const [staff, setStaff] = useState<StaffResponseDTO[] | null>(null);
   const [eventos, setEventos] = useState<EventoResponseDTO[]>([]);
+  const [errorEventos, setErrorEventos] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -34,9 +35,19 @@ export function OrganizadorStaffMgmtPage() {
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar tu staff."));
   }
 
+  // Los eventos alimentan el selector "Evento asignado" (obligatorio para ambos roles) y el nombre del evento en cada
+  // tarjeta: si falla, hay que avisarlo en vez de dejar el selector vacío sin explicación.
+  function cargarEventos() {
+    setErrorEventos(false);
+    api
+      .get<EventoResponseDTO[]>("/eventos")
+      .then(setEventos)
+      .catch(() => setErrorEventos(true));
+  }
+
   useEffect(() => {
     cargarStaff();
-    api.get<EventoResponseDTO[]>("/eventos").then(setEventos).catch(() => {});
+    cargarEventos();
   }, []);
 
   async function addStaff() {
@@ -235,7 +246,8 @@ export function OrganizadorStaffMgmtPage() {
               <select
                 value={form.idEvento}
                 onChange={(e) => setForm((f) => ({ ...f, idEvento: e.target.value }))}
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                disabled={errorEventos}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50"
               >
                 <option value="">Elegí un evento...</option>
                 {eventos.map((ev) => (
@@ -244,6 +256,14 @@ export function OrganizadorStaffMgmtPage() {
                   </option>
                 ))}
               </select>
+              {errorEventos && (
+                <p role="alert" className="text-[11px] text-destructive mt-1.5 flex flex-wrap items-center gap-x-2">
+                  No pudimos cargar tus eventos, y sin elegir uno no se puede agregar staff.
+                  <button type="button" onClick={cargarEventos} className="text-[11px] font-semibold underline hover:no-underline">
+                    Reintentar
+                  </button>
+                </p>
+              )}
               <p className="text-[10px] text-muted-foreground mt-1">
                 {form.role === "Staff_QR"
                   ? "Solo va a poder validar entradas de este evento."
