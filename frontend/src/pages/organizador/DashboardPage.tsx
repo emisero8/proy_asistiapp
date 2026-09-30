@@ -167,7 +167,7 @@ export function OrganizadorDashboardPage() {
                   }`}
                 >
                   {ev.imagenPortadaUrl ? (
-                    <img src={ev.imagenPortadaUrl} alt="" className="w-12 h-12 rounded-lg object-cover flex-none bg-muted" />
+                    <img src={ev.imagenPortadaUrl} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded-lg object-cover flex-none bg-muted" />
                   ) : (
                     <div className="w-12 h-12 rounded-lg flex-none bg-gradient-to-br from-primary/25 to-muted flex items-center justify-center">
                       <Sparkles size={16} className="text-primary/40" />

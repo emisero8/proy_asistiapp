@@ -114,7 +114,7 @@ export function AdminEventsPage() {
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2.5">
                       {e.imagenPortadaUrl ? (
-                        <img src={e.imagenPortadaUrl} alt="" className="w-7 aspect-[3/4] rounded-md object-cover flex-none bg-muted" />
+                        <img src={e.imagenPortadaUrl} alt="" loading="lazy" decoding="async" className="w-7 aspect-[3/4] rounded-md object-cover flex-none bg-muted" />
                       ) : (
                         <div className="w-7 aspect-[3/4] rounded-md flex-none bg-gradient-to-br from-primary/20 via-card to-background" />
                       )}

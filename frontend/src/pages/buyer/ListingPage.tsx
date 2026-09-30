@@ -202,6 +202,8 @@ export function ListingPage() {
                   <img
                     src={ev.imagenPortadaUrl}
                     alt={ev.nombre}
+                    loading={i < 5 ? "eager" : "lazy"}
+                    decoding="async"
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 ) : (
@@ -282,6 +284,8 @@ export function ListingPage() {
                         <img
                           src={ev.imagenPortadaUrl}
                           alt={ev.nombre}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
