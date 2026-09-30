@@ -4,6 +4,7 @@ import { ChevronLeft, MapPin, Calendar, Clock, Minus, Plus } from "lucide-react"
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import type { EventoPublicoDetalleDTO, TandaResponseDTO } from "../../lib/types";
 
 export function DetailPage() {
@@ -13,6 +14,8 @@ export function DetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<TandaResponseDTO | null>(null);
   const [qty, setQty] = useState(1);
+
+  useDocumentTitle(evento?.nombre);
 
   useEffect(() => {
     if (!urlPublica) return;
@@ -63,6 +66,7 @@ export function DetailPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent" />
           <button
             onClick={() => navigate(-1)}
+            aria-label="Volver"
             className="absolute top-4 left-4 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
           >
             <ChevronLeft size={18} />
@@ -132,6 +136,7 @@ export function DetailPage() {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    aria-label="Quitar una entrada"
                     className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors"
                   >
                     <Minus size={13} />
@@ -140,6 +145,7 @@ export function DetailPage() {
                   <button
                     onClick={() => setQty((q) => Math.min(maxPorCompra, q + 1))}
                     disabled={qtyEfectivo >= maxPorCompra}
+                    aria-label="Agregar una entrada"
                     className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus size={13} />

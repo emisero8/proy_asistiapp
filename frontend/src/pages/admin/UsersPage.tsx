@@ -3,6 +3,7 @@ import { Check, CircleX, KeyRound, Search, Trash2, UserCheck } from "lucide-reac
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const ROLE_COLORS: Record<RolUsuario, string> = {
   Administrador: "bg-primary text-primary-foreground",
@@ -14,6 +15,7 @@ const ROLE_COLORS: Record<RolUsuario, string> = {
 const ROLES: RolUsuario[] = ["Administrador", "Organizador", "Staff_QR", "Staff_Vendedor"];
 
 export function AdminUsersPage() {
+  useDocumentTitle("Usuarios · Admin");
   const [users, setUsers] = useState<UsuarioResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");

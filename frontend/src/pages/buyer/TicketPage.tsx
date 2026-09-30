@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 import { API_BASE_URL } from "../../lib/api";
 import { formatFecha, formatHora } from "../../lib/format";
 import type { EntradaResponseDTO, EventoPublicoDetalleDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface TicketState {
   entradas: EntradaResponseDTO[];
@@ -11,6 +12,7 @@ interface TicketState {
 }
 
 export function TicketPage() {
+  useDocumentTitle("Tu entrada");
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as TicketState | null;

@@ -150,12 +150,21 @@ Se divide en sub-fases independientes, **en este orden**, cada una cerrada y ver
 - **Verificación:** Playwright con `timezoneId: "America/Argentina/Buenos_Aires"` y reloj a las 22:30 → el Wizard permite elegir la fecha de hoy.
 - **Resultado:** hecho como estaba planeado. El test usa `vi.stubEnv("TZ", ...)` en lugar de tocar `process.env` a mano, porque el `tsconfig` de la app no incluye los tipos de Node (con `process` el build fallaba aunque vitest corriera bien). Verificado contra el backend real a las 22:30 hora argentina, en mobile y desktop: la fecha UTC del navegador ya era el día siguiente (lo que el código anterior habría usado como mínimo), el `min` del selector quedó en el día local y elegir hoy no muestra error; sin errores de consola. De paso se descartó que el mapa se vea gris: era un efecto de congelar el reloj en el test (los tiles cargan bien con el reloj normal).
 
-### 9.2 — Accesibilidad y detalles de navegador 🟡
+### 9.2 — Accesibilidad y detalles de navegador 🟡 ✅
 - `index.html`: `<html lang="en">` → `lang="es-AR"` (lectores de pantalla pronuncian en inglés y Chrome ofrece traducir).
 - Links hechos con `<span onClick>` ("Registrate gratis" en `organizador/LoginPage.tsx:164`, "Iniciá sesión" en `RegisterPage.tsx:256`) → `<button type="button">`, para que se pueda llegar con teclado.
 - `aria-label` en los botones que son solo un ícono: ojito de contraseña (3 logins + registro), tacho de tandas (Wizard/Editar), `+`/`−` de cantidad (POS y Detalle), logout. Hoy hay solo 8 `aria-label` en toda la app.
 - Título de pestaña por pantalla: hook `useDocumentTitle()` en `lib/`, aplicado al menos en el Detalle del evento (nombre del evento) y en los paneles (Organizador/Staff/Admin). Hoy todas las pestañas dicen "AsistíAPP".
 - **Verificación:** recorrido con teclado (Tab/Enter) en Playwright por login, registro y checkout.
+- **Resultado:** hecho, con estos matices respecto al plan:
+  - El relevamiento real dio **18 botones de solo ícono sin nombre accesible** (no solo los que se habían listado a ojo): logo de Staff/Admin, ojito de contraseña ×5 (los 3 logins + las 2 del registro), volver y +/− del Detalle, tacho de tandas (Wizard y Editar), "volver al paso anterior" del Wizard, logout y +/− del POS, y linterna + logout del Scanner. Todos tienen `aria-label`; los toggles (contraseña, linterna) además `aria-pressed` y un nombre que cambia con el estado ("Mostrar"/"Ocultar contraseña"). El `ThemeToggle` ya tenía el suyo.
+  - Las tarjetas de evento del carrusel de la Home no cuentan: el nombre está en el texto de la tarjeta (primer barrido lo marcaba como falso positivo).
+  - Los links "Registrate gratis" e "Iniciá sesión" pasaron de `<span onClick>` a `<button type="button">`: ahora se enfocan con Tab y se activan con Enter.
+  - `useDocumentTitle()` en `lib/useDocumentTitle.ts` (formato `"Crear evento · AsistíAPP"`, restaura el título anterior al desmontar, y sin dato deja solo la marca en vez de "undefined"). Aplicado en las 20 pantallas; en los dos Detalle de evento (comprador y organizador) usa el nombre del evento.
+  - `<html lang="es-AR">`.
+- **Verificado** en mobile y desktop contra el backend real: `lang` correcto, los 7 títulos de pantallas públicas/login/paneles y el dinámico del Detalle coinciden, Tab+Enter navega del login al registro, el toggle de contraseña cambia de nombre y de `aria-pressed`, y un barrido automático de botones visibles sin nombre accesible da **0** en Detalle, Registro, los 3 logins, Dashboards de Organizador y Admin, Wizard (incluido el paso 2 con tachos), Editar evento, POS y Scanner. Sin errores de consola. Los 30 tests, typecheck y build siguen verdes.
+  - **Dato para futuras verificaciones:** `POST /auth/login` está limitado a **5 intentos por minuto por IP** (`RateLimitFilter`, anti fuerza bruta — funciona como debe). Un script de Playwright que inicie sesión por la UI varias veces se topa con el límite y falla de forma intermitente; conviene iniciar sesión por API una vez por rol e inyectar la sesión en `localStorage` (`asistiapp_session`).
+  - Los 2 eventos Borrador que el Wizard crea al pasar al paso 2 durante el test se borraron de la base al terminar.
 
 ### 9.3 — Performance: carga diferida de imágenes 🟡
 Ninguna imagen usa `loading="lazy"`; la Home descarga ~22 fotos de 800px al abrirse, incluso las que están muy abajo.

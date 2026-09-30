@@ -4,6 +4,7 @@ import { Calendar, CalendarCheck, ChevronRight, CircleDollarSign, History, Ticke
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatRelativo } from "../../lib/format";
 import type { AdminMetricasResponseDTO, LogAuditoriaResponseDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const ACCION_LABELS: Record<string, string> = {
   SUSPENDER_USUARIO: "suspendió al usuario",
@@ -26,6 +27,7 @@ function describirAccion(log: LogAuditoriaResponseDTO): string {
 }
 
 export function AdminDashboardPage() {
+  useDocumentTitle("Dashboard · Admin");
   const navigate = useNavigate();
   const [metrics, setMetrics] = useState<AdminMetricasResponseDTO | null>(null);
   const [actividad, setActividad] = useState<LogAuditoriaResponseDTO[] | null>(null);

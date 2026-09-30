@@ -3,6 +3,7 @@ import { UserPlus, QrCode, Store, BadgeCheck, AlertCircle, KeyRound } from "luci
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, RolUsuario, StaffResponseDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: string; icon: typeof QrCode; color: string; bg: string }> = {
   Staff_QR: { label: "Staff QR", desc: "Escanea entradas en la puerta", icon: QrCode, color: "text-primary", bg: "bg-primary/10" },
@@ -10,6 +11,7 @@ const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: st
 };
 
 export function OrganizadorStaffMgmtPage() {
+  useDocumentTitle("Staff");
   const [staff, setStaff] = useState<StaffResponseDTO[] | null>(null);
   const [eventos, setEventos] = useState<EventoResponseDTO[]>([]);
   const [error, setError] = useState<string | null>(null);

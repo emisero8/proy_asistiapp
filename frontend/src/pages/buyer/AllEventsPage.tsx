@@ -6,6 +6,7 @@ import { fmt, formatFecha, hoyLocal } from "../../lib/format";
 import { FILTROS_FECHA, fechaEnRango, rangoFinDeSemana, type FiltroFecha } from "../../lib/eventFilters";
 import { DateRangeFilter } from "../../components/DateRangeFilter";
 import type { EventoPublicoListItemDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const POR_PAGINA = 16;
 
@@ -16,6 +17,7 @@ function formatCorto(fechaIso: string): string {
 }
 
 export function AllEventsPage() {
+  useDocumentTitle("Todos los eventos");
   const navigate = useNavigate();
   const [eventos, setEventos] = useState<EventoPublicoListItemDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);

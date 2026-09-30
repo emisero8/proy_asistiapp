@@ -8,6 +8,7 @@ import type {
   MovimientoCreditoResponseDTO,
   PaqueteCreditoDisponibleDTO,
 } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const TIPO_LABEL: Record<string, string> = {
   Bienvenida: "Créditos de bienvenida",
@@ -16,6 +17,7 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 export function OrganizadorWalletPage() {
+  useDocumentTitle("Créditos");
   const { session } = useAuth();
   const [historial, setHistorial] = useState<MovimientoCreditoResponseDTO[] | null>(null);
   const [paquetes, setPaquetes] = useState<PaqueteCreditoDisponibleDTO[] | null>(null);

@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { fmt } from "../../lib/format";
 import type { ConfiguracionSistemaResponseDTO, PaqueteCreditoRequestDTO, PaqueteCreditoResponseDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const CLAVE_BIENVENIDA = "creditos_bienvenida";
 const CLAVE_PUBLICACION = "creditos_por_publicacion";
@@ -11,6 +12,7 @@ const DEFAULT_BIENVENIDA = 5;
 const DEFAULT_PUBLICACION = 1;
 
 export function AdminConfigPage() {
+  useDocumentTitle("Configuración · Admin");
   const [packs, setPacks] = useState<PaqueteCreditoResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 

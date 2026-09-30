@@ -5,8 +5,10 @@ import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { AuthBackground } from "../../components/AuthBackground";
 import type { AuthResponseDTO, LoginRequestDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 export function StaffLoginPage() {
+  useDocumentTitle("Ingreso de staff");
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -44,7 +46,7 @@ export function StaffLoginPage() {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
       <div className="w-full max-w-sm relative bg-card/60 border border-border rounded-3xl p-6 sm:p-8">
         <div className="mb-8">
-          <button onClick={() => navigate("/")} className="block mx-auto lg:mx-0 mb-4">
+          <button onClick={() => navigate("/")} aria-label="Volver al inicio" className="block mx-auto lg:mx-0 mb-4">
             <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors">
               <ClipboardCheck size={22} className="text-primary-foreground" />
             </div>
@@ -92,6 +94,8 @@ export function StaffLoginPage() {
               />
               <button
                 type="button"
+                aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-pressed={show}
                 onClick={() => setShow((s) => !s)}
                 className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >

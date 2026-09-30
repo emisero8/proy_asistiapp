@@ -4,8 +4,10 @@ import { api, ApiError, API_BASE_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt } from "../../lib/format";
 import type { EntradaResponseDTO, EventoResponseDTO, TandaResponseDTO, VentaManualRequestDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 export function StaffPosPage() {
+  useDocumentTitle("Punto de venta");
   const { session, logout } = useAuth();
 
   const [eventos, setEventos] = useState<EventoResponseDTO[] | null>(null);
@@ -184,7 +186,7 @@ export function StaffPosPage() {
               <p className="text-[10px] text-muted-foreground">Vendidas hoy</p>
               <p className="text-sm font-extrabold text-primary">{soldToday}</p>
             </div>
-            <button onClick={logout} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={logout} aria-label="Cerrar sesión" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
               <LogOut size={14} />
             </button>
           </div>
@@ -243,12 +245,13 @@ export function StaffPosPage() {
           <div className="flex items-center justify-between bg-card rounded-xl px-4 py-3.5 border border-border lg:max-w-xs">
             <span className="text-sm font-semibold text-foreground">Cantidad</span>
             <div className="flex items-center gap-4">
-              <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/70 transition-colors">
+              <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Quitar una entrada" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/70 transition-colors">
                 <Minus size={13} />
               </button>
               <span className="text-lg font-bold text-foreground w-4 text-center">{qty}</span>
               <button
                 onClick={() => setQty((q) => Math.min(tanda?.cupoDisponible ?? 1, q + 1))}
+                aria-label="Agregar una entrada"
                 className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors"
               >
                 <Plus size={13} />

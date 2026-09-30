@@ -7,6 +7,7 @@ import { fmt, hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { validarTandaContraEvento } from "./WizardPage";
 import type { EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface EditTanda {
   id: number | null; // null = tanda nueva sin guardar
@@ -35,6 +36,7 @@ function tandaFromResponse(t: TandaResponseDTO): EditTanda {
 }
 
 export function OrganizadorEditEventPage() {
+  useDocumentTitle("Editar evento");
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { session } = useAuth();
@@ -373,6 +375,7 @@ export function OrganizadorEditEventPage() {
                     <button
                       onClick={() => eliminarTanda(i)}
                       disabled={busyTanda !== null}
+                      aria-label={`Eliminar la tanda ${t.nombre || i + 1}`}
                       className="text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
                     >
                       <Trash2 size={14} />

@@ -5,8 +5,10 @@ import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { formatFecha } from "../../lib/format";
 import type { EventoResponseDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 export function AdminEventsPage() {
+  useDocumentTitle("Eventos · Admin");
   const navigate = useNavigate();
   const [eventos, setEventos] = useState<EventoResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);

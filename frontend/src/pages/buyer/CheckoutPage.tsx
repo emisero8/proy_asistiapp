@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt } from "../../lib/format";
 import type { EntradaResponseDTO, EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface CheckoutState {
   evento: EventoPublicoDetalleDTO;
@@ -12,6 +13,7 @@ interface CheckoutState {
 }
 
 export function CheckoutPage() {
+  useDocumentTitle("Finalizar compra");
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as CheckoutState | null;

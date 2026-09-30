@@ -5,6 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { AuthBackground } from "../../components/AuthBackground";
 import type { AuthResponseDTO, LoginRequestDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const LOGIN_FEATURES = [
   { icon: Zap, text: "Publicá tu evento en minutos" },
@@ -13,6 +14,7 @@ const LOGIN_FEATURES = [
 ];
 
 export function OrganizadorLoginPage() {
+  useDocumentTitle("Ingreso de organizador");
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -141,6 +143,8 @@ export function OrganizadorLoginPage() {
                 />
                 <button
                   type="button"
+                  aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  aria-pressed={show}
                   onClick={() => setShow((s) => !s)}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -161,9 +165,9 @@ export function OrganizadorLoginPage() {
             </button>
             <p className="text-center text-xs text-muted-foreground pt-2">
               ¿No tenés cuenta?{" "}
-              <span onClick={() => navigate("/organizador/registro")} className="text-primary cursor-pointer hover:underline font-semibold">
+              <button type="button" onClick={() => navigate("/organizador/registro")} className="text-primary hover:underline font-semibold">
                 Registrate gratis
-              </span>
+              </button>
             </p>
           </form>
         ) : recoverySent ? (

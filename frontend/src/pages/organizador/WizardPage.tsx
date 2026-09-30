@@ -5,6 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import { hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import type { EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface WizardTanda {
   id: number;
@@ -35,6 +36,7 @@ export function validarTandaContraEvento(
 }
 
 export function OrganizadorWizardPage() {
+  useDocumentTitle("Crear evento");
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [published, setPublished] = useState(false);
@@ -276,7 +278,7 @@ export function OrganizadorWizardPage() {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-foreground uppercase tracking-wider">Tanda {i + 1}</p>
                   {tandas.length > 1 && (
-                    <button onClick={() => removeTanda(t.id)} className="text-muted-foreground hover:text-red-400 transition-colors">
+                    <button onClick={() => removeTanda(t.id)} aria-label={`Eliminar la tanda ${t.nombre || tandas.indexOf(t) + 1}`} className="text-muted-foreground hover:text-red-400 transition-colors">
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -404,6 +406,7 @@ export function OrganizadorWizardPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setStep(1)}
+                aria-label="Volver al paso anterior"
                 className="flex-none py-4 px-5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors"
               >
                 <ChevronLeft size={16} />

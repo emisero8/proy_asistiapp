@@ -4,6 +4,7 @@ import { AlertCircle, ChevronDown, CircleX, Flashlight, FlashlightOff, Hash, Log
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import type { ValidacionQRResponseDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const SCANNER_ELEMENT_ID = "staff-qr-scanner";
 
@@ -22,6 +23,7 @@ function errorResult(e: unknown): ValidacionQRResponseDTO {
 }
 
 export function StaffScannerPage() {
+  useDocumentTitle("Escáner de entradas");
   const { session, logout } = useAuth();
   const scannerRef = useRef<Html5Qrcode | null>(null);
   // Evita que un mismo QR (o varios frames del mismo QR) dispare validaciones repetidas
@@ -141,12 +143,15 @@ export function StaffScannerPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={toggleTorch}
+              aria-label={torch ? "Apagar linterna" : "Encender linterna"}
+              aria-pressed={torch}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${torch ? "bg-white text-black" : "bg-white/10 text-white/70"}`}
             >
               {torch ? <Flashlight size={16} /> : <FlashlightOff size={16} />}
             </button>
             <button
               onClick={logout}
+              aria-label="Cerrar sesión"
               className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:bg-white/20 transition-colors"
             >
               <LogOut size={15} />

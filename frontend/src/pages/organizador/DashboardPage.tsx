@@ -6,6 +6,7 @@ import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt, formatFecha } from "../../lib/format";
 import type { EventoMetricasResponseDTO, EventoResponseDTO, EstadoEvento } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const ESTADO_ORDEN: Record<EstadoEvento, number> = { Publicado: 0, Borrador: 1, Cancelado: 2 };
 const ESTADO_BADGE: Record<EstadoEvento, string> = {
@@ -15,6 +16,7 @@ const ESTADO_BADGE: Record<EstadoEvento, string> = {
 };
 
 export function OrganizadorDashboardPage() {
+  useDocumentTitle("Panel del organizador");
   const navigate = useNavigate();
   const { session } = useAuth();
 

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
 const TANDA_COLORS = ["#4a5d8f", "#9cadd3", "#5b6f9c", "#64748b"];
@@ -30,6 +31,8 @@ export function OrganizadorEventoDetallePage() {
   const [entradas, setEntradas] = useState<EntradaResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState(false);
+
+  useDocumentTitle(evento?.nombre);
 
   const [q, setQ] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Online" | "Manual">("todas");

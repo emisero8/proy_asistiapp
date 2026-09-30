@@ -4,6 +4,7 @@ import { ChevronLeft, Eye, EyeOff, AlertCircle, Check, UserPlus, BadgeCheck, Zap
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import type { AuthResponseDTO, MovimientoCreditoResponseDTO, RegisterRequestDTO } from "../../lib/types";
+import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const PITCH_STATS = [
   { value: "0%", label: "comisión al organizador" },
@@ -18,6 +19,7 @@ const PITCH_FEATURES = [
 ];
 
 export function OrganizadorRegisterPage() {
+  useDocumentTitle("Crear cuenta de organizador");
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -188,7 +190,7 @@ export function OrganizadorRegisterPage() {
                 placeholder="••••••••"
                 className="w-full px-4 py-3.5 pr-11 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
-              <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+              <button type="button" aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"} aria-pressed={show} onClick={() => setShow((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                 {show ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -206,7 +208,7 @@ export function OrganizadorRegisterPage() {
                   pass2 && !passMatch ? "border-red-500/60" : "border-border"
                 }`}
               />
-              <button type="button" onClick={() => setShow2((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+              <button type="button" aria-label={show2 ? "Ocultar confirmación de contraseña" : "Mostrar confirmación de contraseña"} aria-pressed={show2} onClick={() => setShow2((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                 {show2 ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
@@ -253,9 +255,9 @@ export function OrganizadorRegisterPage() {
           </button>
           <p className="text-center text-xs text-muted-foreground mt-3">
             ¿Ya tenés cuenta?{" "}
-            <span onClick={() => navigate("/organizador/login")} className="text-primary cursor-pointer hover:underline">
+            <button type="button" onClick={() => navigate("/organizador/login")} className="text-primary hover:underline">
               Iniciá sesión
-            </span>
+            </button>
           </p>
         </div>
         </form>
