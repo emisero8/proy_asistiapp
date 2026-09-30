@@ -157,6 +157,13 @@ Este plan detalla el enfoque paso a paso para construir el backend del sistema d
     *   `AdminConfiguracionService` + `AdminConfiguracionController`: `GET /admin/configuraciones`, `PUT /admin/configuraciones/{clave}` (`@Auditable`).
     *   Primer uso real: mover `CREDITOS_POR_PUBLICACION` (hoy constante fija en `EventoService`) y el monto de créditos de bienvenida (Fase 8) a esta tabla, para que el Admin los pueda ajustar sin recompilar.
 
+**Corrección posterior — `eliminarUsuario` dejaba filas huérfanas** (encontrada al verificar la Fase 9.4 del frontend, ver `frontend_implementation_plan.md`): `movimientos_credito` (`idOrganizador`), `transacciones_credito` (`idOrganizador`) y `tokens_recuperacion` (`idUsuario`) guardan el id del usuario como un `Long` suelto, sin clave foránea, así que la base no los limpiaba al borrar la cuenta. El servicio ya bloqueaba borrar un Organizador con eventos o staff justamente para no dejar referencias huérfanas, pero se le había escapado el historial de créditos. Política aplicada en `AdminUsuarioService.eliminarUsuario`:
+*   **Cualquier rol:** se borran sus `tokens_recuperacion` (secretos de corta vida, sin valor sin la cuenta).
+*   **Organizador con compras de créditos `Aprobada`:** se bloquea la eliminación con 409 ("suspendé la cuenta en su lugar"), igual que con eventos o staff. Son registros de pago; borrarlos en silencio habría sido peor que el problema original.
+*   **Organizador sin pagos completados:** se borran su historial de créditos (incluido el movimiento de bienvenida) y sus transacciones sin completar (`Pendiente`/`Rechazada`) junto con la cuenta.
+*   Tests: 3 nuevos en `AdminUsuarioServiceTest` (bloqueo por compra aprobada sin tocar nada, limpieza completa de un Organizador sin pagos, y solo tokens para un rol que no es Organizador); suite completa 99/99. Verificado contra Postgres real: un Organizador con token de recuperación pendiente se elimina sin dejar ninguna fila en las 5 tablas involucradas, y uno con una compra aprobada devuelve 409 y conserva intactos su cuenta, su historial y su transacción.
+*   Reparación de datos: se borraron 7 `movimientos_credito` huérfanos que había dejado el bug antes del arreglo (de cuentas de prueba ya eliminadas).
+
 ## Fase 13: Métricas (Organizador y Admin) ✅
 **Objetivo:** Cubrir CU-012 (dashboard del Organizador) y CU-027 (métricas globales), ambos ausentes hoy.
 

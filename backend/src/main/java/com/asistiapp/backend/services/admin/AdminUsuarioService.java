@@ -4,10 +4,14 @@ import com.asistiapp.backend.exceptions.BusinessRuleException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.admin.UsuarioResponseDTO;
 import com.asistiapp.backend.models.entities.Usuario;
+import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
 import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.repositories.MovimientoCreditoRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
+import com.asistiapp.backend.repositories.TokenRecuperacionRepository;
+import com.asistiapp.backend.repositories.TransaccionCreditoRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.security.audit.Auditable;
@@ -30,6 +34,9 @@ public class AdminUsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final EventoRepository eventoRepository;
     private final StaffVendedorRepository staffVendedorRepository;
+    private final MovimientoCreditoRepository movimientoCreditoRepository;
+    private final TransaccionCreditoRepository transaccionCreditoRepository;
+    private final TokenRecuperacionRepository tokenRecuperacionRepository;
     private final SecurityUtils securityUtils;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
@@ -92,9 +99,13 @@ public class AdminUsuarioService {
 
     /**
      * CU-021: elimina un usuario del sistema.
-     * Bloquea la eliminación de un Organizador con eventos o Staff Vendedor
-     * a cargo — esos recursos quedarían con una referencia huérfana. En esos
-     * casos, sugiere suspender la cuenta en lugar de eliminarla.
+     * Bloquea la eliminación de un Organizador con eventos, Staff Vendedor a
+     * cargo o compras de créditos aprobadas — esos recursos quedarían con una
+     * referencia huérfana (o se perdería un registro de pago). En esos casos,
+     * sugiere suspender la cuenta en lugar de eliminarla. Lo que no tiene otro
+     * dueño (historial de créditos sin pagos, tokens de recuperación) se borra
+     * junto con la cuenta para no dejar filas sueltas: esas tablas guardan el
+     * id del usuario sin clave foránea, así que la base no lo hace sola.
      */
     @Transactional
     @Auditable(accion = "ELIMINAR_USUARIO", entidad = "Usuario")
@@ -111,8 +122,19 @@ public class AdminUsuarioService {
                 throw new BusinessRuleException(
                         "No se puede eliminar un Organizador con Staff Vendedor a cargo. Suspendé la cuenta en su lugar.");
             }
+            // Las compras de créditos aprobadas son registros de pago: no se borran en silencio.
+            if (transaccionCreditoRepository.existsByIdOrganizadorAndEstado(idUsuario, EstadoTransaccion.Aprobada)) {
+                throw new BusinessRuleException(
+                        "No se puede eliminar un Organizador con compras de créditos registradas. Suspendé la cuenta en su lugar.");
+            }
+            // Sin pagos completados, su historial de créditos (incluido el de bienvenida) y las
+            // transacciones sin completar no tienen otro dueño: se van con la cuenta.
+            movimientoCreditoRepository.deleteByIdOrganizador(idUsuario);
+            transaccionCreditoRepository.deleteByIdOrganizador(idUsuario);
         }
 
+        // Cualquier rol pudo pedir recuperar su contraseña; esos tokens no sirven sin la cuenta.
+        tokenRecuperacionRepository.deleteByIdUsuario(idUsuario);
         usuarioRepository.delete(usuario);
         log.info("Usuario eliminado: id={}, rol={}", idUsuario, usuario.getRol());
     }

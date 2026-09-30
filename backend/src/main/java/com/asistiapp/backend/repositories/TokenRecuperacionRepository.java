@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface TokenRecuperacionRepository extends JpaRepository<TokenRecuperacion, Long> {
 
     Optional<TokenRecuperacion> findByToken(String token);
+
+    void deleteByIdUsuario(Long idUsuario);
 }

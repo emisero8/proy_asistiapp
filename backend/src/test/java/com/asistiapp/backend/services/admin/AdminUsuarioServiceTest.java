@@ -5,10 +5,14 @@ import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.models.entities.Usuario;
+import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
 import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.repositories.MovimientoCreditoRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
+import com.asistiapp.backend.repositories.TokenRecuperacionRepository;
+import com.asistiapp.backend.repositories.TransaccionCreditoRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import com.asistiapp.backend.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +48,12 @@ class AdminUsuarioServiceTest {
     private EventoRepository eventoRepository;
     @Mock
     private StaffVendedorRepository staffVendedorRepository;
+    @Mock
+    private MovimientoCreditoRepository movimientoCreditoRepository;
+    @Mock
+    private TransaccionCreditoRepository transaccionCreditoRepository;
+    @Mock
+    private TokenRecuperacionRepository tokenRecuperacionRepository;
     @Mock
     private SecurityUtils securityUtils;
 
@@ -191,27 +201,55 @@ class AdminUsuarioServiceTest {
     }
 
     @Test
-    void eliminarUsuario_organizadorSinRecursosACargo_seElimina() {
+    void eliminarUsuario_organizadorConComprasDeCreditosAprobadas_lanzaBusinessRuleExceptionYNoBorraNada() {
         when(usuarioRepository.findById(ID_OTRO_USUARIO)).thenReturn(Optional.of(usuario));
         when(securityUtils.getIdUsuarioAutenticado()).thenReturn(ID_ADMIN_AUTENTICADO);
         when(eventoRepository.findByIdOrganizador(ID_OTRO_USUARIO)).thenReturn(List.of());
         when(staffVendedorRepository.findByIdOrganizador(ID_OTRO_USUARIO)).thenReturn(List.of());
+        when(transaccionCreditoRepository.existsByIdOrganizadorAndEstado(ID_OTRO_USUARIO, EstadoTransaccion.Aprobada))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> adminUsuarioService.eliminarUsuario(ID_OTRO_USUARIO))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("compras de créditos");
+
+        // Un registro de pago no se pierde en silencio: no se toca ni el ledger ni la cuenta.
+        verify(movimientoCreditoRepository, never()).deleteByIdOrganizador(any());
+        verify(transaccionCreditoRepository, never()).deleteByIdOrganizador(any());
+        verify(tokenRecuperacionRepository, never()).deleteByIdUsuario(any());
+        verify(usuarioRepository, never()).delete(any());
+    }
+
+    @Test
+    void eliminarUsuario_organizadorSinRecursosACargo_seEliminaConSuHistorialDeCreditosYTokens() {
+        when(usuarioRepository.findById(ID_OTRO_USUARIO)).thenReturn(Optional.of(usuario));
+        when(securityUtils.getIdUsuarioAutenticado()).thenReturn(ID_ADMIN_AUTENTICADO);
+        when(eventoRepository.findByIdOrganizador(ID_OTRO_USUARIO)).thenReturn(List.of());
+        when(staffVendedorRepository.findByIdOrganizador(ID_OTRO_USUARIO)).thenReturn(List.of());
+        when(transaccionCreditoRepository.existsByIdOrganizadorAndEstado(ID_OTRO_USUARIO, EstadoTransaccion.Aprobada))
+                .thenReturn(false);
 
         adminUsuarioService.eliminarUsuario(ID_OTRO_USUARIO);
 
+        // No deja filas sueltas: movimientos y transacciones (sin clave foránea) se borran con la cuenta.
+        verify(movimientoCreditoRepository).deleteByIdOrganizador(ID_OTRO_USUARIO);
+        verify(transaccionCreditoRepository).deleteByIdOrganizador(ID_OTRO_USUARIO);
+        verify(tokenRecuperacionRepository).deleteByIdUsuario(ID_OTRO_USUARIO);
         verify(usuarioRepository).delete(usuario);
     }
 
     @Test
-    void eliminarUsuario_noEsOrganizador_seEliminaSinChequearRecursos() {
+    void eliminarUsuario_noEsOrganizador_seEliminaSinChequearRecursosNiTocarCreditos() {
         usuario.setRol(RolUsuario.Staff_QR);
         when(usuarioRepository.findById(ID_OTRO_USUARIO)).thenReturn(Optional.of(usuario));
         when(securityUtils.getIdUsuarioAutenticado()).thenReturn(ID_ADMIN_AUTENTICADO);
 
         adminUsuarioService.eliminarUsuario(ID_OTRO_USUARIO);
 
+        // Los tokens de recuperación sí: cualquier rol pudo pedir recuperar su contraseña.
+        verify(tokenRecuperacionRepository).deleteByIdUsuario(ID_OTRO_USUARIO);
         verify(usuarioRepository).delete(usuario);
-        verifyNoInteractions(eventoRepository, staffVendedorRepository);
+        verifyNoInteractions(eventoRepository, staffVendedorRepository, movimientoCreditoRepository, transaccionCreditoRepository);
     }
 
     @Test
