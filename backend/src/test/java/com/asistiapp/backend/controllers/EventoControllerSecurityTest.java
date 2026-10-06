@@ -6,6 +6,7 @@ import com.asistiapp.backend.security.MethodSecurityTestConfig;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.security.ratelimit.RateLimitFilter;
 import com.asistiapp.backend.services.EventoService;
+import com.asistiapp.backend.services.ImagenService;
 import com.asistiapp.backend.services.MetricasOrganizadorService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,8 @@ class EventoControllerSecurityTest {
     private MetricasOrganizadorService metricasOrganizadorService;
     @MockBean
     private SecurityUtils securityUtils;
+    @MockBean
+    private ImagenService imagenService;
 
     @Test
     @WithMockUser(roles = "Organizador")

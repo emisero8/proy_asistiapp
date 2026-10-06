@@ -11,6 +11,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -93,6 +94,17 @@ public class GlobalExceptionHandler {
             AccessDeniedException ex, HttpServletRequest request) {
 
         return buildResponse(HttpStatus.FORBIDDEN, "No tienes permisos para realizar esta acción", request.getRequestURI());
+    }
+
+    /**
+     * Ruta que no existe: Spring lanza NoResourceFoundException. Sin este handler caía en el
+     * catch-all y respondía 500, cuando el error real es un 404.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleRutaInexistente(
+            NoResourceFoundException ex, HttpServletRequest request) {
+
+        return buildResponse(HttpStatus.NOT_FOUND, "Recurso no encontrado", request.getRequestURI());
     }
 
     // ─────────────────────────────────────────────
