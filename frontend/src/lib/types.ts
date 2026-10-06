@@ -235,10 +235,6 @@ export interface UsuarioResponseDTO {
   fechaCreacion: string;
 }
 
-export interface ReasignarRolRequestDTO {
-  nuevoRol: RolUsuario;
-}
-
 export interface ConfiguracionSistemaResponseDTO {
   id: number;
   clave: string;

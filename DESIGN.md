@@ -446,7 +446,7 @@ Always add `<div className="h-8" />` (or `h-24` above sticky footers) at the bot
 |---|---|---|
 | Admin Login | `login` | Email + password; any credential enters |
 | K. Dashboard | `dashboard` | 4 KPI cards, 3 quick-nav cards, activity log |
-| L. Users | `users` | Search + role filter, sortable table, three-dot menu (Suspender/Activar / Cambiar Rol / Eliminar) |
+| L. Users | `users` | Search + role filter, sortable table, three-dot menu (Suspender/Activar / Cambiar contraseña / Eliminar) |
 | M. Events | `events` | Search, table with status badges, three-dot menu (Editar / Cancelar / Eliminar) |
 | N. Config | `config` | Credit packs list (inline price edit + toggle), global settings card with save confirmation |
 

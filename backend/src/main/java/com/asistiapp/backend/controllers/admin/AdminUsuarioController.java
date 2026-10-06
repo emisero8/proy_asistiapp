@@ -1,7 +1,6 @@
 package com.asistiapp.backend.controllers.admin;
 
 import com.asistiapp.backend.models.dtos.admin.CambiarPasswordRequestDTO;
-import com.asistiapp.backend.models.dtos.admin.ReasignarRolRequestDTO;
 import com.asistiapp.backend.models.dtos.admin.UsuarioResponseDTO;
 import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
@@ -40,12 +39,6 @@ public class AdminUsuarioController {
     @PatchMapping("/{id}/activar")
     public ResponseEntity<UsuarioResponseDTO> activarUsuario(@PathVariable Long id) {
         return ResponseEntity.ok(adminUsuarioService.activarUsuario(id));
-    }
-
-    @PatchMapping("/{id}/rol")
-    public ResponseEntity<UsuarioResponseDTO> reasignarRol(
-            @PathVariable Long id, @Valid @RequestBody ReasignarRolRequestDTO dto) {
-        return ResponseEntity.ok(adminUsuarioService.reasignarRol(id, dto.getNuevoRol()));
     }
 
     @PatchMapping("/{id}/password")

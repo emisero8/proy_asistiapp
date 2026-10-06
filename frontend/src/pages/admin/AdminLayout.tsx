@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from "react-router";
-import { LayoutDashboard, Users, Calendar, CircleDollarSign } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, CircleDollarSign, LogOut } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 
 const TABS = [
@@ -14,6 +14,18 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-52">
+      {/* Cerrar sesión — fijo arriba a la derecha, a la izquierda del toggle de tema,
+          visible en todas las pantallas de Admin (mismo lugar que en Organizador). */}
+      <button
+        onClick={logout}
+        title="Cerrar sesión"
+        aria-label="Cerrar sesión"
+        className="fixed top-3 right-14 z-50 h-9 pl-2.5 pr-3 rounded-full bg-card border border-border shadow-lg shadow-black/10 flex items-center gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+      >
+        <LogOut size={15} />
+        <span className="text-xs font-semibold hidden sm:inline">Salir</span>
+      </button>
+
       {/* Sidebar — desktop (md+) */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-52 md:border-r md:border-border md:bg-card/40 relative overflow-hidden">
         <div className="absolute -top-20 -left-16 w-56 h-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
@@ -39,19 +51,13 @@ export function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="px-3 pb-5">
-          <button
-            onClick={logout}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted hover:bg-muted/70 transition-colors text-left"
-          >
+        <div className="px-4 pb-5 relative">
+          <div className="flex items-center gap-2.5 px-1">
             <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground flex-none">
               {session?.nombre?.charAt(0) ?? "A"}
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground truncate">{session?.nombre}</p>
-              <p className="text-[10px] text-muted-foreground truncate">Cerrar sesión</p>
-            </div>
-          </button>
+            <p className="text-xs font-semibold text-foreground truncate">{session?.nombre}</p>
+          </div>
         </div>
       </aside>
 

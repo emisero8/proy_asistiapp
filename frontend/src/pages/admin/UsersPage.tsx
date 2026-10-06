@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, CircleX, KeyRound, Search, Trash2, UserCheck } from "lucide-react";
+import { Check, CircleX, KeyRound, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
@@ -23,7 +23,6 @@ export function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"todos" | RolUsuario>("todos");
   const [openMenu, setOpenMenu] = useState<number | null>(null);
-  const [roleMenuFor, setRoleMenuFor] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
   function load() {
@@ -52,23 +51,6 @@ export function AdminUsersPage() {
       toast.success(updated.estado === "Activo" ? `${u.nombre} reactivado` : `${u.nombre} suspendido`);
     } catch (e: unknown) {
       const message = e instanceof ApiError ? e.message : "No pudimos actualizar el estado.";
-      setError(message);
-      toast.error(message);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function changeRole(u: UsuarioResponseDTO, nuevoRol: RolUsuario) {
-    setBusyId(u.id);
-    setRoleMenuFor(null);
-    setOpenMenu(null);
-    try {
-      const updated = await api.patch<UsuarioResponseDTO>(`/admin/usuarios/${u.id}/rol`, { nuevoRol });
-      setUsers((us) => us!.map((x) => (x.id === u.id ? updated : x)));
-      toast.success(`${u.nombre} ahora es ${nuevoRol}`);
-    } catch (e: unknown) {
-      const message = e instanceof ApiError ? e.message : "No pudimos reasignar el rol.";
       setError(message);
       toast.error(message);
     } finally {
@@ -127,10 +109,7 @@ export function AdminUsersPage() {
   return (
     <div
       className="min-h-screen bg-background"
-      onClick={() => {
-        setOpenMenu(null);
-        setRoleMenuFor(null);
-      }}
+      onClick={() => setOpenMenu(null)}
     >
       <div className="px-4 lg:px-8 pt-8 pb-5 border-b border-border">
         <h1 className="text-xl font-extrabold text-foreground">Gestión de Usuarios</h1>
@@ -211,7 +190,6 @@ export function AdminUsersPage() {
                         disabled={busyId === u.id}
                         onClick={() => {
                           setOpenMenu(openMenu === u.id ? null : u.id);
-                          setRoleMenuFor(null);
                         }}
                         className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                       >
@@ -235,28 +213,6 @@ export function AdminUsersPage() {
                               </>
                             )}
                           </button>
-                          <div className="relative">
-                            <button
-                              onClick={() => setRoleMenuFor(roleMenuFor === u.id ? null : u.id)}
-                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"
-                            >
-                              <UserCheck size={13} className="text-primary" />
-                              Cambiar Rol
-                            </button>
-                            {roleMenuFor === u.id && (
-                              <div className="absolute right-full top-0 mr-1 bg-card border border-border rounded-xl shadow-xl shadow-black/40 overflow-hidden min-w-[150px]">
-                                {ROLES.filter((r) => r !== u.rol).map((r) => (
-                                  <button
-                                    key={r}
-                                    onClick={() => changeRole(u, r)}
-                                    className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors"
-                                  >
-                                    {r}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
                           <button
                             onClick={() => resetPassword(u)}
                             className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"

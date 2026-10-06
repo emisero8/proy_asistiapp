@@ -90,16 +90,6 @@ class AdminUsuarioServiceTest {
     }
 
     @Test
-    void reasignarRol_aSiMismo_lanzaBusinessRuleException() {
-        usuario.setId(ID_ADMIN_AUTENTICADO);
-        when(usuarioRepository.findById(ID_ADMIN_AUTENTICADO)).thenReturn(Optional.of(usuario));
-        when(securityUtils.getIdUsuarioAutenticado()).thenReturn(ID_ADMIN_AUTENTICADO);
-
-        assertThatThrownBy(() -> adminUsuarioService.reasignarRol(ID_ADMIN_AUTENTICADO, RolUsuario.Staff_QR))
-                .isInstanceOf(BusinessRuleException.class);
-    }
-
-    @Test
     void eliminarUsuario_aSiMismo_lanzaBusinessRuleException() {
         usuario.setId(ID_ADMIN_AUTENTICADO);
         usuario.setRol(RolUsuario.Administrador);
@@ -143,30 +133,6 @@ class AdminUsuarioServiceTest {
         var response = adminUsuarioService.suspenderUsuario(ID_OTRO_USUARIO);
 
         assertThat(response.getEstado()).isEqualTo(EstadoUsuario.Suspendido);
-    }
-
-    // ─────────────────────────────────────────────
-    // reasignarRol
-    // ─────────────────────────────────────────────
-
-    @Test
-    void reasignarRol_alMismoRolQueYaTiene_lanzaBusinessRuleException() {
-        when(usuarioRepository.findById(ID_OTRO_USUARIO)).thenReturn(Optional.of(usuario));
-        when(securityUtils.getIdUsuarioAutenticado()).thenReturn(ID_ADMIN_AUTENTICADO);
-
-        assertThatThrownBy(() -> adminUsuarioService.reasignarRol(ID_OTRO_USUARIO, RolUsuario.Organizador))
-                .isInstanceOf(BusinessRuleException.class);
-    }
-
-    @Test
-    void reasignarRol_exitoso_cambiaElRol() {
-        when(usuarioRepository.findById(ID_OTRO_USUARIO)).thenReturn(Optional.of(usuario));
-        when(securityUtils.getIdUsuarioAutenticado()).thenReturn(ID_ADMIN_AUTENTICADO);
-        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        var response = adminUsuarioService.reasignarRol(ID_OTRO_USUARIO, RolUsuario.Staff_QR);
-
-        assertThat(response.getRol()).isEqualTo(RolUsuario.Staff_QR);
     }
 
     // ─────────────────────────────────────────────

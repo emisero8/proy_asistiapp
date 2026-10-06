@@ -80,23 +80,6 @@ public class AdminUsuarioService {
         return toResponseDTO(saved);
     }
 
-    /** CU-022: reasigna el rol de un usuario a cualquier valor del enum (no solo "promover a Admin"). */
-    @Transactional
-    @Auditable(accion = "CAMBIAR_ROL", entidad = "Usuario")
-    public UsuarioResponseDTO reasignarRol(Long idUsuario, RolUsuario nuevoRol) {
-        Usuario usuario = getUsuarioOrThrow(idUsuario);
-        verificarNoEsUnoMismo(idUsuario, "reasignar el rol de");
-
-        if (usuario.getRol() == nuevoRol) {
-            throw new BusinessRuleException("El usuario ya tiene el rol " + nuevoRol);
-        }
-
-        usuario.setRol(nuevoRol);
-        Usuario saved = usuarioRepository.save(usuario);
-        log.info("Rol reasignado: id={}, nuevoRol={}", idUsuario, nuevoRol);
-        return toResponseDTO(saved);
-    }
-
     /**
      * CU-021: elimina un usuario del sistema.
      * Bloquea la eliminación de un Organizador con eventos, Staff Vendedor a
