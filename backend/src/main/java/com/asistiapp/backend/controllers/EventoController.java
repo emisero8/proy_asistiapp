@@ -2,18 +2,22 @@ package com.asistiapp.backend.controllers;
 
 import com.asistiapp.backend.models.dtos.evento.EventoRequestDTO;
 import com.asistiapp.backend.models.dtos.evento.EventoResponseDTO;
+import com.asistiapp.backend.models.dtos.evento.ImagenSubidaResponseDTO;
 import com.asistiapp.backend.models.dtos.metricas.EventoMetricasResponseDTO;
 import com.asistiapp.backend.models.entities.Organizador;
 import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.services.EventoService;
+import com.asistiapp.backend.services.ImagenService;
 import com.asistiapp.backend.services.MetricasOrganizadorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -30,6 +34,7 @@ import java.util.List;
  *   PUT    /eventos/{id}         → Editar evento (solo Borrador)
  *   PATCH  /eventos/{id}/publicar → Publicar evento (consume 1 crédito)
  *   PATCH  /eventos/{id}/cancelar → Cancelar evento
+ *   POST   /eventos/imagenes     → Subir imagen de portada a Cloudinary (devuelve la URL)
  */
 @RestController
 @RequestMapping("/eventos")
@@ -40,6 +45,17 @@ public class EventoController {
     private final EventoService eventoService;
     private final MetricasOrganizadorService metricasOrganizadorService;
     private final SecurityUtils securityUtils;
+    private final ImagenService imagenService;
+
+    /**
+     * Sube la imagen de portada a Cloudinary. El frontend la envía antes de publicar el
+     * evento y guarda la URL devuelta en imagenPortadaUrl.
+     */
+    @PostMapping(value = "/imagenes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ImagenSubidaResponseDTO> subirImagen(@RequestParam("archivo") MultipartFile archivo) {
+        String url = imagenService.subirImagenEvento(archivo);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new ImagenSubidaResponseDTO(url));
+    }
 
     @GetMapping
     public ResponseEntity<List<EventoResponseDTO>> listarMisEventos() {

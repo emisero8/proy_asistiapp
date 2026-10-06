@@ -85,6 +85,11 @@ export interface EventoRequestDTO {
   imagenPortadaUrl?: string;
 }
 
+/** Respuesta de POST /eventos/imagenes: URL alojada en Cloudinary. */
+export interface ImagenSubidaResponseDTO {
+  url: string;
+}
+
 // ── Catálogo público (sin auth — CU-015/016) ─────────
 
 export interface EventoPublicoListItemDTO {

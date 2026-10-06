@@ -71,7 +71,10 @@ async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<
   const { method = "GET", body, skipAuth = false } = options;
 
   const headers: Record<string, string> = {};
-  if (body !== undefined) {
+  // FormData (subida de archivos) lleva su propio Content-Type multipart con boundary:
+  // ponerle application/json acá rompería el envío.
+  const esFormData = body instanceof FormData;
+  if (body !== undefined && !esFormData) {
     headers["Content-Type"] = "application/json";
   }
   let tokenAdjuntado = false;
@@ -86,7 +89,7 @@ async function apiFetch<T>(path: string, options: RequestOptions = {}): Promise<
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : esFormData ? body : JSON.stringify(body),
   });
 
   if (response.status === 204) {
@@ -133,6 +136,9 @@ export const api = {
     apiFetch<T>(path, { ...options, method: "PATCH", body }),
   delete: <T>(path: string, options?: Omit<RequestOptions, "method" | "body">) =>
     apiFetch<T>(path, { ...options, method: "DELETE" }),
+  /** Subida de archivos (multipart/form-data). El campo del FormData tiene que coincidir con el @RequestParam del backend. */
+  upload: <T>(path: string, formData: FormData) =>
+    apiFetch<T>(path, { method: "POST", body: formData }),
 };
 
 export { SESSION_STORAGE_KEY, API_BASE_URL };

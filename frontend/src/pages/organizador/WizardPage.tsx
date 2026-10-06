@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { ChevronLeft, ChevronRight, ImagePlus, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
+import { ImagenPortadaField } from "../../components/ImagenPortadaField";
 import type { EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
@@ -255,17 +256,7 @@ export function OrganizadorWizardPage() {
               <MapPicker direccion={venue} value={coords} onChange={setCoords} />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">URL imagen de portada</label>
-              <div className="relative">
-                <ImagePlus size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={img}
-                  onChange={(e) => setImg(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full pl-9 pr-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                />
-              </div>
-              {img && <img src={img} alt="preview" className="w-full h-32 object-cover rounded-xl mt-2 bg-muted" />}
+              <ImagenPortadaField value={img} onChange={setImg} />
             </div>
           </>
         )}

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ChevronLeft, Plus, Trash2, AlertCircle, CheckCircle2, ImagePlus, Save } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, AlertCircle, CheckCircle2, Save } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt, hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
+import { ImagenPortadaField } from "../../components/ImagenPortadaField";
 import { validarTandaContraEvento } from "./WizardPage";
 import type { EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -340,17 +341,7 @@ export function OrganizadorEditEventPage() {
               <MapPicker direccion={venue} value={coords} onChange={setCoords} />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">URL imagen de portada</label>
-              <div className="relative">
-                <ImagePlus size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={img}
-                  onChange={(e) => setImg(e.target.value)}
-                  placeholder="https://..."
-                  className={`${inputBase} border-border pl-9`}
-                />
-              </div>
-              {img && <img src={img} alt="preview" className="w-full h-32 object-cover rounded-xl mt-2 bg-muted" />}
+              <ImagenPortadaField value={img} onChange={setImg} />
             </div>
             <button
               disabled={!datosValidos || savingData}
