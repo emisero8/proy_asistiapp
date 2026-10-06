@@ -224,16 +224,19 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 ## Fase 10: Pedidos del cliente para el jueves (Organizador y Admin) ⬜
 **Objetivo:** Cerrar los pedidos de la demo, en orden de prioridad. Cada sub-fase se marca ✅ recién cuando queda verificada (en el navegador, contra el backend real) y, si corresponde, commiteada. Las sub-fases del backend tienen su contraparte en `backend_implementation_plan.md` → Fase 18.
 
-### 10.1 — Imágenes de portada con Cloudinary ✅
+### 10.1 — Imágenes de portada con Cloudinary ✅ (commit `7b64cf4`, pusheado)
 - Crear y Editar evento: el campo de link se reemplazó por el componente `ImagenPortadaField` (botón "Cargar imagen", "Cambiar", "Quitar", vista previa, estados de carga y error). El archivo se sube a `POST /eventos/imagenes` y se guarda la URL devuelta.
 - `api.upload()` en `lib/api.ts` envía `FormData` sin forzar `Content-Type` JSON.
 - Verificado en el navegador desde el formulario real, en mobile y desktop, sin errores de consola ni scroll horizontal. Las imágenes de prueba se borraron de Cloudinary.
-- Commit pendiente de confirmación.
+- Pendiente menor: `ImagenPortadaField` no tiene test unitario (la subida se verificó en el navegador). Se agrega en la próxima tanda de tests del frontend.
 
-### 10.2 — Admin: quitar "Cambiar Rol" y ajustar la sidebar ⬜
+### 10.2 — Admin: quitar "Cambiar Rol" y ajustar la sidebar ✅
 - Quitar el botón "Cambiar Rol" de la gestión de usuarios.
 - Sidebar del Admin igual a la del Organizador: nombre del administrador fijo abajo a la izquierda y botón de cerrar sesión arriba a la derecha.
-- Depende de 18.3 (decidir qué pasa con el endpoint de reasignar rol).
+- Hecho: se quitó el ítem del menú ··· de Usuarios, la función `changeRole` y el tipo `ReasignarRolRequestDTO`. El filtro por rol de la tabla se mantiene.
+- Sidebar del Admin: nombre fijo abajo a la izquierda (sin botón) y "Salir" arriba a la derecha, igual que en Organizador.
+- Verificado en el navegador contra el backend real, desktop y mobile: sin "Cambiar Rol", con "Cambiar contraseña", sin scroll horizontal de página. Tests 101/101, typecheck y build limpios.
+- DESIGN.md actualizado (la lista del menú de Usuarios).
 
 ### 10.3 — Mis eventos: orden y filtros ⬜
 - Orden del más nuevo al más antiguo (por fecha de creación).

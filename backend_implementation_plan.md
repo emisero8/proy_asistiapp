@@ -241,20 +241,21 @@ Cada fase está marcada con su prioridad:
 4.  `POST /eventos/imagenes` (multipart, parámetro `archivo`, rol Organizador) → `201` con `ImagenSubidaResponseDTO { url }`.
 5.  `application.yml`: `spring.servlet.multipart.max-file-size` y `max-request-size` en 5 MB (el default de Spring es 1 MB).
 6.  **Verificación:** PNG → 201 con URL de Cloudinary que carga; TXT → 409 (`BusinessRuleException`, convención del proyecto); sin token → 403. Imágenes de prueba borradas de Cloudinary.
-7.  Commit pendiente de confirmación.
+7.  Commiteado (`7b64cf4`), pusheado.
 
-### 18.2 — Suspensión real de cuentas ✅
+### 18.2 — Suspensión real de cuentas ✅ (commit `d9b3ca6`, pusheado)
 - Causa: `UserDetailsServiceImpl` no reflejaba el estado, así que una cuenta suspendida seguía autenticando y su JWT seguía válido.
 - `UserDetailsServiceImpl`: `enabled = estado == Activo`. Spring Security lanza `DisabledException` en el login, antes de comparar la contraseña.
 - `JwtAuthenticationFilter`: no autentica si `userDetails.isEnabled()` es falso, así que una sesión ya abierta también queda bloqueada en cada request.
 - `GlobalExceptionHandler`: `DisabledException` → `403` con `error: "Cuenta suspendida"`. Antes salía como "Credenciales inválidas" (401).
 - **Verificado contra el backend real:** suspender (200) → login (403 "Cuenta suspendida") → token de sesión abierta sobre `/eventos` (403) → activar (200) → login normal (200). La cuenta de prueba se borró al final (204).
 - El login del Organizador muestra `e.message`, así que el cartel nuevo aparece sin cambios de frontend. Verificado en el código, no visualmente.
-- Pendiente: test automático de este caso (pendiente de la fase 17 o de la próxima tanda de tests).
+- Test automático: `UserDetailsServiceImplTest` (cuenta activa, suspendida e inactiva).
 
-### 18.3 — Quitar "Cambiar Rol" ⬜
-- Decidir si se borra o se deshabilita `ReasignarRolRequestDTO` y su endpoint en `AdminUsuarioController`. Recomendación: borrar el endpoint y el DTO, porque no hay caso de uso que lo necesite.
-- Registrar la decisión en el plan al cerrarla.
+### 18.3 — Quitar "Cambiar Rol" ✅
+- Se borró el endpoint `PATCH /admin/usuarios/{id}/rol`, `ReasignarRolRequestDTO`, `AdminUsuarioService.reasignarRol` y sus 4 tests (`AdminUsuarioServiceTest`). No había caso de uso que lo necesitara.
+- Verificado: `AdminUsuarioServiceTest` pasa, y contra el backend real con token de Admin el endpoint ya no responde como función (ver nota de 500 abajo).
+- Nota: el catch-all de `GlobalExceptionHandler` convierte cualquier ruta inexistente en `500` en vez de `404` (`NoResourceFoundException` cae en `Exception`). Pre-existente, no bloquea nada; queda para revisar aparte.
 
 ### 18.4 — Mis eventos: orden por fecha de creación ⬜
 - `GET /eventos` devuelve los eventos ordenados del más nuevo al más antiguo (`ORDER BY fechaCreacion DESC`). Hoy el orden no está garantizado.
@@ -279,3 +280,30 @@ Cada fase está marcada con su prioridad:
 
 ### 18.8 — Métricas del organizador ⬜
 - Ampliar `MetricasOrganizadorService` y `MetricasOrganizadorResponseDTO` con lo que pida el cliente en la fase 10.6 (créditos consumidos, ventas por evento, eventos activos). Definir el detalle con el cliente antes de implementar.
+
+
+---
+
+## Fase 19: Errores encontrados durante el trabajo ✅
+**Objetivo:** Registrar cada error que aparece mientras se implementan las fases, con su causa y cómo quedó resuelto, para que nada quede sin corregir.
+
+### 19.1 — Ruta inexistente respondía 500 en vez de 404 ✅
+- **Causa:** el catch-all de `GlobalExceptionHandler` atrapaba `NoResourceFoundException` de Spring.
+- **Solución:** handler específico que devuelve `404 "Recurso no encontrado"`.
+- **Verificado:** con token, `GET /ruta-que-no-existe` → 404. Sin token, Spring Security responde 403 antes de llegar al dispatcher (comportamiento esperado).
+
+### 19.2 — `EventoControllerSecurityTest` roto por el commit de Cloudinary ✅
+- **Causa:** `EventoController` ahora depende de `ImagenService`, y el test de `@WebMvcTest` no lo tenía como bean. Lo commiteé sin correr la suite completa.
+- **Solución:** `@MockBean ImagenService` en el test.
+- **Verificado:** `mvn test` completo pasa.
+- **Aprendizaje:** correr `mvn test` completo antes de cada commit, no solo el test del cambio.
+
+### 19.3 — Test automático de la suspensión ✅
+- Pendiente detectado al cerrar 18.2. Se agregó `UserDetailsServiceImplTest` (activa, suspendida, inactiva).
+
+### 19.4 — Dependencia de Cloudinary no resolvía ✅
+- `cloudinary-http5` 2.3.1 no estaba en Maven Central. Se usa 2.5.0 (ver 18.1).
+
+### 19.5 — Instancia vieja del backend ocupando el 8080 ⚠️ (operativo, no es código)
+- Al levantar el backend con `mvn spring-boot:run`, si quedó otra instancia de una sesión anterior en el 8080, el nuevo arranque falla con "Port 8080 was already in use" y se sigue probando contra código viejo.
+- **Cómo verificar:** `netstat -ano | findstr :8080` y cerrar ese proceso antes de levantar.
