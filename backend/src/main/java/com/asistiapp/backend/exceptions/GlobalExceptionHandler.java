@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -68,6 +69,17 @@ public class GlobalExceptionHandler {
     // ─────────────────────────────────────────────
     // 3. Spring Security: Autenticación y Autorización
     // ─────────────────────────────────────────────
+
+    /**
+     * Cuenta suspendida o inactiva: se avisa explícitamente en vez de "Credenciales inválidas"
+     * para que el usuario sepa que el problema no es la contraseña.
+     */
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<Map<String, Object>> handleCuentaSuspendida(
+            DisabledException ex, HttpServletRequest request) {
+
+        return buildResponse(HttpStatus.FORBIDDEN, "Cuenta suspendida", request.getRequestURI());
+    }
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleAuthenticationException(

@@ -1,6 +1,7 @@
 package com.asistiapp.backend.security;
 
 import com.asistiapp.backend.models.entities.Usuario;
+import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -35,9 +36,18 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         SimpleGrantedAuthority authority =
                 new SimpleGrantedAuthority("ROLE_" + usuario.getRol().name());
 
+        // Solo una cuenta Activa puede autenticarse. Si está Suspendida o Inactiva, Spring
+        // Security lanza DisabledException en el login y el JwtAuthenticationFilter la rechaza
+        // en cada request, así que una sesión ya abierta también deja de funcionar.
+        boolean activa = usuario.getEstado() == EstadoUsuario.Activo;
+
         return new User(
                 usuario.getEmail(),
                 usuario.getPasswordHash(),
+                activa,
+                true,
+                true,
+                true,
                 List.of(authority)
         );
     }

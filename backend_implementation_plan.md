@@ -243,10 +243,14 @@ Cada fase está marcada con su prioridad:
 6.  **Verificación:** PNG → 201 con URL de Cloudinary que carga; TXT → 409 (`BusinessRuleException`, convención del proyecto); sin token → 403. Imágenes de prueba borradas de Cloudinary.
 7.  Commit pendiente de confirmación.
 
-### 18.2 — Suspensión real de cuentas ⬜
-- Hoy una cuenta suspendida puede seguir entrando. Validar el estado `Suspendido` en `AuthService.login` y en `JwtAuthenticationFilter` (cada request), así un token ya emitido también deja de funcionar.
-- Respuesta de login con un mensaje específico ("Cuenta suspendida") para que el frontend muestre el cartel correspondiente, distinto de "Credenciales inválidas".
-- Test de servicio y de login con cuenta suspendida.
+### 18.2 — Suspensión real de cuentas ✅
+- Causa: `UserDetailsServiceImpl` no reflejaba el estado, así que una cuenta suspendida seguía autenticando y su JWT seguía válido.
+- `UserDetailsServiceImpl`: `enabled = estado == Activo`. Spring Security lanza `DisabledException` en el login, antes de comparar la contraseña.
+- `JwtAuthenticationFilter`: no autentica si `userDetails.isEnabled()` es falso, así que una sesión ya abierta también queda bloqueada en cada request.
+- `GlobalExceptionHandler`: `DisabledException` → `403` con `error: "Cuenta suspendida"`. Antes salía como "Credenciales inválidas" (401).
+- **Verificado contra el backend real:** suspender (200) → login (403 "Cuenta suspendida") → token de sesión abierta sobre `/eventos` (403) → activar (200) → login normal (200). La cuenta de prueba se borró al final (204).
+- El login del Organizador muestra `e.message`, así que el cartel nuevo aparece sin cambios de frontend. Verificado en el código, no visualmente.
+- Pendiente: test automático de este caso (pendiente de la fase 17 o de la próxima tanda de tests).
 
 ### 18.3 — Quitar "Cambiar Rol" ⬜
 - Decidir si se borra o se deshabilita `ReasignarRolRequestDTO` y su endpoint en `AdminUsuarioController`. Recomendación: borrar el endpoint y el DTO, porque no hay caso de uso que lo necesite.
