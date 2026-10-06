@@ -238,10 +238,12 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 - Verificado en el navegador contra el backend real, desktop y mobile: sin "Cambiar Rol", con "Cambiar contraseña", sin scroll horizontal de página. Tests 101/101, typecheck y build limpios.
 - DESIGN.md actualizado (la lista del menú de Usuarios).
 
-### 10.3 — Mis eventos: orden y filtros ⬜
-- Orden del más nuevo al más antiguo (por fecha de creación).
-- Filtros de búsqueda: texto (nombre o lugar), estado y rango de fechas. Reutilizar `DateRangeFilter` si encaja.
-- Depende de 18.4 para el orden en backend.
+### 10.3 — Mis eventos: orden y filtros ✅ (pendiente de commit)
+- Hecho: el orden lo define el backend (18.4), del más nuevo al más antiguo. El frontend ya no reordena por estado y fecha del evento, como hacía antes.
+- Filtros: búsqueda por nombre o lugar y filtro por estado (Publicados, Borradores, Cancelados). El contador muestra "N de total" cuando hay filtros activos, y un mensaje si no hay coincidencias.
+- Filtro por fecha del evento: no se hizo. `DateRangeFilter` quedó para otra pantalla si hace falta.
+- Verificado en el navegador contra el backend real, desktop y mobile: el orden visible coincide con la API, la búsqueda y el filtro funcionan y no hay scroll horizontal.
+- Tests unitarios pendientes, registrados en la Fase 19.6 de `backend_implementation_plan.md`.
 
 ### 10.4 — Menú de perfil del organizador ⬜
 - En la sidebar, el nombre del organizador queda fijo abajo a la izquierda aunque la lista de eventos crezca, y es clickeable.

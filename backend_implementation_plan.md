@@ -257,9 +257,10 @@ Cada fase está marcada con su prioridad:
 - Verificado: `AdminUsuarioServiceTest` pasa, y contra el backend real con token de Admin el endpoint ya no responde como función (ver nota de 500 abajo).
 - Nota: el catch-all de `GlobalExceptionHandler` convierte cualquier ruta inexistente en `500` en vez de `404` (`NoResourceFoundException` cae en `Exception`). Pre-existente, no bloquea nada; queda para revisar aparte.
 
-### 18.4 — Mis eventos: orden por fecha de creación ⬜
-- `GET /eventos` devuelve los eventos ordenados del más nuevo al más antiguo (`ORDER BY fechaCreacion DESC`). Hoy el orden no está garantizado.
-- Test del orden en `EventoService`.
+### 18.4 — Mis eventos: orden por fecha de creación ✅
+- `EventoRepository.findByIdOrganizadorOrderByFechaCreacionDesc` es la consulta de `listarMisEventos` (los demás usos de `findByIdOrganizador` no cambian).
+- Test: `EventoServiceTest.listarMisEventos_devuelveElOrdenDelRepositorioSinReordenar`.
+- Verificado contra el backend real: los 21 eventos de la cuenta demo vienen ordenados por `fechaCreacion` descendente.
 
 ### 18.5 — Perfil del organizador ⬜
 1.  `PUT /organizador/perfil` con `{ nombre, fotoUrl }`. La foto llega como URL ya subida a Cloudinary; el backend no recibe el archivo acá.
@@ -303,6 +304,10 @@ Cada fase está marcada con su prioridad:
 
 ### 19.4 — Dependencia de Cloudinary no resolvía ✅
 - `cloudinary-http5` 2.3.1 no estaba en Maven Central. Se usa 2.5.0 (ver 18.1).
+
+### 19.6 — Tests unitarios del frontend pendientes ⬜
+- Faltan tests unitarios para `ImagenPortadaField` (10.1) y para los filtros de "Mis eventos" del Dashboard (10.3). Ambos se verificaron en el navegador contra el backend real, pero no tienen test automático.
+- Se cierra en la próxima tanda de tests del frontend.
 
 ### 19.5 — Instancia vieja del backend ocupando el 8080 ⚠️ (operativo, no es código)
 - Al levantar el backend con `mvn spring-boot:run`, si quedó otra instancia de una sesión anterior en el 8080, el nuevo arranque falla con "Port 8080 was already in use" y se sigue probando contra código viejo.
