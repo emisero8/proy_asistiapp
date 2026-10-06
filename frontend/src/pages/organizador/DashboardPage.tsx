@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Sparkles, Ticket, TrendingUp, ShieldCheck, Pencil, ExternalLink, Ban, Plus, ChevronRight } from "lucide-react";
+import { Sparkles, Ticket, TrendingUp, ShieldCheck, Pencil, ExternalLink, Ban, Plus, ChevronRight, Search } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -9,7 +9,6 @@ import type { EventoMetricasResponseDTO, EventoResponseDTO, EstadoEvento } from 
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
 
-const ESTADO_ORDEN: Record<EstadoEvento, number> = { Publicado: 0, Borrador: 1, Cancelado: 2 };
 const ESTADO_BADGE: Record<EstadoEvento, string> = {
   Publicado: "bg-green-400/15 text-green-400",
   Borrador: "bg-amber-400/15 text-amber-400",
@@ -26,6 +25,8 @@ export function OrganizadorDashboardPage() {
   const [totales, setTotales] = useState<{ vendidas: number; ingresos: number; validadas: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelandoId, setCancelandoId] = useState<number | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [estadoFiltro, setEstadoFiltro] = useState<"todos" | EstadoEvento>("todos");
 
   function cargar() {
     api
@@ -79,9 +80,13 @@ export function OrganizadorDashboardPage() {
     }
   }
 
-  const eventosOrdenados = [...(eventos ?? [])].sort((a, b) => {
-    const est = ESTADO_ORDEN[a.estado] - ESTADO_ORDEN[b.estado];
-    return est !== 0 ? est : a.fechaEvento.localeCompare(b.fechaEvento);
+  // El backend ya devuelve "Mis eventos" del más nuevo al más antiguo (por fecha de creación):
+  // no se reordena acá, solo se filtra manteniendo ese orden.
+  const termino = busqueda.trim().toLowerCase();
+  const eventosFiltrados = (eventos ?? []).filter((ev) => {
+    if (estadoFiltro !== "todos" && ev.estado !== estadoFiltro) return false;
+    if (!termino) return true;
+    return ev.nombre.toLowerCase().includes(termino) || ev.lugar.toLowerCase().includes(termino);
   });
 
   const publicadosCount = (eventos ?? []).filter((e) => e.estado === "Publicado").length;
@@ -154,7 +159,10 @@ export function OrganizadorDashboardPage() {
       {!error && eventos !== null && eventos.length > 0 && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-foreground">Mis eventos ({eventos.length})</h3>
+            <h3 className="text-sm font-bold text-foreground">
+              Mis eventos ({eventosFiltrados.length}
+              {eventosFiltrados.length !== eventos.length && ` de ${eventos.length}`})
+            </h3>
             <button
               onClick={() => navigate("/organizador/crear")}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
@@ -163,8 +171,35 @@ export function OrganizadorDashboardPage() {
               Crear evento
             </button>
           </div>
+          <div className="flex flex-col sm:flex-row gap-2 mb-3">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <input
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre o lugar…"
+                aria-label="Buscar eventos por nombre o lugar"
+                className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              />
+            </div>
+            <select
+              value={estadoFiltro}
+              onChange={(e) => setEstadoFiltro(e.target.value as typeof estadoFiltro)}
+              aria-label="Filtrar por estado"
+              className="px-3 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="Publicado">Publicados</option>
+              <option value="Borrador">Borradores</option>
+              <option value="Cancelado">Cancelados</option>
+            </select>
+          </div>
+          {eventosFiltrados.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">Ningún evento coincide con la búsqueda.</p>
+          )}
           <div className="space-y-2">
-            {eventosOrdenados.map((ev) => {
+            {eventosFiltrados.map((ev) => {
               const vendidas = vendidasEvento(ev);
               return (
                 // La tarjeta es un contenedor (no un <button>): un control dentro de otro <button> es HTML inválido y las acciones

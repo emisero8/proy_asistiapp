@@ -13,6 +13,9 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
 
     List<Evento> findByIdOrganizador(Long idOrganizador);
 
+    /** Mis eventos del Organizador, del más nuevo al más antiguo (CU-010). */
+    List<Evento> findByIdOrganizadorOrderByFechaCreacionDesc(Long idOrganizador);
+
     List<Evento> findByEstado(EstadoEvento estado);
 
     List<Evento> findByIdOrganizadorAndEstado(Long idOrganizador, EstadoEvento estado);

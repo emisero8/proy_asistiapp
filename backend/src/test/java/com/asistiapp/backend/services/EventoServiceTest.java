@@ -332,4 +332,26 @@ class EventoServiceTest {
         dto.setLugar("Club de Prueba");
         return dto;
     }
+
+    // ─────────────────────────────────────────────
+    // listarMisEventos — orden del más nuevo al más antiguo (Fase 18.4)
+    // ─────────────────────────────────────────────
+
+    @Test
+    void listarMisEventos_devuelveElOrdenDelRepositorioSinReordenar() {
+        Evento nuevo = new Evento();
+        nuevo.setId(2L);
+        nuevo.setNombre("Recién creado");
+        Evento viejo = new Evento();
+        viejo.setId(1L);
+        viejo.setNombre("Antiguo");
+        when(eventoRepository.findByIdOrganizadorOrderByFechaCreacionDesc(ID_ORGANIZADOR))
+                .thenReturn(List.of(nuevo, viejo));
+
+        List<EventoResponseDTO> resultado = eventoService.listarMisEventos(ID_ORGANIZADOR);
+
+        assertThat(resultado).extracting(EventoResponseDTO::getNombre)
+                .containsExactly("Recién creado", "Antiguo");
+        verify(eventoRepository, never()).findByIdOrganizador(any());
+    }
 }

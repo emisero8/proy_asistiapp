@@ -56,7 +56,7 @@ public class EventoService {
     /** Retorna todos los eventos del organizador autenticado. */
     @Transactional(readOnly = true)
     public List<EventoResponseDTO> listarMisEventos(Long idOrganizador) {
-        return eventoRepository.findByIdOrganizador(idOrganizador)
+        return eventoRepository.findByIdOrganizadorOrderByFechaCreacionDesc(idOrganizador)
                 .stream()
                 .map(this::toResponseDTO)
                 .toList();
