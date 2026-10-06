@@ -228,3 +228,50 @@ Cada fase está marcada con su prioridad:
 ---
 
 **Orden de ejecución sugerido:** Fase 14 → 15 → 16 → 17. La 14 es la única genuinamente bloqueante para arrancar el Frontend (sin CORS, ninguna request cross-origin va a funcionar apenas conecten algo real). Las Fases 15-17 se pueden hacer en paralelo con el arranque del Frontend si el tiempo aprieta, pero conviene tenerlas resueltas antes de mostrarle el sistema a un usuario real.
+
+---
+
+## Fase 18: Pedidos del cliente para el jueves (backend) ⬜
+**Objetivo:** Soporte backend de los pedidos de la Fase 10 del frontend. Cada punto se marca ✅ recién cuando queda verificado contra Postgres y, si corresponde, commiteado. Orden de ejecución: 18.2 → 18.4 → 18.5 → 18.3 → 18.6 → 18.7 → 18.8.
+
+### 18.1 — Subida de imágenes a Cloudinary ✅
+1.  Dependencia `com.cloudinary:cloudinary-http5` 2.5.0. (La 2.3.1 no resuelve en Maven Central; se usa la 2.5.0.)
+2.  `CloudinaryConfig`: bean `Cloudinary` con credenciales de `app.cloudinary.*`, que vienen de las variables `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET`. Nunca van en el repo.
+3.  `ImagenService.subirImagenEvento(MultipartFile)`: valida tipo (JPG, PNG, WEBP), tamaño (5 MB máximo) y que no esté vacío. Sube a la carpeta `asistiapp/eventos` y devuelve `secure_url`.
+4.  `POST /eventos/imagenes` (multipart, parámetro `archivo`, rol Organizador) → `201` con `ImagenSubidaResponseDTO { url }`.
+5.  `application.yml`: `spring.servlet.multipart.max-file-size` y `max-request-size` en 5 MB (el default de Spring es 1 MB).
+6.  **Verificación:** PNG → 201 con URL de Cloudinary que carga; TXT → 409 (`BusinessRuleException`, convención del proyecto); sin token → 403. Imágenes de prueba borradas de Cloudinary.
+7.  Commit pendiente de confirmación.
+
+### 18.2 — Suspensión real de cuentas ⬜
+- Hoy una cuenta suspendida puede seguir entrando. Validar el estado `Suspendido` en `AuthService.login` y en `JwtAuthenticationFilter` (cada request), así un token ya emitido también deja de funcionar.
+- Respuesta de login con un mensaje específico ("Cuenta suspendida") para que el frontend muestre el cartel correspondiente, distinto de "Credenciales inválidas".
+- Test de servicio y de login con cuenta suspendida.
+
+### 18.3 — Quitar "Cambiar Rol" ⬜
+- Decidir si se borra o se deshabilita `ReasignarRolRequestDTO` y su endpoint en `AdminUsuarioController`. Recomendación: borrar el endpoint y el DTO, porque no hay caso de uso que lo necesite.
+- Registrar la decisión en el plan al cerrarla.
+
+### 18.4 — Mis eventos: orden por fecha de creación ⬜
+- `GET /eventos` devuelve los eventos ordenados del más nuevo al más antiguo (`ORDER BY fechaCreacion DESC`). Hoy el orden no está garantizado.
+- Test del orden en `EventoService`.
+
+### 18.5 — Perfil del organizador ⬜
+1.  `PUT /organizador/perfil` con `{ nombre, fotoUrl }`. La foto llega como URL ya subida a Cloudinary; el backend no recibe el archivo acá.
+2.  `PUT /organizador/password` con `{ passwordActual, passwordNueva }`. Verifica la actual con BCrypt, valida largo mínimo de 8 y devuelve `409` si la actual no coincide.
+3.  Ambos con DTOs de request y response (sin exponer la entidad), y auditados con `@Auditable` si corresponde.
+
+### 18.6 — Mailhog para el envío de mails ⬜
+- Sumar Mailhog como servicio de desarrollo (`localhost:1025`, sin autenticación) con variables `SMTP_HOST`/`SMTP_PORT` ya existentes en `application.yml`.
+- Sin cambios en `EmailService`. Verificar que el mail de recuperación llega a Mailhog.
+- Corrige el criterio anterior de dejar SMTP "para el final del proyecto" (ver `CLAUDE.md`): el envío se prueba ya, con Mailhog.
+
+### 18.7 — Créditos: consumo al publicar y al crear tandas ⬜
+- Costo de publicar un evento en créditos: **dato pendiente del cliente**.
+- Publicar descuenta ese costo en la misma transacción y deja el movimiento en el ledger (`CreditoLedgerService`).
+- Crear una tanda: `cupo` ≤ créditos disponibles del organizador. Al crearla se descuenta la misma cantidad de créditos que entradas tiene la tanda.
+- `@Transactional` en el servicio, con control de `cupo_disponible` en `TANDA` para evitar sobreventa.
+- Tests: publicar sin saldo → error; crear tanda por encima del saldo → error; crear tanda en rango → descuenta exacto y registra movimiento.
+
+### 18.8 — Métricas del organizador ⬜
+- Ampliar `MetricasOrganizadorService` y `MetricasOrganizadorResponseDTO` con lo que pida el cliente en la fase 10.6 (créditos consumidos, ventas por evento, eventos activos). Definir el detalle con el cliente antes de implementar.

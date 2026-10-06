@@ -218,3 +218,44 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 ---
 
 **Orden de ejecución recomendado:** 1 → 2 → 3 → 4 → 5 → 6 → (7). La Fase 1 es la única bloqueante real — nada del resto se puede hacer sin cliente API y sesión real. La Fase 2 (Comprador) va segunda a propósito: es el flujo con menos fricción (sin auth) para validar que el patrón cliente-API + loading/error funciona antes de meterse con los tres sistemas de login falsos de las Fases 3-5.
+
+---
+
+## Fase 10: Pedidos del cliente para el jueves (Organizador y Admin) ⬜
+**Objetivo:** Cerrar los pedidos de la demo, en orden de prioridad. Cada sub-fase se marca ✅ recién cuando queda verificada (en el navegador, contra el backend real) y, si corresponde, commiteada. Las sub-fases del backend tienen su contraparte en `backend_implementation_plan.md` → Fase 18.
+
+### 10.1 — Imágenes de portada con Cloudinary ✅
+- Crear y Editar evento: el campo de link se reemplazó por el componente `ImagenPortadaField` (botón "Cargar imagen", "Cambiar", "Quitar", vista previa, estados de carga y error). El archivo se sube a `POST /eventos/imagenes` y se guarda la URL devuelta.
+- `api.upload()` en `lib/api.ts` envía `FormData` sin forzar `Content-Type` JSON.
+- Verificado en el navegador desde el formulario real, en mobile y desktop, sin errores de consola ni scroll horizontal. Las imágenes de prueba se borraron de Cloudinary.
+- Commit pendiente de confirmación.
+
+### 10.2 — Admin: quitar "Cambiar Rol" y ajustar la sidebar ⬜
+- Quitar el botón "Cambiar Rol" de la gestión de usuarios.
+- Sidebar del Admin igual a la del Organizador: nombre del administrador fijo abajo a la izquierda y botón de cerrar sesión arriba a la derecha.
+- Depende de 18.3 (decidir qué pasa con el endpoint de reasignar rol).
+
+### 10.3 — Mis eventos: orden y filtros ⬜
+- Orden del más nuevo al más antiguo (por fecha de creación).
+- Filtros de búsqueda: texto (nombre o lugar), estado y rango de fechas. Reutilizar `DateRangeFilter` si encaja.
+- Depende de 18.4 para el orden en backend.
+
+### 10.4 — Menú de perfil del organizador ⬜
+- En la sidebar, el nombre del organizador queda fijo abajo a la izquierda aunque la lista de eventos crezca, y es clickeable.
+- El menú permite cambiar el nombre, la foto de perfil (vía Cloudinary, reutilizando `POST /eventos/imagenes` o un endpoint propio) y la contraseña, exigiendo la actual y la nueva.
+- Depende de 18.5.
+
+### 10.5 — Recuperar contraseña y Mailhog ⬜
+- El backend ya existe (Fase 11: `PasswordRecoveryService`, `POST /auth/recuperar-password` y `POST /auth/restablecer-password`). Falta verificar que la UI de recuperación esté completa en los logins y que el envío llegue a Mailhog.
+- Depende de 18.6.
+
+### 10.6 — Métricas del Dashboard del organizador ⬜
+- Mejorar las métricas del Dashboard general (ventas, ingresos, créditos consumidos, eventos activos). Va al final, cuando ya están los créditos definidos.
+- Depende de 18.8.
+
+### 10.7 — Créditos: límite de entradas por tanda ⬜
+- Al crear una tanda, la cantidad de entradas no puede superar los créditos disponibles del organizador, con el aviso correspondiente en el formulario.
+- Muestra el saldo de créditos y el costo de publicar.
+- Depende de 18.7 y del costo de publicación (dato pendiente del cliente).
+
+**Orden de ejecución:** 10.1 → 10.2 → 10.3 → 10.4 → 10.5 → 10.7 → 10.6. La 10.2 y la 10.3 son las de menor riesgo; la 10.7 es la más delicada y va después de la suspensión (18.2), que también toca el login.
