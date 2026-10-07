@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
@@ -50,13 +50,33 @@ function RouteFallback() {
     una transición de página consistente sin tener que tocar cada pantalla. */
 function AnimatedRoutes() {
   const location = useLocation();
+  const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    // Respaldo de onAnimationEnd: si el hilo principal está ocupado (ej. cargando muchas
+    // imágenes en mobile) el evento puede retrasarse. 500ms da margen sobre los 400ms de
+    // la animación para que esto nunca quede sin limpiarse.
+    const timer = setTimeout(() => {
+      if (wrapRef.current) wrapRef.current.style.animation = "none";
+    }, 500);
+    return () => clearTimeout(timer);
   }, [location.pathname]);
 
   return (
-    <div key={location.pathname} className="page-transition">
+    <div
+      key={location.pathname}
+      ref={wrapRef}
+      className="page-transition"
+      // La animación usa "both": sin esto, el transform (translateY) del keyframe final
+      // queda aplicado para siempre, y cualquier transform (aunque sea la matriz identidad)
+      // vuelve "relativos a este div" a los elementos position:fixed de adentro — sidebar,
+      // botón Salir, barra inferior de mobile, fondos de login — en vez de al viewport.
+      // Al terminar la animación la sacamos para que fixed vuelva a ser fixed de verdad.
+      onAnimationEnd={(e) => {
+        if (e.animationName === "fade-in-up") e.currentTarget.style.animation = "none";
+      }}
+    >
       <Routes location={location}>
         {/* Comprador — público, sin auth (CU-015/016/017) */}
         <Route path="/" element={<ListingPage />} />

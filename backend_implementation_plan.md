@@ -330,6 +330,13 @@ Cada fase está marcada con su prioridad:
 - **Solución:** se agregó el matcher que faltaba en `verify(...)`.
 - **Verificado:** suite completa en verde después del fix.
 
+### 19.10 — `position: fixed` roto en TODA la app por la animación de transición de página ✅
+- **Reportado por el usuario:** en el Dashboard del Organizador con 21 eventos, el nombre de la sidebar (y "Salir", y la barra inferior de mobile) solo aparecían al scrollear hasta el fondo de la página, en vez de quedar siempre visibles.
+- **Causa real, más amplia de lo reportado:** `AnimatedRoutes` (`frontend/src/App.tsx`) envuelve TODA la app en un `<div className="page-transition">` con `animation: fade-in-up ... both`. El `both` deja aplicado para siempre el `transform: translateY(0)` del keyframe final. Cualquier `transform` distinto de `none` — aunque sea la matriz identidad — convierte a ese div en el "contenedor" de los elementos `position: fixed` de adentro, en vez del viewport. Como ese div mide lo mismo que toda la página (no el viewport), todo lo `fixed` de cualquier pantalla — sidebar y "Salir" de Organizador y Admin, barra inferior de mobile, el fondo de los tres logins — quedaba mal posicionado en cualquier página más alta que la ventana.
+- **Solución:** al terminar la animación (`onAnimationEnd`, con un `setTimeout` de respaldo por si el hilo principal está ocupado cargando imágenes) se le saca la animación al div (`style.animation = "none"`), así el `transform` vuelve a `none` y `fixed` vuelve a ser `fixed` de verdad. El efecto visual de la transición no cambia.
+- **Verificado en el navegador**, Organizador y Admin, desktop y mobile: la sidebar mide exactamente el alto del viewport (no el de toda la página), y la posición de "Salir", el nombre y la barra inferior no se mueven al scrollear.
+- **Nota de timing:** en páginas con muchas imágenes (ej. el Dashboard con 21 eventos en mobile), el hilo principal puede tardar hasta ~1 segundo en procesar la limpieza mientras decodifica las imágenes. Durante esa ventana muy breve el `fixed` puede seguir roto; se corrige solo apenas el hilo se libera y queda corregido para siempre en esa carga de página. No se encontró una forma de eliminar esa ventana sin sacar la animación de transición de encima de los layouts con `fixed` (un cambio de arquitectura mayor) — se deja anotado por si en el futuro se vuelve molesto.
+
 ### 19.5 — Instancia vieja del backend ocupando el 8080 ⚠️ (operativo, no es código)
 - Al levantar el backend con `mvn spring-boot:run`, si quedó otra instancia de una sesión anterior en el 8080, el nuevo arranque falla con "Port 8080 was already in use" y se sigue probando contra código viejo.
 - **Cómo verificar:** `netstat -ano | findstr :8080` y cerrar ese proceso antes de levantar.
