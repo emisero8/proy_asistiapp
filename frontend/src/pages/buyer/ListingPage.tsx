@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate } from "react-router";
 import { MapPin, Calendar, Sparkles, ArrowRight, Zap, ShieldCheck, TrendingUp, Wallet, Users, Ticket, Check } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
@@ -198,19 +199,13 @@ export function ListingPage() {
                 style={{ animationDelay: `${i * 60}ms` }}
                 className="group relative flex-none w-[62%] sm:w-[30%] lg:w-[19%] aspect-[3/4] snap-start rounded-2xl overflow-hidden bg-muted border border-border focus:outline-none shadow-lg shadow-transparent hover:shadow-primary/30 hover:-translate-y-1.5 transition-all duration-300 animate-fade-in-up"
               >
-                {ev.imagenPortadaUrl ? (
-                  <img
-                    src={ev.imagenPortadaUrl}
-                    alt={ev.nombre}
-                    loading={i < 5 ? "eager" : "lazy"}
-                    decoding="async"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-primary/30 via-card to-background flex items-center justify-center">
-                    <Sparkles size={28} className="text-primary/50" />
-                  </div>
-                )}
+                <EventoImagen
+                  src={ev.imagenPortadaUrl}
+                  alt={ev.nombre}
+                  loading={i < 5 ? "eager" : "lazy"}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  iconSize={28}
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
                 {i === 0 && (
                   <span className="absolute top-2.5 left-2.5 px-2 py-1 rounded-lg bg-accent text-accent-foreground text-[9px] font-extrabold uppercase tracking-widest">
@@ -280,19 +275,12 @@ export function ListingPage() {
                     className="group text-left focus:outline-none animate-fade-in-up"
                   >
                     <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-lg shadow-transparent group-hover:shadow-primary/25 group-hover:-translate-y-1 transition-all duration-300">
-                      {ev.imagenPortadaUrl ? (
-                        <img
-                          src={ev.imagenPortadaUrl}
-                          alt={ev.nombre}
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-background flex items-center justify-center">
-                          <Sparkles size={22} className="text-primary/40" />
-                        </div>
-                      )}
+                      <EventoImagen
+                        src={ev.imagenPortadaUrl}
+                        alt={ev.nombre}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        iconSize={22}
+                      />
                       {ev.precioDesde !== null && (
                         <span className="absolute top-2.5 right-2.5 bg-background/85 backdrop-blur-sm text-accent text-[11px] font-bold px-2.5 py-1 rounded-full">
                           Desde {fmt(ev.precioDesde)}

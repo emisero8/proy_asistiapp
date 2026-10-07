@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, MapPin, Calendar, Clock, Minus, Plus } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
@@ -58,11 +59,7 @@ export function DetailPage() {
       <div className="max-w-[1800px] mx-auto lg:px-8 lg:py-8">
         <div className="lg:max-w-5xl lg:mx-auto">
         <div className="relative lg:max-w-2xl lg:mx-auto lg:rounded-2xl lg:overflow-hidden">
-          {evento.imagenPortadaUrl ? (
-            <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-56 lg:h-72 xl:h-80 object-cover bg-muted" />
-          ) : (
-            <div className="w-full h-56 lg:h-72 xl:h-80 bg-muted" />
-          )}
+          <EventoImagen src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-56 lg:h-72 xl:h-80 object-cover" iconSize={32} />
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent" />
           <button
             onClick={() => navigate(-1)}

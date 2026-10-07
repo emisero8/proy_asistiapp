@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate } from "react-router";
 import { CircleX, Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -121,11 +122,7 @@ export function AdminEventsPage() {
                 <tr key={e.id} className={`${i < filtered.length - 1 ? "border-b border-border" : ""} hover:bg-muted/30 transition-colors ${busyId === e.id ? "opacity-50" : ""}`}>
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-2.5">
-                      {e.imagenPortadaUrl ? (
-                        <img src={e.imagenPortadaUrl} alt="" loading="lazy" decoding="async" className="w-7 aspect-[3/4] rounded-md object-cover flex-none bg-muted" />
-                      ) : (
-                        <div className="w-7 aspect-[3/4] rounded-md flex-none bg-gradient-to-br from-primary/20 via-card to-background" />
-                      )}
+                      <EventoImagen src={e.imagenPortadaUrl} alt="" className="w-7 aspect-[3/4] rounded-md object-cover flex-none" iconSize={10} />
                       <p className="text-sm font-semibold text-foreground leading-snug max-w-[190px] truncate">{e.nombre}</p>
                     </div>
                   </td>

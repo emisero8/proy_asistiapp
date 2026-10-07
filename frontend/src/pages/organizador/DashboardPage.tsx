@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate } from "react-router";
 import { Sparkles, Ticket, TrendingUp, ShieldCheck, Pencil, ExternalLink, Ban, Plus, ChevronRight, Search, Wallet, CircleDollarSign, CalendarDays, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
@@ -247,13 +248,7 @@ export function OrganizadorDashboardPage() {
                     onClick={() => navigate(`/organizador/eventos/${ev.id}`)}
                     className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 after:absolute after:inset-0 after:rounded-xl after:content-['']"
                   >
-                    {ev.imagenPortadaUrl ? (
-                      <img src={ev.imagenPortadaUrl} alt="" loading="lazy" decoding="async" className="w-12 h-12 rounded-lg object-cover flex-none bg-muted" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg flex-none bg-gradient-to-br from-primary/25 to-muted flex items-center justify-center">
-                        <Sparkles size={16} className="text-primary/40" />
-                      </div>
-                    )}
+                    <EventoImagen src={ev.imagenPortadaUrl} alt="" className="w-12 h-12 rounded-lg object-cover flex-none" iconSize={16} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-foreground truncate">{ev.nombre}</p>

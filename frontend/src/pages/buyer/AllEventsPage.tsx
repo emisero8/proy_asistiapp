@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate } from "react-router";
-import { ChevronLeft, ChevronRight, Search, MapPin, Calendar, Sparkles, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, MapPin, Calendar, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, hoyLocal } from "../../lib/format";
 import { FILTROS_FECHA, fechaEnRango, rangoFinDeSemana, type FiltroFecha } from "../../lib/eventFilters";
@@ -182,19 +183,13 @@ export function AllEventsPage() {
                   className="group text-left focus:outline-none animate-fade-in-up"
                 >
                   <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-lg shadow-transparent group-hover:shadow-primary/25 group-hover:-translate-y-1 transition-all duration-300">
-                    {ev.imagenPortadaUrl ? (
-                      <img
-                        src={ev.imagenPortadaUrl}
-                        alt={ev.nombre}
-                        loading={i < 4 ? "eager" : "lazy"}
-                        decoding="async"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-background flex items-center justify-center">
-                        <Sparkles size={22} className="text-primary/40" />
-                      </div>
-                    )}
+                    <EventoImagen
+                      src={ev.imagenPortadaUrl}
+                      alt={ev.nombre}
+                      loading={i < 4 ? "eager" : "lazy"}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      iconSize={22}
+                    />
                     {ev.precioDesde !== null && (
                       <span className="absolute top-2.5 right-2.5 bg-background/85 backdrop-blur-sm text-accent text-[11px] font-bold px-2.5 py-1 rounded-full">
                         Desde {fmt(ev.precioDesde)}

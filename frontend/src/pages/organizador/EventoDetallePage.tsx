@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate, useParams } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import {
@@ -138,11 +139,7 @@ export function OrganizadorEventoDetallePage() {
 
       {/* Cabecera */}
       <section className="rounded-2xl border border-border bg-card p-4 lg:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-        {evento.imagenPortadaUrl ? (
-          <img src={evento.imagenPortadaUrl} alt="" className="w-full sm:w-20 h-32 sm:h-20 rounded-xl object-cover flex-none bg-muted" />
-        ) : (
-          <div className="w-full sm:w-20 h-32 sm:h-20 rounded-xl flex-none bg-gradient-to-br from-primary/30 to-muted" />
-        )}
+        <EventoImagen src={evento.imagenPortadaUrl} alt="" className="w-full sm:w-20 h-32 sm:h-20 rounded-xl object-cover flex-none" iconSize={24} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-lg lg:text-xl font-extrabold text-foreground">{evento.nombre}</h2>
