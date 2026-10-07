@@ -252,9 +252,11 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 - Al guardar, la sesión se actualiza con el nombre y la foto nuevos, así la sidebar cambia sin volver a iniciar sesión.
 - **Verificado en el navegador contra el backend real**, desktop y mobile: subir foto, guardar nombre, la sidebar muestra la foto, contraseña mal (cartel del backend) y contraseña bien (toast). Sin errores de consola y sin scroll horizontal. Cuentas y fotos de prueba borradas al final.
 - Tests unitarios de la página pendientes, registrados en 19.6.
-### 10.5 — Recuperar contraseña y Mailhog ⬜
-- El backend ya existe (Fase 11: `PasswordRecoveryService`, `POST /auth/recuperar-password` y `POST /auth/restablecer-password`). Falta verificar que la UI de recuperación esté completa en los logins y que el envío llegue a Mailhog.
-- Depende de 18.6.
+### 10.5 — Recuperar contraseña y Mailhog ✅
+- Pantalla `/organizador/recuperar-password?token=...` (de `feature-mailhog`): valida 8 caracteres, botón deshabilitado si no se cumple, error del backend si el token expiró o ya se usó, y cartel de éxito con link al login.
+- Página `/mi-entrada?codigoQr=...`: carga la entrada sin login, para el botón "Ver mi entrada" del mail de confirmación.
+- El pedido de recuperación ya existía en los logins (`recoverySent`), reutilizado tal cual.
+- **Verificado en el navegador** con un link real salido de un mail real (MailHog), desktop y mobile: sin errores de consola ni scroll horizontal.
 
 ### 10.6 — Métricas del Dashboard del organizador ✅ (pendiente de commit)
 - Una sola llamada a `/eventos/resumen` (18.8), en lugar de una por evento.
@@ -278,9 +280,11 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 **Hecho y pendiente de push/commit al cerrar:** ver los commits de la sesion. Todo lo de la Fase 10 y la Fase 18 queda terminado excepto lo que sigue.
 
 **Lo que falta:**
-1. **10.5 / 18.6 — Recuperar contrasena y Mailhog (ultimo).** El backend de recuperacion ya existe (Fase 11). Falta: decidir como se instala Mailhog (Docker o ejecutable de Windows), verificar la UI de "olvide mi contrasena" en los logins y que el mail llegue a Mailhog.
+1. **10.5 / 18.6 — Recuperar contrasena y Mailhog: hecho** (ver mas arriba). Se integro `feature-mailhog` de un companero de equipo y se verifico de punta a punta.
 2. **Decision pendiente: cancelar un evento no devuelve los creditos de sus tandas.** Hoy no se devuelve nada. Confirmar con el cliente.
-3. **Commits:** confirmar el contenido de cada commit antes de pushear (regla de `CLAUDE.md`).
+3. **Docker Desktop no arranca en esta maquina** por falta de virtualizacion (BIOS) y de "Plataforma de maquina virtual" en Windows. Si se quiere usar `docker-compose.yml` en vez del ejecutable standalone de MailHog, hay que habilitar la virtualizacion en la BIOS/UEFI y reiniciar.
+4. **Commits:** confirmar el contenido de cada commit antes de pushear (regla de `CLAUDE.md`).
+5. Con esto se completan todas las fases 10 y 18 planificadas. Falta decidir que sigue (ver "Pendiente de decision" en la Fase 18.7 y cualquier pedido nuevo del cliente).
 
 **Decisiones tomadas que conviene validar con el cliente:**
 - Reserva del costo de publicar: las entradas se limitan a `saldo - costo de publicar`.

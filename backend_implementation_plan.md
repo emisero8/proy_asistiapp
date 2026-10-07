@@ -270,10 +270,12 @@ Cada fase está marcada con su prioridad:
 5.  Tests: `PerfilServiceTest` (6 casos de las reglas anteriores).
 6.  **Verificado contra el backend real** con cuenta de prueba: GET y PUT 200, foto externa 409, contraseña mal 409, igual a la actual 409, corta 400, cambio 204, login con la nueva 200 y con la vieja 401. La cuenta se borró.
 
-### 18.6 — Mailhog para el envío de mails ⬜
-- Sumar Mailhog como servicio de desarrollo (`localhost:1025`, sin autenticación) con variables `SMTP_HOST`/`SMTP_PORT` ya existentes en `application.yml`.
-- Sin cambios en `EmailService`. Verificar que el mail de recuperación llega a Mailhog.
-- Corrige el criterio anterior de dejar SMTP "para el final del proyecto" (ver `CLAUDE.md`): el envío se prueba ya, con Mailhog.
+### 18.6 — Mailhog para el envío de mails ✅
+- Integrado desde la rama `feature-mailhog` de un compañero de equipo (commit `7ff345a`), que ya traía: SMTP a `localhost:1025` en vez de Gmail, emails en HTML (QR embebido en base64, botón "Ver mi entrada"), email de recuperación con botón al frontend, `GET /tickets/by-codigo` (público) y `docker-compose.yml`.
+- La rama se creó sobre el último commit de `master` de esta sesión (cero divergencia), así que se trajo con fast-forward, sin conflictos.
+- **Fix encontrado:** `enviarConfirmacionCompra` sumó el parámetro `entradaId`, pero `VentaServiceTest` no se había actualizado y rompía la suite. Se corrigió el matcher del mock (commit `6e05d33`).
+- **Entorno de esta máquina:** Docker Desktop no arranca por falta de virtualización (BIOS) y de "Plataforma de máquina platform" en Windows — no es un bug del proyecto. Se usó el ejecutable standalone `MailHog_windows_amd64.exe` (mismo MailHog, sin Docker) para verificar. El `docker-compose.yml` del compañero queda como la opción normal para quien tenga Docker andando.
+- **Verificado de punta a punta** con dos cuentas de prueba (borradas al final): registrar → pedir recuperación → el mail llega a MailHog → se lee el link real del cuerpo del mail → `POST /auth/restablecer-password` con el token → login con la contraseña vieja falla (401) y con la nueva funciona (200) → reusar el token da 409 ("ya fue utilizado"). La pantalla `/organizador/recuperar-password` se probó en el navegador con el link real, en desktop y mobile: valida 8 caracteres, bloquea el botón si no, y muestra el cartel de éxito.
 
 ### 18.7 — Créditos: consumo al crear, editar y eliminar tandas ✅
 - **Regla:** cada entrada de una tanda consume 1 crédito. Crear descuenta el cupo; subir el cupo cobra la diferencia; bajarlo o eliminar la tanda (sin ventas) devuelve créditos.
@@ -320,6 +322,11 @@ Cada fase está marcada con su prioridad:
 ### 19.8 — Textos del Wizard con el costo de publicar fijo en 1 ✅
 - **Causa:** "Publicar consume 1 crédito" estaba escrito a mano, aunque el Admin lo había configurado en 2. El pie mostraba un costo distinto del que cobra el backend.
 - **Solución:** los textos usan `costoPublicacion` de `/creditos/resumen`. También se corrigió el texto de Editar evento.
+
+### 19.9 — VentaServiceTest roto al traer feature-mailhog ✅
+- **Causa:** `enviarConfirmacionCompra` sumó el parámetro `entradaId` (para el botón "Ver mi entrada") pero el test del compañero no se actualizó.
+- **Solución:** se agregó el matcher que faltaba en `verify(...)`.
+- **Verificado:** suite completa en verde después del fix.
 
 ### 19.5 — Instancia vieja del backend ocupando el 8080 ⚠️ (operativo, no es código)
 - Al levantar el backend con `mvn spring-boot:run`, si quedó otra instancia de una sesión anterior en el 8080, el nuevo arranque falla con "Port 8080 was already in use" y se sigue probando contra código viejo.
