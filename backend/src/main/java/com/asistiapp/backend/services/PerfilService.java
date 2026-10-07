@@ -8,7 +8,6 @@ import com.asistiapp.backend.models.dtos.perfil.PerfilResponseDTO;
 import com.asistiapp.backend.models.entities.Usuario;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,9 +24,7 @@ public class PerfilService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
-
-    @Value("${app.cloudinary.cloud-name}")
-    private String cloudName;
+    private final ImagenService imagenService;
 
     @Transactional(readOnly = true)
     public PerfilResponseDTO obtenerPerfil(Long idUsuario) {
@@ -37,6 +34,7 @@ public class PerfilService {
     @Transactional
     public PerfilResponseDTO actualizarPerfil(Long idUsuario, PerfilRequestDTO dto) {
         Usuario usuario = getUsuarioOrThrow(idUsuario);
+        String fotoAnterior = usuario.getFotoPerfilUrl();
         String foto = dto.getFotoPerfilUrl() == null || dto.getFotoPerfilUrl().isBlank()
                 ? null
                 : dto.getFotoPerfilUrl().trim();
@@ -45,7 +43,13 @@ public class PerfilService {
         }
         usuario.setNombre(dto.getNombre().trim());
         usuario.setFotoPerfilUrl(foto);
-        return toResponseDTO(usuarioRepository.save(usuario));
+        PerfilResponseDTO response = toResponseDTO(usuarioRepository.save(usuario));
+
+        // Se cambió o se quitó la foto: la anterior ya no la referencia nadie, se libera el espacio.
+        if (fotoAnterior != null && !fotoAnterior.equals(foto)) {
+            imagenService.eliminarSiEsNuestra(fotoAnterior);
+        }
+        return response;
     }
 
     @Transactional
@@ -62,8 +66,7 @@ public class PerfilService {
     }
 
     private void validarFotoDeNuestroCloudinary(String url) {
-        String prefijo = "https://res.cloudinary.com/" + cloudName + "/image/upload/";
-        if (!url.startsWith(prefijo)) {
+        if (!imagenService.esDeNuestroCloudinary(url)) {
             throw new BusinessRuleException("La foto de perfil debe subirse desde la aplicación");
         }
     }

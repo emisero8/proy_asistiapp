@@ -12,7 +12,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Optional;
 
@@ -25,12 +24,15 @@ import static org.mockito.Mockito.*;
 class PerfilServiceTest {
 
     private static final Long ID = 7L;
-    private static final String CLOUD = "cloud-de-prueba";
+    private static final String FOTO_NUESTRA_VIEJA = "https://res.cloudinary.com/cloud-de-prueba/image/upload/v1/asistiapp/perfiles/vieja.png";
+    private static final String FOTO_NUESTRA_NUEVA = "https://res.cloudinary.com/cloud-de-prueba/image/upload/v2/asistiapp/perfiles/nueva.png";
 
     @Mock
     private UsuarioRepository usuarioRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private ImagenService imagenService;
     @InjectMocks
     private PerfilService perfilService;
 
@@ -38,7 +40,6 @@ class PerfilServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(perfilService, "cloudName", CLOUD);
         usuario = new Usuario();
         usuario.setId(ID);
         usuario.setNombre("Nombre viejo");
@@ -61,32 +62,72 @@ class PerfilServiceTest {
         return dto;
     }
 
-    // ── Perfil ──────────────────────────────────────────────
+    // ── Perfil: validación de la foto ───────────────────────
 
     @Test
     void actualizarPerfil_fotoDeNuestroCloudinary_laGuarda() {
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
-        String foto = "https://res.cloudinary.com/" + CLOUD + "/image/upload/v1/asistiapp/perfiles/x.png";
+        when(imagenService.esDeNuestroCloudinary(FOTO_NUESTRA_NUEVA)).thenReturn(true);
 
-        var response = perfilService.actualizarPerfil(ID, perfil("Nombre nuevo", foto));
+        var response = perfilService.actualizarPerfil(ID, perfil("Nombre nuevo", FOTO_NUESTRA_NUEVA));
 
         assertThat(response.getNombre()).isEqualTo("Nombre nuevo");
-        assertThat(response.getFotoPerfilUrl()).isEqualTo(foto);
+        assertThat(response.getFotoPerfilUrl()).isEqualTo(FOTO_NUESTRA_NUEVA);
     }
 
     @Test
     void actualizarPerfil_fotoDeOtroHost_lanzaBusinessRuleExceptionYNoGuarda() {
+        when(imagenService.esDeNuestroCloudinary("https://evil.example.com/foto.png")).thenReturn(false);
+
         assertThatThrownBy(() -> perfilService.actualizarPerfil(ID,
                 perfil("Nombre", "https://evil.example.com/foto.png")))
                 .isInstanceOf(BusinessRuleException.class);
         verify(usuarioRepository, never()).save(any());
+        verify(imagenService, never()).eliminarSiEsNuestra(any());
+    }
+
+    // ── Perfil: liberar la foto anterior en Cloudinary ──────
+
+    @Test
+    void actualizarPerfil_cambiaLaFoto_borraLaAnteriorDeCloudinary() {
+        usuario.setFotoPerfilUrl(FOTO_NUESTRA_VIEJA);
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(imagenService.esDeNuestroCloudinary(FOTO_NUESTRA_NUEVA)).thenReturn(true);
+
+        perfilService.actualizarPerfil(ID, perfil("Nombre", FOTO_NUESTRA_NUEVA));
+
+        verify(imagenService).eliminarSiEsNuestra(FOTO_NUESTRA_VIEJA);
     }
 
     @Test
-    void actualizarPerfil_fotoDeOtroCloud_lanzaBusinessRuleException() {
-        assertThatThrownBy(() -> perfilService.actualizarPerfil(ID,
-                perfil("Nombre", "https://res.cloudinary.com/otra-cuenta/image/upload/x.png")))
-                .isInstanceOf(BusinessRuleException.class);
+    void actualizarPerfil_quitaLaFoto_borraLaAnteriorDeCloudinary() {
+        usuario.setFotoPerfilUrl(FOTO_NUESTRA_VIEJA);
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = perfilService.actualizarPerfil(ID, perfil("Nombre", null));
+
+        assertThat(response.getFotoPerfilUrl()).isNull();
+        verify(imagenService).eliminarSiEsNuestra(FOTO_NUESTRA_VIEJA);
+    }
+
+    @Test
+    void actualizarPerfil_fotoSinCambios_noBorraNada() {
+        usuario.setFotoPerfilUrl(FOTO_NUESTRA_VIEJA);
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(imagenService.esDeNuestroCloudinary(FOTO_NUESTRA_VIEJA)).thenReturn(true);
+
+        perfilService.actualizarPerfil(ID, perfil("Nombre nuevo", FOTO_NUESTRA_VIEJA));
+
+        verify(imagenService, never()).eliminarSiEsNuestra(any());
+    }
+
+    @Test
+    void actualizarPerfil_sinFotoPrevia_noIntentaBorrarNada() {
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        perfilService.actualizarPerfil(ID, perfil("Nombre", null));
+
+        verify(imagenService, never()).eliminarSiEsNuestra(any());
     }
 
     // ── Contraseña ──────────────────────────────────────────

@@ -5,12 +5,15 @@ import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Sube imágenes a Cloudinary y devuelve la URL segura para guardar en la base.
@@ -27,6 +30,44 @@ public class ImagenService {
     static final String CARPETA_PERFILES = "asistiapp/perfiles";
 
     private final Cloudinary cloudinary;
+
+    @Value("${app.cloudinary.cloud-name}")
+    private String cloudName;
+
+    /**
+     * El public_id de Cloudinary es lo que viene después de "/upload/", sin el
+     * "v<versión>/" opcional y sin la extensión. Ej: para
+     * ".../upload/v1700000000/asistiapp/eventos/abc123.png" → "asistiapp/eventos/abc123".
+     */
+    private static final Pattern PUBLIC_ID_DESDE_URL = Pattern.compile("/upload/(?:v\\d+/)?(.+)\\.[a-zA-Z0-9]+$");
+
+    /** True si la URL apunta a nuestra propia cuenta de Cloudinary (no un link externo cualquiera). */
+    public boolean esDeNuestroCloudinary(String url) {
+        return url != null && url.startsWith("https://res.cloudinary.com/" + cloudName + "/image/upload/");
+    }
+
+    /**
+     * Borra una imagen nuestra de Cloudinary a partir de su URL (reemplazo o "Quitar").
+     * No lanza si falla: liberar espacio no es parte crítica del flujo que la llama, y el
+     * usuario ya se quedó con el nombre/la URL nueva guardados igual.
+     */
+    public void eliminarSiEsNuestra(String url) {
+        if (!esDeNuestroCloudinary(url)) {
+            return;
+        }
+        Matcher m = PUBLIC_ID_DESDE_URL.matcher(url);
+        if (!m.find()) {
+            log.warn("No se pudo extraer el public_id de Cloudinary de la URL: {}", url);
+            return;
+        }
+        String publicId = m.group(1);
+        try {
+            cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+            log.info("Imagen eliminada de Cloudinary: {}", publicId);
+        } catch (Exception e) {
+            log.warn("No se pudo eliminar la imagen de Cloudinary ({}): {}", publicId, e.getMessage());
+        }
+    }
 
     /** Sube la imagen de portada de un evento y devuelve su URL pública (https). */
     public String subirImagenEvento(MultipartFile archivo) {

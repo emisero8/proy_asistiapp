@@ -48,6 +48,7 @@ public class EventoService {
     private final CreditoLedgerService creditoLedgerService;
     private final ConfiguracionService configuracionService;
     private final EmailService emailService;
+    private final ImagenService imagenService;
 
     // ─────────────────────────────────────────────
     // Consultas
@@ -141,6 +142,7 @@ public class EventoService {
 
         validarFechaHoraFutura(dto);
 
+        String imagenAnterior = evento.getImagenPortadaUrl();
         mapDtoToEvento(dto, evento);
 
         // Si se movió la fecha/hora, ninguna tanda puede quedar con la venta
@@ -156,6 +158,12 @@ public class EventoService {
 
         Evento saved = eventoRepository.save(evento);
         log.info("Evento actualizado: id={}, estado={}", idEvento, evento.getEstado());
+
+        // Se cambió o se quitó la portada: la anterior ya no la referencia nadie
+        String imagenNueva = saved.getImagenPortadaUrl();
+        if (imagenAnterior != null && !imagenAnterior.equals(imagenNueva)) {
+            imagenService.eliminarSiEsNuestra(imagenAnterior);
+        }
         return toResponseDTO(saved);
     }
 

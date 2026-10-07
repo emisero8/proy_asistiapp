@@ -54,6 +54,8 @@ class EventoServiceTest {
     private ConfiguracionService configuracionService;
     @Mock
     private EmailService emailService;
+    @Mock
+    private ImagenService imagenService;
 
     @InjectMocks
     private EventoService eventoService;
@@ -173,6 +175,56 @@ class EventoServiceTest {
         assertThatThrownBy(() -> eventoService.actualizarEvento(evento.getId(), requestDto(), ID_ORGANIZADOR))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("cancelado");
+    }
+
+    @Test
+    void actualizarEvento_cambiaLaImagen_borraLaAnteriorDeCloudinary() {
+        evento.setImagenPortadaUrl("https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/vieja.png");
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+        EventoRequestDTO dto = requestDto();
+        dto.setImagenPortadaUrl("https://res.cloudinary.com/x/image/upload/v2/asistiapp/eventos/nueva.png");
+
+        eventoService.actualizarEvento(evento.getId(), dto, ID_ORGANIZADOR);
+
+        verify(imagenService).eliminarSiEsNuestra("https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/vieja.png");
+    }
+
+    @Test
+    void actualizarEvento_quitaLaImagen_borraLaAnteriorDeCloudinary() {
+        evento.setImagenPortadaUrl("https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/vieja.png");
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+        EventoRequestDTO dto = requestDto(); // imagenPortadaUrl queda null: "Quitar" en el frontend
+
+        EventoResponseDTO response = eventoService.actualizarEvento(evento.getId(), dto, ID_ORGANIZADOR);
+
+        assertThat(response.getImagenPortadaUrl()).isNull();
+        verify(imagenService).eliminarSiEsNuestra("https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/vieja.png");
+    }
+
+    @Test
+    void actualizarEvento_mismaImagen_noBorraNada() {
+        String url = "https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/igual.png";
+        evento.setImagenPortadaUrl(url);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+        EventoRequestDTO dto = requestDto();
+        dto.setImagenPortadaUrl(url);
+
+        eventoService.actualizarEvento(evento.getId(), dto, ID_ORGANIZADOR);
+
+        verify(imagenService, never()).eliminarSiEsNuestra(any());
+    }
+
+    @Test
+    void actualizarEvento_sinImagenPrevia_noIntentaBorrarNada() {
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        eventoService.actualizarEvento(evento.getId(), requestDto(), ID_ORGANIZADOR);
+
+        verify(imagenService, never()).eliminarSiEsNuestra(any());
     }
 
     @Test
