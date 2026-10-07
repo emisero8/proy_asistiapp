@@ -43,6 +43,10 @@ public class Usuario {
     @Column(nullable = false, length = 20)
     private EstadoUsuario estado;
 
+    /** URL de la foto de perfil alojada en Cloudinary. Nullable: no todos los usuarios la cargan. */
+    @Column(name = "foto_perfil_url", length = 500)
+    private String fotoPerfilUrl;
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 

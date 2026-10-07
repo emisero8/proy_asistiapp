@@ -23,17 +23,27 @@ public class ImagenService {
 
     private static final List<String> TIPOS_PERMITIDOS = List.of("image/jpeg", "image/png", "image/webp");
     private static final long TAMANO_MAXIMO_BYTES = 5L * 1024 * 1024;
-    private static final String CARPETA_EVENTOS = "asistiapp/eventos";
+    static final String CARPETA_EVENTOS = "asistiapp/eventos";
+    static final String CARPETA_PERFILES = "asistiapp/perfiles";
 
     private final Cloudinary cloudinary;
 
     /** Sube la imagen de portada de un evento y devuelve su URL pública (https). */
     public String subirImagenEvento(MultipartFile archivo) {
+        return subirImagen(archivo, CARPETA_EVENTOS);
+    }
+
+    /** Sube la foto de perfil de un usuario y devuelve su URL pública (https). */
+    public String subirFotoPerfil(MultipartFile archivo) {
+        return subirImagen(archivo, CARPETA_PERFILES);
+    }
+
+    private String subirImagen(MultipartFile archivo, String carpeta) {
         validar(archivo);
         try {
             Map<?, ?> resultado = cloudinary.uploader().upload(
                     archivo.getBytes(),
-                    ObjectUtils.asMap("folder", CARPETA_EVENTOS, "resource_type", "image")
+                    ObjectUtils.asMap("folder", carpeta, "resource_type", "image")
             );
             return (String) resultado.get("secure_url");
         } catch (IOException e) {

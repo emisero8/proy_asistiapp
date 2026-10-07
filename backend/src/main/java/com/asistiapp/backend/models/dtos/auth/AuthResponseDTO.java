@@ -30,5 +30,6 @@ public class AuthResponseDTO {
     private Long id;
     private String nombre;
     private String email;
+    private String fotoPerfilUrl;
     private RolUsuario rol;
 }

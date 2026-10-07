@@ -128,6 +128,7 @@ public class AuthService {
                 .nombre(usuario.getNombre())
                 .email(usuario.getEmail())
                 .rol(usuario.getRol())
+                .fotoPerfilUrl(usuario.getFotoPerfilUrl())
                 .build();
     }
 }
