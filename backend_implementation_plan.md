@@ -231,7 +231,7 @@ Cada fase está marcada con su prioridad:
 
 ---
 
-## Fase 18: Pedidos del cliente para el jueves (backend) ⬜
+## Fase 18: Pedidos del cliente para el jueves (backend) ✅
 **Objetivo:** Soporte backend de los pedidos de la Fase 10 del frontend. Cada punto se marca ✅ recién cuando queda verificado contra Postgres y, si corresponde, commiteado. Orden de ejecución: 18.2 → 18.4 → 18.5 → 18.3 → 18.6 → 18.7 → 18.8.
 
 ### 18.1 — Subida de imágenes a Cloudinary ✅
@@ -285,7 +285,9 @@ Cada fase está marcada con su prioridad:
 - **Migración de base:** `ddl-auto: update` no actualiza el CHECK de la columna de enum. Se aplicó `backend/db/migraciones/2026-10-06-tipos-movimiento-tanda.sql`. Hay que correrlo en cualquier base que se levante desde ahora.
 - **Tests:** `TandaServiceTest` (6 casos: crear con y sin saldo, subir cupo dentro y fuera del saldo, bajar cupo, eliminar con y sin ventas).
 - **Verificado contra el backend real:** saldo 30 → crear tanda de 3 → saldo 27 → cupo 31 con 28 disponibles → 409 con el mensaje → eliminar tanda → 28 (devolución de 3). Cuenta de prueba borrada por SQL.
-- **Pendiente de decisión:** al cancelar un evento no se devuelven los créditos de sus tandas. Hoy no se devuelve nada, ni al publicar. Lo registramos para decidir con el cliente.
+- **Decisión tomada y resuelta:** al cancelar un evento se devuelven los créditos de las entradas que no se habían vendido (`EventoService.devolverCreditosDeEntradasSinVender`, usado también por `AdminEventoService.cancelarEvento`). El costo de publicar nunca se devuelve. Beneficia al organizador (no pierde créditos por capacidad que nunca se usó) sin crear incentivo a publicar y cancelar gratis (siempre queda el costo de publicar).
+  - Tests: `cancelarEvento_conEntradasSinVender_devuelveSusCreditos`, `cancelarEvento_conTodoVendido_noDevuelveCreditos`, `cancelarEvento_noDevuelveElCostoDePublicar`, `cancelarEvento_sinTandas_noHayNadaQueDevolver`.
+  - Verificado contra el backend real, tres casos: todo sin vender (30 → 18 → 28), todo vendido (sin cambio) y parcial (18 → 22, simulando 6 de 10 vendidas). Cuentas de prueba borradas.
 
 ### 18.8 — Métricas del organizador ✅
 - `GET /eventos/resumen` (rol Organizador) → `ResumenOrganizadorResponseDTO`: eventos publicados y en borrador, entradas vendidas y validadas, ingresos, créditos consumidos (neto: publicar y tandas suman, las devoluciones restan), saldo y próximo evento publicado que todavía no empezó.

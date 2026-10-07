@@ -221,7 +221,7 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 
 ---
 
-## Fase 10: Pedidos del cliente para el jueves (Organizador y Admin) ⬜
+## Fase 10: Pedidos del cliente para el jueves (Organizador y Admin) ✅
 **Objetivo:** Cerrar los pedidos de la demo, en orden de prioridad. Cada sub-fase se marca ✅ recién cuando queda verificada (en el navegador, contra el backend real) y, si corresponde, commiteada. Las sub-fases del backend tienen su contraparte en `backend_implementation_plan.md` → Fase 18.
 
 ### 10.1 — Imágenes de portada con Cloudinary ✅ (commit `7b64cf4`, pusheado)

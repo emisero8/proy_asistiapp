@@ -95,6 +95,7 @@ public class AdminEventoService {
         evento.setEstado(EstadoEvento.Cancelado);
         evento.setFechaCancelacion(LocalDateTime.now());
         Evento saved = eventoRepository.save(evento);
+        eventoService.devolverCreditosDeEntradasSinVender(saved);
         eventoService.notificarCancelacionACompradores(saved);
         log.info("Evento cancelado por Admin: id={}", idEvento);
         return eventoService.toResponseDTO(saved);

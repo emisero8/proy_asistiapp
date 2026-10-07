@@ -276,7 +276,7 @@ class EventoServiceTest {
     }
 
     @Test
-    void cancelarEvento_desdePublicado_esPermitidoYNoDevuelveCreditos() {
+    void cancelarEvento_sinTandas_noHayNadaQueDevolver() {
         evento.setEstado(EstadoEvento.Publicado);
         when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
         when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -285,7 +285,49 @@ class EventoServiceTest {
 
         assertThat(response.getEstado()).isEqualTo(EstadoEvento.Cancelado);
         assertThat(response.getFechaCancelacion()).isNotNull();
-        verifyNoInteractions(creditoLedgerService); // cancelar no reembolsa créditos
+        verifyNoInteractions(creditoLedgerService);
+    }
+
+    @Test
+    void cancelarEvento_conEntradasSinVender_devuelveSusCreditos() {
+        agregarTandaAlEvento(); // cupoMaximo=50, cupoDisponible=50: nada vendido
+        evento.setEstado(EstadoEvento.Publicado);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(organizadorRepository.findById(ID_ORGANIZADOR)).thenReturn(Optional.of(organizador));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        eventoService.cancelarEvento(evento.getId(), ID_ORGANIZADOR);
+
+        verify(creditoLedgerService).registrarDevolucionTanda(organizador, 50, evento.getId());
+    }
+
+    @Test
+    void cancelarEvento_conTodoVendido_noDevuelveCreditos() {
+        agregarTandaAlEvento();
+        evento.getTandas().get(0).setCupoDisponible(0); // se vendieron las 50 entradas
+        evento.setEstado(EstadoEvento.Publicado);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        eventoService.cancelarEvento(evento.getId(), ID_ORGANIZADOR);
+
+        verify(creditoLedgerService, never()).registrarDevolucionTanda(any(), anyInt(), any());
+        verifyNoInteractions(organizadorRepository);
+    }
+
+    @Test
+    void cancelarEvento_noDevuelveElCostoDePublicar() {
+        // El costo de publicar se consume en publicarEvento, no en cancelarEvento:
+        // cancelar solo devuelve credditos de tandas sin vender (ver test de arriba).
+        agregarTandaAlEvento();
+        evento.setEstado(EstadoEvento.Publicado);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(organizadorRepository.findById(ID_ORGANIZADOR)).thenReturn(Optional.of(organizador));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        eventoService.cancelarEvento(evento.getId(), ID_ORGANIZADOR);
+
+        verify(creditoLedgerService, never()).registrarConsumoPublicacion(any(), anyInt(), any());
     }
 
     @Test

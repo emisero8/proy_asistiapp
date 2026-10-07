@@ -231,7 +231,9 @@ public class EventoService {
 
     /**
      * Cancela un evento. Permitido en estado Borrador o Publicado.
-     * No devuelve los créditos consumidos al publicar.
+     * Devuelve los créditos de las entradas que todavía no se habían vendido (ver
+     * devolverCreditosDeEntradasSinVender). No devuelve el costo de publicar: es la
+     * tarifa por publicar, no por vender.
      */
     @Transactional
     public EventoResponseDTO cancelarEvento(Long idEvento, Long idOrganizador) {
@@ -245,9 +247,28 @@ public class EventoService {
         evento.setEstado(EstadoEvento.Cancelado);
         evento.setFechaCancelacion(LocalDateTime.now());
         Evento saved = eventoRepository.save(evento);
+        devolverCreditosDeEntradasSinVender(saved);
         notificarCancelacionACompradores(saved);
         log.info("Evento cancelado: id={}", idEvento);
         return toResponseDTO(saved);
+    }
+
+    /**
+     * Al cancelar un evento se devuelven los créditos de las entradas que no se llegaron
+     * a vender (la suma de cupoDisponible de cada tanda). Las entradas ya vendidas no
+     * afectan créditos — ya cumplieron su función — y el costo de publicar tampoco se
+     * devuelve, para que publicar y cancelar en loop siga teniendo un costo real.
+     */
+    public void devolverCreditosDeEntradasSinVender(Evento evento) {
+        int entradasSinVender = evento.getTandas().stream().mapToInt(Tanda::getCupoDisponible).sum();
+        if (entradasSinVender <= 0) {
+            return;
+        }
+        Organizador organizador = organizadorRepository.findById(evento.getIdOrganizador())
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        creditoLedgerService.registrarDevolucionTanda(organizador, entradasSinVender, evento.getId());
+        log.info("Créditos devueltos al cancelar evento id={}: {} (entradas sin vender)",
+                evento.getId(), entradasSinVender);
     }
 
     /**
