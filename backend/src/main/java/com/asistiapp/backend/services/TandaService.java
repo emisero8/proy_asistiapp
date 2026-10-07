@@ -6,9 +6,11 @@ import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.tanda.TandaRequestDTO;
 import com.asistiapp.backend.models.dtos.tanda.TandaResponseDTO;
 import com.asistiapp.backend.models.entities.Evento;
+import com.asistiapp.backend.models.entities.Organizador;
 import com.asistiapp.backend.models.entities.Tanda;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.repositories.OrganizadorRepository;
 import com.asistiapp.backend.repositories.TandaRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,9 @@ import java.util.List;
  *  - El cupo_disponible se inicializa igual al cupo_maximo (@PrePersist de Tanda).
  *  - Al actualizar cupo_maximo, se ajusta cupo_disponible proporcionalmente.
  *  - El Organizador solo puede gestionar tandas de sus propios eventos.
+ *  - Cada entrada de una tanda consume 1 crédito: al crear, el cupo se descuenta del saldo;
+ *    al subir el cupo se cobra la diferencia, al bajarlo o eliminar la tanda se devuelve.
+ *    No se puede crear ni subir un cupo por encima del saldo disponible.
  */
 @Slf4j
 @Service
@@ -38,6 +43,9 @@ public class TandaService {
 
     private final TandaRepository tandaRepository;
     private final EventoRepository eventoRepository;
+    private final OrganizadorRepository organizadorRepository;
+    private final CreditoLedgerService creditoLedgerService;
+    private final CreditoService creditoService;
 
     // ─────────────────────────────────────────────
     // Consultas
@@ -79,12 +87,16 @@ public class TandaService {
         verificarEventoModificable(evento);
         validarVentana(dto, evento);
 
+        Organizador organizador = getOrganizadorOrThrow(idOrganizador);
+        verificarSaldoParaEntradas(organizador, dto.getCupoMaximo());
+
         Tanda tanda = new Tanda();
         tanda.setEvento(evento);
         mapDtoToTanda(dto, tanda);
 
         Tanda saved = tandaRepository.save(tanda);
-        log.info("Tanda creada: id={}, evento={}", saved.getId(), idEvento);
+        creditoLedgerService.registrarConsumoTanda(organizador, dto.getCupoMaximo(), idEvento);
+        log.info("Tanda creada: id={}, evento={}, créditos consumidos={}", saved.getId(), idEvento, dto.getCupoMaximo());
         return toResponseDTO(saved);
     }
 
@@ -116,6 +128,15 @@ public class TandaService {
             throw new BusinessRuleException(
                     "No podés reducir el cupo máximo por debajo de las entradas ya vendidas. " +
                     "Entradas vendidas: " + (tanda.getCupoMaximo() - tanda.getCupoDisponible()));
+        }
+
+        // Subir el cupo consume créditos extra; bajarlo devuelve la diferencia
+        Organizador organizador = getOrganizadorOrThrow(idOrganizador);
+        if (deltaMaximo > 0) {
+            verificarSaldoParaEntradas(organizador, deltaMaximo);
+            creditoLedgerService.registrarConsumoTanda(organizador, deltaMaximo, idEvento);
+        } else if (deltaMaximo < 0) {
+            creditoLedgerService.registrarDevolucionTanda(organizador, -deltaMaximo, idEvento);
         }
 
         mapDtoToTanda(dto, tanda);
@@ -158,6 +179,11 @@ public class TandaService {
                     "No podés eliminar la última — cancelá el evento si querés bajarlo.");
         }
 
+        // Sin entradas vendidas (verificado arriba): se devuelven todos los créditos de la tanda
+        if (tanda.getCupoMaximo() > 0) {
+            creditoLedgerService.registrarDevolucionTanda(
+                    getOrganizadorOrThrow(idOrganizador), tanda.getCupoMaximo(), idEvento);
+        }
         tandaRepository.delete(tanda);
         log.info("Tanda eliminada: id={}", idTanda);
     }
@@ -226,6 +252,25 @@ public class TandaService {
         tanda.setCupoMaximo(dto.getCupoMaximo());
         tanda.setFechaInicioVigencia(dto.getFechaInicioVigencia());
         tanda.setFechaFinVigencia(dto.getFechaFinVigencia());
+    }
+
+    private Organizador getOrganizadorOrThrow(Long idOrganizador) {
+        return organizadorRepository.findById(idOrganizador)
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+    }
+
+    /**
+     * Las entradas de la tanda se cubren con créditos. No puede haber más entradas que los
+     * créditos disponibles para entradas (saldo menos el costo reservado de publicar).
+     */
+    private void verificarSaldoParaEntradas(Organizador organizador, int cantidadEntradas) {
+        int disponible = creditoService.creditosDisponiblesParaEntradas(organizador);
+        if (cantidadEntradas > disponible) {
+            throw new BusinessRuleException(
+                    "No tenés créditos suficientes para " + cantidadEntradas + " entradas. " +
+                    "Disponibles para entradas: " + disponible + " (cada entrada consume 1 crédito; " +
+                    "se reserva el costo de publicar el evento).");
+        }
     }
 
     public TandaResponseDTO toResponseDTO(Tanda tanda) {

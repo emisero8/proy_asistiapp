@@ -2,6 +2,7 @@ package com.asistiapp.backend.services;
 
 import com.asistiapp.backend.exceptions.BusinessRuleException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
+import com.asistiapp.backend.models.dtos.credito.CreditosResumenResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoRequestDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.MovimientoCreditoResponseDTO;
@@ -40,6 +41,36 @@ public class CreditoService {
     private final TransaccionCreditoRepository transaccionCreditoRepository;
     private final MovimientoCreditoRepository movimientoCreditoRepository;
     private final CreditoLedgerService creditoLedgerService;
+    private final ConfiguracionService configuracionService;
+
+    /** Clave de configuración (Admin) y default del costo en créditos de publicar un evento. */
+    public static final String CLAVE_CREDITOS_POR_PUBLICACION = "creditos_por_publicacion";
+    public static final int CREDITOS_POR_PUBLICACION_DEFAULT = 1;
+
+    /** Créditos que cuesta publicar un evento (configurable por el Admin). */
+    public int obtenerCostoPublicacion() {
+        return configuracionService.obtenerEntero(CLAVE_CREDITOS_POR_PUBLICACION, CREDITOS_POR_PUBLICACION_DEFAULT);
+    }
+
+    /**
+     * Créditos que el Organizador puede usar para entradas de tandas. Se reserva el costo de
+     * publicar: si las tandas agotaran el saldo, el evento no podría publicarse después.
+     */
+    public int creditosDisponiblesParaEntradas(Organizador organizador) {
+        return Math.max(0, organizador.getSaldoCreditos() - obtenerCostoPublicacion());
+    }
+
+    /** Resumen para el Dashboard y el armado de tandas: saldo, costo de publicar y disponible para entradas. */
+    @Transactional(readOnly = true)
+    public CreditosResumenResponseDTO obtenerResumen(Long idOrganizador) {
+        Organizador organizador = organizadorRepository.findById(idOrganizador)
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        int costo = obtenerCostoPublicacion();
+        return new CreditosResumenResponseDTO(
+                organizador.getSaldoCreditos(),
+                costo,
+                creditosDisponiblesParaEntradas(organizador));
+    }
 
     @Transactional
     public IniciarCompraCreditoResponseDTO iniciarCompraCredito(IniciarCompraCreditoRequestDTO dto, Long idOrganizador) {

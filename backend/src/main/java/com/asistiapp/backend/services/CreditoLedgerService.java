@@ -38,6 +38,18 @@ public class CreditoLedgerService {
         return registrarMovimiento(organizador, TipoMovimiento.Consumo_Publicacion, -monto, null, idEvento);
     }
 
+    /** Cada entrada de una tanda consume 1 crédito: el cupo de la tanda se descuenta del saldo. */
+    @Transactional
+    public MovimientoCredito registrarConsumoTanda(Organizador organizador, int cantidadEntradas, Long idEvento) {
+        return registrarMovimiento(organizador, TipoMovimiento.Consumo_Tanda, -cantidadEntradas, null, idEvento);
+    }
+
+    /** Devuelve créditos cuando baja el cupo de una tanda o se elimina la tanda sin ventas. */
+    @Transactional
+    public MovimientoCredito registrarDevolucionTanda(Organizador organizador, int cantidadEntradas, Long idEvento) {
+        return registrarMovimiento(organizador, TipoMovimiento.Devolucion_Tanda, cantidadEntradas, null, idEvento);
+    }
+
     private MovimientoCredito registrarMovimiento(Organizador organizador, TipoMovimiento tipo, int montoSigned,
                                                     Long idTransaccionCredito, Long idEvento) {
         int nuevoSaldo = organizador.getSaldoCreditos() + montoSigned;

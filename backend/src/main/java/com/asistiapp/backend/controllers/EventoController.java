@@ -4,6 +4,7 @@ import com.asistiapp.backend.models.dtos.evento.EventoRequestDTO;
 import com.asistiapp.backend.models.dtos.evento.EventoResponseDTO;
 import com.asistiapp.backend.models.dtos.evento.ImagenSubidaResponseDTO;
 import com.asistiapp.backend.models.dtos.metricas.EventoMetricasResponseDTO;
+import com.asistiapp.backend.models.dtos.metricas.ResumenOrganizadorResponseDTO;
 import com.asistiapp.backend.models.entities.Organizador;
 import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.security.SecurityUtils;
@@ -113,6 +114,13 @@ public class EventoController {
     public ResponseEntity<EventoResponseDTO> cancelarEvento(@PathVariable Long id) {
         Organizador org = securityUtils.getOrganizadorAutenticado();
         return ResponseEntity.ok(eventoService.cancelarEvento(id, org.getId()));
+    }
+
+    /** Resumen general del Dashboard del Organizador: todos sus eventos en una sola respuesta. */
+    @GetMapping("/resumen")
+    public ResponseEntity<ResumenOrganizadorResponseDTO> obtenerResumen() {
+        Organizador org = securityUtils.getOrganizadorAutenticado();
+        return ResponseEntity.ok(metricasOrganizadorService.obtenerResumen(org));
     }
 
     /** Dashboard en tiempo real del evento: vendidas, ingresos, aforo (CU-012). */
