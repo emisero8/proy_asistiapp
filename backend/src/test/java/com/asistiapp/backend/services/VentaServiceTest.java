@@ -194,7 +194,7 @@ class VentaServiceTest {
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
         assertThat(transaccion.getMercadopagoPaymentId()).isEqualTo("999");
         verify(emailService).enviarConfirmacionCompra(
-                eq(transaccion.getEmailComprador()), eq(transaccion.getNombreComprador()), any(), any(), any());
+                eq(transaccion.getEmailComprador()), eq(transaccion.getNombreComprador()), any(), any(), any(), any());
     }
 
     // ─────────────────────────────────────────────
