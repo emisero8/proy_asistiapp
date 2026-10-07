@@ -7,7 +7,7 @@ import { fmt, hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
 import { validarTandaContraEvento } from "./WizardPage";
-import type { EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
+import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
 
@@ -65,6 +65,7 @@ export function OrganizadorEditEventPage() {
 
   const [tandas, setTandas] = useState<EditTanda[]>([]);
   const [busyTanda, setBusyTanda] = useState<number | "nueva" | null>(null);
+  const [resumen, setResumen] = useState<CreditosResumenResponseDTO | null>(null);
 
   const hoyStr = hoyLocal();
 
@@ -79,6 +80,13 @@ export function OrganizadorEditEventPage() {
     setImg(ev.imagenPortadaUrl ?? "");
     setTandas(ev.tandas.map(tandaFromResponse));
   }
+
+  useEffect(() => {
+    api
+      .get<CreditosResumenResponseDTO>("/creditos/resumen")
+      .then(setResumen)
+      .catch(() => setResumen(null));
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -96,6 +104,21 @@ export function OrganizadorEditEventPage() {
 
   function updateTanda(idx: number, field: keyof EditTanda, val: string) {
     setTandas((ts) => ts.map((t, i) => (i === idx ? { ...t, [field]: val } : t)));
+  }
+
+  /**
+   * Créditos que consume guardar esta tanda: una tanda nueva consume todo su cupo; una existente,
+   * solo la diferencia si sube el cupo (si baja, devuelve créditos y no consume nada).
+   */
+  function entradasNuevasDe(t: EditTanda): number {
+    const cupo = Number(t.cupoMaximo) || 0;
+    if (t.id === null) return cupo;
+    const original = evento?.tandas.find((x) => x.id === t.id);
+    return Math.max(0, cupo - (original?.cupoMaximo ?? 0));
+  }
+
+  function excedeCreditos(t: EditTanda): boolean {
+    return resumen !== null && entradasNuevasDe(t) > resumen.disponibleParaEntradas;
   }
 
   function vendidasDe(t: EditTanda): number {
@@ -161,6 +184,10 @@ export function OrganizadorEditEventPage() {
     if (!t.nombre || !t.precio || !t.cupoMaximo || tandaErrors[idx]) return;
     if (t.id !== null && Number(t.cupoMaximo) < vendidasDe(t)) {
       setError(`No podés bajar el cupo de "${t.nombre}" por debajo de las ${vendidasDe(t)} entradas ya vendidas.`);
+      return;
+    }
+    if (resumen && excedeCreditos(t)) {
+      setError(`Esta tanda necesita ${entradasNuevasDe(t)} crédito(s) y tenés ${resumen.disponibleParaEntradas} disponible(s) para entradas.`);
       return;
     }
     setBusyTanda(t.id ?? "nueva");
@@ -441,8 +468,13 @@ export function OrganizadorEditEventPage() {
                       {tandaErrors[i]}
                     </p>
                   )}
+                  {excedeCreditos(t) && resumen && (
+                    <p className="text-[11px] text-destructive mb-2">
+                      Necesitás {entradasNuevasDe(t)} crédito(s) y tenés {resumen.disponibleParaEntradas} disponible(s) para entradas.
+                    </p>
+                  )}
                   <button
-                    disabled={busyTanda !== null || !t.nombre || !t.precio || !t.cupoMaximo || !!tandaErrors[i]}
+                    disabled={busyTanda !== null || !t.nombre || !t.precio || !t.cupoMaximo || !!tandaErrors[i] || excedeCreditos(t)}
                     onClick={() => guardarTanda(i)}
                     className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
                       busyTanda === null && t.nombre && t.precio && t.cupoMaximo && !tandaErrors[i]
@@ -467,7 +499,7 @@ export function OrganizadorEditEventPage() {
 
           {evento.estado === "Borrador" && !esAdmin && (
             <p className="text-[11px] text-muted-foreground mt-4">
-              Este evento todavía está en borrador. El organizador lo publica desde su panel (consume 1 crédito).
+              Este evento todavía está en borrador. El organizador lo publica desde su panel (consume créditos según la configuración).
             </p>
           )}
         </>

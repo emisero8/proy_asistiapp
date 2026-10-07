@@ -5,7 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import { hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
-import type { EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
+import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface WizardTanda {
@@ -45,13 +45,14 @@ export function OrganizadorWizardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [movimiento, setMovimiento] = useState<MovimientoCreditoResponseDTO | null>(null);
-  const [saldo, setSaldo] = useState<number | null>(null);
+  const [resumen, setResumen] = useState<CreditosResumenResponseDTO | null>(null);
+  const saldo = resumen?.saldo ?? null;
 
   useEffect(() => {
     api
-      .get<MovimientoCreditoResponseDTO[]>("/creditos/historial")
-      .then((h) => setSaldo(h[0]?.saldoResultante ?? 0))
-      .catch(() => setSaldo(0));
+      .get<CreditosResumenResponseDTO>("/creditos/resumen")
+      .then(setResumen)
+      .catch(() => setResumen({ saldo: 0, costoPublicacion: 1, disponibleParaEntradas: 0 }));
   }, []);
 
   const [title, setTitle] = useState("");
@@ -73,11 +74,17 @@ export function OrganizadorWizardPage() {
   const step1Valid = title.trim() && date && time && venue.trim() && !fechaEnPasado;
 
   const tandaErrors = tandas.map((t) => validarTandaContraEvento(t, date));
-  const sinCreditos = saldo !== null && saldo < 1;
+  // Publicar cuesta créditos: sin saldo para ese costo no se puede publicar (ni armar tandas)
+  const sinCreditos = resumen !== null && resumen.saldo < resumen.costoPublicacion;
+  // Cada entrada consume 1 crédito del disponible para entradas (saldo menos el costo reservado de publicar)
+  const disponibleEntradas = resumen?.disponibleParaEntradas ?? null;
+  const totalEntradas = tandas.reduce((suma, t) => suma + (Number(t.cupoMaximo) || 0), 0);
+  const excedeCreditos = disponibleEntradas !== null && totalEntradas > disponibleEntradas;
   const step2Valid =
     tandas.every((t) => t.nombre && t.precio && t.cupoMaximo) &&
     tandaErrors.every((e) => e === null) &&
-    !sinCreditos;
+    !sinCreditos &&
+    !excedeCreditos;
 
   async function handleNext() {
     setLoading(true);
@@ -264,6 +271,13 @@ export function OrganizadorWizardPage() {
         {step === 2 && (
           <>
             <p className="text-xs text-muted-foreground">Configurá las tandas de precios y sus cupos.</p>
+            {resumen && (
+              <p className={`text-xs mt-1 ${excedeCreditos ? "text-destructive" : "text-muted-foreground"}`}>
+                {excedeCreditos
+                  ? `Las entradas suman ${totalEntradas} y tenés ${disponibleEntradas} crédito(s) disponible(s) para entradas. Bajá algún cupo.`
+                  : `Tenés ${disponibleEntradas} crédito(s) disponible(s) para entradas: cada entrada consume 1. Se reservan ${resumen.costoPublicacion} para publicar.`}
+              </p>
+            )}
             {tandas.map((t, i) => (
               <div key={t.id} className={`bg-card border rounded-2xl p-4 space-y-3 ${tandaErrors[i] ? "border-red-500/50" : "border-border"}`}>
                 <div className="flex items-center justify-between">
@@ -351,7 +365,7 @@ export function OrganizadorWizardPage() {
                 <div className="text-xs">
                   <p className="text-foreground font-semibold">No te alcanzan los créditos para publicar.</p>
                   <p className="text-muted-foreground mt-0.5">
-                    Publicar consume al menos 1 crédito y tu saldo es {saldo}.{" "}
+                    Publicar consume {resumen?.costoPublicacion ?? 1} crédito(s) y tu saldo es {saldo}.{" "}
                     <button
                       type="button"
                       onClick={() => navigate("/organizador/creditos")}
@@ -366,7 +380,7 @@ export function OrganizadorWizardPage() {
               <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-3 flex gap-3">
                 <CircleDollarSign size={16} className="text-primary flex-none mt-0.5" />
                 <p className="text-xs text-foreground">
-                  Publicar consume 1 crédito.{saldo !== null && ` Tenés ${saldo} disponible${saldo === 1 ? "" : "s"}.`}
+                  Publicar consume {resumen?.costoPublicacion ?? 1} crédito(s).{saldo !== null && ` Tenés ${saldo} disponible${saldo === 1 ? "" : "s"}.`}
                 </p>
               </div>
             )}

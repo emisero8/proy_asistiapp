@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizadorEditEventPage } from "./EditEventPage";
 import { DialogProvider } from "../../components/DialogProvider";
 import { api, ApiError } from "../../lib/api";
+
+/** GET /creditos/resumen: siempre responde el saldo; el resto de los GET consume la cola de cada test. */
+const RESUMEN_CREDITOS = { saldo: 500, costoPublicacion: 1, disponibleParaEntradas: 499 };
+let colaGet: unknown[] = [];
+function responderGets(...valores: unknown[]) {
+  colaGet = [...valores];
+}
 import type { EventoResponseDTO, TandaResponseDTO } from "../../lib/types";
 
 const auth = vi.hoisted(() => ({ rol: "Organizador" as "Organizador" | "Administrador" }));
@@ -68,6 +75,13 @@ async function cargado() {
 
 beforeEach(() => {
   auth.rol = "Organizador";
+  colaGet = [];
+  vi.mocked(api.get).mockImplementation(async (path: string) => {
+    if (path === "/creditos/resumen") return RESUMEN_CREDITOS;
+    const siguiente = colaGet.shift();
+    if (siguiente instanceof Error) throw siguiente;
+    return siguiente;
+  });
 });
 
 afterEach(() => {
@@ -79,7 +93,7 @@ afterEach(() => {
 
 describe("OrganizadorEditEventPage — carga", () => {
   it("carga el evento y vuelca sus datos y tandas en el formulario", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO);
+    responderGets(EVENTO);
     renderPage();
     await cargado();
 
@@ -94,7 +108,7 @@ describe("OrganizadorEditEventPage — carga", () => {
 
   it("el Organizador usa /eventos/* y el Admin /admin/eventos/* (sin chequeo de propiedad)", async () => {
     auth.rol = "Administrador";
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO);
+    responderGets(EVENTO);
     renderPage();
     await cargado();
 
@@ -103,7 +117,7 @@ describe("OrganizadorEditEventPage — carga", () => {
   });
 
   it("muestra el mensaje del backend si no se puede cargar el evento", async () => {
-    vi.mocked(api.get).mockRejectedValueOnce(apiError("Evento no encontrado", 404));
+    responderGets(apiError("Evento no encontrado", 404));
     renderPage();
 
     expect(await screen.findByText("Evento no encontrado")).toBeInTheDocument();
@@ -111,7 +125,7 @@ describe("OrganizadorEditEventPage — carga", () => {
   });
 
   it("un evento cancelado no se puede editar: avisa y no muestra el formulario", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce({ ...EVENTO, estado: "Cancelado" });
+    responderGets({ ...EVENTO, estado: "Cancelado" });
     renderPage();
 
     expect(await screen.findByText("Este evento está cancelado. No se puede editar.")).toBeInTheDocument();
@@ -123,7 +137,7 @@ describe("OrganizadorEditEventPage — carga", () => {
 describe("OrganizadorEditEventPage — datos del evento", () => {
   it("guarda los datos: PUT con el payload normalizado y confirma", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO);
+    responderGets(EVENTO);
     vi.mocked(api.put).mockResolvedValueOnce({ ...EVENTO, nombre: "Nombre Nuevo" });
     renderPage();
     await cargado();
@@ -148,7 +162,7 @@ describe("OrganizadorEditEventPage — datos del evento", () => {
   });
 
   it("con la fecha en el pasado avisa y deshabilita 'Guardar datos'", async () => {
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO);
+    responderGets(EVENTO);
     const { container } = renderPage();
     await cargado();
 
@@ -160,7 +174,7 @@ describe("OrganizadorEditEventPage — datos del evento", () => {
 
   it("si el backend rechaza el guardado muestra su mensaje", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO);
+    responderGets(EVENTO);
     vi.mocked(api.put).mockRejectedValueOnce(apiError("No se puede editar un evento cancelado"));
     renderPage();
     await cargado();
@@ -175,7 +189,7 @@ describe("OrganizadorEditEventPage — datos del evento", () => {
 describe("OrganizadorEditEventPage — tandas", () => {
   it("el cupo no puede bajar de lo ya vendido: avisa y bloquea 'Guardar tanda'", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO);
+    responderGets(EVENTO);
     renderPage();
     await cargado();
 
@@ -190,7 +204,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
   it("guarda una tanda existente con PUT y recarga el evento", async () => {
     const user = userEvent.setup();
     const actualizado = { ...EVENTO, tandas: [{ ...TANDA, precio: 6500 }] };
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO).mockResolvedValueOnce(actualizado);
+    responderGets(EVENTO, actualizado);
     vi.mocked(api.put).mockResolvedValueOnce({});
     renderPage();
     await cargado();
@@ -214,7 +228,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
   it("agrega una tanda nueva y la crea con POST", async () => {
     const user = userEvent.setup();
     const conNueva = { ...EVENTO, tandas: [TANDA, { ...TANDA, id: 12, nombre: "VIP", precio: 9000 }] };
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO).mockResolvedValueOnce(conNueva);
+    responderGets(EVENTO, conNueva);
     vi.mocked(api.post).mockResolvedValueOnce({});
     renderPage();
     await cargado();
@@ -238,7 +252,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
 
   it("eliminar una tanda nueva sin guardar la quita al instante, sin confirmar ni llamar a la API", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO);
+    responderGets(EVENTO);
     renderPage();
     await cargado();
 
@@ -252,7 +266,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
 
   it("eliminar una tanda guardada pide confirmación: cancelar no borra, confirmar sí y recarga", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO).mockResolvedValueOnce({ ...EVENTO, tandas: [] });
+    responderGets(EVENTO, { ...EVENTO, tandas: [] });
     vi.mocked(api.delete).mockResolvedValueOnce(undefined);
     renderPage();
     await cargado();
@@ -277,7 +291,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
 
   it("si el backend rechaza eliminar la tanda (ej. ya tiene ventas) muestra su mensaje y la tanda sigue", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(EVENTO);
+    responderGets(EVENTO);
     vi.mocked(api.delete).mockRejectedValueOnce(apiError("No se puede eliminar una tanda con entradas vendidas"));
     renderPage();
     await cargado();

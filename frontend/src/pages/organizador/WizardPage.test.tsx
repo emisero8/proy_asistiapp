@@ -16,6 +16,18 @@ vi.mock("../../components/EventMap", () => ({ MapPicker: () => <div data-testid=
 
 const FUTURO = "2099-12-31";
 
+/** Respuesta de GET /creditos/resumen con la regla real: se reserva 1 crédito para publicar. */
+function resumenDe(saldo: number) {
+  return { saldo, costoPublicacion: 1, disponibleParaEntradas: Math.max(0, saldo - 1) };
+}
+
+/** Saldo del Organizador: /creditos/resumen para el armado y /creditos/historial para el resto. */
+function mockCreditos(saldo: number) {
+  vi.mocked(api.get).mockImplementation(async (path: string) =>
+    path === "/creditos/resumen" ? resumenDe(saldo) : [movimiento(saldo)],
+  );
+}
+
 function movimiento(saldoResultante: number, monto = 0): MovimientoCreditoResponseDTO {
   return { id: 1, tipoMovimiento: "Consumo_Publicacion", monto, saldoResultante, fechaMovimiento: "2026-01-01T00:00:00", idTransaccionCredito: null, idEvento: null };
 }
@@ -110,7 +122,7 @@ describe("validarTandaContraEvento", () => {
 describe("OrganizadorWizardPage — paso 1", () => {
   it("con una fecha en el pasado avisa y no deja avanzar", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     const { container } = renderWizard();
 
     await completarPaso1(container, user, "2020-01-01");
@@ -121,7 +133,7 @@ describe("OrganizadorWizardPage — paso 1", () => {
 
   it("con los datos obligatorios completos habilita el botón; sin ellos no", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     const { container } = renderWizard();
     const siguiente = screen.getByRole("button", { name: /Siguiente: configurar tandas/ });
 
@@ -132,7 +144,7 @@ describe("OrganizadorWizardPage — paso 1", () => {
 
   it("crea el borrador con los datos del formulario y pasa al paso 2", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     const { container } = renderWizard();
 
     await avanzarAlPaso2(container, user);
@@ -151,7 +163,7 @@ describe("OrganizadorWizardPage — paso 1", () => {
 
   it("si el backend rechaza el evento muestra su mensaje y se queda en el paso 1", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     vi.mocked(api.post).mockRejectedValueOnce(apiError("Ya existe un evento con ese nombre"));
     const { container } = renderWizard();
 
@@ -164,7 +176,7 @@ describe("OrganizadorWizardPage — paso 1", () => {
 
   it("si volvés del paso 2 y avanzás de nuevo, actualiza el borrador en vez de crear otro", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     vi.mocked(api.put).mockResolvedValueOnce({ id: 77 });
     const { container } = renderWizard();
 
@@ -181,7 +193,7 @@ describe("OrganizadorWizardPage — paso 1", () => {
 describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
   it("'Publicar evento' queda deshabilitado hasta completar nombre, precio y cupo de la tanda", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     const { container } = renderWizard();
     await avanzarAlPaso2(container, user);
 
@@ -193,7 +205,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("muestra el aviso y bloquea publicar si la venta cierra después de la fecha del evento", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     const { container } = renderWizard();
     await avanzarAlPaso2(container, user);
     await completarTanda(user);
@@ -206,7 +218,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("sin créditos avisa cuánto saldo hay, ofrece comprarlos y bloquea publicar", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(0)]);
+    mockCreditos(0);
     const { container } = renderWizard();
     await avanzarAlPaso2(container, user);
     await completarTanda(user);
@@ -217,9 +229,20 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
   });
 
+  it("las entradas no pueden superar los créditos disponibles para entradas (se reserva el costo de publicar)", async () => {
+    const user = userEvent.setup();
+    mockCreditos(50); // disponible para entradas: 49
+    const { container } = renderWizard();
+    await avanzarAlPaso2(container, user);
+    await completarTanda(user, "Anticipada", "12000", "200");
+
+    expect(screen.getByText(/Las entradas suman 200 y tenés 49 crédito\(s\) disponible\(s\)/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
+  });
+
   it("agregar y eliminar tandas: solo se puede eliminar si queda más de una", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     const { container } = renderWizard();
     await avanzarAlPaso2(container, user);
 
@@ -235,7 +258,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
   it("publica: crea cada tanda, publica y muestra los créditos consumidos y el saldo restante", async () => {
     const user = userEvent.setup();
     vi.mocked(api.get)
-      .mockResolvedValueOnce([movimiento(5)]) // saldo al montar
+      .mockResolvedValueOnce(resumenDe(500)) // saldo al montar
       .mockResolvedValueOnce([movimiento(4, 1)]); // historial tras publicar
     vi.mocked(api.patch).mockResolvedValueOnce({});
     const { container } = renderWizard();
@@ -260,7 +283,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("si la venta cierra el mismo día del evento, cierra a la hora del evento y no a las 23:59", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce([movimiento(5)]).mockResolvedValueOnce([movimiento(4, 1)]);
+    vi.mocked(api.get).mockResolvedValueOnce(resumenDe(500)).mockResolvedValueOnce([movimiento(4, 1)]);
     vi.mocked(api.patch).mockResolvedValueOnce({});
     const { container } = renderWizard();
     await avanzarAlPaso2(container, user);
@@ -276,7 +299,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("si la publicación falla (ej. saldo insuficiente en el backend) muestra el error y no muestra éxito", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValue([movimiento(5)]);
+    mockCreditos(500);
     vi.mocked(api.patch).mockRejectedValueOnce(apiError("Créditos insuficientes", 402));
     const { container } = renderWizard();
     await avanzarAlPaso2(container, user);

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Sparkles, Ticket, TrendingUp, ShieldCheck, Pencil, ExternalLink, Ban, Plus, ChevronRight, Search } from "lucide-react";
+import { Sparkles, Ticket, TrendingUp, ShieldCheck, Pencil, ExternalLink, Ban, Plus, ChevronRight, Search, Wallet, CircleDollarSign, CalendarDays, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt, formatFecha } from "../../lib/format";
-import type { EventoMetricasResponseDTO, EventoResponseDTO, EstadoEvento } from "../../lib/types";
+import type { EventoResponseDTO, EstadoEvento, ResumenOrganizadorResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
 
@@ -15,6 +15,39 @@ const ESTADO_BADGE: Record<EstadoEvento, string> = {
   Cancelado: "bg-red-400/15 text-red-400",
 };
 
+/** Días que faltan para una fecha (YYYY-MM-DD), en texto corto. */
+function diasHasta(fecha: string): string {
+  const [y, m, d] = fecha.split("-").map(Number);
+  const hoy = new Date();
+  const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+  const dias = Math.round((new Date(y, m - 1, d).getTime() - inicioHoy) / 86400000);
+  if (dias <= 0) return "Hoy";
+  if (dias === 1) return "Mañana";
+  return `En ${dias} días`;
+}
+
+interface MetricaCardProps {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  strong?: boolean;
+  sub?: string;
+}
+
+function MetricaCard({ label, value, icon: Icon, strong, sub }: MetricaCardProps) {
+  return (
+    <div className={`rounded-2xl border p-4 min-w-0 ${strong ? "border-primary/30 bg-primary/[0.08]" : "border-border bg-card"}`}>
+      <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
+        <Icon size={13} />
+        <span className="text-[10px] font-semibold uppercase tracking-wider hidden sm:inline">{label}</span>
+      </div>
+      <p className={`text-lg lg:text-xl font-extrabold ${strong ? "text-primary" : "text-foreground"}`}>{value}</p>
+      {sub && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{sub}</p>}
+      <p className="text-[10px] text-muted-foreground mt-0.5 sm:hidden">{label}</p>
+    </div>
+  );
+}
+
 export function OrganizadorDashboardPage() {
   useDocumentTitle("Panel del organizador");
   const { confirm } = useDialog();
@@ -22,37 +55,21 @@ export function OrganizadorDashboardPage() {
   const { session } = useAuth();
 
   const [eventos, setEventos] = useState<EventoResponseDTO[] | null>(null);
-  const [totales, setTotales] = useState<{ vendidas: number; ingresos: number; validadas: number } | null>(null);
+  const [resumenGeneral, setResumenGeneral] = useState<ResumenOrganizadorResponseDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelandoId, setCancelandoId] = useState<number | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<"todos" | EstadoEvento>("todos");
 
   function cargar() {
-    api
-      .get<EventoResponseDTO[]>("/eventos")
-      .then(async (lista) => {
+    // Dos llamadas en paralelo: la lista (para "Mis eventos") y el resumen calculado en el backend
+    Promise.all([
+      api.get<EventoResponseDTO[]>("/eventos"),
+      api.get<ResumenOrganizadorResponseDTO>("/eventos/resumen").catch(() => null),
+    ])
+      .then(([lista, resumenApi]) => {
         setEventos(lista);
-        const publicados = lista.filter((e) => e.estado === "Publicado");
-        if (publicados.length === 0) {
-          setTotales({ vendidas: 0, ingresos: 0, validadas: 0 });
-          return;
-        }
-        const metricas = await Promise.all(
-          publicados.map((e) =>
-            api.get<EventoMetricasResponseDTO>(`/eventos/${e.id}/metricas`).catch(() => null),
-          ),
-        );
-        setTotales(
-          metricas.reduce(
-            (acc, m) => ({
-              vendidas: acc.vendidas + (m?.entradasVendidas ?? 0),
-              ingresos: acc.ingresos + (m?.ingresosTotales ?? 0),
-              validadas: acc.validadas + (m?.entradasValidadas ?? 0),
-            }),
-            { vendidas: 0, ingresos: 0, validadas: 0 },
-          ),
-        );
+        setResumenGeneral(resumenApi);
       })
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar tu panel."));
   }
@@ -89,16 +106,30 @@ export function OrganizadorDashboardPage() {
     return ev.nombre.toLowerCase().includes(termino) || ev.lugar.toLowerCase().includes(termino);
   });
 
-  const publicadosCount = (eventos ?? []).filter((e) => e.estado === "Publicado").length;
-
-  const resumen =
-    totales && publicadosCount > 0
+  // Métricas de ventas: solo cuando hay eventos publicados
+  const metricasVentas =
+    resumenGeneral && resumenGeneral.eventosPublicados > 0
       ? [
-          { label: "Entradas vendidas", value: String(totales.vendidas), icon: Ticket },
-          { label: "Ingresos totales", value: fmt(totales.ingresos), icon: TrendingUp, strong: true },
-          { label: "Validadas en puerta", value: String(totales.validadas), icon: ShieldCheck },
+          { label: "Entradas vendidas", value: String(resumenGeneral.entradasVendidas), icon: Ticket },
+          { label: "Ingresos totales", value: fmt(resumenGeneral.ingresosTotales), icon: TrendingUp, strong: true },
+          { label: "Validadas en puerta", value: String(resumenGeneral.entradasValidadas), icon: ShieldCheck },
         ]
       : [];
+
+  // Créditos y próximo evento: siempre que el resumen haya llegado
+  const proximo = resumenGeneral?.proximoEvento ?? null;
+  const metricasCreditos = resumenGeneral
+    ? [
+        { label: "Créditos disponibles", value: String(resumenGeneral.saldoCreditos), icon: Wallet },
+        { label: "Créditos usados", value: String(resumenGeneral.creditosConsumidos), icon: CircleDollarSign },
+        {
+          label: "Próximo evento",
+          value: proximo ? diasHasta(proximo.fechaEvento) : "—",
+          sub: proximo?.nombre ?? "Sin eventos próximos",
+          icon: CalendarDays,
+        },
+      ]
+    : [];
 
   function vendidasEvento(ev: EventoResponseDTO): number {
     return ev.tandas.reduce((acc, t) => acc + (t.cupoMaximo - t.cupoDisponible), 0);
@@ -139,18 +170,18 @@ export function OrganizadorDashboardPage() {
         </div>
       )}
 
-      {/* Resumen global */}
-      {resumen.length > 0 && (
+      {/* Resumen global: ventas y créditos */}
+      {metricasVentas.length > 0 && (
         <section className="grid grid-cols-3 gap-3">
-          {resumen.map((s) => (
-            <div key={s.label} className={`rounded-2xl border p-4 ${s.strong ? "border-primary/30 bg-primary/[0.08]" : "border-border bg-card"}`}>
-              <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
-                <s.icon size={13} />
-                <span className="text-[10px] font-semibold uppercase tracking-wider hidden sm:inline">{s.label}</span>
-              </div>
-              <p className={`text-lg lg:text-xl font-extrabold ${s.strong ? "text-primary" : "text-foreground"}`}>{s.value}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 sm:hidden">{s.label}</p>
-            </div>
+          {metricasVentas.map((s) => (
+            <MetricaCard key={s.label} {...s} />
+          ))}
+        </section>
+      )}
+      {metricasCreditos.length > 0 && (
+        <section className="grid grid-cols-3 gap-3">
+          {metricasCreditos.map((s) => (
+            <MetricaCard key={s.label} {...s} />
           ))}
         </section>
       )}

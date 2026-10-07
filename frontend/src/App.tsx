@@ -19,6 +19,7 @@ const OrganizadorDashboardPage = lazy(() => import("./pages/organizador/Dashboar
 const OrganizadorWizardPage = lazy(() => import("./pages/organizador/WizardPage").then((m) => ({ default: m.OrganizadorWizardPage })));
 const OrganizadorEditEventPage = lazy(() => import("./pages/organizador/EditEventPage").then((m) => ({ default: m.OrganizadorEditEventPage })));
 const OrganizadorEventoDetallePage = lazy(() => import("./pages/organizador/EventoDetallePage").then((m) => ({ default: m.OrganizadorEventoDetallePage })));
+const OrganizadorPerfilPage = lazy(() => import("./pages/organizador/PerfilPage").then((m) => ({ default: m.OrganizadorPerfilPage })));
 const OrganizadorWalletPage = lazy(() => import("./pages/organizador/WalletPage").then((m) => ({ default: m.OrganizadorWalletPage })));
 const OrganizadorStaffMgmtPage = lazy(() => import("./pages/organizador/StaffMgmtPage").then((m) => ({ default: m.OrganizadorStaffMgmtPage })));
 
@@ -78,6 +79,7 @@ function AnimatedRoutes() {
           <Route path="/organizador/eventos/:id/editar" element={<OrganizadorEditEventPage />} />
           <Route path="/organizador/creditos" element={<OrganizadorWalletPage />} />
           <Route path="/organizador/staff" element={<OrganizadorStaffMgmtPage />} />
+          <Route path="/organizador/perfil" element={<OrganizadorPerfilPage />} />
         </Route>
 
         {/* Staff (QR y Vendedor) */}

@@ -14,6 +14,8 @@ const TIPO_LABEL: Record<string, string> = {
   Bienvenida: "Créditos de bienvenida",
   Recarga: "Recarga de créditos",
   Consumo_Publicacion: "Publicación de evento",
+  Consumo_Tanda: "Entradas de tanda",
+  Devolucion_Tanda: "Devolución de tanda",
 };
 
 export function OrganizadorWalletPage() {

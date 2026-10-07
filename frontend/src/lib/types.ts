@@ -8,7 +8,26 @@ export type EstadoUsuario = "Activo" | "Suspendido" | "Inactivo";
 export type EstadoEvento = "Borrador" | "Publicado" | "Cancelado";
 export type EstadoEntrada = "Pagada" | "Usada";
 export type CanalVenta = "Online" | "Manual";
-export type TipoMovimiento = "Bienvenida" | "Recarga" | "Consumo_Publicacion";
+export type TipoMovimiento = "Bienvenida" | "Recarga" | "Consumo_Publicacion" | "Consumo_Tanda" | "Devolucion_Tanda";
+
+/** GET /eventos/resumen: métricas generales del Organizador (todos sus eventos). */
+export interface ResumenOrganizadorResponseDTO {
+  eventosPublicados: number;
+  eventosBorrador: number;
+  entradasVendidas: number;
+  entradasValidadas: number;
+  ingresosTotales: number;
+  creditosConsumidos: number;
+  saldoCreditos: number;
+  proximoEvento: { id: number; nombre: string; fechaEvento: string } | null;
+}
+
+/** GET /creditos/resumen: saldo, costo de publicar y créditos disponibles para entradas de tandas. */
+export interface CreditosResumenResponseDTO {
+  saldo: number;
+  costoPublicacion: number;
+  disponibleParaEntradas: number;
+}
 export type EstadoTransaccion = "Pendiente" | "Aprobada" | "Rechazada";
 export type EstadoPaquete = "Activo" | "Deshabilitado";
 
@@ -21,6 +40,25 @@ export interface AuthResponseDTO {
   nombre: string;
   email: string;
   rol: RolUsuario;
+  fotoPerfilUrl?: string | null;
+}
+
+/** Perfil del Organizador autenticado (GET/PUT /organizador/perfil). */
+export interface PerfilResponseDTO {
+  id: number;
+  nombre: string;
+  email: string;
+  fotoPerfilUrl: string | null;
+}
+
+export interface PerfilRequestDTO {
+  nombre: string;
+  fotoPerfilUrl: string | null;
+}
+
+export interface CambiarPasswordRequestDTO {
+  passwordActual: string;
+  passwordNueva: string;
 }
 
 export interface LoginRequestDTO {

@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
-import { LayoutDashboard, Sparkles, Wallet, Users, LogOut } from "lucide-react";
+import { LayoutDashboard, Sparkles, Wallet, Users, LogOut, UserRound } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 
 const TABS = [
@@ -8,6 +8,20 @@ const TABS = [
   { to: "/organizador/creditos", label: "Créditos", Icon: Wallet },
   { to: "/organizador/staff", label: "Staff", Icon: Users },
 ];
+
+// En mobile el perfil va como quinta pestaña de la barra inferior (no hay sidebar).
+const MOBILE_TABS = [...TABS, { to: "/organizador/perfil", label: "Perfil", Icon: UserRound }];
+
+/** Foto de perfil o, si no hay, la inicial del nombre. */
+function Avatar({ nombre, foto }: { nombre?: string; foto?: string | null }) {
+  return foto ? (
+    <img src={foto} alt="" className="w-7 h-7 rounded-full object-cover flex-none bg-muted" />
+  ) : (
+    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground flex-none">
+      {nombre?.charAt(0) ?? "O"}
+    </div>
+  );
+}
 
 export function OrganizadorLayout() {
   const { session, logout } = useAuth();
@@ -57,13 +71,16 @@ export function OrganizadorLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="px-4 pb-5 relative">
-          <div className="flex items-center gap-2.5 px-1">
-            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground flex-none">
-              {session?.nombre?.charAt(0) ?? "O"}
-            </div>
+        <div className="px-3 pb-5 relative">
+          <button
+            type="button"
+            onClick={() => navigate("/organizador/perfil")}
+            aria-label="Ver mi perfil"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-muted transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          >
+            <Avatar nombre={session?.nombre} foto={session?.fotoPerfilUrl} />
             <p className="text-xs font-semibold text-foreground truncate">{session?.nombre}</p>
-          </div>
+          </button>
         </div>
       </aside>
 
@@ -71,8 +88,8 @@ export function OrganizadorLayout() {
 
       {/* Bottom tab bar — mobile only */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-md">
-        <div className="max-w-md mx-auto grid grid-cols-4">
-          {TABS.map(({ to, label, Icon }) => (
+        <div className="max-w-md mx-auto grid grid-cols-5">
+          {MOBILE_TABS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
