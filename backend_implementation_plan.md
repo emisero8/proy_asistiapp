@@ -340,3 +340,32 @@ Cada fase está marcada con su prioridad:
 ### 19.5 — Instancia vieja del backend ocupando el 8080 ⚠️ (operativo, no es código)
 - Al levantar el backend con `mvn spring-boot:run`, si quedó otra instancia de una sesión anterior en el 8080, el nuevo arranque falla con "Port 8080 was already in use" y se sigue probando contra código viejo.
 - **Cómo verificar:** `netstat -ano | findstr :8080` y cerrar ese proceso antes de levantar.
+
+---
+
+## Fase 20: Correcciones del testeo manual del cliente ✅
+**Objetivo:** cuatro pedidos que surgieron al probar la app a mano: imágenes de eventos, limpieza de Cloudinary y un solo mail por compra múltiple.
+
+### 20.1 — Imágenes de eventos: no estaban hardcodeadas, pero no eran de Cloudinary ✅
+- No había ningún código que fijara una imagen. Los 21 eventos de la demo tenían una URL de Unsplash cargada directo en la base (dato de seed, no código).
+- Se migraron los 21 a Cloudinary con un script puntual (`migrar_imagenes.py`, descartado al terminar): descarga cada imagen de Unsplash, la sube a `asistiapp/eventos` y actualiza `imagen_portada_url`. Verificado: `select ... where imagen_portada_url not like 'https://res.cloudinary.com/%'` da 0 filas, y una de las URLs nuevas responde 200.
+- El SVG de respaldo para "sin imagen" o "la imagen no cargó" es un cambio de frontend — ver 20.1 en `frontend_implementation_plan.md`.
+
+### 20.2 — Borrar la foto de perfil anterior al cambiarla o quitarla ✅
+- `ImagenService.eliminarSiEsNuestra(url)`: valida que la URL sea de nuestra cuenta de Cloudinary (`esDeNuestroCloudinary`), extrae el `public_id` (con o sin segmento de versión) con una regex, y llama a `cloudinary.uploader().destroy(...)`. Nunca lanza: liberar espacio no es parte crítica del flujo que lo pide, solo loguea si falla.
+- `PerfilService.actualizarPerfil`: si la foto anterior era nuestra y cambió (o se quitó), se borra después de guardar.
+- Tests: `ImagenServiceTest` (7, incluye URL con y sin versión, URL ajena, y que una falla de Cloudinary no tira excepción) y `PerfilServiceTest` (+3 casos de borrado).
+- **Verificado contra el backend y Cloudinary reales:** subir foto A, guardarla (200, existe), subir foto B y guardarla (A pasa a 404), quitarla (B pasa a 404).
+
+### 20.3 — Borrar la portada anterior de un evento al cambiarla o quitarla ✅ (alcance: editar un evento existente)
+- **Decisión de seguridad:** las URLs de portada son públicas (se ven en el código fuente de cualquier evento). Un endpoint genérico de "borrar por URL" habría dejado que un organizador le borre la portada a otro con solo copiar la URL. Por eso el borrado se resuelve *adentro* de `EventoService.actualizarEvento`, donde ya se verificó que el evento es del organizador que pide el cambio, comparando la URL vieja (la que tenía guardada ese evento) contra la nueva.
+- **Fuera de alcance, a propósito:** el Wizard de Crear Evento (antes de guardar el evento por primera vez) no borra la imagen anterior al cambiarla, porque ahí todavía no hay un evento contra el cual verificar dueño — un endpoint de borrado ahí sería el mismo agujero de seguridad. Puede quedar alguna imagen huérfana de intentos descartados en el Wizard; no cuesta nada en el plan gratis de Cloudinary y se puede limpiar más adelante con un script como el de 20.1 si hiciera falta.
+- Tests: `EventoServiceTest` (+4 casos: cambia, quita, misma imagen no borra nada, sin imagen previa no intenta nada).
+- **Verificado contra el backend y Cloudinary reales:** mismo patrón que 20.2, con la portada de un evento de prueba.
+
+### 20.4 — Un solo mail con todas las entradas de una compra múltiple ✅
+- `confirmarPagoWebhook` ya no manda mail (antes mandaba uno por cada llamada: una compra de N entradas seguía siendo N compras por detrás, cada una con su propio mail).
+- `EmailService.enviarConfirmacionCompra` pasó a recibir la lista de códigos QR de toda la compra (antes uno solo) y arma un mail con un bloque de QR + botón "Ver mi entrada" por cada código. Con una sola entrada, el asunto y el texto quedan en singular y no aparece el contador "Entrada N de M".
+- `POST /tickets/confirmar-compra` (público, nuevo): recibe los códigos QR de la compra, el nombre y el email del comprador. Por cada código verifica que la entrada exista y que el email coincida con el de la entrada (403 si no) antes de armar el mail — el codigoQr ya es el token de acceso en el resto de la app (ver `GET /tickets/by-codigo`), así que no hace falta JWT.
+- Tests: `VentaServiceTest` (+4: varias entradas en un mail, una sola entrada, código inexistente, email que no coincide).
+- **Verificado de punta a punta** contra el backend real y MailHog: 3 compras seguidas al mismo email + 1 llamada a confirmar-compra → 1 solo mail recibido, con "Entrada 1/2/3 de 3", sus 3 códigos QR (imagen real, no placeholder) y sus 3 botones. Con 1 sola entrada, el mail sale en singular sin el contador. Con un email que no coincide con la entrada, 403 y no se manda nada. Las entradas y transacciones de prueba se borraron, y el cupo de la tanda real usada se restauró.

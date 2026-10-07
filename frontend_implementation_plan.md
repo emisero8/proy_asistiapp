@@ -294,3 +294,22 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 - Correr la migracion `backend/db/migraciones/2026-10-06-tipos-movimiento-tanda.sql` si la base es distinta a la de desarrollo de hoy (ya aplicada aca).
 - Cargar las variables `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` en el entorno antes de `mvn spring-boot:run`.
 - Si queda una instancia vieja del backend en el 8080, cerrarla (ver 19.5).
+
+---
+
+## Fase 11: Correcciones del testeo manual del cliente ✅
+**Objetivo:** ver `backend_implementation_plan.md` → Fase 20 para el detalle completo de cada punto.
+
+### 11.1 — Componente único `EventoImagen`, con SVG de respaldo ✅
+- Antes cada pantalla resolvía "sin imagen" a su manera (algunas con ícono, otras con gradiente liso, otras sin nada), y ninguna reaccionaba si la URL existía pero la imagen no cargaba (quedaba el ícono roto del navegador).
+- `components/EventoImagen.tsx`: recibe `src`, `className` (mismo tamaño/bordes para la imagen real y el respaldo, sin salto de layout) y `iconSize`. Si no hay `src`, o si el `<img>` dispara `onError`, muestra un ícono (`ImageOff` de lucide) sobre el mismo degradé que ya se usaba.
+- Reemplazó los 9 lugares que mostraban la portada de un evento: `ListingPage` (x2), `AllEventsPage`, `DetailPage`, `CheckoutPage`, `TicketPage`, `DashboardPage`, `EventoDetallePage`, `EventsPage` (Admin).
+- **Verificado en el navegador** con un evento real con URL rota y otro sin imagen, en el listado público, el detalle público, el Dashboard del Organizador y el listado del Admin. Las dos imágenes de prueba se restauraron a su URL original al terminar.
+- Tests unitarios de `EventoImagen` pendientes (mismo criterio que 19.6 — se cierran en la próxima tanda de tests del frontend).
+
+### 11.2 y 11.3 — Borrado en Cloudinary (perfil y portada de evento) ✅
+- Backend puro — nada que cambiar en el frontend, los botones "Cambiar imagen/foto" y "Quitar" ya llaman a los mismos endpoints de siempre.
+
+### 11.4 — Un solo mail por compra múltiple ✅
+- Ver Fase 20.4 del plan de backend para el detalle y la verificación completa.
+- `CheckoutPage`: al terminar el loop de compras (incluido el camino donde falla a mitad de camino y ya se compraron algunas), llama una vez a `POST /tickets/confirmar-compra` con los códigos QR de todas las entradas. Si ese llamado falla, no bloquea la navegación: las entradas ya son válidas y se ven en pantalla igual, solo no llegaría el mail (best-effort).
