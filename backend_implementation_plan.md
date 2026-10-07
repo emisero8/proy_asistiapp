@@ -262,31 +262,34 @@ Cada fase está marcada con su prioridad:
 - Test: `EventoServiceTest.listarMisEventos_devuelveElOrdenDelRepositorioSinReordenar`.
 - Verificado contra el backend real: los 21 eventos de la cuenta demo vienen ordenados por `fechaCreacion` descendente.
 
-### 18.5 — Perfil del organizador ⬜
-1.  `PUT /organizador/perfil` con `{ nombre, fotoUrl }`. La foto llega como URL ya subida a Cloudinary; el backend no recibe el archivo acá.
-2.  `PUT /organizador/password` con `{ passwordActual, passwordNueva }`. Verifica la actual con BCrypt, valida largo mínimo de 8 y devuelve `409` si la actual no coincide.
-3.  Ambos con DTOs de request y response (sin exponer la entidad), y auditados con `@Auditable` si corresponde.
+### 18.5 — Perfil del organizador ✅
+1.  `GET /organizador/perfil`, `PUT /organizador/perfil` (nombre y `fotoPerfilUrl`) y `PUT /organizador/perfil/password` (exige la actual). Rol Organizador; el ID sale del JWT.
+2.  `POST /organizador/perfil/foto` sube a la carpeta `asistiapp/perfiles` (separada de `asistiapp/eventos`) y devuelve la URL.
+3.  Campo nuevo `foto_perfil_url` en `usuarios`, que `ddl-auto: update` crea solo. `AuthResponseDTO` devuelve la foto para que la sidebar la muestre sin pedirla aparte.
+4.  Reglas: la foto solo puede apuntar a nuestro Cloudinary (si no, 409); la contraseña actual debe coincidir (409); la nueva tiene 8 a 100 caracteres (400) y debe ser distinta de la actual (409).
+5.  Tests: `PerfilServiceTest` (6 casos de las reglas anteriores).
+6.  **Verificado contra el backend real** con cuenta de prueba: GET y PUT 200, foto externa 409, contraseña mal 409, igual a la actual 409, corta 400, cambio 204, login con la nueva 200 y con la vieja 401. La cuenta se borró.
 
 ### 18.6 — Mailhog para el envío de mails ⬜
 - Sumar Mailhog como servicio de desarrollo (`localhost:1025`, sin autenticación) con variables `SMTP_HOST`/`SMTP_PORT` ya existentes en `application.yml`.
 - Sin cambios en `EmailService`. Verificar que el mail de recuperación llega a Mailhog.
 - Corrige el criterio anterior de dejar SMTP "para el final del proyecto" (ver `CLAUDE.md`): el envío se prueba ya, con Mailhog.
 
-### 18.7 — Créditos: consumo al publicar y al crear tandas ⬜
-- Costo de publicar un evento en créditos: **dato pendiente del cliente**.
-- Publicar descuenta ese costo en la misma transacción y deja el movimiento en el ledger (`CreditoLedgerService`).
-- Crear una tanda: `cupo` ≤ créditos disponibles del organizador. Al crearla se descuenta la misma cantidad de créditos que entradas tiene la tanda.
-- `@Transactional` en el servicio, con control de `cupo_disponible` en `TANDA` para evitar sobreventa.
-- Tests: publicar sin saldo → error; crear tanda por encima del saldo → error; crear tanda en rango → descuenta exacto y registra movimiento.
+### 18.7 — Créditos: consumo al crear, editar y eliminar tandas ✅
+- **Regla:** cada entrada de una tanda consume 1 crédito. Crear descuenta el cupo; subir el cupo cobra la diferencia; bajarlo o eliminar la tanda (sin ventas) devuelve créditos.
+- **Reserva del costo de publicar (decisión):** los créditos disponibles para entradas son `saldo − costo de publicar`. Sin reserva, una tanda podía agotar el saldo y después la publicación fallaba con las tandas ya creadas. Se puede cambiar, pero conviene decidirlo con el cliente.
+- `CreditoService.obtenerCostoPublicacion()` y `creditosDisponiblesParaEntradas()`: fuente única de la regla (el costo lo configura el Admin en `creditos_por_publicacion`). `GET /creditos/resumen` la expone al frontend.
+- `CreditoLedgerService`: `registrarConsumoTanda` y `registrarDevolucionTanda`. Nuevos tipos `Consumo_Tanda` y `Devolucion_Tanda` en `TipoMovimiento`.
+- **Migración de base:** `ddl-auto: update` no actualiza el CHECK de la columna de enum. Se aplicó `backend/db/migraciones/2026-10-06-tipos-movimiento-tanda.sql`. Hay que correrlo en cualquier base que se levante desde ahora.
+- **Tests:** `TandaServiceTest` (6 casos: crear con y sin saldo, subir cupo dentro y fuera del saldo, bajar cupo, eliminar con y sin ventas).
+- **Verificado contra el backend real:** saldo 30 → crear tanda de 3 → saldo 27 → cupo 31 con 28 disponibles → 409 con el mensaje → eliminar tanda → 28 (devolución de 3). Cuenta de prueba borrada por SQL.
+- **Pendiente de decisión:** al cancelar un evento no se devuelven los créditos de sus tandas. Hoy no se devuelve nada, ni al publicar. Lo registramos para decidir con el cliente.
 
-### 18.8 — Métricas del organizador ⬜
-- Ampliar `MetricasOrganizadorService` y `MetricasOrganizadorResponseDTO` con lo que pida el cliente en la fase 10.6 (créditos consumidos, ventas por evento, eventos activos). Definir el detalle con el cliente antes de implementar.
-
-
----
-
-## Fase 19: Errores encontrados durante el trabajo ✅
-**Objetivo:** Registrar cada error que aparece mientras se implementan las fases, con su causa y cómo quedó resuelto, para que nada quede sin corregir.
+### 18.8 — Métricas del organizador ✅
+- `GET /eventos/resumen` (rol Organizador) → `ResumenOrganizadorResponseDTO`: eventos publicados y en borrador, entradas vendidas y validadas, ingresos, créditos consumidos (neto: publicar y tandas suman, las devoluciones restan), saldo y próximo evento publicado que todavía no empezó.
+- Ventas e ingresos reutilizan `obtenerMetricas` por evento publicado, así la regla no se duplica. El Dashboard dejó de pedir una métrica por evento y ahora usa una sola llamada.
+- Test: `MetricasOrganizadorServiceTest` (4 casos: suma de publicados, neto de créditos, próximo evento, sin eventos).
+- **Verificado contra el backend real** con la cuenta demo: 21 publicados, 50 créditos usados, próximo evento en 2 días.
 
 ### 19.1 — Ruta inexistente respondía 500 en vez de 404 ✅
 - **Causa:** el catch-all de `GlobalExceptionHandler` atrapaba `NoResourceFoundException` de Spring.
@@ -305,9 +308,18 @@ Cada fase está marcada con su prioridad:
 ### 19.4 — Dependencia de Cloudinary no resolvía ✅
 - `cloudinary-http5` 2.3.1 no estaba en Maven Central. Se usa 2.5.0 (ver 18.1).
 
-### 19.6 — Tests unitarios del frontend pendientes ⬜
-- Faltan tests unitarios para `ImagenPortadaField` (10.1) y para los filtros de "Mis eventos" del Dashboard (10.3). Ambos se verificaron en el navegador contra el backend real, pero no tienen test automático.
-- Se cierra en la próxima tanda de tests del frontend.
+### 19.6 — Tests unitarios del frontend ✅
+- Se agregaron: `ImagenPortadaField` (5 casos: subida, endpoint por defecto, límite de 5 MB, error del backend, quitar), `PerfilPage` (9 casos: carga, nombre vacío, guardado y actualización de la sesión, y las validaciones de contraseña) y `DashboardPage` (orden del backend, búsqueda por nombre y lugar, filtro por estado, aviso sin coincidencias, y una sola llamada de resumen).
+- Suite del frontend: 120/120.
+
+### 19.7 — Avatar flotante de mobile tapaba el título de cada página ✅
+- **Causa:** al agregar el acceso al perfil en mobile, puse un botón fijo arriba a la izquierda. Se superponía con el título de las páginas del Organizador.
+- **Solución:** se quitó el botón. En mobile el perfil es la quinta pestaña de la barra inferior (`MOBILE_TABS`). En desktop se accede desde el nombre de la sidebar.
+- **Verificado:** en mobile, la barra tiene 5 pestañas y "Perfil" abre la página sin superposición.
+
+### 19.8 — Textos del Wizard con el costo de publicar fijo en 1 ✅
+- **Causa:** "Publicar consume 1 crédito" estaba escrito a mano, aunque el Admin lo había configurado en 2. El pie mostraba un costo distinto del que cobra el backend.
+- **Solución:** los textos usan `costoPublicacion` de `/creditos/resumen`. También se corrigió el texto de Editar evento.
 
 ### 19.5 — Instancia vieja del backend ocupando el 8080 ⚠️ (operativo, no es código)
 - Al levantar el backend con `mvn spring-boot:run`, si quedó otra instancia de una sesión anterior en el 8080, el nuevo arranque falla con "Port 8080 was already in use" y se sigue probando contra código viejo.

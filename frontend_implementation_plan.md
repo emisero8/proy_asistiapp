@@ -245,22 +245,48 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 - Verificado en el navegador contra el backend real, desktop y mobile: el orden visible coincide con la API, la búsqueda y el filtro funcionan y no hay scroll horizontal.
 - Tests unitarios pendientes, registrados en la Fase 19.6 de `backend_implementation_plan.md`.
 
-### 10.4 — Menú de perfil del organizador ⬜
-- En la sidebar, el nombre del organizador queda fijo abajo a la izquierda aunque la lista de eventos crezca, y es clickeable.
-- El menú permite cambiar el nombre, la foto de perfil (vía Cloudinary, reutilizando `POST /eventos/imagenes` o un endpoint propio) y la contraseña, exigiendo la actual y la nueva.
-- Depende de 18.5.
-
+### 10.4 — Menú de perfil del organizador ✅ (pendiente de commit)
+- **Sidebar (desktop):** el nombre abajo a la izquierda es un acceso a "Mi perfil", con la foto o la inicial. Queda fijo abajo aunque la lista de eventos crezca.
+- **Mobile:** "Perfil" es la quinta pestaña de la barra inferior (no se usó un botón flotante: tapaba el título de cada página, ver 19.7).
+- **Página `/organizador/perfil`:** dos tarjetas. "Datos del perfil" (foto con `ImagenPortadaField` en variante avatar, nombre editable y email de solo lectura) y "Cambiar contraseña" (actual, nueva y repetición, con validación de 8 caracteres y de coincidencia antes de llamar a la API).
+- Al guardar, la sesión se actualiza con el nombre y la foto nuevos, así la sidebar cambia sin volver a iniciar sesión.
+- **Verificado en el navegador contra el backend real**, desktop y mobile: subir foto, guardar nombre, la sidebar muestra la foto, contraseña mal (cartel del backend) y contraseña bien (toast). Sin errores de consola y sin scroll horizontal. Cuentas y fotos de prueba borradas al final.
+- Tests unitarios de la página pendientes, registrados en 19.6.
 ### 10.5 — Recuperar contraseña y Mailhog ⬜
 - El backend ya existe (Fase 11: `PasswordRecoveryService`, `POST /auth/recuperar-password` y `POST /auth/restablecer-password`). Falta verificar que la UI de recuperación esté completa en los logins y que el envío llegue a Mailhog.
 - Depende de 18.6.
 
-### 10.6 — Métricas del Dashboard del organizador ⬜
-- Mejorar las métricas del Dashboard general (ventas, ingresos, créditos consumidos, eventos activos). Va al final, cuando ya están los créditos definidos.
-- Depende de 18.8.
+### 10.6 — Métricas del Dashboard del organizador ✅ (pendiente de commit)
+- Una sola llamada a `/eventos/resumen` (18.8), en lugar de una por evento.
+- Fila de ventas: entradas vendidas, ingresos y validadas en puerta (solo si hay eventos publicados).
+- Fila de créditos: disponibles, usados y próximo evento ("Hoy", "Mañana" o "En N días", con el nombre debajo).
+- **Verificado en el navegador**, desktop y mobile: valores del backend, sin errores ni scroll horizontal.
+- Decisión a confirmar: "Créditos usados" es neto (las devoluciones de tandas restan). Si el cliente prefiere el bruto, es un cambio de una línea en el backend.
 
-### 10.7 — Créditos: límite de entradas por tanda ⬜
-- Al crear una tanda, la cantidad de entradas no puede superar los créditos disponibles del organizador, con el aviso correspondiente en el formulario.
-- Muestra el saldo de créditos y el costo de publicar.
-- Depende de 18.7 y del costo de publicación (dato pendiente del cliente).
+### 10.7 — Créditos: límite de entradas por tanda ✅
+- **Wizard (Crear evento):** el aviso muestra los créditos disponibles para entradas y el costo reservado de publicar. Si la suma de los cupos supera lo disponible, aparece el mensaje en rojo y se bloquea "Publicar evento".
+- **Editar evento:** una tanda nueva consume todo su cupo; una existente, solo la diferencia si sube el cupo. Si supera lo disponible, aviso debajo de la tanda y se bloquea "Guardar tanda".
+- **Billetera:** los movimientos nuevos tienen etiqueta ("Entradas de tanda", "Devolución de tanda").
+- **Textos:** el costo de publicar ya no está fijo en 1 (ver 19.8).
+- **Verificado:** en el navegador, desktop y mobile, el aviso aparece en el paso de tandas con los valores del backend, sin errores ni scroll horizontal. Tests: `WizardPage` (+1 caso), `EditEventPage` (mocks por ruta, sin cambios en los casos). Suite completa: 102/102.
+- Commit pendiente de confirmación.
 
-**Orden de ejecución:** 10.1 → 10.2 → 10.3 → 10.4 → 10.5 → 10.7 → 10.6. La 10.2 y la 10.3 son las de menor riesgo; la 10.7 es la más delicada y va después de la suspensión (18.2), que también toca el login.
+---
+
+## Retomar aca (estado al cierre de la sesion del 2026-10-06)
+
+**Hecho y pendiente de push/commit al cerrar:** ver los commits de la sesion. Todo lo de la Fase 10 y la Fase 18 queda terminado excepto lo que sigue.
+
+**Lo que falta:**
+1. **10.5 / 18.6 — Recuperar contrasena y Mailhog (ultimo).** El backend de recuperacion ya existe (Fase 11). Falta: decidir como se instala Mailhog (Docker o ejecutable de Windows), verificar la UI de "olvide mi contrasena" en los logins y que el mail llegue a Mailhog.
+2. **Decision pendiente: cancelar un evento no devuelve los creditos de sus tandas.** Hoy no se devuelve nada. Confirmar con el cliente.
+3. **Commits:** confirmar el contenido de cada commit antes de pushear (regla de `CLAUDE.md`).
+
+**Decisiones tomadas que conviene validar con el cliente:**
+- Reserva del costo de publicar: las entradas se limitan a `saldo - costo de publicar`.
+- "Creditos usados" en el Dashboard es neto (las devoluciones restan).
+
+**Antes de levantar el proyecto manana:**
+- Correr la migracion `backend/db/migraciones/2026-10-06-tipos-movimiento-tanda.sql` si la base es distinta a la de desarrollo de hoy (ya aplicada aca).
+- Cargar las variables `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` en el entorno antes de `mvn spring-boot:run`.
+- Si queda una instancia vieja del backend en el 8080, cerrarla (ver 19.5).
