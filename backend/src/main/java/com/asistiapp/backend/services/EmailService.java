@@ -4,7 +4,6 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -12,6 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Base64;
+import java.util.List;
 
 /**
  * Servicio de envío de correos electrónicos vía SMTP.
@@ -35,15 +35,16 @@ public class EmailService {
     private static final int TAMANO_QR_EMAIL_PX = 300;
 
     /**
-     * Envía el email de confirmación de compra con la imagen del código QR
-     * embebida inline y un botón para ver la entrada en el frontend.
+     * Envía UN SOLO email de confirmación de compra con el código QR de cada entrada
+     * comprada (una compra de varias entradas manda un mail, no uno por entrada).
+     * Cada QR va embebido inline y con su propio botón "Ver mi entrada".
      *
      * @param emailDestino    email del comprador
      * @param nombreComprador nombre del comprador para personalizar el mensaje
-     * @param nombreEvento    nombre del evento
+     * @param nombreEvento    nombre del evento (todas las entradas de una misma
+     *                        compra son de la misma tanda, así que comparten evento)
      * @param nombreTanda     nombre de la tanda comprada
-     * @param codigoQr        código QR único de la entrada
-     * @param entradaId       ID de la entrada, para construir el link "Ver mi entrada"
+     * @param codigosQr       código QR de cada entrada comprada, en el orden a mostrar
      */
     @Async
     public void enviarConfirmacionCompra(
@@ -51,29 +52,37 @@ public class EmailService {
             String nombreComprador,
             String nombreEvento,
             String nombreTanda,
-            String codigoQr,
-            Long entradaId) {
+            List<String> codigosQr) {
 
         try {
-            byte[] qrPng = qrImageService.generarPng(codigoQr, TAMANO_QR_EMAIL_PX);
-            // Base64 data URI: compatible con MailHog y todos los clientes de email.
-            // CID inline require soporte explícito del visor (MailHog no lo tiene).
-            String qrDataUri = "data:image/png;base64," + Base64.getEncoder().encodeToString(qrPng);
-            String ticketUrl = frontendBaseUrl + "/mi-entrada?codigoQr=" + codigoQr;
+            int total = codigosQr.size();
+            StringBuilder bloques = new StringBuilder();
+            for (int i = 0; i < total; i++) {
+                String codigoQr = codigosQr.get(i);
+                byte[] qrPng = qrImageService.generarPng(codigoQr, TAMANO_QR_EMAIL_PX);
+                // Base64 data URI: compatible con MailHog y todos los clientes de email.
+                // CID inline requiere soporte explícito del visor (MailHog no lo tiene).
+                String qrDataUri = "data:image/png;base64," + Base64.getEncoder().encodeToString(qrPng);
+                String ticketUrl = frontendBaseUrl + "/mi-entrada?codigoQr=" + codigoQr;
+                bloques.append(construirBloqueEntrada(i + 1, total, qrDataUri, codigoQr, ticketUrl));
+            }
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             // multipart=false: ya no usamos CID inline, el HTML lleva la imagen embebida
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, "UTF-8");
             helper.setTo(emailDestino);
-            helper.setSubject("✅ Tu entrada para " + nombreEvento + " — AsistíAPP");
-            helper.setText(construirCuerpoEmailHtml(nombreComprador, nombreEvento, nombreTanda, codigoQr, qrDataUri, ticketUrl), true);
+            helper.setSubject(total == 1
+                    ? "✅ Tu entrada para " + nombreEvento + " — AsistíAPP"
+                    : "✅ Tus " + total + " entradas para " + nombreEvento + " — AsistíAPP");
+            helper.setText(construirCuerpoEmailHtml(nombreComprador, nombreEvento, nombreTanda, total, bloques.toString()), true);
 
             mailSender.send(mimeMessage);
-            log.info("Email de confirmación enviado a: {} para el evento: {}", emailDestino, nombreEvento);
+            log.info("Email de confirmación enviado a: {} ({} entrada[s]) para el evento: {}",
+                    emailDestino, total, nombreEvento);
 
         } catch (Exception e) {
             // El fallo de email NO debe revertir la compra.
-            // Loguear el error y continuar — el QR ya fue generado y guardado en BD.
+            // Loguear el error y continuar — los QR ya fueron generados y guardados en BD.
             log.error("Error al enviar email de confirmación a {}: {}", emailDestino, e.getMessage());
         }
     }
@@ -186,13 +195,51 @@ public class EmailService {
         }
     }
 
+    /** Un bloque de QR + botón por cada entrada. "Entrada N de M" solo si hay más de una. */
+    private String construirBloqueEntrada(int numero, int total, String qrDataUri, String codigoQr, String ticketUrl) {
+        String etiqueta = total > 1
+                ? "<p style=\"margin:0 0 12px;font-size:12px;color:#9cadd3;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;\">Entrada " + numero + " de " + total + "</p>"
+                : "";
+        return String.format("""
+                <tr>
+                  <td style="padding:28px 40px 8px;text-align:center;%s">
+                    %s
+                    <p style="margin:0 0 16px;font-size:14px;color:#374151;font-weight:600;">&#128197; Mostr&aacute; este c&oacute;digo QR en la puerta del evento</p>
+                    <div style="display:inline-block;background:#ffffff;border:3px solid #09090b;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.12);">
+                      <img src="%s" alt="Código QR de tu entrada" width="220" height="220" style="display:block;">
+                    </div>
+                    <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;word-break:break-all;">Cód: %s</p>
+                    <table cellpadding="0" cellspacing="0" style="margin:16px auto 0;">
+                      <tr>
+                        <td style="border-radius:12px;background:#09090b;">
+                          <a href="%s" target="_blank"
+                             style="display:inline-block;padding:11px 24px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.2px;">
+                            &#127915; Ver mi entrada
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                """,
+                numero > 1 ? "border-top:1px solid #f3f4f6;" : "",
+                etiqueta,
+                qrDataUri,
+                codigoQr,
+                ticketUrl
+        );
+    }
+
     private String construirCuerpoEmailHtml(
             String nombreComprador,
             String nombreEvento,
             String nombreTanda,
-            String codigoQr,
-            String qrDataUri,
-            String ticketUrl) {
+            int totalEntradas,
+            String bloquesEntradas) {
+
+        String saludo = totalEntradas == 1
+                ? "ya ten&eacute;s tu entrada."
+                : "ya ten&eacute;s tus " + totalEntradas + " entradas.";
 
         return String.format("""
                 <html>
@@ -213,7 +260,7 @@ public class EmailService {
                           <td style="background:#f0f4ff;padding:28px 40px 20px;text-align:center;border-bottom:1px solid #e8eaf0;">
                             <div style="font-size:36px;margin-bottom:8px;">&#127881;</div>
                             <h2 style="margin:0 0 4px;font-size:20px;font-weight:800;color:#111827;">&#161;Compra confirmada!</h2>
-                            <p style="margin:0;font-size:14px;color:#6b7280;">Hola <strong style="color:#111827;">%s</strong>, ya ten&eacute;s tu entrada.</p>
+                            <p style="margin:0;font-size:14px;color:#6b7280;">Hola <strong style="color:#111827;">%s</strong>, %s</p>
                           </td>
                         </tr>
 
@@ -237,32 +284,8 @@ public class EmailService {
                           </td>
                         </tr>
 
-                        <!-- QR central -->
-                        <tr>
-                          <td style="padding:32px 40px 8px;text-align:center;">
-                            <p style="margin:0 0 16px;font-size:14px;color:#374151;font-weight:600;">&#128197; Mostr&aacute; este c&oacute;digo QR en la puerta del evento</p>
-                            <div style="display:inline-block;background:#ffffff;border:3px solid #09090b;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.12);">
-                              <img src="%s" alt="Código QR de tu entrada" width="260" height="260" style="display:block;">
-                            </div>
-                            <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;word-break:break-all;">Cód: %s</p>
-                          </td>
-                        </tr>
-
-                        <!-- CTA: Ver mi entrada -->
-                        <tr>
-                          <td style="padding:24px 40px 32px;text-align:center;">
-                            <table cellpadding="0" cellspacing="0" style="margin:0 auto;">
-                              <tr>
-                                <td style="border-radius:12px;background:#09090b;">
-                                  <a href="%s" target="_blank"
-                                     style="display:inline-block;padding:13px 28px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.2px;">
-                                    &#127915; Ver mi entrada
-                                  </a>
-                                </td>
-                              </tr>
-                            </table>
-                          </td>
-                        </tr>
+                        <!-- Un bloque de QR + botón por cada entrada -->
+                        %s
 
                         <!-- Footer -->
                         <tr>
@@ -279,11 +302,10 @@ public class EmailService {
                 </html>
                 """,
                 nombreComprador,
+                saludo,
                 nombreEvento,
                 nombreTanda,
-                qrDataUri,
-                codigoQr,
-                ticketUrl
+                bloquesEntradas
         );
     }
 

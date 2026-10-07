@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { EventoImagen } from "../../components/EventoImagen";
 import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
@@ -60,16 +61,36 @@ export function CheckoutPage() {
         );
         entradas.push(entrada);
       }
+      await enviarMailConfirmacion(entradas);
       navigate(`/ticket/${entradas[0].id}`, { state: { entradas, evento, buyerName: name } });
     } catch (e: unknown) {
       if (entradas.length > 0) {
         // Se compraron algunas entradas antes de que fallara el resto (ej. la tanda se agotó a mitad de camino).
+        await enviarMailConfirmacion(entradas);
         navigate(`/ticket/${entradas[0].id}`, { state: { entradas, evento, buyerName: name } });
         return;
       }
       setError(e instanceof ApiError ? e.message : "No pudimos procesar la compra. Intentá de nuevo.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  /**
+   * Un solo mail con los códigos QR de todas las entradas de esta compra, en vez de
+   * uno por entrada. Si falla, no bloquea la navegación: las entradas ya son válidas
+   * y se pueden ver en pantalla igual, solo no llegaría el mail.
+   */
+  async function enviarMailConfirmacion(entradas: EntradaResponseDTO[]) {
+    if (entradas.length === 0) return;
+    try {
+      await api.post(
+        "/tickets/confirmar-compra",
+        { codigosQr: entradas.map((e) => e.codigoQr), nombreComprador: name, emailComprador: email },
+        { skipAuth: true },
+      );
+    } catch {
+      // best-effort: las entradas ya están compradas y son válidas sin el mail
     }
   }
 
@@ -148,11 +169,7 @@ export function CheckoutPage() {
           <div className="bg-card rounded-2xl p-4 border border-border">
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Resumen</p>
             <div className="flex gap-3">
-              {evento.imagenPortadaUrl ? (
-                <img src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-16 aspect-[3/4] rounded-xl object-cover flex-none bg-muted" />
-              ) : (
-                <div className="w-16 aspect-[3/4] rounded-xl flex-none bg-gradient-to-br from-primary/20 via-card to-background" />
-              )}
+              <EventoImagen src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-16 aspect-[3/4] rounded-xl object-cover flex-none" iconSize={16} />
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-bold text-foreground leading-tight line-clamp-2">{evento.nombre}</h4>
                 <p className="text-xs text-muted-foreground mt-0.5">{tanda.nombre}</p>

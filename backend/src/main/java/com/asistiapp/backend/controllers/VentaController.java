@@ -67,6 +67,19 @@ public class VentaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(entrada);
     }
 
+    /**
+     * Paso 3 (una sola vez por compra, no por entrada): manda un solo mail con los
+     * códigos QR de todas las entradas que se acaban de confirmar. El Comprador nunca
+     * tiene JWT en este flujo — la autorización es que el email coincida con el de
+     * cada entrada, igual que GET /tickets/by-codigo.
+     */
+    @PostMapping("/confirmar-compra")
+    public ResponseEntity<Void> enviarConfirmacionCompraAgrupada(
+            @Valid @RequestBody ConfirmarCompraGrupalRequestDTO dto) {
+        ventaService.enviarConfirmacionCompraAgrupada(dto);
+        return ResponseEntity.noContent().build();
+    }
+
     // ─────────────────────────────────────────────
     // VENTA MANUAL (CU-019) — Solo Staff_Vendedor
     // ─────────────────────────────────────────────

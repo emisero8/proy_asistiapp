@@ -127,7 +127,7 @@ public class SecurityConfig {
                         // Catálogo público de eventos: el Comprador NUNCA inicia sesión (CU-015/016)
                         .requestMatchers(HttpMethod.GET, "/public/**").permitAll()
                         // Compra de entradas online: el Comprador la inicia y confirma sin JWT (CU-017)
-                        .requestMatchers(HttpMethod.POST, "/tickets/comprar-online", "/tickets/webhook/pago").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/tickets/comprar-online", "/tickets/webhook/pago", "/tickets/confirmar-compra").permitAll()
                         // Imagen QR (Fase 16): el Comprador tampoco tiene JWT acá — la autorización
                         // fina (dueño del codigoQr u Organizador del evento) se hace en VentaService
                         .requestMatchers(HttpMethod.GET, "/tickets/*/qr-image").permitAll()

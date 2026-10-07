@@ -1,8 +1,10 @@
 package com.asistiapp.backend.services;
 
 import com.asistiapp.backend.exceptions.BusinessRuleException;
+import com.asistiapp.backend.exceptions.ForbiddenActionException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.entrada.CompraOnlineRequestDTO;
+import com.asistiapp.backend.models.dtos.entrada.ConfirmarCompraGrupalRequestDTO;
 import com.asistiapp.backend.models.dtos.entrada.IniciarCompraResponseDTO;
 import com.asistiapp.backend.models.dtos.entrada.VentaManualRequestDTO;
 import com.asistiapp.backend.models.entities.*;
@@ -20,6 +22,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -193,8 +196,73 @@ class VentaServiceTest {
         assertThat(response.getCodigoQr()).startsWith("QR-");
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
         assertThat(transaccion.getMercadopagoPaymentId()).isEqualTo("999");
+        // El mail no se manda acá: una compra de varias entradas llama a este método
+        // varias veces, y se manda un solo mail agrupado al final (ver tests de abajo).
+        verifyNoInteractions(emailService);
+    }
+
+    // ─────────────────────────────────────────────
+    // enviarConfirmacionCompraAgrupada
+    // ─────────────────────────────────────────────
+
+    private Entrada entradaPagada(Long id, String codigoQr, String email) {
+        Entrada e = new Entrada();
+        e.setId(id);
+        e.setTanda(tanda);
+        e.setCodigoQr(codigoQr);
+        e.setNombreComprador("Juana Pérez");
+        e.setEmailComprador(email);
+        e.setEstado(EstadoEntrada.Pagada);
+        return e;
+    }
+
+    private ConfirmarCompraGrupalRequestDTO confirmarGrupalDto(String email, String... codigosQr) {
+        ConfirmarCompraGrupalRequestDTO dto = new ConfirmarCompraGrupalRequestDTO();
+        dto.setCodigosQr(List.of(codigosQr));
+        dto.setNombreComprador("Juana Pérez");
+        dto.setEmailComprador(email);
+        return dto;
+    }
+
+    @Test
+    void enviarConfirmacionCompraAgrupada_variasEntradas_mandaUnSoloMailConTodosLosCodigos() {
+        when(entradaRepository.findByCodigoQr("QR-1")).thenReturn(Optional.of(entradaPagada(1L, "QR-1", "juana@test.com")));
+        when(entradaRepository.findByCodigoQr("QR-2")).thenReturn(Optional.of(entradaPagada(2L, "QR-2", "juana@test.com")));
+        when(entradaRepository.findByCodigoQr("QR-3")).thenReturn(Optional.of(entradaPagada(3L, "QR-3", "juana@test.com")));
+
+        ventaService.enviarConfirmacionCompraAgrupada(confirmarGrupalDto("juana@test.com", "QR-1", "QR-2", "QR-3"));
+
+        verify(emailService, times(1)).enviarConfirmacionCompra(
+                eq("juana@test.com"), eq("Juana Pérez"), eq(evento.getNombre()), eq(tanda.getNombre()),
+                eq(List.of("QR-1", "QR-2", "QR-3")));
+    }
+
+    @Test
+    void enviarConfirmacionCompraAgrupada_unaSolaEntrada_tambienFunciona() {
+        when(entradaRepository.findByCodigoQr("QR-1")).thenReturn(Optional.of(entradaPagada(1L, "QR-1", "juana@test.com")));
+
+        ventaService.enviarConfirmacionCompraAgrupada(confirmarGrupalDto("juana@test.com", "QR-1"));
+
         verify(emailService).enviarConfirmacionCompra(
-                eq(transaccion.getEmailComprador()), eq(transaccion.getNombreComprador()), any(), any(), any(), any());
+                eq("juana@test.com"), any(), any(), any(), eq(List.of("QR-1")));
+    }
+
+    @Test
+    void enviarConfirmacionCompraAgrupada_codigoQrInexistente_lanzaResourceNotFoundExceptionYNoMandaMail() {
+        when(entradaRepository.findByCodigoQr("QR-FALSO")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> ventaService.enviarConfirmacionCompraAgrupada(confirmarGrupalDto("juana@test.com", "QR-FALSO")))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void enviarConfirmacionCompraAgrupada_emailNoCoincideConLaEntrada_lanzaForbiddenActionExceptionYNoMandaMail() {
+        when(entradaRepository.findByCodigoQr("QR-1")).thenReturn(Optional.of(entradaPagada(1L, "QR-1", "dueño@test.com")));
+
+        assertThatThrownBy(() -> ventaService.enviarConfirmacionCompraAgrupada(confirmarGrupalDto("otro@test.com", "QR-1")))
+                .isInstanceOf(ForbiddenActionException.class);
+        verifyNoInteractions(emailService);
     }
 
     // ─────────────────────────────────────────────

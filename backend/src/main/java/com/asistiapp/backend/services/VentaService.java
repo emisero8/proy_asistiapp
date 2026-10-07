@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -181,17 +182,46 @@ public class VentaService {
         log.info("Pago confirmado y entrada generada: id={}, qr={}, evento={}",
                 saved.getId(), codigoQr, tanda.getEvento().getNombre());
 
-        // Enviar email de forma asíncrona (no bloquea la respuesta)
-        emailService.enviarConfirmacionCompra(
-                saved.getEmailComprador(),
-                saved.getNombreComprador(),
-                tanda.getEvento().getNombre(),
-                tanda.getNombre(),
-                codigoQr,
-                saved.getId()
-        );
+        // El email NO se manda acá: una compra de varias entradas hace varias llamadas
+        // a este método (una por entrada), y mandar un mail por cada una sería justo lo
+        // que se quiere evitar. El frontend llama a enviarConfirmacionCompraAgrupada
+        // una sola vez, al final, con los códigos QR de todas las entradas compradas.
 
         return toResponseDTO(saved);
+    }
+
+    // ─────────────────────────────────────────────
+    // Confirmación por email de una compra (una o varias entradas)
+    // ─────────────────────────────────────────────
+
+    /**
+     * Manda UN SOLO mail con los códigos QR de todas las entradas de una compra.
+     * El codigoQr ya es el token de acceso de cada entrada en el resto de la app
+     * (ver GET /tickets/by-codigo): acá se usa igual, validando que el email que
+     * pide el mail sea el mismo que figura en cada entrada antes de incluirla.
+     *
+     * Público (sin JWT): el Comprador nunca inicia sesión en este flujo (CU-017).
+     */
+    @Transactional(readOnly = true)
+    public void enviarConfirmacionCompraAgrupada(ConfirmarCompraGrupalRequestDTO dto) {
+        List<Entrada> entradas = new ArrayList<>();
+        for (String codigoQr : dto.getCodigosQr()) {
+            Entrada entrada = entradaRepository.findByCodigoQr(codigoQr)
+                    .orElseThrow(() -> new ResourceNotFoundException("Entrada no encontrada: " + codigoQr));
+            if (!entrada.getEmailComprador().equalsIgnoreCase(dto.getEmailComprador())) {
+                throw new ForbiddenActionException("No tenés permiso para confirmar esta entrada");
+            }
+            entradas.add(entrada);
+        }
+
+        Tanda tanda = entradas.get(0).getTanda();
+        emailService.enviarConfirmacionCompra(
+                dto.getEmailComprador(),
+                dto.getNombreComprador(),
+                tanda.getEvento().getNombre(),
+                tanda.getNombre(),
+                dto.getCodigosQr()
+        );
     }
 
     // ─────────────────────────────────────────────
