@@ -45,4 +45,4 @@ No alcanza con que compile. Antes de marcar una fase de frontend como hecha:
 
 ## 🔌 INTEGRACIONES EXTERNAS — ESTADO ACTUAL (a propósito, no son bugs)
 - **MercadoPago:** simulado end-to-end (`iniciarCompra` + webhook simulado). Queda para el final del proyecto — no bloquea nada, el contrato de los endpoints no va a cambiar cuando se conecte el SDK real.
-- **SMTP (envío de mails):** `EmailService` funciona con cualquier proveedor SMTP estándar (Gmail + App Password recomendado para dev/demo, ver `backend/README.md`), pero hoy corre sin credenciales reales configuradas — si el envío falla, el flujo de negocio igual se completa (diseño intencional). También queda para el final.
+- **SMTP (envío de mails):** `EmailService` funciona con cualquier proveedor SMTP estándar. En desarrollo se usa **MailHog** (SMTP local en `localhost:1025`, UI web en `http://localhost:8025`) levantado con `docker compose up -d` desde la raíz del repo. La config de Gmail queda comentada en `application.yml` para cuando se necesite en producción. Si MailHog no está corriendo, el flujo de negocio igual se completa (diseño intencional — el fallo de mail solo se loguea).

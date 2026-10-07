@@ -21,7 +21,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `DB_URL`         | `jdbc:postgresql://localhost:5432/asistiapp_db`  |
    | `DB_USERNAME`    | `postgres`                                       |
    | `DB_PASSWORD`    | `1234`                                           |
-   | `SMTP_HOST/PORT/USERNAME/PASSWORD` | ver `application.yml`, opcional en dev (el envío de mail solo loguea error si falla, nunca revierte una operación) |
+   | `SMTP_HOST`      | `localhost` (MailHog)                            |
+   | `SMTP_PORT`      | `1025` (MailHog)                                 |
    | `JWT_SECRET`     | valor de desarrollo hardcodeado — **nunca reusar en producción** |
    | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` |
 
@@ -58,7 +59,26 @@ Flujo típico para probar un endpoint protegido desde Swagger:
 
 ## Envío de mails (SMTP)
 
-`EmailService` usa `JavaMailSender` estándar — cualquier proveedor SMTP sirve, no está atado a Gmail. Cambiar de proveedor es solo cambiar estas 4 variables, sin tocar código:
+`EmailService` usa `JavaMailSender` estándar — cualquier proveedor SMTP sirve, no está atado a ninguno en particular.
+
+### Desarrollo local: MailHog
+
+Por defecto, `application.yml` apunta a **MailHog** (`localhost:1025`, sin auth ni TLS). Para levantarlo:
+
+```bash
+# Desde la raíz del repo (donde está docker-compose.yml)
+docker compose up -d
+```
+
+Esto levanta MailHog con:
+- **SMTP:** `localhost:1025` (el backend ya envía ahí por defecto)
+- **UI web:** `http://localhost:8025` (bandeja de entrada para ver los mails capturados)
+
+Todos los mails que envía el backend (confirmaciones de compra, credenciales de staff, recuperación de contraseña, cancelación de evento) se capturan en la UI web de MailHog — nada sale a internet.
+
+### Producción: Gmail u otro proveedor SMTP
+
+En `application.yml` está comentado el bloque de Gmail. Para usarlo, descomentar ese bloque, comentar el de MailHog, y setear las variables de entorno:
 
 ```
 SMTP_HOST=smtp.gmail.com
@@ -72,9 +92,9 @@ SMTP_PASSWORD=<app password de 16 caracteres, NO la contraseña normal de la cue
 2. Generarlo en `myaccount.google.com/apppasswords` (Cuenta de Google → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones).
 3. Copiar el código de 16 caracteres que muestra una sola vez — ese es el `SMTP_PASSWORD`.
 
-Si en algún momento se necesita más volumen o visibilidad de rebotes/entregas que lo que da Gmail (tope ~500 mails/día, sin dashboard), se puede migrar a un proveedor transaccional (Brevo, SendGrid, Mailgun) con el mismo mecanismo: son SMTP compatible, solo cambian esas 4 variables.
+Para otros proveedores transaccionales (Brevo, SendGrid, Mailgun), el mecanismo es el mismo: son SMTP compatible, solo cambian esas 4 variables.
 
-Si el envío falla (credenciales mal puestas, límite excedido), la operación de negocio (compra, alta de staff, etc.) **igual se completa** — el fallo queda solo logueado (`EmailService` está diseñado para no bloquear el flujo principal por un mail caído). Para detectar fallos sistemáticos en dev/demo, revisar los logs del backend.
+Si el envío falla (MailHog caído, credenciales mal puestas, límite excedido), la operación de negocio (compra, alta de staff, etc.) **igual se completa** — el fallo queda solo logueado (`EmailService` está diseñado para no bloquear el flujo principal por un mail caído). Para detectar fallos sistemáticos, revisar los logs del backend.
 
 ## Contrato de errores
 

@@ -11,9 +11,11 @@ const AllEventsPage = lazy(() => import("./pages/buyer/AllEventsPage").then((m) 
 const DetailPage = lazy(() => import("./pages/buyer/DetailPage").then((m) => ({ default: m.DetailPage })));
 const CheckoutPage = lazy(() => import("./pages/buyer/CheckoutPage").then((m) => ({ default: m.CheckoutPage })));
 const TicketPage = lazy(() => import("./pages/buyer/TicketPage").then((m) => ({ default: m.TicketPage })));
+const MiEntradaPage = lazy(() => import("./pages/buyer/MiEntradaPage").then((m) => ({ default: m.MiEntradaPage })));
 
 const OrganizadorLoginPage = lazy(() => import("./pages/organizador/LoginPage").then((m) => ({ default: m.OrganizadorLoginPage })));
 const OrganizadorRegisterPage = lazy(() => import("./pages/organizador/RegisterPage").then((m) => ({ default: m.OrganizadorRegisterPage })));
+const OrganizadorResetPasswordPage = lazy(() => import("./pages/organizador/ResetPasswordPage").then((m) => ({ default: m.OrganizadorResetPasswordPage })));
 const OrganizadorLayout = lazy(() => import("./pages/organizador/OrganizadorLayout").then((m) => ({ default: m.OrganizadorLayout })));
 const OrganizadorDashboardPage = lazy(() => import("./pages/organizador/DashboardPage").then((m) => ({ default: m.OrganizadorDashboardPage })));
 const OrganizadorWizardPage = lazy(() => import("./pages/organizador/WizardPage").then((m) => ({ default: m.OrganizadorWizardPage })));
@@ -62,10 +64,12 @@ function AnimatedRoutes() {
         <Route path="/eventos/:urlPublica" element={<DetailPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/ticket/:id" element={<TicketPage />} />
+        <Route path="/mi-entrada" element={<MiEntradaPage />} />
 
         {/* Organizador */}
         <Route path="/organizador/login" element={<OrganizadorLoginPage />} />
         <Route path="/organizador/registro" element={<OrganizadorRegisterPage />} />
+        <Route path="/organizador/recuperar-password" element={<OrganizadorResetPasswordPage />} />
         <Route
           element={
             <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">

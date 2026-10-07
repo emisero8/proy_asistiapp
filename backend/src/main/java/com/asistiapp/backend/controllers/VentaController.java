@@ -118,4 +118,16 @@ public class VentaController {
         byte[] png = ventaService.obtenerImagenQr(id, codigoQr);
         return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(png);
     }
+
+    /**
+     * Consulta pública de una entrada usando su código QR como identificador único.
+     * El codigoQr actúa como token de acceso implícito — solo quien lo recibió
+     * por email puede acceder. Usado por la página "Mi Entrada" del frontend.
+     */
+    @GetMapping("/by-codigo")
+    public ResponseEntity<EntradaResponseDTO> obtenerEntradaPorCodigo(
+            @RequestParam String codigoQr) {
+        EntradaResponseDTO entrada = ventaService.obtenerEntradaPorCodigoQr(codigoQr);
+        return ResponseEntity.ok(entrada);
+    }
 }

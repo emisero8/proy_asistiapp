@@ -131,6 +131,8 @@ public class SecurityConfig {
                         // Imagen QR (Fase 16): el Comprador tampoco tiene JWT acá — la autorización
                         // fina (dueño del codigoQr u Organizador del evento) se hace en VentaService
                         .requestMatchers(HttpMethod.GET, "/tickets/*/qr-image").permitAll()
+                        // Consulta pública de entrada por codigoQr — el código actúa como token implícito
+                        .requestMatchers(HttpMethod.GET, "/tickets/by-codigo").permitAll()
                         // Webhooks de MercadoPago: los invoca el proveedor de pagos, no un usuario logueado
                         .requestMatchers(HttpMethod.POST, "/creditos/webhook/pago").permitAll()
                         // Documentación interactiva de la API (Swagger UI + spec OpenAPI)

@@ -20,17 +20,32 @@ spring:
       max-file-size: 5MB
       max-request-size: 5MB
 
+  # ── Gmail SMTP (producción) ──────────────────────────────────────────
+  # Descomentar este bloque y comentar el de MailHog para usar Gmail.
+  # mail:
+  #   host: ${SMTP_HOST:smtp.gmail.com}
+  #   port: ${SMTP_PORT:587}
+  #   username: ${SMTP_USERNAME:tu_email@gmail.com}
+  #   password: ${SMTP_PASSWORD:tu_app_password_aqui}
+  #   properties:
+  #     mail:
+  #       smtp:
+  #         auth: true
+  #         starttls:
+  #           enable: true
+
+  # ── MailHog SMTP (desarrollo local) ────────────────────────────────
+  # MailHog corre en localhost:1025 (SMTP) y localhost:8025 (UI web).
+  # Levantar con:  docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
   mail:
-    host: ${SMTP_HOST:smtp.gmail.com}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:tu_email@gmail.com}
-    password: ${SMTP_PASSWORD:tu_app_password_aqui}
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
     properties:
       mail:
         smtp:
-          auth: true
+          auth: false
           starttls:
-            enable: true
+            enable: false
 
 server:
   port: ${SERVER_PORT:8080}
@@ -51,6 +66,7 @@ app:
   cors:
     # Orígenes permitidos del Frontend, separados por coma. Ajustar por entorno.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
 
 logging:
   level:

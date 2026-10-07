@@ -187,7 +187,8 @@ public class VentaService {
                 saved.getNombreComprador(),
                 tanda.getEvento().getNombre(),
                 tanda.getNombre(),
-                codigoQr
+                codigoQr,
+                saved.getId()
         );
 
         return toResponseDTO(saved);
@@ -386,5 +387,17 @@ public class VentaService {
                 .fechaCompra(entrada.getFechaCompra())
                 .fechaUso(entrada.getFechaUso())
                 .build();
+    }
+
+    /**
+     * Consulta pública de una entrada por su codigoQr.
+     * El código actúa como token de acceso — solo quien lo recibió por email puede usarlo.
+     * @Transactional necesario: toResponseDTO accede a getTanda() que es lazy.
+     */
+    @Transactional(readOnly = true)
+    public EntradaResponseDTO obtenerEntradaPorCodigoQr(String codigoQr) {
+        Entrada entrada = entradaRepository.findByCodigoQr(codigoQr)
+                .orElseThrow(() -> new ResourceNotFoundException("Entrada no encontrada"));
+        return toResponseDTO(entrada);
     }
 }
