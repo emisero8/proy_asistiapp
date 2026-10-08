@@ -360,12 +360,12 @@ export function OrganizadorEditEventPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Lugar / dirección *</label>
-              <input value={venue} onChange={(e) => setVenue(e.target.value)} className={`${inputBase} border-border`} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Ubicación en el mapa</label>
-              <MapPicker direccion={venue} value={coords} onChange={setCoords} />
+              <MapPicker
+                venueValue={venue}
+                onVenueChange={setVenue}
+                value={coords}
+                onChange={setCoords}
+              />
             </div>
             <div>
               <ImagenPortadaField value={img} onChange={setImg} />

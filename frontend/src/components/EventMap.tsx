@@ -1,13 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import iconUrl from "leaflet/dist/images/marker-icon.png";
-import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
-import shadowUrl from "leaflet/dist/images/marker-shadow.png";
-import { Navigation, Search, Loader2 } from "lucide-react";
+import { Navigation, MapPin, Loader2, X } from "lucide-react";
 
-// Leaflet no resuelve bien las rutas de sus íconos con bundlers — se las damos a mano.
-L.Icon.Default.mergeOptions({ iconUrl, iconRetinaUrl, shadowUrl });
+// ── Pin SVG personalizado (evita los problemas de rutas de PNG con bundlers) ──
+const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
+  <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24S24 21 24 12C24 5.373 18.627 0 12 0z" fill="#6366f1"/>
+  <circle cx="12" cy="12" r="5" fill="white"/>
+</svg>`;
+
+const PIN_ICON = L.divIcon({
+  html: PIN_SVG,
+  className: "",
+  iconSize: [24, 36],
+  iconAnchor: [12, 36],
+  popupAnchor: [0, -36],
+});
 
 /** Centro por defecto: Obelisco, CABA. */
 const DEFAULT_CENTER: [number, number] = [-34.6037, -58.3816];
@@ -17,17 +25,40 @@ export interface Coords {
   lng: number;
 }
 
-async function geocodificar(query: string): Promise<(Coords & { nombre: string }) | null> {
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&addressdetails=0&q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { headers: { "Accept-Language": "es" } });
-  if (!res.ok) return null;
-  const data = (await res.json()) as Array<{ lat: string; lon: string; display_name: string }>;
-  if (!data.length) return null;
-  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), nombre: data[0].display_name };
+interface Sugerencia {
+  placeId: string;
+  nombre: string;
+  lat: number;
+  lng: number;
 }
 
 function linkComoLlegar(c: Coords): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}`;
+}
+
+interface NominatimAddress {
+  road?: string;
+  pedestrian?: string;
+  footway?: string;
+  house_number?: string;
+  neighbourhood?: string;
+  suburb?: string;
+  city?: string;
+  town?: string;
+  village?: string;
+  municipality?: string;
+  state?: string;
+  country?: string;
+}
+
+/** Arma una etiqueta corta: "Calle 123, Ciudad, Provincia" */
+function formatearDireccion(address: NominatimAddress, fallback: string): string {
+  const calle = address.road ?? address.pedestrian ?? address.footway ?? address.neighbourhood ?? address.suburb ?? "";
+  const numero = address.house_number ? ` ${address.house_number}` : "";
+  const ciudad = address.city ?? address.town ?? address.village ?? address.municipality ?? "";
+  const provincia = address.state ?? "";
+  const partes = [calle ? `${calle}${numero}` : "", ciudad, provincia].filter(Boolean);
+  return partes.length >= 2 ? partes.join(", ") : fallback;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -35,19 +66,42 @@ function linkComoLlegar(c: Coords): string {
 // ─────────────────────────────────────────────────────────────
 
 export function MapPicker({
-  direccion,
+  venueValue,
+  onVenueChange,
   value,
   onChange,
 }: {
-  direccion: string;
+  venueValue: string;
+  onVenueChange: (v: string) => void;
   value: Coords | null;
   onChange: (c: Coords | null) => void;
 }) {
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+
+  const [inputText, setInputText] = useState(venueValue);
+  const [sugerencias, setSugerencias] = useState<Sugerencia[]>([]);
   const [buscando, setBuscando] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [abierto, setAbierto] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Sincronizar inputText si el padre cambia venueValue (e.g. carga inicial en edición)
+  useEffect(() => {
+    setInputText(venueValue);
+  }, [venueValue]);
+
+  // Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setAbierto(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // init mapa una sola vez
   useEffect(() => {
@@ -59,14 +113,8 @@ export function MapPicker({
       maxZoom: 19,
     }).addTo(map);
 
-    map.on("click", (e: L.LeafletMouseEvent) => {
-      ponerMarcador(e.latlng.lat, e.latlng.lng);
-      onChange({ lat: e.latlng.lat, lng: e.latlng.lng });
-    });
-
     mapRef.current = map;
     if (value) ponerMarcador(value.lat, value.lng);
-    // fix de tamaño cuando el contenedor entra en layout
     setTimeout(() => map.invalidateSize(), 100);
 
     return () => {
@@ -83,7 +131,7 @@ export function MapPicker({
     if (markerRef.current) {
       markerRef.current.setLatLng([lat, lng]);
     } else {
-      const m = L.marker([lat, lng], { draggable: true }).addTo(map);
+      const m = L.marker([lat, lng], { icon: PIN_ICON, draggable: true }).addTo(map);
       m.on("dragend", () => {
         const p = m.getLatLng();
         onChange({ lat: p.lat, lng: p.lng });
@@ -92,61 +140,155 @@ export function MapPicker({
     }
   }
 
-  async function buscar() {
-    const q = direccion.trim();
-    if (!q) {
-      setMsg("Escribí primero la dirección en el campo de arriba.");
+  const buscarSugerencias = useCallback(async (q: string) => {
+    if (q.trim().length < 3) {
+      setSugerencias([]);
+      setAbierto(false);
       return;
     }
     setBuscando(true);
-    setMsg(null);
     try {
-      const r = await geocodificar(q);
-      if (!r) {
-        setMsg("No encontramos esa dirección. Ajustá el texto o marcá el punto en el mapa.");
-        return;
-      }
-      mapRef.current?.setView([r.lat, r.lng], 16);
-      ponerMarcador(r.lat, r.lng);
-      onChange({ lat: r.lat, lng: r.lng });
-      setMsg(r.nombre);
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, {
+        headers: { "Accept-Language": "es", "User-Agent": "AsistiApp/1.0" },
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as Array<{
+        place_id: string;
+        lat: string;
+        lon: string;
+        display_name: string;
+        address: NominatimAddress;
+      }>;
+      const sugs: Sugerencia[] = data.map((d) => ({
+        placeId: String(d.place_id),
+        nombre: formatearDireccion(d.address, d.display_name),
+        lat: parseFloat(d.lat),
+        lng: parseFloat(d.lon),
+      }));
+      setSugerencias(sugs);
+      setAbierto(sugs.length > 0);
     } catch {
-      setMsg("No se pudo buscar la dirección ahora. Marcá el punto en el mapa.");
+      setSugerencias([]);
     } finally {
       setBuscando(false);
     }
+  }, []);
+
+  function handleInputChange(val: string) {
+    setInputText(val);
+    onVenueChange(val);
+    // Debounce la búsqueda 350ms para no spamear Nominatim
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => buscarSugerencias(val), 350);
+  }
+
+  function seleccionarSugerencia(s: Sugerencia) {
+    setInputText(s.nombre);
+    onVenueChange(s.nombre);
+    setSugerencias([]);
+    setAbierto(false);
+    mapRef.current?.setView([s.lat, s.lng], 16);
+    ponerMarcador(s.lat, s.lng);
+    onChange({ lat: s.lat, lng: s.lng });
+  }
+
+  function quitarUbicacion() {
+    onChange(null);
+    markerRef.current?.remove();
+    markerRef.current = null;
+    setInputText("");
+    onVenueChange("");
+    setSugerencias([]);
+    setAbierto(false);
   }
 
   return (
-    <div>
-      <div className="flex gap-2 mb-2">
-        <button
-          type="button"
-          onClick={buscar}
-          disabled={buscando}
-          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
-        >
-          {buscando ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
-          Buscar dirección en el mapa
-        </button>
+    <div className="space-y-2">
+      {/* ── Input con autocompletado ── */}
+      <div ref={containerRef} className="relative">
+        <label className="text-xs text-muted-foreground block mb-1.5">
+          Lugar / dirección *
+        </label>
+        <div className="relative flex items-center">
+          <MapPin
+            size={15}
+            className="absolute left-3 text-muted-foreground pointer-events-none"
+          />
+          <input
+            id="venue-autocomplete"
+            type="text"
+            value={inputText}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => sugerencias.length > 0 && setAbierto(true)}
+            placeholder="Ej: Pavón 123, Santa Fe"
+            autoComplete="off"
+            className="w-full pl-9 pr-9 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+          />
+          {buscando && (
+            <Loader2
+              size={15}
+              className="absolute right-3 text-muted-foreground animate-spin pointer-events-none"
+            />
+          )}
+          {!buscando && inputText && (
+            <button
+              type="button"
+              onClick={quitarUbicacion}
+              className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Limpiar dirección"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
+
+        {/* Dropdown de sugerencias */}
+        {abierto && sugerencias.length > 0 && (
+          <ul
+            role="listbox"
+            className="absolute z-[9999] top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+          >
+            {sugerencias.map((s) => (
+              <li
+                key={s.placeId}
+                role="option"
+                aria-selected={false}
+                onMouseDown={(e) => {
+                  e.preventDefault(); // evita que el input pierda focus antes del click
+                  seleccionarSugerencia(s);
+                }}
+                className="flex items-start gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted transition-colors border-b border-border last:border-0"
+              >
+                <MapPin size={13} className="mt-0.5 shrink-0 text-primary" />
+                <span className="line-clamp-2 text-foreground leading-snug">{s.nombre}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* ── Mapa ── */}
+      <div className="relative">
+        <div
+          ref={mapEl}
+          className="w-full h-56 rounded-xl overflow-hidden border border-border z-0"
+        />
         {value && (
           <button
             type="button"
-            onClick={() => {
-              onChange(null);
-              markerRef.current?.remove();
-              markerRef.current = null;
-              setMsg(null);
-            }}
-            className="px-3 py-2 rounded-xl bg-muted text-muted-foreground text-xs font-semibold hover:text-foreground transition-colors"
+            onClick={quitarUbicacion}
+            className="absolute top-2 right-2 z-[400] px-2.5 py-1.5 rounded-lg bg-card/90 backdrop-blur-sm border border-border text-xs text-muted-foreground hover:text-foreground font-medium transition-colors shadow-sm"
           >
-            Quitar ubicación
+            Quitar pin
           </button>
         )}
       </div>
-      <div ref={mapEl} className="w-full h-56 rounded-xl overflow-hidden border border-border z-0" />
-      <p className="text-[11px] text-muted-foreground mt-1.5">
-        {msg ?? "Buscá la dirección o tocá el mapa para marcar el lugar exacto. Podés arrastrar el pin para ajustarlo."}
+
+      <p className="text-[11px] text-muted-foreground">
+        {value
+          ? "✓ Ubicación marcada. Podés arrastrar el pin para ajustar el punto exacto."
+          : "Escribí la dirección para ver sugerencias o tocá el mapa para marcar el lugar."}
       </p>
     </div>
   );
@@ -170,7 +312,7 @@ export function MapView({ coords, lugar, alto = "h-52" }: { coords: Coords; luga
       attribution: "&copy; OpenStreetMap",
       maxZoom: 19,
     }).addTo(map);
-    L.marker([coords.lat, coords.lng]).addTo(map).bindPopup(lugar ?? "Lugar del evento");
+    L.marker([coords.lat, coords.lng], { icon: PIN_ICON }).addTo(map).bindPopup(lugar ?? "Lugar del evento");
     mapRef.current = map;
     setTimeout(() => map.invalidateSize(), 100);
     return () => {

@@ -250,17 +250,12 @@ export function OrganizadorWizardPage() {
               </div>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Lugar / dirección *</label>
-              <input
-                value={venue}
-                onChange={(e) => setVenue(e.target.value)}
-                placeholder="Av. Díaz Vélez 5555, Parque Centenario, CABA"
-                className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+              <MapPicker
+                venueValue={venue}
+                onVenueChange={setVenue}
+                value={coords}
+                onChange={setCoords}
               />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Ubicación en el mapa</label>
-              <MapPicker direccion={venue} value={coords} onChange={setCoords} />
             </div>
             <div>
               <ImagenPortadaField value={img} onChange={setImg} />
