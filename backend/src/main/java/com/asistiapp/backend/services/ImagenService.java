@@ -90,6 +90,14 @@ public class ImagenService {
         } catch (IOException e) {
             log.error("Error al subir imagen a Cloudinary: {}", e.getMessage(), e);
             throw new BusinessRuleException("No se pudo subir la imagen. Intentá nuevamente.");
+        } catch (RuntimeException e) {
+            // El SDK de Cloudinary no siempre tira IOException: credenciales vacías/invalidas,
+            // cloud_name mal, o un error de su API devuelven excepciones sin checked (p.ej.
+            // IllegalArgumentException, ApiException). Sin este catch, cualquiera de esas
+            // escapaba sin manejar y el cliente veia un 500 generico en vez de un mensaje util.
+            log.error("Error inesperado al subir imagen a Cloudinary (revisar credenciales CLOUDINARY_*): {}",
+                    e.getMessage(), e);
+            throw new BusinessRuleException("No se pudo subir la imagen. Intentá nuevamente en unos minutos.");
         }
     }
 

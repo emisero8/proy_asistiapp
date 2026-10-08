@@ -354,7 +354,7 @@ export function MapView({ coords, lugar, alto = "h-52" }: { coords: Coords; luga
         href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Ver en Google Maps y obtener indicaciones"
+        aria-label={lugar ? `Ver ${lugar} en Google Maps y obtener indicaciones` : "Ver en Google Maps y obtener indicaciones"}
         className="group block relative"
       >
         <div

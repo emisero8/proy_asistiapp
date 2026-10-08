@@ -2,9 +2,12 @@ import { NavLink, Outlet, useNavigate } from "react-router";
 import { LayoutDashboard, Sparkles, Wallet, Users, LogOut, UserRound } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 
+// "label" se usa en el sidebar de desktop (hay lugar de sobra); "mobileLabel"
+// es la versión corta para la barra inferior de mobile, donde 5 pestañas
+// comparten el ancho de la pantalla.
 const TABS = [
   { to: "/organizador/dashboard", label: "Dashboard", Icon: LayoutDashboard },
-  { to: "/organizador/crear", label: "Crear", Icon: Sparkles },
+  { to: "/organizador/crear", label: "Crear evento", mobileLabel: "Crear", Icon: Sparkles },
   { to: "/organizador/creditos", label: "Créditos", Icon: Wallet },
   { to: "/organizador/staff", label: "Staff", Icon: Users },
 ];
@@ -89,7 +92,7 @@ export function OrganizadorLayout() {
       {/* Bottom tab bar — mobile only */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-md">
         <div className="max-w-md mx-auto grid grid-cols-5">
-          {MOBILE_TABS.map(({ to, label, Icon }) => (
+          {MOBILE_TABS.map(({ to, label, mobileLabel, Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -100,7 +103,7 @@ export function OrganizadorLayout() {
               }
             >
               <Icon size={18} />
-              {label}
+              {mobileLabel ?? label}
             </NavLink>
           ))}
         </div>

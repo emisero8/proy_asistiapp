@@ -1,2 +1,8 @@
 # Guía de demo local — tiene credenciales de cuentas de prueba, no se commitea.
 GUIA_DEMO.md
+
+# Herramientas locales de desarrollo (no parte del repo)
+/tools/
+
+# Logs del backend (logging.file.name)
+/backend/logs/

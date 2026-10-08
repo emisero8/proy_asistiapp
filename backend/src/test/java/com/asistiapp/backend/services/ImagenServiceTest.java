@@ -97,4 +97,52 @@ class ImagenServiceTest {
                 "https://res.cloudinary.com/" + CLOUD + "/image/upload/v1/asistiapp/eventos/x.png");
         // no debe lanzar
     }
+
+    @Test
+    void subirImagenEvento_exitoso_devuelveSecureUrl() throws Exception {
+        when(cloudinary.uploader()).thenReturn(uploader);
+        String urlEsperada = "https://res.cloudinary.com/" + CLOUD + "/image/upload/v1/asistiapp/eventos/x.png";
+        when(uploader.upload(any(byte[].class), any(Map.class)))
+                .thenReturn(Map.of("secure_url", urlEsperada));
+
+        var archivo = new org.springframework.mock.web.MockMultipartFile(
+                "archivo", "foto.png", "image/png", new byte[]{1, 2, 3});
+
+        String url = imagenService.subirImagenEvento(archivo);
+
+        assertThat(url).isEqualTo(urlEsperada);
+    }
+
+    @Test
+    void subirImagenEvento_cloudinaryTiraIOException_lanzaBusinessRuleException() throws Exception {
+        when(cloudinary.uploader()).thenReturn(uploader);
+        when(uploader.upload(any(byte[].class), any(Map.class)))
+                .thenThrow(new java.io.IOException("red caida"));
+
+        var archivo = new org.springframework.mock.web.MockMultipartFile(
+                "archivo", "foto.png", "image/png", new byte[]{1, 2, 3});
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> imagenService.subirImagenEvento(archivo))
+                .isInstanceOf(com.asistiapp.backend.exceptions.BusinessRuleException.class);
+    }
+
+    /**
+     * El SDK de Cloudinary no siempre tira IOException: credenciales vacías/mal
+     * configuradas (como pasó con una terminal sin las variables CLOUDINARY_*)
+     * devuelven excepciones sin checked. Antes de este fix esa excepción se
+     * escapaba sin manejar y el cliente veía un 500 genérico en vez de un
+     * mensaje útil.
+     */
+    @Test
+    void subirImagenEvento_cloudinaryTiraRuntimeException_lanzaBusinessRuleExceptionYNoSeEscapa() throws Exception {
+        when(cloudinary.uploader()).thenReturn(uploader);
+        when(uploader.upload(any(byte[].class), any(Map.class)))
+                .thenThrow(new IllegalArgumentException("Must supply cloud_name"));
+
+        var archivo = new org.springframework.mock.web.MockMultipartFile(
+                "archivo", "foto.png", "image/png", new byte[]{1, 2, 3});
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> imagenService.subirImagenEvento(archivo))
+                .isInstanceOf(com.asistiapp.backend.exceptions.BusinessRuleException.class);
+    }
 }

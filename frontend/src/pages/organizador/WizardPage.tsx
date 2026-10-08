@@ -188,18 +188,18 @@ export function OrganizadorWizardPage() {
         </button>
         <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Crear evento</h2>
         <div className="flex items-center gap-2 mt-3">
-          {[1, 2].map((s) => (
-            <div key={s} className="flex items-center gap-2">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${step >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                {s}
+          {[
+            { n: 1, label: "Datos básicos" },
+            { n: 2, label: "Entradas" },
+          ].map(({ n, label }, i) => (
+            <div key={n} className="flex items-center gap-2">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-none transition-all ${step >= n ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                {n}
               </div>
-              {s === 1 && <div className={`h-0.5 w-20 rounded-full transition-all ${step >= 2 ? "bg-primary" : "bg-muted"}`} />}
+              <span className={`text-xs font-semibold whitespace-nowrap ${step === n ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
+              {i === 0 && <div className={`h-0.5 w-8 sm:w-14 rounded-full ml-1 transition-all ${step >= 2 ? "bg-primary" : "bg-muted"}`} />}
             </div>
           ))}
-          <div className="ml-2 flex gap-4">
-            <span className={`text-xs font-semibold ${step === 1 ? "text-foreground" : "text-muted-foreground"}`}>Datos básicos</span>
-            <span className={`text-xs font-semibold ${step === 2 ? "text-foreground" : "text-muted-foreground"}`}>Tandas</span>
-          </div>
         </div>
       </div>
 
