@@ -51,13 +51,25 @@ interface NominatimAddress {
   country?: string;
 }
 
-/** Arma una etiqueta corta: "Calle 123, Ciudad, Provincia" */
-function formatearDireccion(address: NominatimAddress, fallback: string): string {
+/**
+ * Arma una etiqueta corta: "Nombre / Calle 123, Ciudad, Provincia"
+ * Si la dirección tiene un nombre de lugar (boliche, club, etc.) lo incluye primero.
+ */
+function formatearDireccion(
+  address: NominatimAddress,
+  fallback: string,
+  nombreLugar?: string,
+): string {
   const calle = address.road ?? address.pedestrian ?? address.footway ?? address.neighbourhood ?? address.suburb ?? "";
   const numero = address.house_number ? ` ${address.house_number}` : "";
   const ciudad = address.city ?? address.town ?? address.village ?? address.municipality ?? "";
   const provincia = address.state ?? "";
-  const partes = [calle ? `${calle}${numero}` : "", ciudad, provincia].filter(Boolean);
+
+  const lineaCalle = calle ? `${calle}${numero}` : "";
+  // Si hay nombre de lugar (amenity/shop/etc.) y es distinto a la calle, lo ponemos delante
+  const prefijo = nombreLugar && nombreLugar !== lineaCalle ? nombreLugar : "";
+
+  const partes = [prefijo, lineaCalle, ciudad, provincia].filter(Boolean);
   return partes.length >= 2 ? partes.join(", ") : fallback;
 }
 
@@ -148,7 +160,8 @@ export function MapPicker({
     }
     setBuscando(true);
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=${encodeURIComponent(q)}`;
+      // countrycodes → Sudamérica | namedetails=1 → captura nombres de lugares/negocios
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=6&addressdetails=1&namedetails=1&countrycodes=ar,bo,br,cl,co,ec,gy,pe,py,sr,uy,ve&q=${encodeURIComponent(q)}`;
       const res = await fetch(url, {
         headers: { "Accept-Language": "es", "User-Agent": "AsistiApp/1.0" },
       });
@@ -159,10 +172,15 @@ export function MapPicker({
         lon: string;
         display_name: string;
         address: NominatimAddress;
+        namedetails?: { name?: string; "name:es"?: string };
       }>;
       const sugs: Sugerencia[] = data.map((d) => ({
         placeId: String(d.place_id),
-        nombre: formatearDireccion(d.address, d.display_name),
+        nombre: formatearDireccion(
+          d.address,
+          d.display_name,
+          d.namedetails?.["name:es"] ?? d.namedetails?.name,
+        ),
         lat: parseFloat(d.lat),
         lng: parseFloat(d.lon),
       }));
@@ -301,18 +319,25 @@ export function MapPicker({
 export function MapView({ coords, lugar, alto = "h-52" }: { coords: Coords; lugar?: string; alto?: string }) {
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const mapsUrl = linkComoLlegar(coords);
 
   useEffect(() => {
     if (!mapEl.current || mapRef.current) return;
-    const map = L.map(mapEl.current, { scrollWheelZoom: false, zoomControl: true, dragging: true }).setView(
-      [coords.lat, coords.lng],
-      15,
-    );
+    // Interacción deshabilitada: el mapa entero es un link a Google Maps
+    const map = L.map(mapEl.current, {
+      scrollWheelZoom: false,
+      zoomControl: false,
+      dragging: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      touchZoom: false,
+    }).setView([coords.lat, coords.lng], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap",
       maxZoom: 19,
     }).addTo(map);
-    L.marker([coords.lat, coords.lng], { icon: PIN_ICON }).addTo(map).bindPopup(lugar ?? "Lugar del evento");
+    L.marker([coords.lat, coords.lng], { icon: PIN_ICON }).addTo(map);
     mapRef.current = map;
     setTimeout(() => map.invalidateSize(), 100);
     return () => {
@@ -324,9 +349,28 @@ export function MapView({ coords, lugar, alto = "h-52" }: { coords: Coords; luga
 
   return (
     <div>
-      <div ref={mapEl} className={`w-full ${alto} rounded-xl overflow-hidden border border-border z-0`} />
+      {/* El mapa completo es clickeable y abre Google Maps */}
       <a
-        href={linkComoLlegar(coords)}
+        href={mapsUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Ver en Google Maps y obtener indicaciones"
+        className="group block relative"
+      >
+        <div
+          ref={mapEl}
+          className={`w-full ${alto} rounded-xl overflow-hidden border border-border z-0 cursor-pointer`}
+        />
+        {/* Overlay tooltip al hacer hover */}
+        <div className="absolute inset-0 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[400]">
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-semibold shadow-lg">
+            <Navigation size={12} />
+            Abrir en Google Maps
+          </span>
+        </div>
+      </a>
+      <a
+        href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
