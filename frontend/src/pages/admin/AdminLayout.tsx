@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router";
+import { NavLink, Outlet, useNavigate } from "react-router";
 import { LayoutDashboard, Users, Calendar, CircleDollarSign, LogOut } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 
@@ -11,6 +11,7 @@ const TABS = [
 
 export function AdminLayout() {
   const { session, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-52">
@@ -29,12 +30,31 @@ export function AdminLayout() {
       {/* Sidebar — desktop (md+) */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-52 md:border-r md:border-border md:bg-card/40 relative overflow-hidden">
         <div className="absolute -top-20 -left-16 w-56 h-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-        <div className="px-5 pt-7 pb-5 border-b border-border relative">
-          <h2 className="text-base font-extrabold text-foreground">
+
+        {/* Header: logo + bienvenida + perfil */}
+        <div className="px-5 pt-7 pb-4 border-b border-border/50 relative">
+          <h2 className="text-xl font-extrabold text-foreground tracking-tight">
             Asistí<span className="text-primary">APP</span>
           </h2>
-          <p className="text-[10px] text-muted-foreground tracking-widest uppercase mt-0.5">Backoffice Admin</p>
+          <p className="text-[11px] tracking-widest uppercase mt-1 mb-3 font-semibold">
+            <span className="text-foreground/80">Bienvenido </span><span className="text-foreground">Administrador</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/admin/dashboard")}
+            aria-label="Ver mi perfil"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-muted transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          >
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-primary-foreground flex-none">
+              {session?.nombre?.charAt(0) ?? "A"}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate leading-tight">{session?.nombre}</p>
+              <p className="text-[10px] text-muted-foreground truncate leading-tight">Ver Perfil</p>
+            </div>
+          </button>
         </div>
+
         <nav className="flex-1 px-3 py-4 space-y-1 relative">
           {TABS.map(({ to, label, Icon }) => (
             <NavLink
@@ -51,14 +71,6 @@ export function AdminLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="px-4 pb-5 relative">
-          <div className="flex items-center gap-2.5 px-1">
-            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-primary-foreground flex-none">
-              {session?.nombre?.charAt(0) ?? "A"}
-            </div>
-            <p className="text-xs font-semibold text-foreground truncate">{session?.nombre}</p>
-          </div>
-        </div>
       </aside>
 
       <Outlet />

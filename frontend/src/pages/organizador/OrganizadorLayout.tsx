@@ -52,13 +52,32 @@ export function OrganizadorLayout() {
       {/* Sidebar — desktop (md+) */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-56 md:border-r md:border-border md:bg-card/40 relative overflow-hidden">
         <div className="absolute -top-20 -left-16 w-56 h-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-        <div className="px-5 pt-6 pb-8 relative">
-          <h1 className="text-lg font-extrabold text-foreground tracking-tight">
+
+        {/* Header: logo + bienvenida + perfil clickeable */}
+        <div className="px-5 pt-6 pb-4 border-b border-border/50 relative">
+          <h1 className="text-xl font-extrabold text-foreground tracking-tight">
             Asistí<span className="text-primary">APP</span>
           </h1>
-          <p className="text-[10px] text-muted-foreground tracking-widest uppercase mt-0.5">Organizador</p>
+          <p className="text-[11px] tracking-widest uppercase mt-1 mb-3 font-semibold">
+            <span className="text-foreground/80">Bienvenido </span><span className="text-foreground">Organizador</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/organizador/perfil")}
+            aria-label="Ver mi perfil"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-muted transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+          >
+            <Avatar nombre={session?.nombre} foto={session?.fotoPerfilUrl} />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate leading-tight">
+                {session?.nombre}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate leading-tight">Ver Perfil</p>
+            </div>
+          </button>
         </div>
-        <nav className="flex-1 px-3 space-y-1 relative">
+
+        <nav className="flex-1 px-3 pt-4 space-y-1 relative">
           {TABS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
@@ -74,17 +93,6 @@ export function OrganizadorLayout() {
             </NavLink>
           ))}
         </nav>
-        <div className="px-3 pb-5 relative">
-          <button
-            type="button"
-            onClick={() => navigate("/organizador/perfil")}
-            aria-label="Ver mi perfil"
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-muted transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          >
-            <Avatar nombre={session?.nombre} foto={session?.fotoPerfilUrl} />
-            <p className="text-xs font-semibold text-foreground truncate">{session?.nombre}</p>
-          </button>
-        </div>
       </aside>
 
       <Outlet />

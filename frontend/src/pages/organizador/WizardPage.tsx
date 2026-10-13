@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { ChevronLeft, ChevronRight, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { hoyLocal } from "../../lib/format";
 import { MapPicker, type Coords } from "../../components/EventMap";
@@ -40,6 +40,7 @@ export function OrganizadorWizardPage() {
   useDocumentTitle("Crear evento");
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const topRef = useRef<HTMLDivElement>(null);
   const [published, setPublished] = useState(false);
   const [eventoId, setEventoId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -54,6 +55,11 @@ export function OrganizadorWizardPage() {
       .then(setResumen)
       .catch(() => setResumen({ saldo: 0, costoPublicacion: 1, disponibleParaEntradas: 0 }));
   }, []);
+
+  // Scroll al top al cambiar de paso
+  useEffect(() => {
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [step]);
 
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -181,25 +187,57 @@ export function OrganizadorWizardPage() {
 
   return (
     <div className="max-w-md lg:max-w-2xl mx-auto">
-      <div className="px-4 lg:px-0 pt-6 pb-4 border-b border-border bg-background">
+      <div ref={topRef} className="px-4 lg:px-0 pt-6 pb-4 border-b border-border bg-background">
         <button onClick={() => navigate("/organizador/dashboard")} className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors">
           <ChevronLeft size={15} />
           Volver
         </button>
         <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Crear evento</h2>
-        <div className="flex items-center gap-2 mt-3">
+
+        {/* Stepper animado */}
+        <div className="flex items-center gap-0 mt-4">
           {[
             { n: 1, label: "Datos básicos" },
             { n: 2, label: "Entradas" },
-          ].map(({ n, label }, i) => (
-            <div key={n} className="flex items-center gap-2">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-none transition-all ${step >= n ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                {n}
+          ].map(({ n, label }, i) => {
+            const isCompleted = step > n;
+            const isActive = step === n;
+            return (
+              <div key={n} className="flex items-center gap-0">
+                <div className="flex items-center gap-2">
+                  {/* Círculo del paso */}
+                  <div
+                    className={`relative flex items-center justify-center rounded-full text-xs font-bold flex-none transition-all duration-500 ${
+                      isCompleted
+                        ? "w-6 h-6 bg-primary text-primary-foreground scale-100 shadow-md shadow-primary/30"
+                        : isActive
+                        ? "w-7 h-7 bg-primary text-primary-foreground scale-110 shadow-lg shadow-primary/40 ring-2 ring-primary/20"
+                        : "w-6 h-6 bg-muted text-muted-foreground scale-100"
+                    }`}
+                  >
+                    {isCompleted ? <Check size={12} strokeWidth={3} /> : n}
+                  </div>
+                  {/* Label del paso */}
+                  <span
+                    className={`text-xs font-semibold whitespace-nowrap transition-colors duration-300 ${
+                      isActive ? "text-foreground" : isCompleted ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+                {/* Línea de progreso entre pasos */}
+                {i === 0 && (
+                  <div className="relative mx-3 h-0.5 w-10 sm:w-16 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500 ease-in-out"
+                      style={{ width: step >= 2 ? "100%" : "0%" }}
+                    />
+                  </div>
+                )}
               </div>
-              <span className={`text-xs font-semibold whitespace-nowrap ${step === n ? "text-foreground" : "text-muted-foreground"}`}>{label}</span>
-              {i === 0 && <div className={`h-0.5 w-8 sm:w-14 rounded-full ml-1 transition-all ${step >= 2 ? "bg-primary" : "bg-muted"}`} />}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -267,11 +305,60 @@ export function OrganizadorWizardPage() {
           <>
             <p className="text-xs text-muted-foreground">Configurá las tandas de precios y sus cupos.</p>
             {resumen && (
-              <p className={`text-xs mt-1 ${excedeCreditos ? "text-destructive" : "text-muted-foreground"}`}>
-                {excedeCreditos
-                  ? `Las entradas suman ${totalEntradas} y tenés ${disponibleEntradas} crédito(s) disponible(s) para entradas. Bajá algún cupo.`
-                  : `Tenés ${disponibleEntradas} crédito(s) disponible(s) para entradas: cada entrada consume 1. Se reservan ${resumen.costoPublicacion} para publicar.`}
+              <p className="text-xs mt-1 text-muted-foreground">
+                {`Tenés ${disponibleEntradas} crédito(s) disponible(s) para entradas: cada entrada consume 1. Se reservan ${resumen.costoPublicacion} para publicar.`}
               </p>
+            )}
+
+            {/* Contador de créditos en vivo */}
+            {resumen && disponibleEntradas !== null && (
+              (() => {
+                const pct = disponibleEntradas > 0 ? Math.min((totalEntradas / disponibleEntradas) * 100, 100) : 100;
+                const restantes = disponibleEntradas - totalEntradas;
+                const colorBar = excedeCreditos
+                  ? "bg-destructive"
+                  : pct >= 80
+                  ? "bg-amber-400"
+                  : "bg-primary";
+                const colorText = excedeCreditos
+                  ? "text-destructive"
+                  : pct >= 80
+                  ? "text-amber-400"
+                  : "text-primary";
+                return (
+                  <div className="bg-card border border-border rounded-2xl p-4 space-y-3 mt-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-foreground">Créditos para entradas</span>
+                      <span className={`text-sm font-extrabold tabular-nums transition-colors duration-300 ${colorText}`}>
+                        {totalEntradas}
+                        <span className="text-muted-foreground font-normal text-xs"> / {disponibleEntradas}</span>
+                      </span>
+                    </div>
+
+                    {/* Barra de progreso */}
+                    <div className="relative h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`absolute inset-y-0 left-0 rounded-full transition-all duration-300 ease-out ${colorBar}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+
+                    {/* Estado textual */}
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">
+                        {excedeCreditos
+                          ? `Excedés el límite en ${Math.abs(restantes)} entrada${Math.abs(restantes) !== 1 ? "s" : ""}`
+                          : restantes === 0
+                          ? "Usaste todos los créditos disponibles"
+                          : `Te quedan ${restantes} crédito${restantes !== 1 ? "s" : ""} sin asignar`}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {resumen.costoPublicacion} reservado{resumen.costoPublicacion !== 1 ? "s" : ""} para publicar
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()
             )}
             {tandas.map((t, i) => (
               <div key={t.id} className={`bg-card border rounded-2xl p-4 space-y-3 ${tandaErrors[i] ? "border-red-500/50" : "border-border"}`}>
