@@ -46,12 +46,11 @@ export function OrganizadorWalletPage() {
     setError(null);
     try {
       const orden = await api.post<IniciarCompraCreditoResponseDTO>("/creditos/comprar", { idPaquete });
-      await api.post("/creditos/webhook/pago", { transaccionId: orden.ordenId, paymentId: Date.now() });
-      setSelectedPack(null);
-      cargar();
+      // Redirección real a Checkout Pro — el pago se confirma por el webhook de
+      // MercadoPago, no acá. MercadoPago vuelve a /pago/resultado cuando termina.
+      window.location.href = orden.urlPago;
     } catch (e: unknown) {
       setError(e instanceof ApiError ? e.message : "No pudimos procesar la compra.");
-    } finally {
       setComprando(false);
     }
   }

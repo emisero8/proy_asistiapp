@@ -503,4 +503,48 @@ class VentaServiceTest {
         transaccion.setEstado(estado);
         return transaccion;
     }
+
+    // ─────────────────────────────────────────────
+    // obtenerEstadoOrden — pantalla de resultado del pago
+    // ─────────────────────────────────────────────
+
+    @Test
+    void obtenerEstadoOrden_aprobada_incluyeLasEntradasGeneradas() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Aprobada);
+        when(transaccionPagoRepository.findByExternalReference("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+        Entrada entrada = new Entrada();
+        entrada.setId(55L);
+        entrada.setTanda(tanda);
+        entrada.setCodigoQr("QR-1");
+        when(entradaRepository.findByIdTransaccionPago(1L)).thenReturn(List.of(entrada));
+
+        var resultado = ventaService.obtenerEstadoOrden("1");
+
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
+        assertThat(resultado.getNombreEvento()).isEqualTo(evento.getNombre());
+        assertThat(resultado.getEntradas()).hasSize(1);
+        assertThat(resultado.getEntradas().get(0).getCodigoQr()).isEqualTo("QR-1");
+    }
+
+    @Test
+    void obtenerEstadoOrden_pendiente_noConsultaEntradas() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        when(transaccionPagoRepository.findByExternalReference("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+
+        var resultado = ventaService.obtenerEstadoOrden("1");
+
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.Pendiente);
+        assertThat(resultado.getEntradas()).isEmpty();
+        verify(entradaRepository, never()).findByIdTransaccionPago(any());
+    }
+
+    @Test
+    void obtenerEstadoOrden_inexistente_lanzaResourceNotFoundException() {
+        when(transaccionPagoRepository.findByExternalReference("no-existe")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> ventaService.obtenerEstadoOrden("no-existe"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
 }

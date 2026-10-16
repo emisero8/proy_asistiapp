@@ -107,7 +107,13 @@ public class MercadoPagoService {
         try {
             Preference preferencia = preferenceClient.create(request.build());
             log.info("Preferencia MP creada: id={}, externalReference={}", preferencia.getId(), orden.externalReference());
-            return new PreferenciaCreada(preferencia.getId(), preferencia.getInitPoint());
+            // Con credenciales de un usuario de prueba, MercadoPago solo completa el pago en
+            // sandbox_init_point — el init_point "de producción" devuelve error de acceso.
+            // Con credenciales reales, sandbox_init_point viene vacío y se usa init_point.
+            String urlCheckout = (preferencia.getSandboxInitPoint() != null && !preferencia.getSandboxInitPoint().isBlank())
+                    ? preferencia.getSandboxInitPoint()
+                    : preferencia.getInitPoint();
+            return new PreferenciaCreada(preferencia.getId(), urlCheckout);
         } catch (MPApiException e) {
             log.error("MercadoPago rechazó la preferencia ({}): {}", e.getStatusCode(), e.getApiResponse().getContent());
             throw new PasarelaPagoException("No pudimos iniciar el pago con MercadoPago. Intentá de nuevo en unos minutos.");

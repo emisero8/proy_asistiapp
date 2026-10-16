@@ -1,5 +1,7 @@
 package com.asistiapp.backend.services;
 
+import com.asistiapp.backend.exceptions.ForbiddenActionException;
+import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.entities.MovimientoCredito;
 import com.asistiapp.backend.models.entities.Organizador;
 import com.asistiapp.backend.models.entities.PaqueteCredito;
@@ -22,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,6 +70,39 @@ class CreditoServiceTest {
 
     private void ordenEncontrada() {
         when(transaccionCreditoRepository.findByExternalReferenceForUpdate("ref")).thenReturn(Optional.of(transaccion));
+    }
+
+    // ─────────────────────────────────────────────
+    // obtenerEstadoOrden — pantalla de resultado del pago
+    // ─────────────────────────────────────────────
+
+    @Test
+    void obtenerEstadoOrden_ordenPropia_devuelveEstadoYCantidadDeCreditos() {
+        transaccion.setEstado(EstadoTransaccion.Aprobada);
+        when(transaccionCreditoRepository.findByExternalReference("ref")).thenReturn(Optional.of(transaccion));
+        when(paqueteCreditoRepository.findById(3L)).thenReturn(Optional.of(paquete));
+
+        var resultado = creditoService.obtenerEstadoOrden("ref", 100L);
+
+        assertThat(resultado.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
+        assertThat(resultado.getCantidadCreditos()).isEqualTo(10);
+        assertThat(resultado.getMonto()).isEqualTo(5000.0);
+    }
+
+    @Test
+    void obtenerEstadoOrden_deOtroOrganizador_lanzaForbiddenActionException() {
+        when(transaccionCreditoRepository.findByExternalReference("ref")).thenReturn(Optional.of(transaccion));
+
+        assertThatThrownBy(() -> creditoService.obtenerEstadoOrden("ref", 999L))
+                .isInstanceOf(ForbiddenActionException.class);
+    }
+
+    @Test
+    void obtenerEstadoOrden_inexistente_lanzaResourceNotFoundException() {
+        when(transaccionCreditoRepository.findByExternalReference("ref-x")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> creditoService.obtenerEstadoOrden("ref-x", 100L))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test

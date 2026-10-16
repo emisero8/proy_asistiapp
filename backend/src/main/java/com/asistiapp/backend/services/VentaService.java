@@ -163,6 +163,31 @@ public class VentaService {
     }
 
     /**
+     * Estado de una orden para la pantalla de resultado del pago. Si ya está Aprobada,
+     * incluye las entradas generadas (con su QR) para que el comprador las vea sin
+     * depender de que le llegue el mail.
+     */
+    @Transactional(readOnly = true)
+    public EstadoOrdenEntradasResponseDTO obtenerEstadoOrden(String externalReference) {
+        TransaccionPago transaccion = transaccionPagoRepository.findByExternalReference(externalReference)
+                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + externalReference));
+        Tanda tanda = tandaRepository.findById(transaccion.getIdTanda())
+                .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada"));
+
+        List<EntradaResponseDTO> entradas = transaccion.getEstado() == EstadoTransaccion.Aprobada
+                ? entradaRepository.findByIdTransaccionPago(transaccion.getId()).stream().map(this::toResponseDTO).toList()
+                : List.of();
+
+        return EstadoOrdenEntradasResponseDTO.builder()
+                .estado(transaccion.getEstado())
+                .cantidad(transaccion.getCantidad())
+                .nombreEvento(tanda.getEvento().getNombre())
+                .nombreTanda(tanda.getNombre())
+                .entradas(entradas)
+                .build();
+    }
+
+    /**
      * Confirma una orden de entradas cuyo pago MercadoPago ya informó como aprobado
      * (el estado, monto y moneda vienen de la API de MP, no de la notificación).
      *

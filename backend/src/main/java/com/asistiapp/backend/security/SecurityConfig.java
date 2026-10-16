@@ -133,6 +133,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/tickets/*/qr-image").permitAll()
                         // Consulta pública de entrada por codigoQr — el código actúa como token implícito
                         .requestMatchers(HttpMethod.GET, "/tickets/by-codigo").permitAll()
+                        // Pantalla de resultado del pago: el externalReference (UUID) ya es el token de acceso
+                        .requestMatchers(HttpMethod.GET, "/tickets/orden/*").permitAll()
                         // Webhook de MercadoPago: lo invoca el proveedor de pagos, no un usuario logueado.
                         // La autenticidad se valida con la firma x-signature en el controller.
                         .requestMatchers(HttpMethod.POST, "/payments/mercadopago/webhook").permitAll()

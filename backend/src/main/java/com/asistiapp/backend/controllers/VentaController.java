@@ -64,6 +64,16 @@ public class VentaController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Estado de una orden para la pantalla de resultado del pago
+     * (a la que MercadoPago devuelve al comprador tras pagar).
+     */
+    @GetMapping("/orden/{externalReference}")
+    public ResponseEntity<EstadoOrdenEntradasResponseDTO> obtenerEstadoOrden(
+            @PathVariable String externalReference) {
+        return ResponseEntity.ok(ventaService.obtenerEstadoOrden(externalReference));
+    }
+
     // ─────────────────────────────────────────────
     // VENTA MANUAL (CU-019) — Solo Staff_Vendedor
     // ─────────────────────────────────────────────

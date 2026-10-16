@@ -1,8 +1,10 @@
 package com.asistiapp.backend.services;
 
 import com.asistiapp.backend.exceptions.BusinessRuleException;
+import com.asistiapp.backend.exceptions.ForbiddenActionException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.credito.CreditosResumenResponseDTO;
+import com.asistiapp.backend.models.dtos.credito.EstadoOrdenCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoRequestDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.MovimientoCreditoResponseDTO;
@@ -121,6 +123,26 @@ public class CreditoService {
     @Transactional(readOnly = true)
     public boolean existeOrdenCredito(String externalReference) {
         return transaccionCreditoRepository.existsByExternalReference(externalReference);
+    }
+
+    /** Estado de una orden de créditos para la pantalla de resultado del pago. */
+    @Transactional(readOnly = true)
+    public EstadoOrdenCreditoResponseDTO obtenerEstadoOrden(String externalReference, Long idOrganizador) {
+        TransaccionCredito transaccion = transaccionCreditoRepository.findByExternalReference(externalReference)
+                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + externalReference));
+        if (!transaccion.getIdOrganizador().equals(idOrganizador)) {
+            throw new ForbiddenActionException("No tenés permiso para ver esta orden");
+        }
+
+        Integer cantidadCreditos = paqueteCreditoRepository.findById(transaccion.getIdPaquete())
+                .map(PaqueteCredito::getCantidadCreditos)
+                .orElse(null);
+
+        return EstadoOrdenCreditoResponseDTO.builder()
+                .estado(transaccion.getEstado())
+                .cantidadCreditos(cantidadCreditos)
+                .monto(transaccion.getMonto())
+                .build();
     }
 
     /**

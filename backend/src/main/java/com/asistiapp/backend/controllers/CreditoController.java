@@ -1,6 +1,7 @@
 package com.asistiapp.backend.controllers;
 
 import com.asistiapp.backend.models.dtos.credito.CreditosResumenResponseDTO;
+import com.asistiapp.backend.models.dtos.credito.EstadoOrdenCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoRequestDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.MovimientoCreditoResponseDTO;
@@ -63,5 +64,18 @@ public class CreditoController {
     @PreAuthorize("hasRole('Organizador')")
     public ResponseEntity<List<PaqueteCreditoDisponibleDTO>> paquetesDisponibles() {
         return ResponseEntity.ok(creditoService.listarPaquetesDisponibles());
+    }
+
+    /**
+     * Estado de una orden de créditos para la pantalla de resultado del pago.
+     * A diferencia de las entradas, acá el Organizador tiene JWT: se verifica que
+     * la orden sea suya.
+     */
+    @GetMapping("/orden/{externalReference}")
+    @PreAuthorize("hasRole('Organizador')")
+    public ResponseEntity<EstadoOrdenCreditoResponseDTO> obtenerEstadoOrden(
+            @PathVariable String externalReference) {
+        Organizador organizador = securityUtils.getOrganizadorAutenticado();
+        return ResponseEntity.ok(creditoService.obtenerEstadoOrden(externalReference, organizador.getId()));
     }
 }
