@@ -33,8 +33,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final Map<String, LimiteConfig> LIMITES = Map.of(
             "/auth/login", new LimiteConfig(5, Duration.ofMinutes(1)),
             "/auth/recuperar-password", new LimiteConfig(3, Duration.ofMinutes(5)),
-            "/tickets/webhook/pago", new LimiteConfig(30, Duration.ofMinutes(1)),
-            "/creditos/webhook/pago", new LimiteConfig(30, Duration.ofMinutes(1))
+            // Por IP: MercadoPago notifica desde pocas IPs, así que el tope es generoso para no
+            // frenar notificaciones legítimas (cada compra genera varias); la firma ya filtra lo falso.
+            "/payments/mercadopago/webhook", new LimiteConfig(300, Duration.ofMinutes(1))
     );
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();

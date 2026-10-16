@@ -61,7 +61,7 @@ Este plan detalla el enfoque paso a paso para construir el backend del sistema d
 
 1.  **Gestión de Inventario Seguro:**
     *   Implementar bloqueos en BD (ej. *Pessimistic Locking* vía `@Lock` en el Repositorio de Tanda) o consultas de actualización atómicas para decrementar el `cupo_disponible`.
-2.  **Venta Online (Simulación MercadoPago):**
+2.  **Venta Online (Simulación MercadoPago — reemplazada por la integración real en la Fase 21):**
     *   Endpoint para iniciar compra.
     *   Webhook simulado (IPN) que al confirmar pago: genera `codigo_qr` único, cambia estado de `ENTRADA` a `Pagada` y simula envío de correo (SMTP).
 3.  **Venta Manual (`CU-019`):**
@@ -98,7 +98,7 @@ Este plan detalla el enfoque paso a paso para construir el backend del sistema d
     *   `MovimientoCredito`: `id`, `idOrganizador` (FK), `tipoMovimiento` (enum `TipoMovimiento`: Bienvenida/Recarga/Consumo_Publicacion), `monto`, `saldoResultante`, `fechaMovimiento`, `idTransaccionCredito` (FK nullable), `idEvento` (FK nullable).
     *   Repositorios correspondientes (`TransaccionCreditoRepository`, `MovimientoCreditoRepository`).
 2.  **Servicio de Créditos (`CreditoService`):**
-    *   `iniciarCompraCredito(idPaquete)` / `confirmarPagoWebhook(ordenId, paymentId)` — mismo patrón que `VentaService` (orden pendiente → IPN simulado → acredita).
+    *   `iniciarCompraCredito(idPaquete)` / `confirmarPagoWebhook(ordenId, paymentId)` — mismo patrón que `VentaService` (orden pendiente → IPN simulado → acredita). **Reemplazado en la Fase 21:** ahora es `confirmarPagoCredito` vía webhook real.
     *   Al confirmar: crea `TransaccionCredito` (Aprobada), suma `saldo_creditos` del Organizador, y registra un `MovimientoCredito` (tipo `Recarga`) con el `saldoResultante` post-operación.
     *   `listarHistorial(idOrganizador)` → devuelve `MovimientoCredito` ordenados por fecha (CU-013).
 3.  **Corrección — `AuthService.register()`:**
@@ -106,13 +106,13 @@ Este plan detalla el enfoque paso a paso para construir el backend del sistema d
 4.  **Corrección — `EventoService.publicarEvento()`:**
     *   Además de descontar `saldo_creditos`, registrar un `MovimientoCredito` tipo `Consumo_Publicacion` vinculado al evento publicado.
 5.  **Controlador (`CreditoController`):**
-    *   `GET /creditos/historial` (CU-013), `POST /creditos/comprar` y `POST /creditos/webhook/pago` (CU-014) — todos exclusivos de rol `Organizador`.
+    *   `GET /creditos/historial` (CU-013), `POST /creditos/comprar` y `POST /creditos/webhook/pago` (CU-014) — todos exclusivos de rol `Organizador`. *(El webhook simulado se eliminó en la Fase 21; hoy es `POST /payments/mercadopago/webhook`.)*
 
 ## Fase 9: Comprador Anónimo y Catálogo Público ✅
 **Objetivo:** Habilitar el flujo real de CU-015/016/017 — el sistema debe garantizar que el comprador **nunca** necesite iniciar sesión, requisito explícito del documento de PP2.
 
 1.  **Corrección de seguridad crítica (`SecurityConfig`):**
-    *   Agregar a `permitAll()`: listado/detalle público de eventos, `POST /tickets/comprar-online` y `POST /tickets/webhook/pago`. Hoy `anyRequest().authenticated()` bloquea estas rutas y el comprador no tiene ni puede tener JWT.
+    *   Agregar a `permitAll()`: listado/detalle público de eventos, `POST /tickets/comprar-online` y `POST /tickets/webhook/pago` *(este último reemplazado por `/payments/mercadopago/webhook` en la Fase 21)*. Hoy `anyRequest().authenticated()` bloquea estas rutas y el comprador no tiene ni puede tener JWT.
 2.  **Catálogo Público (`EventoPublicoController`):**
     *   `GET /public/eventos` (CU-015) → lista solo eventos en estado `Publicado`.
     *   `GET /public/eventos/{urlPublica}` (CU-016) → detalle con tandas y cupo disponible, usando `EventoRepository.findByUrlPublica`.
@@ -141,7 +141,7 @@ Este plan detalla el enfoque paso a paso para construir el backend del sistema d
     *   `solicitarRecuperacion(email)`: genera token con expiración corta (ej. 30 min), lo persiste, envía email con `EmailService` (nunca revela si el email existe o no, para no filtrar usuarios registrados).
     *   `restablecerPassword(token, nuevaPassword)`: valida token no usado y no expirado, actualiza `passwordHash` (BCrypt), marca token `usado=true`.
 3.  **Controlador (`AuthController`, ampliar):** `POST /auth/recuperar-password` y `POST /auth/restablecer-password`, ambos públicos.
-4.  **Rate limiting (nota de `SECURITY.md`)** ✅ **— implementado:** `RateLimitFilter` (Bucket4j, en memoria) limita `/auth/login` (5/min), `/auth/recuperar-password` (3/5min) y los webhooks de pago (`/tickets/webhook/pago`, `/creditos/webhook/pago`, 30/min), todo por IP.
+4.  **Rate limiting (nota de `SECURITY.md`)** ✅ **— implementado:** `RateLimitFilter` (Bucket4j, en memoria) limita `/auth/login` (5/min), `/auth/recuperar-password` (3/5min) y los webhooks de pago (`/tickets/webhook/pago`, `/creditos/webhook/pago`, 30/min), todo por IP. *(Fase 21: esos dos webhooks se reemplazaron por `/payments/mercadopago/webhook`, 300/min por IP.)*
 
 ## Fase 12: Administración Completa (Usuarios, Eventos, Configuración) ✅
 **Objetivo:** Terminar el módulo Administrador según la numeración final del PP2 (CU-021 a CU-025, CU-028), que es más granular que lo cubierto en la Fase 7.
@@ -364,8 +364,107 @@ Cada fase está marcada con su prioridad:
 - **Verificado contra el backend y Cloudinary reales:** mismo patrón que 20.2, con la portada de un evento de prueba.
 
 ### 20.4 — Un solo mail con todas las entradas de una compra múltiple ✅
-- `confirmarPagoWebhook` ya no manda mail (antes mandaba uno por cada llamada: una compra de N entradas seguía siendo N compras por detrás, cada una con su propio mail).
+- *(Superado por la Fase 21: el mail ahora lo manda el backend desde el webhook real y `/tickets/confirmar-compra` queda para eliminar.)* `confirmarPagoWebhook` ya no manda mail (antes mandaba uno por cada llamada: una compra de N entradas seguía siendo N compras por detrás, cada una con su propio mail).
 - `EmailService.enviarConfirmacionCompra` pasó a recibir la lista de códigos QR de toda la compra (antes uno solo) y arma un mail con un bloque de QR + botón "Ver mi entrada" por cada código. Con una sola entrada, el asunto y el texto quedan en singular y no aparece el contador "Entrada N de M".
 - `POST /tickets/confirmar-compra` (público, nuevo): recibe los códigos QR de la compra, el nombre y el email del comprador. Por cada código verifica que la entrada exista y que el email coincida con el de la entrada (403 si no) antes de armar el mail — el codigoQr ya es el token de acceso en el resto de la app (ver `GET /tickets/by-codigo`), así que no hace falta JWT.
 - Tests: `VentaServiceTest` (+4: varias entradas en un mail, una sola entrada, código inexistente, email que no coincide).
 - **Verificado de punta a punta** contra el backend real y MailHog: 3 compras seguidas al mismo email + 1 llamada a confirmar-compra → 1 solo mail recibido, con "Entrada 1/2/3 de 3", sus 3 códigos QR (imagen real, no placeholder) y sus 3 botones. Con 1 sola entrada, el mail sale en singular sin el contador. Con un email que no coincide con la entrada, 403 y no se manda nada. Las entradas y transacciones de prueba se borraron, y el cupo de la tanda real usada se restauró.
+
+---
+
+## Fase 21: Integración real con MercadoPago (Checkout Pro) 🔴 — backend ✅ / frontend ⏳
+
+**Objetivo:** reemplazar la simulación de pagos (orden pendiente + webhook que llamaba el propio navegador) por MercadoPago Checkout Pro real, tanto para la compra de entradas como para la compra de créditos del organizador. Propuesta original: `Propuesta_Integracion_MercadoPago.docx`. Decisiones tomadas con el equipo: **una sola orden por compra con `cantidad`**, y **una sola cuenta cobradora de MercadoPago** (la de AsistíAPP; sin Marketplace/OAuth por organizador).
+
+> Esta fase **reemplaza** lo descripto como "simulado" en las Fases 5, 8, 9, 15 y 20.4 de este plan. El flujo simulado (`/tickets/webhook/pago`, `/creditos/webhook/pago`, `confirmarPagoWebhook`) ya no existe en el código.
+
+### Qué falta (en orden)
+- **21.7 Frontend** (ver Fase 12 de `frontend_implementation_plan.md`): hoy `CheckoutPage` y `WalletPage` siguen llamando a los endpoints simulados que se eliminaron, así que **la compra desde la web está rota hasta cerrar esa fase**.
+- **21.6 Estado de la orden + reconciliación + vencimiento** (ver abajo).
+- **Probar la compra de entradas con un pago real** (hoy solo está probada la de créditos).
+- **Pase a producción** (checklist abajo).
+
+### 21.1 — Dependencia y configuración ✅
+- `pom.xml`: `com.mercadopago:sdk-java:3.7.0`.
+- `application.yml`, bloque `app.mercadopago.*`, todo por variable de entorno (nada de credenciales en el repo):
+
+  | Variable | Para qué | Default |
+  |---|---|---|
+  | `MP_ACCESS_TOKEN` | Access Token de la aplicación (credenciales de **prueba** en sandbox, de producción al lanzar) | vacío (el backend arranca igual, falla recién al cobrar) |
+  | `MP_WEBHOOK_SECRET` | Clave secreta de Webhooks (panel de la app) para validar `x-signature` | vacío |
+  | `MP_VALIDAR_FIRMA` | Activa/desactiva la validación de firma — **en producción tiene que ser `true`** | `true` |
+  | `BACKEND_PUBLIC_URL` | URL pública HTTPS del backend a la que MP manda los avisos (ngrok en local) | `http://localhost:8080` |
+  | `MP_MINUTOS_VENCIMIENTO` | Minutos que una orden queda abierta para pagar | `30` |
+
+- `config/MercadoPagoConfig`: inicializa el SDK y expone los clientes (`PreferenceClient`, `PaymentClient`, `PaymentRefundClient`). Sin token, loguea un warning y no inicializa.
+
+### 21.2 — Modelo de datos ✅
+- `TransaccionPago`: `cantidad` (entradas de la orden), `external_reference` (UUID, único), `fecha_vencimiento`; `mercadopago_payment_id` pasa a ser **único** (red de seguridad contra procesar el mismo pago dos veces).
+- `TransaccionCredito`: `external_reference` (UUID, único), `fecha_vencimiento`; `mercadopago_payment_id` único.
+- El `external_reference` es un **UUID y no el id secuencial** a propósito: el comprador no tiene JWT y con ese valor consulta el estado de su orden; un id incremental sería adivinable.
+- `EstadoTransaccion`: se suman `Expirada` (la orden venció sin pagarse) y `Reembolsada` (se cobró pero no se pudo entregar y se devolvió el dinero).
+- **Base existente:** `ddl-auto: update` agrega las columnas solo, pero **no** actualiza el CHECK de `estado`. Aplicar una vez `backend/db/migraciones/2026-10-15-mercadopago-ordenes.sql`. En una base nueva no hace falta (Hibernate crea todo con los estados nuevos).
+- `CompraOnlineRequestDTO`: campo `cantidad` (1 a 20, default 1).
+- `TandaRepository.decrementarCupo(id, cantidad)`: descuento atómico todo-o-nada.
+
+### 21.3 — Crear la preferencia real ✅
+- `MercadoPagoService.crearPreferencia(...)`: un ítem con `quantity`, `external_reference`, vencimiento (`expires`/`expiration_date_to`), `back_urls` a `{FRONTEND_BASE_URL}/pago/resultado?ref=<uuid>&tipo=entradas|creditos`, `notification_url` = `{BACKEND_PUBLIC_URL}/payments/mercadopago/webhook`.
+- `notification_url` y `auto_return` solo se mandan si la URL correspondiente es HTTPS (MP los rechaza/no puede usarlos con localhost); en desarrollo sin túnel se omiten y queda un warning.
+- `VentaService.iniciarCompraOnline`: valida cupo y tope por comprador para **toda la cantidad**, crea una sola `TransaccionPago` por el total y devuelve el `init_point`. **No descuenta cupo** (eso ocurre al confirmar el pago). Rechaza tandas de precio 0 (MP no cobra ítems de $0; las tandas gratuitas necesitarían otro circuito).
+- `CreditoService.iniciarCompraCredito`: misma idea, una preferencia por paquete.
+- Contrato HTTP: `ordenId` es ahora el UUID (`String`) en ambas respuestas; `urlPago` es el `init_point` real. Si MP falla → `PasarelaPagoException` (502) y la orden se revierte (no quedan órdenes huérfanas).
+- Verificado contra la API real de MP: la preferencia se crea y devuelve un `init_point` válido.
+
+### 21.4 — Webhook real ✅
+`POST /payments/mercadopago/webhook` (público en `SecurityConfig`; un solo endpoint para entradas y créditos). Piezas: `MercadoPagoWebhookController` → `MercadoPagoFirmaValidator` → `PagoWebhookService` → `VentaService.confirmarPagoEntradas` / `CreditoService.confirmarPagoCredito`.
+- **Firma:** valida `x-signature` (HMAC-SHA256 con el manifest `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`, comparación en tiempo constante). Falla cerrado: sin `MP_WEBHOOK_SECRET` rechaza todo. Firma inválida → 401. Ver "Pendiente de la firma" abajo.
+- **Nunca se confía en el contenido del aviso:** solo se toma el id del pago; el estado, monto, moneda y orden se leen de la API de MP (`MercadoPagoService.obtenerPago`).
+- **Avisos aceptados:** el webhook nuevo (`?data.id=…&type=payment`) y el formato viejo IPN (`?id=…&topic=payment`) — MP manda ambos por cada pago y se tratan igual. Cualquier otro tipo (`merchant_order`, etc.) se ignora con 200.
+- **Idempotencia:** `findByExternalReferenceForUpdate` bloquea la fila de la orden (lock pesimista). Dos avisos simultáneos del mismo pago se serializan: uno confirma, el otro devuelve `YA_PROCESADA`. Índice único en `mercadopago_payment_id` como red de seguridad.
+- **Validaciones antes de entregar:** monto y moneda (`ARS`) tienen que coincidir exactamente con la orden (si no, `MONTO_INVALIDO` y no se entrega nada); el evento tiene que seguir `Publicado`; no se puede superar el tope por comprador; el cupo se descuenta de la **cantidad completa** o no se descuenta nada.
+- **Entradas:** una `Entrada` con su propio QR por unidad, todo en una transacción. El **mail sale desde el backend, después del commit**, un solo mail con todos los QR (ya no lo dispara el frontend).
+- **Pago que no se puede entregar** (`SIN_DISPONIBILIDAD`: tanda agotada entre iniciar y pagar, evento dado de baja, tope por comprador): **reembolso automático** vía API de MP + orden marcada `Reembolsada`. Si el reembolso falla, la excepción sube (502) y MP reintenta; el estado `refunded` también se reconcilia.
+- **Pago duplicado** (segundo pago aprobado de una orden ya resuelta): se reembolsa sin tocar la orden.
+- **Pagos pendientes/rechazados:** no hacen nada; la orden queda `Pendiente` (la preferencia sigue abierta y el comprador puede reintentar).
+- Códigos de respuesta: 200 si no hace falta reintento, 401 firma inválida, 400 id no numérico, 5xx solo ante fallos transitorios de MP (para que reintente).
+- `RateLimitFilter`: el webhook nuevo reemplaza a los dos viejos, 300/min por IP (MP notifica desde pocas IPs).
+- **Eliminado:** `POST /tickets/webhook/pago`, `POST /creditos/webhook/pago`, `VentaService.confirmarPagoWebhook`, `CreditoService.confirmarPagoWebhook`.
+- `POST /tickets/confirmar-compra` (y `enviarConfirmacionCompraAgrupada`) **siguen en el backend pero ya no tienen sentido** (el mail sale del webhook): se eliminan al adaptar el frontend (Fase 12 del plan de frontend), para no mandar el mail dos veces.
+
+### 21.5 — Tests ✅
+Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
+- `VentaServiceTest` (reescrito el bloque de confirmación): orden inexistente, notificación repetida (mismo pago), pago duplicado (otro pago), monto distinto, moneda distinta, evento no publicado, cupo insuficiente para N, tope por comprador, éxito con 3 entradas, marcar reembolsada.
+- `VentaServiceConcurrencyTest` (H2 real, lock pesimista): 20 compradores por 5 entradas; 20 órdenes de 2 entradas con cupo 5 (se confirman exactamente 2, ninguna queda a medias); la misma notificación 10 veces en paralelo se procesa una sola vez.
+- `MercadoPagoFirmaValidatorTest`, `PagoWebhookServiceTest`, `CreditoServiceTest` y `MercadoPagoWebhookControllerTest` (nuevos).
+
+### Verificación contra MercadoPago real (sandbox + ngrok) ✅ (créditos)
+- ngrok con dominio estático gratuito apuntando al puerto 8080; webhook configurado en el panel de la app (modo de prueba, evento "Pagos (legacy)").
+- Pagos reales de $100 con un usuario comprador de prueba: MP avisó **solo**, el backend consultó el pago a la API, acreditó los créditos **una sola vez** aun cuando llegaron dos avisos del mismo pago con 3 ms de diferencia (webhook + IPN → `CONFIRMADA` + `YA_PROCESADA`), y la orden quedó `Aprobada`.
+- Firmas inválidas o ausentes: 401, también a través de ngrok.
+
+### ⚠️ Pendiente de la firma (`x-signature`) — resolver antes de producción
+- El **simulador** del panel de MP firma con la clave que muestra el panel y nuestro validador la acepta. Pero los avisos de **pagos reales de sandbox** llegan firmados con **otra clave**: se probaron todas las variantes del manifest y también como clave el access token, la public key y los ids de app/usuario, y ninguna coincide. Hipótesis (sin confirmar): el access token de las credenciales de prueba pertenece al *usuario vendedor de prueba*, y los pagos hacia ese usuario se firman con una clave que no figura en el panel de la cuenta real.
+- Por eso se agregó `MP_VALIDAR_FIRMA`. **Está en `false` solo en el entorno local de desarrollo** (el backend lo avisa en el log al arrancar y por cada aviso que no coincide). El default del código es `true`.
+- Por qué es aceptable en sandbox: aun sin firma, cada aviso se vuelve a consultar a la API de MP y solo se entrega si el pago existe, está aprobado, corresponde a una orden nuestra y el monto coincide; un aviso falso no puede entregar nada sin un pago real.
+- **Antes de producción:** dejar `MP_VALIDAR_FIRMA=true`, usar las credenciales y la clave secreta de **producción**, y comprobar con un pago real de bajo monto que las firmas coinciden. Si no coinciden, investigar antes de lanzar.
+
+### 21.6 — Pendiente: estado de la orden, reconciliación y vencimiento ⏳
+- `GET /tickets/orden/{uuid}` (público): estado de la orden y, si está `Aprobada`, sus entradas, para la página de retorno. Sin JWT; el UUID actúa como token.
+- **Reconciliación:** al consultar una orden `Pendiente`, buscar el pago en MP por `external_reference` (`GET /v1/payments/search`) y procesarlo si ya está aprobado, para no depender solo del aviso. El procesamiento ya es idempotente. Caso de prueba real: la orden de créditos #2 de la base local (pago aprobado en MP cuyos avisos se rechazaron con 401 antes de apagar la validación).
+- **Job de vencimiento:** marcar `Expirada` las órdenes `Pendiente` con `fecha_vencimiento` pasada (primero reconciliando, por si pagaron justo antes).
+- Opcional: mail al comprador cuando se le reembolsa un pago (hoy solo le llega el aviso de MP).
+
+### Checklist de pase a producción
+1. Credenciales de **producción** en `MP_ACCESS_TOKEN` y la clave secreta de producción en `MP_WEBHOOK_SECRET`.
+2. `MP_VALIDAR_FIRMA=true` y verificar con un pago real de bajo monto.
+3. `BACKEND_PUBLIC_URL` y `FRONTEND_BASE_URL` con los dominios HTTPS finales; webhook configurado en **Modo productivo** del panel con la URL final.
+4. Cambiar `JWT_SECRET` y la contraseña de la base (los defaults de desarrollo son públicos).
+5. Volver a probar aprobado, pendiente, rechazado, compra de varias entradas, tanda agotada (reembolso) y compra de créditos.
+6. Aplicar `backend/db/migraciones/2026-10-15-mercadopago-ordenes.sql` si la base ya existía.
+
+### Notas operativas
+- **ngrok (desarrollo):** `ngrok http --url=<dominio-estatico>.ngrok-free.dev 8080`. El plan gratuito da un dominio estático, así que la URL del webhook en el panel de MP no cambia. Hay que mantener el túnel abierto mientras se prueba. Versiones viejas del agente (3.3.x) son rechazadas por el servicio: `ngrok update`.
+- **Probar el webhook a mano a través de ngrok:** el plan gratuito muestra una página de advertencia a los clientes que parecen navegadores; usar `curl` o el header `ngrok-skip-browser-warning`. MP no se ve afectado.
+- **Usuarios/tarjetas de prueba:** panel de la app → *Cuentas de prueba* y *Tarjetas de prueba*. Pagar con el usuario comprador de prueba (idealmente en ventana de incógnito). Con "Dinero disponible" o la tarjeta de prueba con titular `APRO` el pago se aprueba.
+- **`mvn test` falla con "Unresolved compilation problems"/errores de contexto:** la extensión de Java de VS Code deja clases mal compiladas (sin procesar Lombok) en `target/classes`. Correr `mvn clean test`.
+- **Datos de prueba en la base local de desarrollo:** organizador `org.prueba.mp@example.com`, paquete de créditos "Prueba MP" (10 créditos, $100) y 3 órdenes de crédito (#1 y #3 `Aprobada`, #2 `Pendiente`). Limpiar al terminar las pruebas.

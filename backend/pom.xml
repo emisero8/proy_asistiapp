@@ -120,6 +120,13 @@
             <version>2.5.0</version>
         </dependency>
 
+        <!-- ===== MERCADO PAGO (Checkout Pro: preferencias, consulta de pagos, reembolsos) ===== -->
+        <dependency>
+            <groupId>com.mercadopago</groupId>
+            <artifactId>sdk-java</artifactId>
+            <version>3.7.0</version>
+        </dependency>
+
         <!-- ===== OPENAPI / SWAGGER (documentación interactiva de la API) ===== -->
         <dependency>
             <groupId>org.springdoc</groupId>

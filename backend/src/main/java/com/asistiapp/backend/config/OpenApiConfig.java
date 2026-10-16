@@ -33,7 +33,7 @@ public class OpenApiConfig {
                                 "La mayoría de los endpoints de organizador/staff/admin requieren un JWT " +
                                 "(header Authorization: Bearer <token>) obtenido en POST /auth/login. " +
                                 "Los endpoints bajo /public/** y la compra online (/tickets/comprar-online, " +
-                                "/tickets/webhook/pago) son de acceso libre, ya que el Comprador nunca inicia sesión.")
+                                "/payments/mercadopago/webhook, este último autenticado por firma) son de acceso libre, ya que el Comprador nunca inicia sesión.")
                         .version("v1")
                         .contact(new Contact().name("AsistíAPP")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME_NAME))

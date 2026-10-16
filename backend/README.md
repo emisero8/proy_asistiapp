@@ -25,6 +25,10 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `SMTP_PORT`      | `1025` (MailHog)                                 |
    | `JWT_SECRET`     | valor de desarrollo hardcodeado — **nunca reusar en producción** |
    | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` |
+   | `MP_ACCESS_TOKEN` | vacío — Access Token de MercadoPago (ver sección MercadoPago) |
+   | `MP_WEBHOOK_SECRET` | vacío — clave secreta de Webhooks de MercadoPago |
+   | `MP_VALIDAR_FIRMA` | `true` — **dejar en `true` en producción** |
+   | `BACKEND_PUBLIC_URL` | `http://localhost:8080` — URL pública HTTPS (ngrok en local) |
 
 3. Correr:
    ```
@@ -95,6 +99,24 @@ SMTP_PASSWORD=<app password de 16 caracteres, NO la contraseña normal de la cue
 Para otros proveedores transaccionales (Brevo, SendGrid, Mailgun), el mecanismo es el mismo: son SMTP compatible, solo cambian esas 4 variables.
 
 Si el envío falla (MailHog caído, credenciales mal puestas, límite excedido), la operación de negocio (compra, alta de staff, etc.) **igual se completa** — el fallo queda solo logueado (`EmailService` está diseñado para no bloquear el flujo principal por un mail caído). Para detectar fallos sistemáticos, revisar los logs del backend.
+
+## Pagos con MercadoPago (Checkout Pro)
+
+El cobro de entradas y de créditos usa MercadoPago Checkout Pro. El detalle del diseño, las decisiones y el estado están en la **Fase 21** de `../backend_implementation_plan.md`.
+
+**Configuración (todo por variable de entorno, nunca en el repo):**
+1. Crear una aplicación en el [panel de desarrolladores de MercadoPago](https://www.mercadopago.com.ar/developers/panel/app) y copiar el **Access Token de las credenciales de prueba** a `MP_ACCESS_TOKEN`.
+2. El pago se confirma por webhook, y MercadoPago necesita una URL pública para avisar. En local, usar ngrok (el plan gratuito da un dominio estático):
+   ```
+   ngrok config add-authtoken <TU_TOKEN>
+   ngrok http --url=<tu-dominio>.ngrok-free.dev 8080
+   ```
+3. En el panel de la app → **Webhooks** (modo de prueba): URL `https://<tu-dominio>.ngrok-free.dev/payments/mercadopago/webhook`, evento **Pagos**. Copiar la **Clave secreta** a `MP_WEBHOOK_SECRET`, y setear `BACKEND_PUBLIC_URL=https://<tu-dominio>.ngrok-free.dev`.
+4. Si la base ya existía, aplicar una vez `db/migraciones/2026-10-15-mercadopago-ordenes.sql` (una base nueva no lo necesita).
+
+**Probar una compra:** pagar con un **usuario comprador de prueba** (panel → *Cuentas de prueba*, en ventana de incógnito). "Dinero disponible" o una tarjeta de prueba con titular `APRO` aprueban el pago.
+
+**Firma del webhook:** el backend valida `x-signature`. En el sandbox los avisos de pagos reales llegan firmados con una clave que no coincide con la del panel, por lo que en desarrollo local se puede usar `MP_VALIDAR_FIRMA=false` (el pago igual se verifica contra la API de MercadoPago antes de entregar nada). **En producción tiene que estar en `true`.**
 
 ## Contrato de errores
 

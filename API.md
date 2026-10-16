@@ -10,7 +10,7 @@ AsistíAPP is a ticketing and access-control platform for independent event orga
 - **Security:** Spring Security with Stateless JWT (JSON Web Tokens).
 - **Build Tool:** Maven or Gradle (Assume Maven unless stated otherwise).
 - **Key Integrations:** 
-  - MercadoPago SDK (Payment processing & Webhooks/IPN).
+  - MercadoPago SDK (Checkout Pro: payment preferences, signed Webhooks/IPN, refunds).
   - SMTP Provider (for email delivery).
 - **Architecture Style:** Layered REST API (Controllers -> Services -> Repositories).
 
@@ -111,12 +111,16 @@ This schema maps directly to the PostgreSQL database using JPA entities.
 1. **Ticket Purchase (Online) [CU-017]:**
    - Must verify `cupo_disponible` > 0 in the `TANDA`.
    - Must use pessimistic locking or database constraints to prevent overselling in high-concurrency scenarios.
-   - Upon successful MercadoPago IPN webhook, generate a unique `codigo_qr`, change `ENTRADA` status to `Pagada`, and send email via SMTP.
+   - An order carries a `cantidad` (1-20). `POST /tickets/comprar-online` creates ONE pending `TRANSACCION_PAGO` for the whole order plus a real MercadoPago Checkout Pro preference, and returns the `init_point` (`urlPago`) and an opaque order UUID (`ordenId`). It does NOT decrement `cupo_disponible`.
+   - Payment confirmation happens ONLY through the MercadoPago webhook `POST /payments/mercadopago/webhook` (public, authenticated by the `x-signature` header). The notification content is never trusted: the payment is re-fetched from the MercadoPago API (status, amount, currency, `external_reference`) before anything is delivered. Must be idempotent (duplicate/retried notifications, the same payment arriving through Webhooks and IPN at once).
+   - On an approved payment: lock the `TANDA`, decrement `cupo_disponible` by the full `cantidad` (all-or-nothing), and for each unit generate a unique `codigo_qr` and create an `ENTRADA` with status `Pagada`; then send ONE email with all the QR codes (after commit).
+   - If an approved payment can no longer be honored (tanda sold out meanwhile, event no longer `Publicado`, per-buyer limit exceeded), refund it automatically through the MercadoPago API and mark the order `Reembolsada`. A second approved payment for an already resolved order is refunded too.
+   - Amount and currency of the payment must match the order exactly, otherwise nothing is delivered.
 2. **Event Creation/Publishing [CU-007, CU-010]:**
    - Publishing an event consumes credits. The service must verify `saldo_creditos` > required amount.
    - If insufficient credits, abort publishing and prompt credit purchase.
 3. **Credit Purchases [CU-014]:**
-   - Integrates with MercadoPago. Upon success, register in `TRANSACCION_CREDITO` and `MOVIMIENTO_CREDITO`, then update `saldo_creditos` in `ORGANIZADOR`.
+   - Integrates with MercadoPago Checkout Pro (same preference + signed webhook flow as ticket sales, same `/payments/mercadopago/webhook` endpoint; orders are told apart by their `external_reference`). Upon an approved, verified payment, register in `TRANSACCION_CREDITO` and `MOVIMIENTO_CREDITO`, then update `saldo_creditos` in `ORGANIZADOR` — exactly once, even if the notification is repeated.
 4. **QR Validation (Staff_QR) [CU-018]:**
    - Must verify the `codigo_qr` exists and belongs to the correct `EVENTO`.
    - Must verify `estado` is NOT `Usada` (prevent duplicates).

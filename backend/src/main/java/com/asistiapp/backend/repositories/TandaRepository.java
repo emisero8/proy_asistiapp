@@ -35,4 +35,13 @@ public interface TandaRepository extends JpaRepository<Tanda, Long> {
     @Query("UPDATE Tanda t SET t.cupoDisponible = t.cupoDisponible - 1 " +
            "WHERE t.id = :id AND t.cupoDisponible > 0")
     int decrementarCupo(@Param("id") Long id);
+
+    /**
+     * Decrementa el cupo en `cantidad` de forma atómica, todo o nada: solo ejecuta si
+     * alcanza el cupo para la cantidad completa. Retorna 0 si no alcanza.
+     */
+    @Modifying
+    @Query("UPDATE Tanda t SET t.cupoDisponible = t.cupoDisponible - :cantidad " +
+           "WHERE t.id = :id AND t.cupoDisponible >= :cantidad")
+    int decrementarCupo(@Param("id") Long id, @Param("cantidad") int cantidad);
 }

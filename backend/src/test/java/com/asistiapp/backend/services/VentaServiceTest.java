@@ -22,6 +22,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,6 +57,8 @@ class VentaServiceTest {
     private EmailService emailService;
     @Mock
     private com.asistiapp.backend.services.ConfiguracionService configuracionService;
+    @Mock
+    private MercadoPagoService mercadoPagoService;
 
     @InjectMocks
     private VentaService ventaService;
@@ -120,85 +124,242 @@ class VentaServiceTest {
     }
 
     @Test
-    void iniciarCompraOnline_creaTransaccionPendienteYDevuelveOrdenId() {
+    void iniciarCompraOnline_creaTransaccionPendienteYDevuelveInitPoint() {
         CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        dto.setCantidad(3);
         when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(mercadoPagoService.calcularVencimiento()).thenReturn(LocalDateTime.now().plusMinutes(30));
         when(transaccionPagoRepository.save(any(TransaccionPago.class))).thenAnswer(inv -> {
             TransaccionPago t = inv.getArgument(0);
             t.setId(123L);
+            t.setExternalReference("ref-uuid-123"); // lo setea @PrePersist en la base real
             return t;
         });
+        when(mercadoPagoService.crearPreferencia(any()))
+                .thenReturn(new MercadoPagoService.PreferenciaCreada("pref-1", "https://mp.test/init"));
 
         IniciarCompraResponseDTO response = ventaService.iniciarCompraOnline(dto);
 
-        assertThat(response.getOrdenId()).isEqualTo("123");
+        assertThat(response.getOrdenId()).isEqualTo("ref-uuid-123");
+        assertThat(response.getUrlPago()).isEqualTo("https://mp.test/init");
+        // Una sola orden por el total de la compra: 3 entradas × $1000.
         verify(transaccionPagoRepository).save(argThat(t ->
                 t.getEstado() == EstadoTransaccion.Pendiente
                         && t.getIdTanda().equals(tanda.getId())
-                        && t.getMontoTotal().equals(tanda.getPrecio())));
+                        && t.getCantidad() == 3
+                        && t.getMontoTotal().equals(3000.0)));
+        verify(mercadoPagoService).crearPreferencia(argThat(o ->
+                o.cantidad() == 3
+                        && o.precioUnitario().compareTo(BigDecimal.valueOf(1000.0)) == 0
+                        && o.externalReference().equals("ref-uuid-123")
+                        && o.tipo().equals(MercadoPagoService.TIPO_ENTRADAS)));
+        // Comprar no descuenta cupo: eso lo hace el webhook al confirmar el pago.
+        verify(tandaRepository, never()).decrementarCupo(anyLong());
     }
 
-    // ─────────────────────────────────────────────
-    // confirmarPagoWebhook
-    // ─────────────────────────────────────────────
-
     @Test
-    void confirmarPagoWebhook_ordenNoEncontrada_lanzaBusinessRuleException() {
-        when(transaccionPagoRepository.findById(1L)).thenReturn(Optional.empty());
+    void iniciarCompraOnline_cantidadMayorAlCupo_lanzaBusinessRuleException() {
+        tanda.setCupoDisponible(2);
+        CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        dto.setCantidad(3);
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
 
-        assertThatThrownBy(() -> ventaService.confirmarPagoWebhook("1", 999L))
+        assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("no encontrada");
+                .hasMessageContaining("Solo quedan 2");
+
+        verifyNoInteractions(transaccionPagoRepository, mercadoPagoService);
     }
 
     @Test
-    void confirmarPagoWebhook_ordenYaProcesada_lanzaBusinessRuleException() {
+    void iniciarCompraOnline_superaElLimitePorCompradorConLaCantidad_lanzaBusinessRuleException() {
+        CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        dto.setCantidad(3);
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+        // ya tiene 4 entradas y el tope es 6: 4 + 3 = 7 no entra aunque 4 < 6
+        when(entradaRepository.countByEventoIdAndEmailComprador(evento.getId(), "juan@example.com"))
+                .thenReturn(4L);
+
+        assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("máximo de 6");
+
+        verifyNoInteractions(transaccionPagoRepository, mercadoPagoService);
+    }
+
+    @Test
+    void iniciarCompraOnline_tandaSinPrecio_lanzaBusinessRuleException() {
+        tanda.setPrecio(0.0);
+        CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+
+        assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("precio válido");
+
+        verifyNoInteractions(transaccionPagoRepository, mercadoPagoService);
+    }
+
+    // ─────────────────────────────────────────────
+    // confirmarPagoEntradas
+    // ─────────────────────────────────────────────
+
+    private static final BigDecimal MONTO_ORDEN = BigDecimal.valueOf(1000.0);
+
+    @Test
+    void confirmarPagoEntradas_ordenNoEncontrada_devuelveNoEncontrada() {
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.empty());
+
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, MONTO_ORDEN, "ARS");
+
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.NO_ENCONTRADA);
+    }
+
+    @Test
+    void confirmarPagoEntradas_ordenYaAprobadaConElMismoPago_esIdempotente() {
         TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Aprobada);
-        when(transaccionPagoRepository.findById(1L)).thenReturn(Optional.of(transaccion));
+        transaccion.setMercadopagoPaymentId("999");
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
 
-        assertThatThrownBy(() -> ventaService.confirmarPagoWebhook("1", 999L))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("ya fue procesada");
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, MONTO_ORDEN, "ARS");
 
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.YA_PROCESADA);
         verify(tandaRepository, never()).findByIdWithLock(anyLong());
-    }
-
-    @Test
-    void confirmarPagoWebhook_perdioLaCarreraPorElCupo_lanzaBusinessRuleException() {
-        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
-        when(transaccionPagoRepository.findById(1L)).thenReturn(Optional.of(transaccion));
-        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
-        when(tandaRepository.decrementarCupo(tanda.getId())).thenReturn(0); // otra tx se quedó con el último cupo
-
-        assertThatThrownBy(() -> ventaService.confirmarPagoWebhook("1", 999L))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("agotó");
-
         verify(entradaRepository, never()).save(any());
     }
 
     @Test
-    void confirmarPagoWebhook_exitoso_creaEntradaYMarcaTransaccionAprobada() {
+    void confirmarPagoEntradas_ordenYaAprobadaConOtroPago_esDuplicado() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Aprobada);
+        transaccion.setMercadopagoPaymentId("111");
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, MONTO_ORDEN, "ARS");
+
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.DUPLICADO);
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void confirmarPagoEntradas_montoDistinto_noEntregaNada() {
         TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
-        when(transaccionPagoRepository.findById(1L)).thenReturn(Optional.of(transaccion));
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(10.0), "ARS");
+
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.MONTO_INVALIDO);
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Pendiente);
+        verify(tandaRepository, never()).findByIdWithLock(anyLong());
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void confirmarPagoEntradas_monedaDistintaDePesos_noEntregaNada() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, MONTO_ORDEN, "USD");
+
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.MONTO_INVALIDO);
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void confirmarPagoEntradas_eventoYaNoPublicado_pideReembolso() {
+        evento.setEstado(EstadoEvento.Cancelado);
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
         when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
-        when(tandaRepository.decrementarCupo(tanda.getId())).thenReturn(1);
+
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, MONTO_ORDEN, "ARS");
+
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.SIN_DISPONIBILIDAD);
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Pendiente);
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void confirmarPagoEntradas_perdioLaCarreraPorElCupo_pideReembolsoYNoCreaEntradas() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        transaccion.setCantidad(3);
+        transaccion.setMontoTotal(3000.0);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(tandaRepository.decrementarCupo(tanda.getId(), 3)).thenReturn(0); // no alcanza para las 3
+
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(3000.0), "ARS");
+
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.SIN_DISPONIBILIDAD);
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Pendiente);
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void confirmarPagoEntradas_superaElLimitePorComprador_pideReembolso() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        transaccion.setCantidad(3);
+        transaccion.setMontoTotal(3000.0);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+        // otra orden del mismo email se confirmó mientras tanto: 5 + 3 > 6
+        when(entradaRepository.countByEventoIdAndEmailComprador(evento.getId(), "juan@example.com")).thenReturn(5L);
+
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(3000.0), "ARS");
+
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.SIN_DISPONIBILIDAD);
+        verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void confirmarPagoEntradas_exitoso_creaUnaEntradaPorUnidadYMarcaLaOrdenAprobada() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        transaccion.setCantidad(3);
+        transaccion.setMontoTotal(3000.0);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(tandaRepository.decrementarCupo(tanda.getId(), 3)).thenReturn(1);
         when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
-        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> {
-            Entrada e = inv.getArgument(0);
-            e.setId(555L);
-            return e;
-        });
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        var response = ventaService.confirmarPagoWebhook("1", 999L);
+        var resultado = ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(3000.0), "ARS");
 
-        assertThat(response.getId()).isEqualTo(555L);
-        assertThat(response.getCodigoQr()).startsWith("QR-");
+        assertThat(resultado.resultado()).isEqualTo(ResultadoPago.CONFIRMADA);
+        assertThat(resultado.codigosQr()).hasSize(3).doesNotHaveDuplicates().allMatch(qr -> qr.startsWith("QR-"));
+        assertThat(resultado.emailComprador()).isEqualTo("juan@example.com");
+        assertThat(resultado.nombreEvento()).isEqualTo("Evento de prueba");
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
         assertThat(transaccion.getMercadopagoPaymentId()).isEqualTo("999");
-        // El mail no se manda acá: una compra de varias entradas llama a este método
-        // varias veces, y se manda un solo mail agrupado al final (ver tests de abajo).
+        verify(entradaRepository, times(3)).save(argThat(e ->
+                e.getEstado() == EstadoEntrada.Pagada && e.getIdTransaccionPago().equals(transaccion.getId())));
+        // El mail lo manda PagoWebhookService después del commit, no este método.
         verifyNoInteractions(emailService);
+    }
+
+    // ─────────────────────────────────────────────
+    // marcarOrdenReembolsada
+    // ─────────────────────────────────────────────
+
+    @Test
+    void marcarOrdenReembolsada_ordenPendiente_quedaReembolsada() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+
+        ventaService.marcarOrdenReembolsada("1", 999L);
+
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Reembolsada);
+        assertThat(transaccion.getMercadopagoPaymentId()).isEqualTo("999");
+    }
+
+    @Test
+    void marcarOrdenReembolsada_ordenYaEntregada_noSeToca() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Aprobada);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+
+        ventaService.marcarOrdenReembolsada("1", 999L);
+
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
+        verify(transaccionPagoRepository, never()).save(any());
     }
 
     // ─────────────────────────────────────────────
@@ -333,7 +494,9 @@ class VentaServiceTest {
     private TransaccionPago transaccionPago(EstadoTransaccion estado) {
         TransaccionPago transaccion = new TransaccionPago();
         transaccion.setId(1L);
+        transaccion.setExternalReference("1");
         transaccion.setIdTanda(tanda.getId());
+        transaccion.setCantidad(1);
         transaccion.setMontoTotal(tanda.getPrecio());
         transaccion.setNombreComprador("Juan Comprador");
         transaccion.setEmailComprador("juan@example.com");

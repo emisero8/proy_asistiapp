@@ -126,15 +126,16 @@ public class SecurityConfig {
                         .requestMatchers("/auth/**").permitAll()
                         // Catálogo público de eventos: el Comprador NUNCA inicia sesión (CU-015/016)
                         .requestMatchers(HttpMethod.GET, "/public/**").permitAll()
-                        // Compra de entradas online: el Comprador la inicia y confirma sin JWT (CU-017)
-                        .requestMatchers(HttpMethod.POST, "/tickets/comprar-online", "/tickets/webhook/pago", "/tickets/confirmar-compra").permitAll()
+                        // Compra de entradas online: el Comprador la inicia sin JWT (CU-017)
+                        .requestMatchers(HttpMethod.POST, "/tickets/comprar-online", "/tickets/confirmar-compra").permitAll()
                         // Imagen QR (Fase 16): el Comprador tampoco tiene JWT acá — la autorización
                         // fina (dueño del codigoQr u Organizador del evento) se hace en VentaService
                         .requestMatchers(HttpMethod.GET, "/tickets/*/qr-image").permitAll()
                         // Consulta pública de entrada por codigoQr — el código actúa como token implícito
                         .requestMatchers(HttpMethod.GET, "/tickets/by-codigo").permitAll()
-                        // Webhooks de MercadoPago: los invoca el proveedor de pagos, no un usuario logueado
-                        .requestMatchers(HttpMethod.POST, "/creditos/webhook/pago").permitAll()
+                        // Webhook de MercadoPago: lo invoca el proveedor de pagos, no un usuario logueado.
+                        // La autenticidad se valida con la firma x-signature en el controller.
+                        .requestMatchers(HttpMethod.POST, "/payments/mercadopago/webhook").permitAll()
                         // Documentación interactiva de la API (Swagger UI + spec OpenAPI)
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         // Todo lo demás requiere autenticación

@@ -313,3 +313,26 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 ### 11.4 — Un solo mail por compra múltiple ✅
 - Ver Fase 20.4 del plan de backend para el detalle y la verificación completa.
 - `CheckoutPage`: al terminar el loop de compras (incluido el camino donde falla a mitad de camino y ya se compraron algunas), llama una vez a `POST /tickets/confirmar-compra` con los códigos QR de todas las entradas. Si ese llamado falla, no bloquea la navegación: las entradas ya son válidas y se ven en pantalla igual, solo no llegaría el mail (best-effort).
+
+---
+
+## Fase 12: Adaptar el frontend a MercadoPago real ⏳ (pendiente — el backend ya está, ver Fase 21 del plan de backend)
+
+**Estado:** el backend ya no tiene los endpoints simulados, así que **hoy `CheckoutPage` y `WalletPage` no funcionan** (llaman a `/tickets/webhook/pago` y `/creditos/webhook/pago`, que se eliminaron). Esta fase los reemplaza por la redirección real a MercadoPago. Todo lo de abajo es lo que hay que hacer; nada está hecho todavía.
+
+### Cambios de contrato (backend → frontend)
+- `POST /tickets/comprar-online` ahora recibe **`cantidad`** (1–20) además de `idTanda`, `nombreComprador`, `emailComprador`, y devuelve `{ ordenId, urlPago, mensaje }` donde `ordenId` es un **UUID (string)** y `urlPago` es el `init_point` de MercadoPago. `POST /creditos/comprar` devuelve lo mismo (`ordenId` pasó de número a string). Actualizar `IniciarCompraResponseDTO` e `IniciarCompraCreditoResponseDTO` en `lib/types.ts`.
+- **Una sola llamada por compra** (ya no un `for` de `qty` llamadas): `cantidad: qty`. El total lo calcula el backend (precio × cantidad).
+- Ya **no** se llama a `/tickets/webhook/pago`, `/creditos/webhook/pago` ni `/tickets/confirmar-compra`: la confirmación y el mail los hace el backend cuando MercadoPago avisa.
+
+### Tareas
+1. `CheckoutPage`: enviar `cantidad`, y al recibir la respuesta hacer `window.location.href = urlPago` (redirección a MercadoPago). Sacar el loop de `qty` llamadas, la navegación inmediata a `/ticket/:id` y `enviarMailConfirmacion`. Mantener el manejo de errores (cupo insuficiente, tope por comprador, MP caído = 502).
+2. `WalletPage` (`handleComprar`): redirigir a `urlPago` en vez de llamar al webhook y recargar.
+3. Ruta nueva `/pago/resultado?ref=<uuid>&tipo=entradas|creditos` (MP vuelve ahí; también agrega `status`, `payment_id`, etc. a la query, **no son confiables**): pantalla con tres estados — aprobado, pendiente, rechazado/fallido. Debe **consultar el estado real de la orden al backend** (`GET /tickets/orden/{uuid}`, ver 21.6) y hacer *polling* mientras siga `Pendiente`, porque el aviso de MP puede llegar unos segundos después de que el comprador vuelve.
+4. Aprobado de entradas: mostrar las entradas (QR) como hoy lo hace `TicketPage` (adaptar para recibir las entradas por el estado de la orden y no por `location.state`); aprobado de créditos: refrescar el saldo y volver a la billetera.
+5. Eliminar del backend `POST /tickets/confirmar-compra` y su DTO una vez que el frontend deje de usarlo (ver 21.4).
+6. Probar de punta a punta con el flujo de la **Fase 21** (backend real + ngrok + usuario/tarjeta de prueba de MP) en mobile y desktop, siguiendo la sección "VERIFICACIÓN" de `CLAUDE.md`.
+
+### Dependencias del backend para cerrar esta fase
+- `GET /tickets/orden/{uuid}` y la reconciliación (21.6) todavía no existen; sin ellos la página de resultado no tiene de dónde leer el estado real.
+- Las `back_urls` de las preferencias hoy apuntan a `FRONTEND_BASE_URL` (`http://localhost:5173` en desarrollo). Se observó que MP devuelve las `back_urls` vacías al consultar la preferencia (probablemente descarta URLs `localhost`): revisar con un frontend accesible por HTTPS si el retorno automático al sitio no funciona.
