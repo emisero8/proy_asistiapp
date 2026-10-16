@@ -21,7 +21,16 @@ vi.mock("../../lib/api", async (importOriginal) => {
   return { ...actual, api: { ...actual.api, get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } };
 });
 vi.mock("../../lib/auth", () => ({ useAuth: () => ({ session: { rol: auth.rol, nombre: "Test" } }) }));
-vi.mock("../../components/EventMap", () => ({ MapPicker: () => <div data-testid="map-picker" /> }));
+vi.mock("../../components/EventMap", () => ({
+  MapPicker: ({ venueValue, onVenueChange }: { venueValue: string; onVenueChange: (v: string) => void }) => (
+    <input
+      data-testid="map-picker"
+      placeholder="Ej: Pavón 123, Santa Fe"
+      value={venueValue}
+      onChange={(e) => onVenueChange(e.target.value)}
+    />
+  ),
+}));
 
 const TANDA: TandaResponseDTO = {
   id: 11,
