@@ -249,6 +249,12 @@ export interface EstadisticasPublicasResponseDTO {
   eventosPublicados: number;
 }
 
+/** GET /public/soporte: datos de contacto configurables por el Admin (ConfiguracionSistema). */
+export interface SoporteResponseDTO {
+  emailSoporte: string | null;
+  whatsappSoporte: string | null;
+}
+
 export interface IniciarCompraCreditoResponseDTO {
   ordenId: number;
   urlPago: string;
@@ -365,6 +371,30 @@ export interface EventoMetricasResponseDTO {
   cupoTotal: number;
   cupoDisponible: number;
   tandas: TandaMetricasDTO[];
+}
+
+// ── Notificaciones (in-app) ───────────────────────────
+
+export type OrigenNotificacion = "Admin" | "Sistema";
+
+export interface NotificacionResponseDTO {
+  id: number;
+  origen: OrigenNotificacion;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  fechaCreacion: string;
+  tipoEntidadRelacionada: string | null;
+  idEntidadRelacionada: number | null;
+}
+
+export interface CrearAnuncioRequestDTO {
+  titulo: string;
+  mensaje: string;
+}
+
+export interface AnuncioEnviadoResponseDTO {
+  enviadas: number;
 }
 
 // ── Errores (contrato de GlobalExceptionHandler) ──────

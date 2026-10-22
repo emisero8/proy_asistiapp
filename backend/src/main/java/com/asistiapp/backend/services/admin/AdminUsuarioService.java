@@ -9,6 +9,7 @@ import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.MovimientoCreditoRepository;
+import com.asistiapp.backend.repositories.NotificacionRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
 import com.asistiapp.backend.repositories.TokenRecuperacionRepository;
 import com.asistiapp.backend.repositories.TransaccionCreditoRepository;
@@ -37,6 +38,7 @@ public class AdminUsuarioService {
     private final MovimientoCreditoRepository movimientoCreditoRepository;
     private final TransaccionCreditoRepository transaccionCreditoRepository;
     private final TokenRecuperacionRepository tokenRecuperacionRepository;
+    private final NotificacionRepository notificacionRepository;
     private final SecurityUtils securityUtils;
     private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
@@ -88,7 +90,8 @@ public class AdminUsuarioService {
      * sugiere suspender la cuenta en lugar de eliminarla. Lo que no tiene otro
      * dueño (historial de créditos sin pagos, tokens de recuperación) se borra
      * junto con la cuenta para no dejar filas sueltas: esas tablas guardan el
-     * id del usuario sin clave foránea, así que la base no lo hace sola.
+     * id del usuario sin clave foránea, así que la base no lo hace sola. Lo
+     * mismo para sus notificaciones in-app, sin importar el rol.
      */
     @Transactional
     @Auditable(accion = "ELIMINAR_USUARIO", entidad = "Usuario")
@@ -118,6 +121,8 @@ public class AdminUsuarioService {
 
         // Cualquier rol pudo pedir recuperar su contraseña; esos tokens no sirven sin la cuenta.
         tokenRecuperacionRepository.deleteByIdUsuario(idUsuario);
+        // Idem sus notificaciones in-app — nadie más puede leerlas.
+        notificacionRepository.deleteByIdUsuarioDestino(idUsuario);
         usuarioRepository.delete(usuario);
         log.info("Usuario eliminado: id={}, rol={}", idUsuario, usuario.getRol());
     }

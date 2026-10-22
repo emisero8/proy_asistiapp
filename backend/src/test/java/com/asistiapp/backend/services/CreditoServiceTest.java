@@ -43,6 +43,8 @@ class CreditoServiceTest {
     private TransaccionCreditoRepository transaccionCreditoRepository;
     @Mock
     private CreditoLedgerService creditoLedgerService;
+    @Mock
+    private NotificacionService notificacionService;
 
     @InjectMocks
     private CreditoService creditoService;

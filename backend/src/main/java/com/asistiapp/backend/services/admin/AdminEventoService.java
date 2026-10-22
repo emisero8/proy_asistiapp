@@ -12,6 +12,7 @@ import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.security.audit.Auditable;
 import com.asistiapp.backend.services.EventoService;
+import com.asistiapp.backend.services.NotificacionService;
 import com.asistiapp.backend.services.TandaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +37,7 @@ public class AdminEventoService {
     private final EntradaRepository entradaRepository;
     private final EventoService eventoService;
     private final TandaService tandaService;
+    private final NotificacionService notificacionService;
 
     @Transactional(readOnly = true)
     public EventoResponseDTO obtenerEvento(Long idEvento) {
@@ -97,6 +99,10 @@ public class AdminEventoService {
         Evento saved = eventoRepository.save(evento);
         eventoService.devolverCreditosDeEntradasSinVender(saved);
         eventoService.notificarCancelacionACompradores(saved);
+        notificacionService.crear(saved.getIdOrganizador(),
+                "Tu evento fue cancelado",
+                "El Administrador canceló \"" + saved.getNombre() + "\". Se devolvieron los créditos de las entradas sin vender.",
+                "Evento", saved.getId());
         log.info("Evento cancelado por Admin: id={}", idEvento);
         return eventoService.toResponseDTO(saved);
     }

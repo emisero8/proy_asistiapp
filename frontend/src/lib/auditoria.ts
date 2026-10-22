@@ -13,9 +13,13 @@ export const ACCION_LABELS: Record<string, string> = {
   CANCELAR_EVENTO_ADMIN: "canceló el evento",
   ELIMINAR_EVENTO_ADMIN: "eliminó el evento",
   ACTUALIZAR_CONFIGURACION: "actualizó la configuración global",
+  CREAR_ANUNCIO_GLOBAL: "envió un anuncio global",
 };
 
 export function describirAccion(log: LogAuditoriaResponseDTO): string {
   const verbo = ACCION_LABELS[log.accion] ?? log.accion.toLowerCase().replace(/_/g, " ");
+  if (log.idEntidadAfectada == null) {
+    return `Admin #${log.idAdmin} ${verbo}`;
+  }
   return `Admin #${log.idAdmin} ${verbo} #${log.idEntidadAfectada}`;
 }

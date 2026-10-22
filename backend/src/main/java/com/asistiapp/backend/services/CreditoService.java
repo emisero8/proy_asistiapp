@@ -48,6 +48,7 @@ public class CreditoService {
     private final CreditoLedgerService creditoLedgerService;
     private final ConfiguracionService configuracionService;
     private final MercadoPagoService mercadoPagoService;
+    private final NotificacionService notificacionService;
 
     /** Clave de configuración (Admin) y default del costo en créditos de publicar un evento. */
     public static final String CLAVE_CREDITOS_POR_PUBLICACION = "creditos_por_publicacion";
@@ -233,6 +234,12 @@ public class CreditoService {
         Integer cantidadCreditos = paqueteCreditoRepository.findById(transaccion.getIdPaquete())
                 .map(PaqueteCredito::getCantidadCreditos)
                 .orElse(null);
+        if (organizador != null) {
+            notificacionService.crear(organizador.getId(),
+                    "Se reembolsó tu compra de créditos",
+                    "No pudimos acreditar los créditos de tu compra y te devolvimos el pago.",
+                    "TransaccionCredito", transaccion.getId());
+        }
         return new ReembolsoCreditos(true,
                 organizador != null ? organizador.getEmail() : null,
                 organizador != null ? organizador.getNombre() : null,

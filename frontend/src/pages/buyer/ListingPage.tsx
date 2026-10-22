@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
+import { SupportContactLine } from "../../components/SupportContactLine";
 import { useNavigate } from "react-router";
 import { MapPin, Calendar, Sparkles, ArrowRight, Zap, ShieldCheck, TrendingUp, Wallet, Users, Ticket, Check } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
@@ -515,10 +516,11 @@ export function ListingPage() {
               </div>
             </div>
           </div>
-          <div className="border-t border-border pt-6">
+          <div className="border-t border-border pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-xs text-muted-foreground">
               © {new Date().getFullYear()} Asistí<span className="text-primary font-bold">APP</span> · Buenos Aires, Argentina
             </p>
+            <SupportContactLine />
           </div>
         </div>
       </footer>

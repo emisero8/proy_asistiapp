@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { LayoutDashboard, Users, Calendar, CircleDollarSign, History, LogOut } from "lucide-react";
+import { NotificationBell } from "../../components/NotificationBell";
 import { useAuth } from "../../lib/auth";
 
 const TABS = [
@@ -19,17 +20,20 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-52">
-      {/* Cerrar sesión — fijo arriba a la derecha, a la izquierda del toggle de tema,
-          visible en todas las pantallas de Admin (mismo lugar que en Organizador). */}
-      <button
-        onClick={logout}
-        title="Cerrar sesión"
-        aria-label="Cerrar sesión"
-        className="fixed top-3 right-14 z-50 h-9 pl-2.5 pr-3 rounded-full bg-card border border-border shadow-lg shadow-black/10 flex items-center gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
-      >
-        <LogOut size={15} />
-        <span className="text-xs font-semibold hidden sm:inline">Salir</span>
-      </button>
+      {/* Notificaciones + cerrar sesión — fijo arriba a la derecha, a la izquierda del
+          toggle de tema, visible en todas las pantallas de Admin (mismo lugar que en Organizador). */}
+      <div className="fixed top-3 right-14 z-50 flex items-center gap-2">
+        <NotificationBell />
+        <button
+          onClick={logout}
+          title="Cerrar sesión"
+          aria-label="Cerrar sesión"
+          className="h-9 pl-2.5 pr-3 rounded-full bg-card border border-border shadow-lg shadow-black/10 flex items-center gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+        >
+          <LogOut size={15} />
+          <span className="text-xs font-semibold hidden sm:inline">Salir</span>
+        </button>
+      </div>
 
       {/* Sidebar — desktop (md+) */}
       <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-52 md:border-r md:border-border md:bg-card/40 relative overflow-hidden">

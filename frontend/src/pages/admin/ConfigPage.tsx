@@ -1,13 +1,20 @@
 import { useEffect, useState } from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Megaphone, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { fmt } from "../../lib/format";
-import type { ConfiguracionSistemaResponseDTO, PaqueteCreditoRequestDTO, PaqueteCreditoResponseDTO } from "../../lib/types";
+import type {
+  AnuncioEnviadoResponseDTO,
+  ConfiguracionSistemaResponseDTO,
+  PaqueteCreditoRequestDTO,
+  PaqueteCreditoResponseDTO,
+} from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const CLAVE_BIENVENIDA = "creditos_bienvenida";
 const CLAVE_PUBLICACION = "creditos_por_publicacion";
+const CLAVE_EMAIL_SOPORTE = "email_soporte";
+const CLAVE_WHATSAPP_SOPORTE = "whatsapp_soporte";
 const DEFAULT_BIENVENIDA = 5;
 const DEFAULT_PUBLICACION = 1;
 
@@ -26,8 +33,14 @@ export function AdminConfigPage() {
 
   const [welcomeCredits, setWelcomeCredits] = useState(String(DEFAULT_BIENVENIDA));
   const [publicacionCost, setPublicacionCost] = useState(String(DEFAULT_PUBLICACION));
+  const [emailSoporte, setEmailSoporte] = useState("");
+  const [whatsappSoporte, setWhatsappSoporte] = useState("");
   const [savingConfig, setSavingConfig] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  const [anuncioTitulo, setAnuncioTitulo] = useState("");
+  const [anuncioMensaje, setAnuncioMensaje] = useState("");
+  const [enviandoAnuncio, setEnviandoAnuncio] = useState(false);
 
   function load() {
     Promise.all([api.get<PaqueteCreditoResponseDTO[]>("/admin/paquetes-credito"), api.get<ConfiguracionSistemaResponseDTO[]>("/admin/configuraciones")])
@@ -37,6 +50,8 @@ export function AdminConfigPage() {
         configsData.forEach((c) => (map[c.clave] = c));
         if (map[CLAVE_BIENVENIDA]) setWelcomeCredits(map[CLAVE_BIENVENIDA].valor);
         if (map[CLAVE_PUBLICACION]) setPublicacionCost(map[CLAVE_PUBLICACION].valor);
+        if (map[CLAVE_EMAIL_SOPORTE]) setEmailSoporte(map[CLAVE_EMAIL_SOPORTE].valor);
+        if (map[CLAVE_WHATSAPP_SOPORTE]) setWhatsappSoporte(map[CLAVE_WHATSAPP_SOPORTE].valor);
       })
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar la configuración."));
   }
@@ -126,6 +141,18 @@ export function AdminConfigPage() {
         valor: publicacionCost,
         descripcion: "Créditos que cuesta publicar un evento.",
       });
+      if (emailSoporte.trim()) {
+        await api.put(`/admin/configuraciones/${CLAVE_EMAIL_SOPORTE}`, {
+          valor: emailSoporte.trim(),
+          descripcion: "Mail de contacto de soporte, visible para cualquier usuario.",
+        });
+      }
+      if (whatsappSoporte.trim()) {
+        await api.put(`/admin/configuraciones/${CLAVE_WHATSAPP_SOPORTE}`, {
+          valor: whatsappSoporte.trim(),
+          descripcion: "WhatsApp de contacto de soporte (número completo, sin espacios ni signos).",
+        });
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2200);
       load();
@@ -135,6 +162,27 @@ export function AdminConfigPage() {
       toast.error(message);
     } finally {
       setSavingConfig(false);
+    }
+  }
+
+  async function enviarAnuncio() {
+    if (!anuncioTitulo.trim() || !anuncioMensaje.trim()) return;
+    setEnviandoAnuncio(true);
+    setError(null);
+    try {
+      const { enviadas } = await api.post<AnuncioEnviadoResponseDTO>("/admin/notificaciones", {
+        titulo: anuncioTitulo.trim(),
+        mensaje: anuncioMensaje.trim(),
+      });
+      toast.success(`Anuncio enviado a ${enviadas} usuarios`);
+      setAnuncioTitulo("");
+      setAnuncioMensaje("");
+    } catch (e: unknown) {
+      const message = e instanceof ApiError ? e.message : "No pudimos enviar el anuncio.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setEnviandoAnuncio(false);
     }
   }
 
@@ -304,6 +352,29 @@ export function AdminConfigPage() {
                 <p className="text-[11px] text-muted-foreground mt-1">Se descuentan del Organizador al publicar un evento.</p>
               </div>
 
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Mail de soporte</label>
+                <input
+                  type="email"
+                  value={emailSoporte}
+                  onChange={(e) => setEmailSoporte(e.target.value)}
+                  placeholder="soporte@asistiapp.com"
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Visible para cualquier usuario, incluido el Comprador.</p>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">WhatsApp de soporte (opcional)</label>
+                <input
+                  value={whatsappSoporte}
+                  onChange={(e) => setWhatsappSoporte(e.target.value)}
+                  placeholder="5493400000000"
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">Número completo con código de país, sin espacios ni signos.</p>
+              </div>
+
               <button
                 disabled={savingConfig}
                 onClick={handleSaveConfig}
@@ -321,6 +392,41 @@ export function AdminConfigPage() {
                 ) : (
                   "Guardar cambios"
                 )}
+              </button>
+            </div>
+          </div>
+
+          {/* Anuncio global */}
+          <div className="bg-card border border-border rounded-2xl overflow-hidden lg:col-span-2">
+            <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+              <Megaphone size={15} className="text-primary" />
+              <div>
+                <p className="text-sm font-bold text-foreground">Anuncio global</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Se entrega como notificación in-app a todos los usuarios activos</p>
+              </div>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <input
+                value={anuncioTitulo}
+                onChange={(e) => setAnuncioTitulo(e.target.value)}
+                placeholder="Título (ej. Mantenimiento programado)"
+                maxLength={150}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+              />
+              <textarea
+                value={anuncioMensaje}
+                onChange={(e) => setAnuncioMensaje(e.target.value)}
+                placeholder="Mensaje"
+                maxLength={1000}
+                rows={3}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all resize-none"
+              />
+              <button
+                disabled={enviandoAnuncio || !anuncioTitulo.trim() || !anuncioMensaje.trim()}
+                onClick={enviarAnuncio}
+                className="px-4 py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {enviandoAnuncio ? "Enviando..." : "Enviar anuncio"}
               </button>
             </div>
           </div>

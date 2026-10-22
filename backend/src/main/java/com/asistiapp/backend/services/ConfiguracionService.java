@@ -34,4 +34,11 @@ public class ConfiguracionService {
                 })
                 .orElse(valorPorDefecto);
     }
+
+    @Transactional(readOnly = true)
+    public String obtenerTexto(String clave, String valorPorDefecto) {
+        return configuracionSistemaRepository.findByClave(clave)
+                .map(config -> config.getValor().isBlank() ? valorPorDefecto : config.getValor())
+                .orElse(valorPorDefecto);
+    }
 }

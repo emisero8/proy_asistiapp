@@ -9,6 +9,7 @@ import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.services.EventoService;
+import com.asistiapp.backend.services.NotificacionService;
 import com.asistiapp.backend.services.TandaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +44,8 @@ class AdminEventoServiceTest {
     private EventoService eventoService;
     @Mock
     private TandaService tandaService;
+    @Mock
+    private NotificacionService notificacionService;
 
     @InjectMocks
     private AdminEventoService adminEventoService;
