@@ -25,6 +25,9 @@ public interface TransaccionCreditoRepository extends JpaRepository<TransaccionC
     /** Para el job de vencimiento: órdenes abandonadas (nunca se pagaron ni se avisó nada). */
     List<TransaccionCredito> findByEstadoAndFechaVencimientoBefore(EstadoTransaccion estado, LocalDateTime antes);
 
+    /** Historial de compras del Organizador (CU-019): todas sus órdenes, en cualquier estado. */
+    List<TransaccionCredito> findByIdOrganizadorOrderByFechaTransaccionDesc(Long idOrganizador);
+
     /** Con bloqueo pesimista de la fila: ver TransaccionPagoRepository. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM TransaccionCredito t WHERE t.externalReference = :ref")

@@ -77,6 +77,15 @@ export function OrganizadorDashboardPage() {
 
   useEffect(cargar, []);
 
+  // "Tiempo real" liviano: refresca solo mientras la pestaña está visible, para no pegarle
+  // al backend de fondo sin que nadie esté mirando el dashboard.
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      if (!document.hidden) cargar();
+    }, 20000);
+    return () => clearInterval(intervalo);
+  }, []);
+
   async function cancelarEvento(ev: EventoResponseDTO) {
     const ok = await confirm({
       titulo: "Cancelar evento",

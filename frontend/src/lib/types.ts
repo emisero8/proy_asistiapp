@@ -255,6 +255,16 @@ export interface IniciarCompraCreditoResponseDTO {
   mensaje: string;
 }
 
+/** GET /creditos/compras (CU-019): todas las órdenes del Organizador, en cualquier estado. */
+export interface CompraCreditoResponseDTO {
+  externalReference: string;
+  nombrePaquete: string;
+  cantidadCreditos: number | null;
+  monto: number;
+  estado: EstadoTransaccion;
+  fechaTransaccion: string;
+}
+
 // ── Staff ─────────────────────────────────────────────
 
 export interface StaffResponseDTO {

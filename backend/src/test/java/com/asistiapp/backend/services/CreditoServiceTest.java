@@ -246,4 +246,55 @@ class CreditoServiceTest {
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
         verify(transaccionCreditoRepository, never()).save(any());
     }
+
+    // ─────────────────────────────────────────────
+    // listarCompras — historial de compras del Organizador (CU-019)
+    // ─────────────────────────────────────────────
+
+    @Test
+    void listarCompras_devuelveTodasLasOrdenesEnCualquierEstado() {
+        TransaccionCredito aprobada = new TransaccionCredito();
+        aprobada.setExternalReference("ref-aprobada");
+        aprobada.setIdPaquete(3L);
+        aprobada.setMonto(5000.0);
+        aprobada.setEstado(EstadoTransaccion.Aprobada);
+
+        TransaccionCredito pendiente = new TransaccionCredito();
+        pendiente.setExternalReference("ref-pendiente");
+        pendiente.setIdPaquete(3L);
+        pendiente.setMonto(5000.0);
+        pendiente.setEstado(EstadoTransaccion.Pendiente);
+
+        paquete.setNombre("Pack Grande");
+        when(transaccionCreditoRepository.findByIdOrganizadorOrderByFechaTransaccionDesc(100L))
+                .thenReturn(java.util.List.of(aprobada, pendiente));
+        when(paqueteCreditoRepository.findById(3L)).thenReturn(Optional.of(paquete));
+
+        var resultado = creditoService.listarCompras(100L);
+
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado.get(0).getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
+        assertThat(resultado.get(0).getNombrePaquete()).isEqualTo("Pack Grande");
+        assertThat(resultado.get(0).getCantidadCreditos()).isEqualTo(10);
+        assertThat(resultado.get(1).getEstado()).isEqualTo(EstadoTransaccion.Pendiente);
+    }
+
+    @Test
+    void listarCompras_paqueteYaNoExiste_usaNombrePorDefectoSinRomper() {
+        TransaccionCredito orden = new TransaccionCredito();
+        orden.setExternalReference("ref-huerfana");
+        orden.setIdPaquete(999L);
+        orden.setMonto(1000.0);
+        orden.setEstado(EstadoTransaccion.Rechazada);
+
+        when(transaccionCreditoRepository.findByIdOrganizadorOrderByFechaTransaccionDesc(100L))
+                .thenReturn(java.util.List.of(orden));
+        when(paqueteCreditoRepository.findById(999L)).thenReturn(Optional.empty());
+
+        var resultado = creditoService.listarCompras(100L);
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getNombrePaquete()).isEqualTo("Paquete eliminado");
+        assertThat(resultado.get(0).getCantidadCreditos()).isNull();
+    }
 }

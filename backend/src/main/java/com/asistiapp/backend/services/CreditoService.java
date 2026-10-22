@@ -3,6 +3,7 @@ package com.asistiapp.backend.services;
 import com.asistiapp.backend.exceptions.BusinessRuleException;
 import com.asistiapp.backend.exceptions.ForbiddenActionException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
+import com.asistiapp.backend.models.dtos.credito.CompraCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.CreditosResumenResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.EstadoOrdenCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoRequestDTO;
@@ -264,6 +265,30 @@ public class CreditoService {
                         .nombre(p.getNombre())
                         .cantidadCreditos(p.getCantidadCreditos())
                         .precio(p.getPrecio())
+                        .build())
+                .toList();
+    }
+
+    /**
+     * Historial de compras del Organizador (CU-019): todas sus órdenes de crédito, en
+     * cualquier estado — a diferencia de listarHistorial(), que solo trae los movimientos
+     * ya confirmados contra el saldo.
+     */
+    @Transactional(readOnly = true)
+    public List<CompraCreditoResponseDTO> listarCompras(Long idOrganizador) {
+        return transaccionCreditoRepository.findByIdOrganizadorOrderByFechaTransaccionDesc(idOrganizador)
+                .stream()
+                .map(t -> CompraCreditoResponseDTO.builder()
+                        .externalReference(t.getExternalReference())
+                        .nombrePaquete(paqueteCreditoRepository.findById(t.getIdPaquete())
+                                .map(PaqueteCredito::getNombre)
+                                .orElse("Paquete eliminado"))
+                        .cantidadCreditos(paqueteCreditoRepository.findById(t.getIdPaquete())
+                                .map(PaqueteCredito::getCantidadCreditos)
+                                .orElse(null))
+                        .monto(t.getMonto())
+                        .estado(t.getEstado())
+                        .fechaTransaccion(t.getFechaTransaccion())
                         .build())
                 .toList();
     }

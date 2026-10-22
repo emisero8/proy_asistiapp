@@ -36,6 +36,7 @@ const AdminDashboardPage = lazy(() => import("./pages/admin/DashboardPage").then
 const AdminUsersPage = lazy(() => import("./pages/admin/UsersPage").then((m) => ({ default: m.AdminUsersPage })));
 const AdminEventsPage = lazy(() => import("./pages/admin/EventsPage").then((m) => ({ default: m.AdminEventsPage })));
 const AdminConfigPage = lazy(() => import("./pages/admin/ConfigPage").then((m) => ({ default: m.AdminConfigPage })));
+const AdminAuditoriaPage = lazy(() => import("./pages/admin/AuditoriaPage").then((m) => ({ default: m.AdminAuditoriaPage })));
 
 /** Fallback mientras carga el chunk de la sección (Organizador/Staff/Admin traen recharts/html5-qrcode, code-split por ruta). */
 function RouteFallback() {
@@ -141,6 +142,7 @@ function AnimatedRoutes() {
           <Route path="/admin/eventos" element={<AdminEventsPage />} />
           <Route path="/admin/eventos/:id/editar" element={<OrganizadorEditEventPage />} />
           <Route path="/admin/config" element={<AdminConfigPage />} />
+          <Route path="/admin/auditoria" element={<AdminAuditoriaPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,5 +1,6 @@
 package com.asistiapp.backend.controllers;
 
+import com.asistiapp.backend.models.dtos.credito.CompraCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.CreditosResumenResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.EstadoOrdenCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoRequestDTO;
@@ -52,6 +53,14 @@ public class CreditoController {
     public ResponseEntity<List<MovimientoCreditoResponseDTO>> historial() {
         Organizador organizador = securityUtils.getOrganizadorAutenticado();
         return ResponseEntity.ok(creditoService.listarHistorial(organizador.getId()));
+    }
+
+    /** Historial de compras (CU-019): todas las órdenes, en cualquier estado (no solo las confirmadas). */
+    @GetMapping("/compras")
+    @PreAuthorize("hasRole('Organizador')")
+    public ResponseEntity<List<CompraCreditoResponseDTO>> compras() {
+        Organizador organizador = securityUtils.getOrganizadorAutenticado();
+        return ResponseEntity.ok(creditoService.listarCompras(organizador.getId()));
     }
 
     /** Saldo, costo de publicar y créditos disponibles para entradas de tandas. */

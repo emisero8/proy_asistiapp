@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
-import { LayoutDashboard, Users, Calendar, CircleDollarSign, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, Calendar, CircleDollarSign, History, LogOut } from "lucide-react";
 import { useAuth } from "../../lib/auth";
 
 const TABS = [
@@ -8,6 +8,10 @@ const TABS = [
   { to: "/admin/eventos", label: "Eventos", Icon: Calendar },
   { to: "/admin/config", label: "Config", Icon: CircleDollarSign },
 ];
+
+// Solo en el sidebar de desktop: la bottom tab bar de mobile es un grid-cols-4 fijo,
+// agregar un 5to ítem ahí la rompería. En mobile se llega por "Ver todo" del Dashboard.
+const TABS_SOLO_DESKTOP = [{ to: "/admin/auditoria", label: "Auditoría", Icon: History }];
 
 export function AdminLayout() {
   const { session, logout } = useAuth();
@@ -56,7 +60,7 @@ export function AdminLayout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 relative">
-          {TABS.map(({ to, label, Icon }) => (
+          {[...TABS, ...TABS_SOLO_DESKTOP].map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}

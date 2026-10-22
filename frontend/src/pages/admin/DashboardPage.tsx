@@ -2,29 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Calendar, CalendarCheck, ChevronRight, CircleDollarSign, History, Ticket, Users } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
+import { describirAccion } from "../../lib/auditoria";
 import { fmt, formatRelativo } from "../../lib/format";
 import type { AdminMetricasResponseDTO, LogAuditoriaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
-
-const ACCION_LABELS: Record<string, string> = {
-  SUSPENDER_USUARIO: "suspendió al usuario",
-  ACTIVAR_USUARIO: "reactivó al usuario",
-  CAMBIAR_ROL: "cambió el rol del usuario",
-  ELIMINAR_USUARIO: "eliminó al usuario",
-  CREAR_PAQUETE: "creó el paquete de créditos",
-  ACTUALIZAR_PAQUETE: "actualizó el paquete de créditos",
-  DESHABILITAR_PAQUETE: "deshabilitó el paquete de créditos",
-  HABILITAR_PAQUETE: "habilitó el paquete de créditos",
-  EDITAR_EVENTO_ADMIN: "editó el evento",
-  CANCELAR_EVENTO_ADMIN: "canceló el evento",
-  ELIMINAR_EVENTO_ADMIN: "eliminó el evento",
-  ACTUALIZAR_CONFIGURACION: "actualizó la configuración global",
-};
-
-function describirAccion(log: LogAuditoriaResponseDTO): string {
-  const verbo = ACCION_LABELS[log.accion] ?? log.accion.toLowerCase().replace(/_/g, " ");
-  return `Admin #${log.idAdmin} ${verbo} #${log.idEntidadAfectada}`;
-}
 
 export function AdminDashboardPage() {
   useDocumentTitle("Dashboard · Admin");
@@ -105,9 +86,17 @@ export function AdminDashboardPage() {
         </div>
 
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-border flex items-center gap-2">
-            <History size={14} className="text-muted-foreground" />
-            <p className="text-xs font-bold text-foreground">Actividad reciente</p>
+          <div className="px-4 py-3.5 border-b border-border flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <History size={14} className="text-muted-foreground" />
+              <p className="text-xs font-bold text-foreground">Actividad reciente</p>
+            </div>
+            <button
+              onClick={() => navigate("/admin/auditoria")}
+              className="text-xs font-semibold text-primary hover:underline"
+            >
+              Ver todo
+            </button>
           </div>
           {actividad === null ? (
             <div className="p-4 space-y-2">
