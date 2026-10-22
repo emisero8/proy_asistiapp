@@ -12,7 +12,17 @@ vi.mock("../../lib/api", async (importOriginal) => {
 });
 
 // Leaflet necesita layout real (tamaños, tiles): el mapa se prueba aparte, acá es ruido.
-vi.mock("../../components/EventMap", () => ({ MapPicker: () => <div data-testid="map-picker" /> }));
+// Se deja solo el input de dirección (sin autocompletado/mapa) para poder completar el paso 1.
+vi.mock("../../components/EventMap", () => ({
+  MapPicker: ({ venueValue, onVenueChange }: { venueValue: string; onVenueChange: (v: string) => void }) => (
+    <input
+      data-testid="map-picker"
+      placeholder="Ej: Pavón 123, Santa Fe"
+      value={venueValue}
+      onChange={(e) => onVenueChange(e.target.value)}
+    />
+  ),
+}));
 
 const FUTURO = "2099-12-31";
 
@@ -53,7 +63,7 @@ async function completarPaso1(container: HTMLElement, user: ReturnType<typeof us
   await user.type(screen.getByPlaceholderText("Festival de Jazz al Aire Libre"), "Mi Recital");
   fireEvent.change(fechas(container)[0], { target: { value: fecha } });
   fireEvent.change(hora(container), { target: { value: "21:00" } });
-  await user.type(screen.getByPlaceholderText(/Av\. Díaz Vélez/), "Club Demo");
+  await user.type(screen.getByTestId("map-picker"), "Club Demo");
 }
 
 async function avanzarAlPaso2(container: HTMLElement, user: ReturnType<typeof userEvent.setup>, fecha = FUTURO) {
@@ -236,7 +246,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     await avanzarAlPaso2(container, user);
     await completarTanda(user, "Anticipada", "12000", "200");
 
-    expect(screen.getByText(/Las entradas suman 200 y tenés 49 crédito\(s\) disponible\(s\)/)).toBeInTheDocument();
+    expect(screen.getByText("Excedés el límite en 151 entradas")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
   });
 

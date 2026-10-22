@@ -38,8 +38,16 @@ public class TransaccionCredito {
     @Column(nullable = false, length = 20)
     private EstadoTransaccion estado;
 
-    @Column(name = "mercadopago_payment_id")
+    @Column(name = "mercadopago_payment_id", unique = true)
     private String mercadopagoPaymentId;
+
+    /** Identificador opaco de la orden que viaja a MercadoPago como external_reference. */
+    @Column(name = "external_reference", unique = true, length = 36)
+    private String externalReference;
+
+    /** Momento a partir del cual la orden deja de aceptar pagos (vence la preferencia de MP). */
+    @Column(name = "fecha_vencimiento")
+    private LocalDateTime fechaVencimiento;
 
     @Column(name = "fecha_transaccion", nullable = false, updatable = false)
     private LocalDateTime fechaTransaccion;
@@ -47,6 +55,9 @@ public class TransaccionCredito {
     @PrePersist
     protected void onCreate() {
         this.fechaTransaccion = LocalDateTime.now();
+        if (this.externalReference == null) {
+            this.externalReference = java.util.UUID.randomUUID().toString();
+        }
         if (this.estado == null) {
             this.estado = EstadoTransaccion.Pendiente;
         }

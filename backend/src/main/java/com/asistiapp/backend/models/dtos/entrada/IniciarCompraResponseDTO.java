@@ -5,20 +5,19 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * DTO de respuesta al iniciar una compra online.
- * En una integración real con MercadoPago, este DTO devolvería la URL
- * de pago del checkout de MP para redirigir al comprador.
- * En esta simulación, devuelve un ID de orden pendiente.
+ * DTO de respuesta al iniciar una compra online: el identificador opaco de la
+ * orden (external_reference) y el init_point de MercadoPago Checkout Pro al que
+ * hay que redirigir al comprador.
  */
 @Getter
 @Setter
 @Builder
 public class IniciarCompraResponseDTO {
 
-    /** ID de la "orden de pago" pendiente — simulado con UUID. */
+    /** Identificador opaco (UUID) de la orden de pago pendiente. */
     private String ordenId;
 
-    /** URL donde el comprador completaría el pago (simulada). */
+    /** init_point de MercadoPago: URL donde el comprador completa el pago. */
     private String urlPago;
 
     /** Mensaje informativo para el cliente. */

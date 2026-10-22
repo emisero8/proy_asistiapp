@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt } from "../../lib/format";
-import type { EntradaResponseDTO, EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
+import type { EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface CheckoutState {
@@ -42,55 +42,21 @@ export function CheckoutPage() {
   async function handleConfirm() {
     setLoading(true);
     setError(null);
-
-    // El backend genera una Entrada (con su propio QR) por cada compra —
-    // "qty" entradas significa qty llamadas secuenciales, cada una es un
-    // acceso individual y escaneable por separado en la puerta (CU-018).
-    const entradas: EntradaResponseDTO[] = [];
     try {
-      for (let i = 0; i < qty; i++) {
-        const orden = await api.post<IniciarCompraResponseDTO>(
-          "/tickets/comprar-online",
-          { idTanda: tanda.id, nombreComprador: name, emailComprador: email },
-          { skipAuth: true },
-        );
-        const entrada = await api.post<EntradaResponseDTO>(
-          "/tickets/webhook/pago",
-          { ordenId: orden.ordenId, paymentId: Date.now() + i },
-          { skipAuth: true },
-        );
-        entradas.push(entrada);
-      }
-      await enviarMailConfirmacion(entradas);
-      navigate(`/ticket/${entradas[0].id}`, { state: { entradas, evento, buyerName: name } });
-    } catch (e: unknown) {
-      if (entradas.length > 0) {
-        // Se compraron algunas entradas antes de que fallara el resto (ej. la tanda se agotó a mitad de camino).
-        await enviarMailConfirmacion(entradas);
-        navigate(`/ticket/${entradas[0].id}`, { state: { entradas, evento, buyerName: name } });
-        return;
-      }
-      setError(e instanceof ApiError ? e.message : "No pudimos procesar la compra. Intentá de nuevo.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /**
-   * Un solo mail con los códigos QR de todas las entradas de esta compra, en vez de
-   * uno por entrada. Si falla, no bloquea la navegación: las entradas ya son válidas
-   * y se pueden ver en pantalla igual, solo no llegaría el mail.
-   */
-  async function enviarMailConfirmacion(entradas: EntradaResponseDTO[]) {
-    if (entradas.length === 0) return;
-    try {
-      await api.post(
-        "/tickets/confirmar-compra",
-        { codigosQr: entradas.map((e) => e.codigoQr), nombreComprador: name, emailComprador: email },
+      // Una sola orden para las "qty" entradas: el backend genera una Entrada (con
+      // su propio QR) por cada unidad al confirmarse el pago, pero la cobra en una
+      // sola preferencia de MercadoPago.
+      const orden = await api.post<IniciarCompraResponseDTO>(
+        "/tickets/comprar-online",
+        { idTanda: tanda.id, cantidad: qty, nombreComprador: name, emailComprador: email },
         { skipAuth: true },
       );
-    } catch {
-      // best-effort: las entradas ya están compradas y son válidas sin el mail
+      // Redirección real a Checkout Pro — el pago se confirma por el webhook de
+      // MercadoPago, no acá. MercadoPago vuelve a /pago/resultado cuando termina.
+      window.location.href = orden.urlPago;
+    } catch (e: unknown) {
+      setError(e instanceof ApiError ? e.message : "No pudimos iniciar el pago. Intentá de nuevo.");
+      setLoading(false);
     }
   }
 

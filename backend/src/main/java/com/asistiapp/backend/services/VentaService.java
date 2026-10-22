@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,12 +35,13 @@ import java.util.UUID;
  * mediante Pessimistic Locking a nivel de base de datos.
  *
  * ═══════════════════════════════════════════════════
- * FLUJO ONLINE (CU-017) — Simulación MercadoPago:
+ * FLUJO ONLINE (CU-017) — MercadoPago Checkout Pro:
  * ═══════════════════════════════════════════════════
- *   1. POST /tickets/comprar-online   → Crea una TransaccionPago en estado
- *      Pendiente (la "orden") y devuelve una URL de pago simulada.
- *   2. POST /tickets/webhook/pago     → Simula el IPN de MercadoPago.
- *      Confirma el pago, genera QR, crea Entrada en BD y envía email.
+ *   1. POST /tickets/comprar-online   → Crea una TransaccionPago Pendiente (la
+ *      "orden", con su cantidad) y una Preferencia de MP; devuelve el init_point.
+ *   2. POST /payments/mercadopago/webhook → MP avisa del pago; PagoWebhookService lo
+ *      verifica contra la API de MP y llama a confirmarPagoEntradas(): descuenta el
+ *      cupo, genera un QR y una Entrada por unidad (el mail sale después del commit).
  *
  * ═══════════════════════════════════════════════════
  * FLUJO MANUAL (CU-019) — Staff Vendedor:
@@ -67,6 +69,7 @@ public class VentaService {
     private final QrImageService qrImageService;
     private final SecurityUtils securityUtils;
     private final ConfiguracionService configuracionService;
+    private final MercadoPagoService mercadoPagoService;
 
     private static final int TAMANO_QR_DEFAULT_PX = 300;
 
@@ -80,114 +83,206 @@ public class VentaService {
 
     /**
      * Inicia el proceso de compra online.
-     * Valida que la tanda tenga cupo y crea una TransaccionPago Pendiente —
-     * es la "orden" en sí, persistida (no en memoria), así que sobrevive a
-     * un reinicio del backend y queda auditable.
-     * NO descuenta cupo todavía — eso ocurre al confirmar el pago.
+     * Valida que la tanda tenga cupo para TODA la cantidad pedida, crea una
+     * TransaccionPago Pendiente (la "orden", persistida y auditable) y una
+     * Preferencia de Checkout Pro en MercadoPago por el total.
+     * NO descuenta cupo todavía — eso ocurre cuando el webhook confirma el pago.
      *
-     * @param dto datos del comprador y la tanda
-     * @return orden con URL de pago simulada para redirigir al comprador
+     * @param dto datos del comprador, la tanda y la cantidad de entradas
+     * @return orden con el init_point de MercadoPago al que hay que redirigir al comprador
      */
     @Transactional
     public IniciarCompraResponseDTO iniciarCompraOnline(CompraOnlineRequestDTO dto) {
         Tanda tanda = tandaRepository.findById(dto.getIdTanda())
                 .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada con id: " + dto.getIdTanda()));
 
-        validarTandaDisponible(tanda);
-        validarLimitePorComprador(tanda, dto.getEmailComprador());
+        int cantidad = dto.getCantidad();
+        validarTandaDisponible(tanda, cantidad);
+        validarLimitePorComprador(tanda, dto.getEmailComprador(), cantidad);
+
+        if (tanda.getPrecio() == null || tanda.getPrecio() <= 0) {
+            // MercadoPago no cobra ítems de $0; las tandas gratuitas necesitan otro circuito.
+            throw new BusinessRuleException("Esta tanda no tiene un precio válido para pagar online");
+        }
 
         TransaccionPago transaccion = new TransaccionPago();
         transaccion.setIdTanda(tanda.getId());
-        transaccion.setMontoTotal(tanda.getPrecio());
+        transaccion.setCantidad(cantidad);
+        transaccion.setMontoTotal(tanda.getPrecio() * cantidad);
         transaccion.setNombreComprador(dto.getNombreComprador());
         transaccion.setEmailComprador(dto.getEmailComprador());
         transaccion.setEstado(EstadoTransaccion.Pendiente);
+        transaccion.setFechaVencimiento(mercadoPagoService.calcularVencimiento());
 
         TransaccionPago saved = transaccionPagoRepository.save(transaccion);
 
-        log.info("Compra iniciada: transaccionId={}, tanda={}, comprador={}",
-                saved.getId(), dto.getIdTanda(), dto.getEmailComprador());
+        // Si MercadoPago falla, la excepción revierte la transacción: no queda una orden huérfana.
+        MercadoPagoService.PreferenciaCreada preferencia = mercadoPagoService.crearPreferencia(
+                new MercadoPagoService.OrdenACobrar(
+                        "tanda-" + tanda.getId(),
+                        tanda.getEvento().getNombre() + " — " + tanda.getNombre(),
+                        "Entrada(s) para " + tanda.getEvento().getNombre(),
+                        cantidad,
+                        BigDecimal.valueOf(tanda.getPrecio()),
+                        saved.getExternalReference(),
+                        MercadoPagoService.TIPO_ENTRADAS,
+                        dto.getEmailComprador(),
+                        saved.getFechaVencimiento()));
+
+        log.info("Compra iniciada: transaccionId={}, ref={}, tanda={}, cantidad={}, comprador={}",
+                saved.getId(), saved.getExternalReference(), dto.getIdTanda(), cantidad, dto.getEmailComprador());
 
         return IniciarCompraResponseDTO.builder()
-                .ordenId(saved.getId().toString())
-                .urlPago("https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=" + saved.getId())
-                .mensaje("Redirigite a MercadoPago para completar tu compra. Tu orden: " + saved.getId())
+                .ordenId(saved.getExternalReference())
+                .urlPago(preferencia.initPoint())
+                .mensaje("Redirigite a MercadoPago para completar tu compra.")
                 .build();
     }
 
     // ─────────────────────────────────────────────
-    // FLUJO ONLINE — Paso 2: Webhook / IPN simulado
+    // FLUJO ONLINE — Paso 2: confirmación del pago (webhook de MercadoPago)
     // ─────────────────────────────────────────────
 
+    /** Resultado de confirmar una orden de entradas, con lo necesario para mandar el mail. */
+    public record ConfirmacionEntradas(
+            ResultadoPago resultado,
+            List<String> codigosQr,
+            String nombreComprador,
+            String emailComprador,
+            String nombreEvento,
+            String nombreTanda) {
+
+        static ConfirmacionEntradas sinEntradas(ResultadoPago resultado) {
+            return new ConfirmacionEntradas(resultado, List.of(), null, null, null, null);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public boolean existeOrdenEntradas(String externalReference) {
+        return transaccionPagoRepository.existsByExternalReference(externalReference);
+    }
+
     /**
-     * Simula el webhook IPN de MercadoPago confirmando el pago.
+     * Estado de una orden para la pantalla de resultado del pago. Si ya está Aprobada,
+     * incluye las entradas generadas (con su QR) para que el comprador las vea sin
+     * depender de que le llegue el mail.
+     */
+    @Transactional(readOnly = true)
+    public EstadoOrdenEntradasResponseDTO obtenerEstadoOrden(String externalReference) {
+        TransaccionPago transaccion = transaccionPagoRepository.findByExternalReference(externalReference)
+                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + externalReference));
+        Tanda tanda = tandaRepository.findById(transaccion.getIdTanda())
+                .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada"));
+
+        List<EntradaResponseDTO> entradas = transaccion.getEstado() == EstadoTransaccion.Aprobada
+                ? entradaRepository.findByIdTransaccionPago(transaccion.getId()).stream().map(this::toResponseDTO).toList()
+                : List.of();
+
+        return EstadoOrdenEntradasResponseDTO.builder()
+                .estado(transaccion.getEstado())
+                .cantidad(transaccion.getCantidad())
+                .nombreEvento(tanda.getEvento().getNombre())
+                .nombreTanda(tanda.getNombre())
+                .entradas(entradas)
+                .build();
+    }
+
+    /**
+     * Confirma una orden de entradas cuyo pago MercadoPago ya informó como aprobado
+     * (el estado, monto y moneda vienen de la API de MP, no de la notificación).
      *
-     * En producción real:
-     *  - MercadoPago envía un POST a este endpoint con el payment_id.
-     *  - Se verifica la autenticidad del webhook con la firma del header X-Signature.
-     *  - Se consulta a la API de MP para confirmar el estado del pago.
+     * Es idempotente: la fila de la orden se bloquea, así que notificaciones repetidas o
+     * simultáneas del mismo pago se serializan y las posteriores devuelven YA_PROCESADA.
+     * En un solo paso atómico descuenta el cupo de TODA la cantidad (con lock pesimista
+     * sobre la tanda, anti-sobreventa) y genera una Entrada con su QR por cada unidad.
      *
-     * En esta simulación:
-     *  - El cliente manda el ordenId (id de la TransaccionPago) para simular la confirmación.
-     *  - Se descuenta el cupo con Pessimistic Lock.
-     *  - Se genera el QR y se crea la Entrada en BD.
-     *  - Se envía el email de forma asíncrona.
-     *
-     * @param ordenId  ID de la TransaccionPago generada en iniciarCompraOnline()
-     * @param paymentId ID simulado de la transacción de MercadoPago
-     * @return entrada generada con su código QR
+     * Si el pago ya no se puede honrar (tanda agotada entre el inicio de la compra y el
+     * pago, evento dado de baja, tope por comprador) no tira excepción: devuelve
+     * SIN_DISPONIBILIDAD para que el llamador reembolse. No se deja la orden a medias.
      */
     @Transactional
-    public EntradaResponseDTO confirmarPagoWebhook(String ordenId, Long paymentId) {
-        TransaccionPago transaccion = transaccionPagoRepository.findById(Long.valueOf(ordenId))
-                .orElseThrow(() -> new BusinessRuleException("Orden de pago no encontrada: " + ordenId));
-
-        if (transaccion.getEstado() != EstadoTransaccion.Pendiente) {
-            throw new BusinessRuleException("Esta orden ya fue procesada: " + ordenId);
+    public ConfirmacionEntradas confirmarPagoEntradas(String externalReference, Long paymentId,
+                                                      BigDecimal montoPagado, String moneda) {
+        TransaccionPago transaccion = transaccionPagoRepository
+                .findByExternalReferenceForUpdate(externalReference).orElse(null);
+        if (transaccion == null) {
+            return ConfirmacionEntradas.sinEntradas(ResultadoPago.NO_ENCONTRADA);
         }
 
-        // Obtener la tanda con BLOQUEO PESIMISTA — previene sobreventa concurrente
-        Tanda tanda = tandaRepository.findByIdWithLock(transaccion.getIdTanda())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Tanda no encontrada: " + transaccion.getIdTanda()));
+        String idPago = paymentId.toString();
 
-        validarTandaDisponible(tanda);
-        validarLimitePorComprador(tanda, transaccion.getEmailComprador());
-
-        // Decrementar cupo de forma atómica
-        int filasActualizadas = tandaRepository.decrementarCupo(tanda.getId());
-        if (filasActualizadas == 0) {
-            // Race condition: justo antes de esta tx otra agotó el último cupo
-            throw new BusinessRuleException("Lo sentimos, la tanda se agotó mientras procesabas el pago");
+        // Idempotencia: una orden ya resuelta no se vuelve a procesar. Si el pago es otro,
+        // el comprador pagó dos veces la misma orden: el segundo se devuelve.
+        if (transaccion.getEstado() == EstadoTransaccion.Aprobada
+                || transaccion.getEstado() == EstadoTransaccion.Reembolsada) {
+            boolean mismoPago = idPago.equals(transaccion.getMercadopagoPaymentId());
+            return ConfirmacionEntradas.sinEntradas(mismoPago ? ResultadoPago.YA_PROCESADA : ResultadoPago.DUPLICADO);
         }
 
-        // Marcar la transacción de pago como aprobada
+        // El monto cobrado tiene que ser exactamente el de la orden, en pesos.
+        if (!"ARS".equals(moneda) || montoPagado == null
+                || montoPagado.compareTo(BigDecimal.valueOf(transaccion.getMontoTotal())) != 0) {
+            log.error("Pago MP {} no coincide con la orden {}: pagado {} {}, esperado {} ARS",
+                    paymentId, externalReference, montoPagado, moneda, transaccion.getMontoTotal());
+            return ConfirmacionEntradas.sinEntradas(ResultadoPago.MONTO_INVALIDO);
+        }
+
+        int cantidad = transaccion.getCantidad();
+
+        // BLOQUEO PESIMISTA de la tanda — previene sobreventa concurrente
+        Tanda tanda = tandaRepository.findByIdWithLock(transaccion.getIdTanda()).orElse(null);
+        if (tanda == null
+                || tanda.getEvento().getEstado() != EstadoEvento.Publicado
+                || excedeLimitePorComprador(tanda, transaccion.getEmailComprador(), cantidad)
+                || tandaRepository.decrementarCupo(tanda.getId(), cantidad) == 0) {
+            log.warn("Orden {} pagada pero no entregable (tanda agotada, evento dado de baja o tope por comprador)", externalReference);
+            return ConfirmacionEntradas.sinEntradas(ResultadoPago.SIN_DISPONIBILIDAD);
+        }
+
         transaccion.setEstado(EstadoTransaccion.Aprobada);
-        transaccion.setMercadopagoPaymentId(paymentId.toString());
+        transaccion.setMercadopagoPaymentId(idPago);
         transaccionPagoRepository.save(transaccion);
 
-        // Generar la entrada
-        String codigoQr = generarCodigoQrUnico();
-        Entrada entrada = new Entrada();
-        entrada.setTanda(tanda);
-        entrada.setCodigoQr(codigoQr);
-        entrada.setNombreComprador(transaccion.getNombreComprador());
-        entrada.setEmailComprador(transaccion.getEmailComprador());
-        entrada.setEstado(EstadoEntrada.Pagada);
-        entrada.setCanalVenta(CanalVenta.Online);
-        entrada.setIdTransaccionPago(transaccion.getId());
+        List<String> codigosQr = new ArrayList<>();
+        for (int i = 0; i < cantidad; i++) {
+            String codigoQr = generarCodigoQrUnico();
+            Entrada entrada = new Entrada();
+            entrada.setTanda(tanda);
+            entrada.setCodigoQr(codigoQr);
+            entrada.setNombreComprador(transaccion.getNombreComprador());
+            entrada.setEmailComprador(transaccion.getEmailComprador());
+            entrada.setEstado(EstadoEntrada.Pagada);
+            entrada.setCanalVenta(CanalVenta.Online);
+            entrada.setIdTransaccionPago(transaccion.getId());
+            entradaRepository.save(entrada);
+            codigosQr.add(codigoQr);
+        }
 
-        Entrada saved = entradaRepository.save(entrada);
+        log.info("Pago confirmado: orden={}, pago MP={}, {} entrada(s), evento={}",
+                externalReference, paymentId, cantidad, tanda.getEvento().getNombre());
 
-        log.info("Pago confirmado y entrada generada: id={}, qr={}, evento={}",
-                saved.getId(), codigoQr, tanda.getEvento().getNombre());
+        // El mail lo manda el llamador después del commit, un solo mail con todos los QR.
+        return new ConfirmacionEntradas(ResultadoPago.CONFIRMADA, codigosQr,
+                transaccion.getNombreComprador(), transaccion.getEmailComprador(),
+                tanda.getEvento().getNombre(), tanda.getNombre());
+    }
 
-        // El email NO se manda acá: una compra de varias entradas hace varias llamadas
-        // a este método (una por entrada), y mandar un mail por cada una sería justo lo
-        // que se quiere evitar. El frontend llama a enviarConfirmacionCompraAgrupada
-        // una sola vez, al final, con los códigos QR de todas las entradas compradas.
-
-        return toResponseDTO(saved);
+    /**
+     * Marca una orden como Reembolsada una vez devuelto el dinero. No toca una orden ya
+     * Aprobada (esa se entregó): un reembolso manual desde el panel de MP no la revierte.
+     */
+    @Transactional
+    public void marcarOrdenReembolsada(String externalReference, Long paymentId) {
+        transaccionPagoRepository.findByExternalReferenceForUpdate(externalReference).ifPresent(transaccion -> {
+            if (transaccion.getEstado() == EstadoTransaccion.Aprobada
+                    || transaccion.getEstado() == EstadoTransaccion.Reembolsada) {
+                return;
+            }
+            transaccion.setEstado(EstadoTransaccion.Reembolsada);
+            transaccion.setMercadopagoPaymentId(paymentId.toString());
+            transaccionPagoRepository.save(transaccion);
+            log.info("Orden {} marcada como Reembolsada (pago MP {})", externalReference, paymentId);
+        });
     }
 
     // ─────────────────────────────────────────────
@@ -260,8 +355,8 @@ public class VentaService {
             throw new ForbiddenActionException("Solo podés vender entradas para el evento que tenés asignado");
         }
 
-        validarTandaDisponible(tanda);
-        validarLimitePorComprador(tanda, dto.getEmailComprador());
+        validarTandaDisponible(tanda, 1);
+        validarLimitePorComprador(tanda, dto.getEmailComprador(), 1);
 
         // Decrementar cupo de forma atómica
         int filasActualizadas = tandaRepository.decrementarCupo(tanda.getId());
@@ -349,9 +444,9 @@ public class VentaService {
      *  - El evento debe estar Publicado.
      *  - El momento actual debe caer dentro de la ventana de venta de la tanda
      *    (fecha_inicio/fin_vigencia), si es que tiene una configurada.
-     *  - El cupo_disponible debe ser > 0.
+     *  - El cupo_disponible debe alcanzar para la cantidad pedida.
      */
-    private void validarTandaDisponible(Tanda tanda) {
+    private void validarTandaDisponible(Tanda tanda, int cantidad) {
         if (tanda.getEvento().getEstado() != EstadoEvento.Publicado) {
             throw new BusinessRuleException(
                     "El evento no está disponible para la venta. " +
@@ -370,6 +465,10 @@ public class VentaService {
             throw new BusinessRuleException(
                     "Lo sentimos, la tanda \"" + tanda.getNombre() + "\" está agotada");
         }
+        if (tanda.getCupoDisponible() < cantidad) {
+            throw new BusinessRuleException(
+                    "Solo quedan " + tanda.getCupoDisponible() + " entradas en la tanda \"" + tanda.getNombre() + "\"");
+        }
     }
 
     /**
@@ -377,15 +476,22 @@ public class VentaService {
      * entradas configurado para un evento. El límite lo fija el Admin
      * (clave "max_entradas_por_comprador"), con un default razonable.
      */
-    private void validarLimitePorComprador(Tanda tanda, String email) {
-        int limite = configuracionService.obtenerEntero(
-                CLAVE_MAX_ENTRADAS_POR_COMPRADOR, MAX_ENTRADAS_POR_COMPRADOR_DEFAULT);
+    private void validarLimitePorComprador(Tanda tanda, String email, int cantidad) {
+        if (excedeLimitePorComprador(tanda, email, cantidad)) {
+            throw new BusinessRuleException(
+                    "Alcanzaste el máximo de " + limitePorComprador() + " entradas por persona para este evento.");
+        }
+    }
+
+    private boolean excedeLimitePorComprador(Tanda tanda, String email, int cantidad) {
         long yaCompradas = entradaRepository.countByEventoIdAndEmailComprador(
                 tanda.getEvento().getId(), email);
-        if (yaCompradas >= limite) {
-            throw new BusinessRuleException(
-                    "Alcanzaste el máximo de " + limite + " entradas por persona para este evento.");
-        }
+        return yaCompradas + cantidad > limitePorComprador();
+    }
+
+    private int limitePorComprador() {
+        return configuracionService.obtenerEntero(
+                CLAVE_MAX_ENTRADAS_POR_COMPRADOR, MAX_ENTRADAS_POR_COMPRADOR_DEFAULT);
     }
 
     /**

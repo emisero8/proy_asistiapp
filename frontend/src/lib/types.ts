@@ -28,7 +28,7 @@ export interface CreditosResumenResponseDTO {
   costoPublicacion: number;
   disponibleParaEntradas: number;
 }
-export type EstadoTransaccion = "Pendiente" | "Aprobada" | "Rechazada";
+export type EstadoTransaccion = "Pendiente" | "Aprobada" | "Rechazada" | "Expirada" | "Reembolsada";
 export type EstadoPaquete = "Activo" | "Deshabilitado";
 
 // ── Auth ──────────────────────────────────────────────
@@ -172,6 +172,22 @@ export interface EntradaResponseDTO {
   canalVenta: CanalVenta;
   fechaCompra: string;
   fechaUso: string | null;
+}
+
+/** GET /tickets/orden/{ref}: estado de una compra de entradas, para /pago/resultado. */
+export interface EstadoOrdenEntradasResponseDTO {
+  estado: EstadoTransaccion;
+  cantidad: number;
+  nombreEvento: string;
+  nombreTanda: string;
+  entradas: EntradaResponseDTO[];
+}
+
+/** GET /creditos/orden/{ref}: estado de una compra de créditos, para /pago/resultado. */
+export interface EstadoOrdenCreditoResponseDTO {
+  estado: EstadoTransaccion;
+  cantidadCreditos: number | null;
+  monto: number;
 }
 
 export interface CompraOnlineRequestDTO {

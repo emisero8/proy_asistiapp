@@ -7,3 +7,7 @@ import { afterEach } from "vitest";
 afterEach(() => {
   cleanup();
 });
+
+// jsdom no implementa scrollIntoView — lo usan varias pantallas (scroll al top al
+// cambiar de paso/paso del wizard) y sin este mock cualquier test que las monte explota.
+Element.prototype.scrollIntoView = () => {};

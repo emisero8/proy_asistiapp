@@ -13,14 +13,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Controlador REST del Motor de Ventas — Fase 5.
  *
  * Endpoints públicos (cualquier usuario autenticado puede comprar online):
- *   POST /tickets/comprar-online       → Iniciar compra (CU-017, paso 1)
- *   POST /tickets/webhook/pago         → Confirmar pago / IPN simulado (CU-017, paso 2)
+ *   POST /tickets/comprar-online       → Iniciar compra (CU-017): devuelve el init_point de MercadoPago
+ *   (la confirmación del pago llega por POST /payments/mercadopago/webhook)
  *
  * Endpoints exclusivos Staff_Vendedor:
  *   POST /tickets/venta-manual         → Venta manual directa (CU-019)
@@ -43,7 +42,7 @@ public class VentaController {
     /**
      * Paso 1: Inicia el proceso de compra online.
      * Cualquier usuario autenticado puede comprar entradas.
-     * Retorna la "URL de pago" de MercadoPago (simulada).
+     * Retorna el init_point de MercadoPago al que hay que redirigir al comprador.
      */
     @PostMapping("/comprar-online")
     public ResponseEntity<IniciarCompraResponseDTO> iniciarCompraOnline(
@@ -53,22 +52,7 @@ public class VentaController {
     }
 
     /**
-     * Paso 2: Webhook simulado — confirma el pago y genera la entrada.
-     * En producción MercadoPago llamaría a este endpoint automáticamente.
-     * Para testing se puede llamar manualmente con el ordenId devuelto en el paso 1.
-     *
-     * @param body  mapa con "ordenId" y "paymentId" (simulado)
-     */
-    @PostMapping("/webhook/pago")
-    public ResponseEntity<EntradaResponseDTO> confirmarPago(@RequestBody Map<String, Object> body) {
-        String ordenId = (String) body.get("ordenId");
-        Long paymentId = Long.valueOf(body.get("paymentId").toString());
-        EntradaResponseDTO entrada = ventaService.confirmarPagoWebhook(ordenId, paymentId);
-        return ResponseEntity.status(HttpStatus.CREATED).body(entrada);
-    }
-
-    /**
-     * Paso 3 (una sola vez por compra, no por entrada): manda un solo mail con los
+     * (una sola vez por compra, no por entrada): manda un solo mail con los
      * códigos QR de todas las entradas que se acaban de confirmar. El Comprador nunca
      * tiene JWT en este flujo — la autorización es que el email coincida con el de
      * cada entrada, igual que GET /tickets/by-codigo.
@@ -78,6 +62,16 @@ public class VentaController {
             @Valid @RequestBody ConfirmarCompraGrupalRequestDTO dto) {
         ventaService.enviarConfirmacionCompraAgrupada(dto);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Estado de una orden para la pantalla de resultado del pago
+     * (a la que MercadoPago devuelve al comprador tras pagar).
+     */
+    @GetMapping("/orden/{externalReference}")
+    public ResponseEntity<EstadoOrdenEntradasResponseDTO> obtenerEstadoOrden(
+            @PathVariable String externalReference) {
+        return ResponseEntity.ok(ventaService.obtenerEstadoOrden(externalReference));
     }
 
     // ─────────────────────────────────────────────

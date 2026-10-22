@@ -58,6 +58,20 @@ app:
     cloud-name: ${CLOUDINARY_CLOUD_NAME:}
     api-key: ${CLOUDINARY_API_KEY:}
     api-secret: ${CLOUDINARY_API_SECRET:}
+  mercadopago:
+    # Credenciales por variable de entorno; nunca van en el repo.
+    # access-token: "Credenciales de prueba" de la app (TEST-...) en sandbox, de producción al lanzar.
+    access-token: ${MP_ACCESS_TOKEN:}
+    # Clave secreta de Webhooks (panel de la app → Webhooks): valida la firma x-signature.
+    webhook-secret: ${MP_WEBHOOK_SECRET:}
+    # Valida la firma x-signature de cada webhook. DEJAR EN true EN PRODUCCIÓN: solo se apaga
+    # en el sandbox local, donde MP firma los pagos de usuarios de prueba con una clave que no
+    # coincide con la del panel. Aun apagada, cada pago se vuelve a consultar a la API de MP.
+    validar-firma-webhook: ${MP_VALIDAR_FIRMA:true}
+    # URL pública (HTTPS) del backend a la que MP envía las notificaciones (ngrok en local).
+    backend-public-url: ${BACKEND_PUBLIC_URL:http://localhost:8080}
+    # Minutos que una orden queda abierta para pagar antes de vencer.
+    minutos-vencimiento-orden: ${MP_MINUTOS_VENCIMIENTO:30}
   jwt:
     # Sin variable de entorno JWT_SECRET seteada, cae al valor de desarrollo de abajo.
     # NUNCA usar ese default en producción — es público (está en el repo).

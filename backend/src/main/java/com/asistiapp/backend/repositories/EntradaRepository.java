@@ -22,6 +22,8 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
 
     /** Todas las entradas de una tanda específica. */
     List<Entrada> findByTandaId(Long tandaId);
+    /** Entradas generadas por una orden de pago — para la pantalla de resultado del pago. */
+    List<Entrada> findByIdTransaccionPago(Long idTransaccionPago);
 
     /**
      * Todas las entradas de un evento (navegando por la relación Tanda → Evento).

@@ -30,8 +30,24 @@ public class TransaccionPago {
     @Column(name = "id_tanda", nullable = false)
     private Long idTanda;
 
+    /** Cantidad de entradas de la orden: un solo pago en MercadoPago, N entradas al aprobarse. */
+    @Column(nullable = false, columnDefinition = "integer default 1")
+    private Integer cantidad;
+
+    /** Total de la orden (precio de la tanda × cantidad). */
     @Column(name = "monto_total", nullable = false)
     private Double montoTotal;
+
+    /**
+     * Identificador opaco de la orden que viaja a MercadoPago como external_reference.
+     * UUID (no el id secuencial) porque el comprador no tiene JWT y con él consulta el estado.
+     */
+    @Column(name = "external_reference", unique = true, length = 36)
+    private String externalReference;
+
+    /** Momento a partir del cual la orden deja de aceptar pagos (vence la preferencia de MP). */
+    @Column(name = "fecha_vencimiento")
+    private LocalDateTime fechaVencimiento;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "metodo_pago", nullable = false, length = 20)
@@ -41,7 +57,7 @@ public class TransaccionPago {
     @Column(nullable = false, length = 20)
     private EstadoTransaccion estado;
 
-    @Column(name = "mercadopago_payment_id")
+    @Column(name = "mercadopago_payment_id", unique = true)
     private String mercadopagoPaymentId;
 
     @Column(name = "nombre_comprador", nullable = false, length = 200)
@@ -58,6 +74,12 @@ public class TransaccionPago {
         this.fechaTransaccion = LocalDateTime.now();
         if (this.estado == null) {
             this.estado = EstadoTransaccion.Pendiente;
+        }
+        if (this.cantidad == null) {
+            this.cantidad = 1;
+        }
+        if (this.externalReference == null) {
+            this.externalReference = java.util.UUID.randomUUID().toString();
         }
         if (this.metodoPago == null) {
             this.metodoPago = MetodoPago.MercadoPago;
