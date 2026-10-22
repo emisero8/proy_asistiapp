@@ -12,13 +12,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
 /**
  * Catálogo público de eventos para el Comprador (CU-015, CU-016).
  * Sin autenticación — el Comprador nunca inicia sesión (ver docs/Trabajo_PP2...).
- * Solo expone eventos en estado Publicado.
+ * Solo expone eventos en estado Publicado, y solo los que todavía no pasaron
+ * su fecha y hora (el catálogo no es un archivo histórico).
  */
 @Service
 @RequiredArgsConstructor
@@ -29,7 +31,9 @@ public class EventoPublicoService {
 
     @Transactional(readOnly = true)
     public List<EventoPublicoListItemDTO> listarPublicados() {
+        LocalDateTime ahora = LocalDateTime.now();
         return eventoRepository.findByEstado(EstadoEvento.Publicado).stream()
+                .filter(e -> LocalDateTime.of(e.getFechaEvento(), e.getHoraEvento()).isAfter(ahora))
                 .map(this::toListItemDTO)
                 .toList();
     }

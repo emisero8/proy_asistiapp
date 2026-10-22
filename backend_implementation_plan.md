@@ -379,10 +379,9 @@ Cada fase está marcada con su prioridad:
 > Esta fase **reemplaza** lo descripto como "simulado" en las Fases 5, 8, 9, 15 y 20.4 de este plan. El flujo simulado (`/tickets/webhook/pago`, `/creditos/webhook/pago`, `confirmarPagoWebhook`) ya no existe en el código.
 
 ### Qué falta (en orden)
-- **Reconciliación y job de vencimiento** (21.6, abajo) — el endpoint de estado de la orden ya está hecho, estas dos partes no.
 - **Pase a producción** (checklist abajo).
 
-> **21.7 Frontend** (Fase 12 de `frontend_implementation_plan.md`) y la **prueba de compra de entradas con un pago real** ya se hicieron y se verificaron end-to-end (sesión del 2026-10-15, rama `feature-mercadopago`) — ver el detalle en esa fase y en `21.6` más abajo.
+> **21.7 Frontend** (Fase 12 de `frontend_implementation_plan.md`), la **prueba de compra de entradas con un pago real**, y la **reconciliación + job de vencimiento + mail de reembolso** (21.6) ya se hicieron y se verificaron end-to-end (sesiones del 2026-10-15 y 2026-10-22, rama `feature-mercadopago`) — ver el detalle en esa fase y en `21.6` más abajo.
 
 ### 21.1 — Dependencia y configuración ✅
 - `pom.xml`: `com.mercadopago:sdk-java:3.7.0`.
@@ -448,11 +447,11 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 - Por qué es aceptable en sandbox: aun sin firma, cada aviso se vuelve a consultar a la API de MP y solo se entrega si el pago existe, está aprobado, corresponde a una orden nuestra y el monto coincide; un aviso falso no puede entregar nada sin un pago real.
 - **Antes de producción:** dejar `MP_VALIDAR_FIRMA=true`, usar las credenciales y la clave secreta de **producción**, y comprobar con un pago real de bajo monto que las firmas coinciden. Si no coinciden, investigar antes de lanzar.
 
-### 21.6 — Estado de la orden ✅ / reconciliación y vencimiento ⏳
-- ✅ `GET /tickets/orden/{uuid}` (público, `VentaController`) y `GET /creditos/orden/{uuid}` (con chequeo de dueño, `CreditoController`): estado de la orden y, si está `Aprobada`, sus entradas (entradas) o el monto acreditado (créditos), para la página de retorno. El UUID actúa como token.
-- ⏳ **Reconciliación:** al consultar una orden `Pendiente`, buscar el pago en MP por `external_reference` (`GET /v1/payments/search`) y procesarlo si ya está aprobado, para no depender solo del aviso. El procesamiento ya es idempotente. Caso de prueba real: la orden de créditos #2 de la base local (pago aprobado en MP cuyos avisos se rechazaron con 401 antes de apagar la validación). Ver pregunta abierta en `DECISIONES.md`.
-- ⏳ **Job de vencimiento:** marcar `Expirada` las órdenes `Pendiente` con `fecha_vencimiento` pasada (primero reconciliando, por si pagaron justo antes). Ver `DECISIONES.md`.
-- ⏳ Opcional: mail al comprador cuando se le reembolsa un pago (hoy solo le llega el aviso de MP). Ver `DECISIONES.md`.
+### 21.6 — Estado de la orden ✅ / reconciliación ✅ / job de vencimiento ✅ / mail de reembolso ✅
+- ✅ `GET /tickets/orden/{uuid}` (público, `VentaController`) y `GET /creditos/orden/{uuid}` (con chequeo de dueño, `CreditoController`): estado de la orden y, si está `Aprobada`, sus entradas (entradas) o el monto acreditado (créditos), para la página de retorno. El UUID actúa como token. Ambas rutas tienen límite de 30/min por IP en `RateLimitFilter` (ver `DECISIONES.md`).
+- ✅ **Reconciliación** (`MercadoPagoService.buscarPagosPorReferencia` + `PagoWebhookService.reconciliar`): al consultar una orden `Pendiente` (en los dos endpoints de arriba), busca el pago en MP por `external_reference` y lo procesa si ya está aprobado, reusando la misma lógica idempotente del webhook — no depende solo del aviso. Verificado en vivo (2026-10-22): una orden pagada con el túnel de ngrok apagado (sin forma de que el webhook llegara) pasó de `Pendiente` a `Aprobada` solo con la consulta de estado.
+- ✅ **Job de vencimiento** (`VencimientoOrdenesJob`, `@Scheduled` cada 10 min): reconcilia primero (por si pagaron justo antes) y recién después marca `Expirada` las órdenes `Pendiente` con `fecha_vencimiento` pasada, tanto de entradas como de créditos. Un fallo en una orden (MP caído) no corta el resto del lote.
+- ✅ **Mail de reembolso** (`EmailService.enviarNotificacionReembolsoEntradas`/`...Creditos`): `marcarOrdenReembolsada` en `VentaService`/`CreditoService` ahora devuelve si de verdad reembolsó recién (no si ya lo estaba) junto con los datos para el mail; `PagoWebhookService` lo dispara en los tres casos donde se reembolsa (sin disponibilidad para entradas, sin disponibilidad para créditos, y el reembolso externo detectado por `estado=refunded`). No se probó con un envío real a MailHog en esta sesión, pero sí con tests unitarios completos siguiendo el mismo patrón ya probado de `enviarNotificacionCancelacion`.
 
 ### Checklist de pase a producción
 1. Credenciales de **producción** en `MP_ACCESS_TOKEN` y la clave secreta de producción en `MP_WEBHOOK_SECRET`.

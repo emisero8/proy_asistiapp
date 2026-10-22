@@ -2,7 +2,9 @@ package com.asistiapp.backend.controllers;
 
 import com.asistiapp.backend.models.dtos.entrada.*;
 import com.asistiapp.backend.models.entities.StaffVendedor;
+import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.security.SecurityUtils;
+import com.asistiapp.backend.services.PagoWebhookService;
 import com.asistiapp.backend.services.VentaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,7 @@ public class VentaController {
 
     private final VentaService ventaService;
     private final SecurityUtils securityUtils;
+    private final PagoWebhookService pagoWebhookService;
 
     // ─────────────────────────────────────────────
     // FLUJO ONLINE (CU-017)
@@ -52,25 +55,18 @@ public class VentaController {
     }
 
     /**
-     * (una sola vez por compra, no por entrada): manda un solo mail con los
-     * códigos QR de todas las entradas que se acaban de confirmar. El Comprador nunca
-     * tiene JWT en este flujo — la autorización es que el email coincida con el de
-     * cada entrada, igual que GET /tickets/by-codigo.
-     */
-    @PostMapping("/confirmar-compra")
-    public ResponseEntity<Void> enviarConfirmacionCompraAgrupada(
-            @Valid @RequestBody ConfirmarCompraGrupalRequestDTO dto) {
-        ventaService.enviarConfirmacionCompraAgrupada(dto);
-        return ResponseEntity.noContent().build();
-    }
-
-    /**
      * Estado de una orden para la pantalla de resultado del pago
      * (a la que MercadoPago devuelve al comprador tras pagar).
+     *
+     * Si la orden sigue `Pendiente`, reconcilia contra MercadoPago antes de responder —
+     * no depende solo de que el webhook haya llegado (ver DECISIONES.md).
      */
     @GetMapping("/orden/{externalReference}")
     public ResponseEntity<EstadoOrdenEntradasResponseDTO> obtenerEstadoOrden(
             @PathVariable String externalReference) {
+        if (ventaService.estadoActual(externalReference).filter(e -> e == EstadoTransaccion.Pendiente).isPresent()) {
+            pagoWebhookService.reconciliar(externalReference);
+        }
         return ResponseEntity.ok(ventaService.obtenerEstadoOrden(externalReference));
     }
 

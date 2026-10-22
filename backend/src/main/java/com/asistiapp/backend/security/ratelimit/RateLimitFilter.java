@@ -38,26 +38,58 @@ public class RateLimitFilter extends OncePerRequestFilter {
             "/payments/mercadopago/webhook", new LimiteConfig(300, Duration.ofMinutes(1))
     );
 
+    // Rutas con un UUID en el path (no matchean por igualdad exacta como las de arriba):
+    // consultar el estado de una orden, mientras siga Pendiente, puede disparar una llamada
+    // real a la API de MercadoPago (reconciliación) — sin límite, alguien con la referencia
+    // de una orden podría spamear esa llamada saliente. 30/min de sobra para el polling real
+    // de la pantalla de resultado (1 cada 2.5 s, hasta 8 veces).
+    private static final String PREFIJO_ORDEN_ENTRADAS = "/tickets/orden/";
+    private static final String PREFIJO_ORDEN_CREDITOS = "/creditos/orden/";
+    private static final LimiteConfig LIMITE_CONSULTA_ORDEN = new LimiteConfig(30, Duration.ofMinutes(1));
+
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        LimiteConfig limite = LIMITES.get(request.getRequestURI());
+        String uri = request.getRequestURI();
+        LimiteConfig limite = resolverLimite(uri);
         if (limite == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String clave = request.getRequestURI() + ":" + obtenerIpCliente(request);
+        String clave = resolverClavePath(uri) + ":" + obtenerIpCliente(request);
         Bucket bucket = buckets.computeIfAbsent(clave, k -> crearBucket(limite));
 
         if (bucket.tryConsume(1)) {
             filterChain.doFilter(request, response);
         } else {
-            responderLimiteExcedido(response, request.getRequestURI());
+            responderLimiteExcedido(response, uri);
         }
+    }
+
+    private LimiteConfig resolverLimite(String uri) {
+        LimiteConfig exacto = LIMITES.get(uri);
+        if (exacto != null) {
+            return exacto;
+        }
+        if (uri.startsWith(PREFIJO_ORDEN_ENTRADAS) || uri.startsWith(PREFIJO_ORDEN_CREDITOS)) {
+            return LIMITE_CONSULTA_ORDEN;
+        }
+        return null;
+    }
+
+    /** Para las rutas con UUID, un solo balde por IP (no uno por cada referencia distinta). */
+    private String resolverClavePath(String uri) {
+        if (uri.startsWith(PREFIJO_ORDEN_ENTRADAS)) {
+            return PREFIJO_ORDEN_ENTRADAS + "*";
+        }
+        if (uri.startsWith(PREFIJO_ORDEN_CREDITOS)) {
+            return PREFIJO_ORDEN_CREDITOS + "*";
+        }
+        return uri;
     }
 
     private Bucket crearBucket(LimiteConfig limite) {

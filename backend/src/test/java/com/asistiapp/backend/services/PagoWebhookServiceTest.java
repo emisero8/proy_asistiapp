@@ -21,6 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 /**
@@ -133,16 +134,32 @@ class PagoWebhookServiceTest {
     }
 
     @Test
-    void pagoSinDisponibilidad_reembolsaYMarcaLaOrden() {
+    void pagoSinDisponibilidad_reembolsaYMarcaLaOrdenYAvisaPorMail() {
         mpDevuelve(pagoAprobado());
         when(ventaService.existeOrdenEntradas(REF)).thenReturn(true);
         when(ventaService.confirmarPagoEntradas(eq(REF), eq(PAYMENT_ID), any(), eq("ARS")))
                 .thenReturn(VentaService.ConfirmacionEntradas.sinEntradas(ResultadoPago.SIN_DISPONIBILIDAD));
+        when(ventaService.marcarOrdenReembolsada(REF, PAYMENT_ID))
+                .thenReturn(new VentaService.ReembolsoEntradas(true, "juan@example.com", "Juan", "Evento"));
 
         service.procesarNotificacionPago(PAYMENT_ID);
 
         verify(mercadoPagoService).reembolsar(PAYMENT_ID);
         verify(ventaService).marcarOrdenReembolsada(REF, PAYMENT_ID);
+        verify(emailService).enviarNotificacionReembolsoEntradas("juan@example.com", "Juan", "Evento");
+    }
+
+    @Test
+    void pagoSinDisponibilidad_laOrdenYaEstabaReembolsada_noReenviaElMail() {
+        mpDevuelve(pagoAprobado());
+        when(ventaService.existeOrdenEntradas(REF)).thenReturn(true);
+        when(ventaService.confirmarPagoEntradas(eq(REF), eq(PAYMENT_ID), any(), eq("ARS")))
+                .thenReturn(VentaService.ConfirmacionEntradas.sinEntradas(ResultadoPago.SIN_DISPONIBILIDAD));
+        when(ventaService.marcarOrdenReembolsada(REF, PAYMENT_ID))
+                .thenReturn(VentaService.ReembolsoEntradas.NO_HIZO_FALTA);
+
+        service.procesarNotificacionPago(PAYMENT_ID);
+
         verifyNoInteractions(emailService);
     }
 
@@ -202,17 +219,20 @@ class PagoWebhookServiceTest {
     }
 
     @Test
-    void creditosNoAcreditables_reembolsaYMarcaLaOrden() {
+    void creditosNoAcreditables_reembolsaYMarcaLaOrdenYAvisaPorMail() {
         mpDevuelve(pagoAprobado());
         when(ventaService.existeOrdenEntradas(REF)).thenReturn(false);
         when(creditoService.existeOrdenCredito(REF)).thenReturn(true);
         when(creditoService.confirmarPagoCredito(eq(REF), eq(PAYMENT_ID), any(), eq("ARS")))
                 .thenReturn(ResultadoPago.SIN_DISPONIBILIDAD);
+        when(creditoService.marcarOrdenReembolsada(REF, PAYMENT_ID))
+                .thenReturn(new CreditoService.ReembolsoCreditos(true, "org@example.com", "Organizador", 10));
 
         service.procesarNotificacionPago(PAYMENT_ID);
 
         verify(mercadoPagoService).reembolsar(PAYMENT_ID);
         verify(creditoService).marcarOrdenReembolsada(REF, PAYMENT_ID);
+        verify(emailService).enviarNotificacionReembolsoCreditos("org@example.com", "Organizador", 10);
     }
 
     @Test
@@ -231,10 +251,69 @@ class PagoWebhookServiceTest {
     @Test
     void pagoReembolsadoDesdeMercadoPago_marcaLasOrdenesPendientesPeroNoLasEntregadas() {
         mpDevuelve(pago("refunded", REF));
+        when(ventaService.marcarOrdenReembolsada(REF, PAYMENT_ID)).thenReturn(VentaService.ReembolsoEntradas.NO_HIZO_FALTA);
+        when(creditoService.marcarOrdenReembolsada(REF, PAYMENT_ID)).thenReturn(CreditoService.ReembolsoCreditos.NO_HIZO_FALTA);
 
         service.procesarNotificacionPago(PAYMENT_ID);
 
         verify(ventaService).marcarOrdenReembolsada(REF, PAYMENT_ID);
         verify(creditoService).marcarOrdenReembolsada(REF, PAYMENT_ID);
+    }
+
+    @Test
+    void pagoReembolsadoDesdeMercadoPago_siSeReembolsoRecienAhora_avisaPorMailAQuienCorresponda() {
+        mpDevuelve(pago("refunded", REF));
+        when(ventaService.marcarOrdenReembolsada(REF, PAYMENT_ID))
+                .thenReturn(new VentaService.ReembolsoEntradas(true, "juan@example.com", "Juan", "Evento"));
+        when(creditoService.marcarOrdenReembolsada(REF, PAYMENT_ID)).thenReturn(CreditoService.ReembolsoCreditos.NO_HIZO_FALTA);
+
+        service.procesarNotificacionPago(PAYMENT_ID);
+
+        verify(emailService).enviarNotificacionReembolsoEntradas("juan@example.com", "Juan", "Evento");
+        verifyNoMoreInteractions(emailService);
+    }
+
+    // ─────────────────────────────────────────────
+    // reconciliar — orden que sigue Pendiente, por si el webhook nunca llegó
+    // ─────────────────────────────────────────────
+
+    @Test
+    void reconciliar_sinPagosEncontrados_noHaceNada() {
+        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of());
+
+        service.reconciliar(REF);
+
+        verifyNoInteractions(ventaService, creditoService, emailService);
+    }
+
+    @Test
+    void reconciliar_pagoAprobadoEncontrado_loProcesaIgualQueElWebhook() {
+        Payment pago = pagoAprobado();
+        lenient().when(pago.getId()).thenReturn(PAYMENT_ID);
+        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of(pago));
+        when(ventaService.existeOrdenEntradas(REF)).thenReturn(true);
+        when(ventaService.confirmarPagoEntradas(eq(REF), eq(PAYMENT_ID), any(), eq("ARS")))
+                .thenReturn(confirmacion(ResultadoPago.CONFIRMADA));
+
+        service.reconciliar(REF);
+
+        verify(emailService).enviarConfirmacionCompra("juan@example.com", "Juan", "Evento", "General", List.of("QR-1", "QR-2"));
+    }
+
+    @Test
+    void reconciliar_variosPagosEncontrados_procesaCadaUnoPorSeparado() {
+        Payment rechazado = pago("rejected", REF);
+        lenient().when(rechazado.getId()).thenReturn(111L);
+        Payment aprobado = pagoAprobado();
+        lenient().when(aprobado.getId()).thenReturn(222L);
+        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of(rechazado, aprobado));
+        when(ventaService.existeOrdenEntradas(REF)).thenReturn(true);
+        when(ventaService.confirmarPagoEntradas(eq(REF), eq(222L), any(), eq("ARS")))
+                .thenReturn(confirmacion(ResultadoPago.CONFIRMADA));
+
+        service.reconciliar(REF);
+
+        verify(ventaService, never()).confirmarPagoEntradas(eq(REF), eq(111L), any(), any());
+        verify(ventaService).confirmarPagoEntradas(eq(REF), eq(222L), any(), any());
     }
 }

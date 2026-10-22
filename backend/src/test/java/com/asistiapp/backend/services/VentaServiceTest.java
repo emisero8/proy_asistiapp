@@ -4,7 +4,6 @@ import com.asistiapp.backend.exceptions.BusinessRuleException;
 import com.asistiapp.backend.exceptions.ForbiddenActionException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.entrada.CompraOnlineRequestDTO;
-import com.asistiapp.backend.models.dtos.entrada.ConfirmarCompraGrupalRequestDTO;
 import com.asistiapp.backend.models.dtos.entrada.IniciarCompraResponseDTO;
 import com.asistiapp.backend.models.dtos.entrada.VentaManualRequestDTO;
 import com.asistiapp.backend.models.entities.*;
@@ -73,6 +72,8 @@ class VentaServiceTest {
         evento.setNombre("Evento de prueba");
         evento.setEstado(EstadoEvento.Publicado);
         evento.setIdOrganizador(100L);
+        evento.setFechaEvento(java.time.LocalDate.now().plusDays(30));
+        evento.setHoraEvento(java.time.LocalTime.of(21, 0));
 
         tanda = new Tanda();
         tanda.setId(10L);
@@ -110,6 +111,19 @@ class VentaServiceTest {
         assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("no está disponible");
+    }
+
+    @Test
+    void iniciarCompraOnline_eventoYaPaso_lanzaBusinessRuleException() {
+        // Encontrado probando el sistema: un evento Publicado cuya fecha/hora ya pasó se
+        // podía seguir comprando si la tanda no tenía su propia fechaFinVigencia configurada.
+        evento.setFechaEvento(java.time.LocalDate.now().minusDays(1));
+        CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+
+        assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("ya finalizó");
     }
 
     @Test
@@ -341,89 +355,56 @@ class VentaServiceTest {
     // ─────────────────────────────────────────────
 
     @Test
-    void marcarOrdenReembolsada_ordenPendiente_quedaReembolsada() {
+    void marcarOrdenReembolsada_ordenPendiente_quedaReembolsadaYDevuelveDatosParaElMail() {
         TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
         when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
 
-        ventaService.marcarOrdenReembolsada("1", 999L);
+        var resultado = ventaService.marcarOrdenReembolsada("1", 999L);
 
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Reembolsada);
         assertThat(transaccion.getMercadopagoPaymentId()).isEqualTo("999");
+        assertThat(resultado.reembolsada()).isTrue();
+        assertThat(resultado.emailComprador()).isEqualTo("juan@example.com");
+        assertThat(resultado.nombreComprador()).isEqualTo("Juan Comprador");
+        assertThat(resultado.nombreEvento()).isEqualTo(evento.getNombre());
     }
 
     @Test
-    void marcarOrdenReembolsada_ordenYaEntregada_noSeToca() {
+    void marcarOrdenReembolsada_ordenYaEntregada_noSeTocaYNoHaceFaltaAvisar() {
         TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Aprobada);
         when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
 
-        ventaService.marcarOrdenReembolsada("1", 999L);
+        var resultado = ventaService.marcarOrdenReembolsada("1", 999L);
 
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
+        assertThat(resultado.reembolsada()).isFalse();
         verify(transaccionPagoRepository, never()).save(any());
     }
 
     // ─────────────────────────────────────────────
-    // enviarConfirmacionCompraAgrupada
+    // expirarSiSigueActivaPendiente — job de vencimiento (Fase 21.6)
     // ─────────────────────────────────────────────
 
-    private Entrada entradaPagada(Long id, String codigoQr, String email) {
-        Entrada e = new Entrada();
-        e.setId(id);
-        e.setTanda(tanda);
-        e.setCodigoQr(codigoQr);
-        e.setNombreComprador("Juana Pérez");
-        e.setEmailComprador(email);
-        e.setEstado(EstadoEntrada.Pagada);
-        return e;
-    }
+    @Test
+    void expirarSiSigueActivaPendiente_ordenPendiente_quedaExpirada() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
 
-    private ConfirmarCompraGrupalRequestDTO confirmarGrupalDto(String email, String... codigosQr) {
-        ConfirmarCompraGrupalRequestDTO dto = new ConfirmarCompraGrupalRequestDTO();
-        dto.setCodigosQr(List.of(codigosQr));
-        dto.setNombreComprador("Juana Pérez");
-        dto.setEmailComprador(email);
-        return dto;
+        ventaService.expirarSiSigueActivaPendiente("1");
+
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Expirada);
     }
 
     @Test
-    void enviarConfirmacionCompraAgrupada_variasEntradas_mandaUnSoloMailConTodosLosCodigos() {
-        when(entradaRepository.findByCodigoQr("QR-1")).thenReturn(Optional.of(entradaPagada(1L, "QR-1", "juana@test.com")));
-        when(entradaRepository.findByCodigoQr("QR-2")).thenReturn(Optional.of(entradaPagada(2L, "QR-2", "juana@test.com")));
-        when(entradaRepository.findByCodigoQr("QR-3")).thenReturn(Optional.of(entradaPagada(3L, "QR-3", "juana@test.com")));
+    void expirarSiSigueActivaPendiente_ordenYaAprobadaPorLaReconciliacion_noSeToca() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Aprobada);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
 
-        ventaService.enviarConfirmacionCompraAgrupada(confirmarGrupalDto("juana@test.com", "QR-1", "QR-2", "QR-3"));
+        ventaService.expirarSiSigueActivaPendiente("1");
 
-        verify(emailService, times(1)).enviarConfirmacionCompra(
-                eq("juana@test.com"), eq("Juana Pérez"), eq(evento.getNombre()), eq(tanda.getNombre()),
-                eq(List.of("QR-1", "QR-2", "QR-3")));
-    }
-
-    @Test
-    void enviarConfirmacionCompraAgrupada_unaSolaEntrada_tambienFunciona() {
-        when(entradaRepository.findByCodigoQr("QR-1")).thenReturn(Optional.of(entradaPagada(1L, "QR-1", "juana@test.com")));
-
-        ventaService.enviarConfirmacionCompraAgrupada(confirmarGrupalDto("juana@test.com", "QR-1"));
-
-        verify(emailService).enviarConfirmacionCompra(
-                eq("juana@test.com"), any(), any(), any(), eq(List.of("QR-1")));
-    }
-
-    @Test
-    void enviarConfirmacionCompraAgrupada_codigoQrInexistente_lanzaResourceNotFoundExceptionYNoMandaMail() {
-        when(entradaRepository.findByCodigoQr("QR-FALSO")).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> ventaService.enviarConfirmacionCompraAgrupada(confirmarGrupalDto("juana@test.com", "QR-FALSO")))
-                .isInstanceOf(ResourceNotFoundException.class);
-        verifyNoInteractions(emailService);
-    }
-
-    @Test
-    void enviarConfirmacionCompraAgrupada_emailNoCoincideConLaEntrada_lanzaForbiddenActionExceptionYNoMandaMail() {
-        when(entradaRepository.findByCodigoQr("QR-1")).thenReturn(Optional.of(entradaPagada(1L, "QR-1", "dueño@test.com")));
-
-        assertThatThrownBy(() -> ventaService.enviarConfirmacionCompraAgrupada(confirmarGrupalDto("otro@test.com", "QR-1")))
-                .isInstanceOf(ForbiddenActionException.class);
-        verifyNoInteractions(emailService);
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
+        verify(transaccionPagoRepository, never()).save(any());
     }
 
     // ─────────────────────────────────────────────
@@ -546,5 +527,24 @@ class VentaServiceTest {
 
         assertThatThrownBy(() -> ventaService.obtenerEstadoOrden("no-existe"))
                 .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    // ─────────────────────────────────────────────
+    // estadoActual — para decidir si hace falta reconciliar contra MP
+    // ─────────────────────────────────────────────
+
+    @Test
+    void estadoActual_ordenExistente_devuelveSuEstado() {
+        when(transaccionPagoRepository.findByExternalReference("1"))
+                .thenReturn(Optional.of(transaccionPago(EstadoTransaccion.Pendiente)));
+
+        assertThat(ventaService.estadoActual("1")).contains(EstadoTransaccion.Pendiente);
+    }
+
+    @Test
+    void estadoActual_ordenInexistente_devuelveVacio() {
+        when(transaccionPagoRepository.findByExternalReference("no-existe")).thenReturn(Optional.empty());
+
+        assertThat(ventaService.estadoActual("no-existe")).isEmpty();
     }
 }

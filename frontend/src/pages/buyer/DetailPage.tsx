@@ -53,6 +53,10 @@ export function DetailPage() {
 
   const maxPorCompra = Math.max(1, Math.min(sel.cupoDisponible || 1, evento.maxEntradasPorCompra ?? 6));
   const qtyEfectivo = Math.min(qty, maxPorCompra);
+  // El backend ya rechaza la compra de un evento vencido (VentaService.validarTandaDisponible);
+  // acá solo evitamos que el comprador llegue a intentarlo.
+  const eventoFinalizado = new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
+  const puedeComprar = !eventoFinalizado && sel.cupoDisponible > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -86,6 +90,11 @@ export function DetailPage() {
                 </div>
               ))}
             </div>
+            {eventoFinalizado && (
+              <div className="mt-4 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground lg:max-w-2xl">
+                Este evento ya finalizó — no se pueden comprar entradas.
+              </div>
+            )}
             {evento.descripcion && <p className="mt-4 text-sm text-muted-foreground leading-relaxed lg:max-w-2xl">{evento.descripcion}</p>}
 
             {evento.latitud != null && evento.longitud != null && (
@@ -100,7 +109,7 @@ export function DetailPage() {
                 {evento.tandas.map((t) => (
                   <button
                     key={t.id}
-                    disabled={t.cupoDisponible <= 0}
+                    disabled={eventoFinalizado || t.cupoDisponible <= 0}
                     onClick={() => setSel(t)}
                     className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                       sel.id === t.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"
@@ -133,15 +142,16 @@ export function DetailPage() {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    disabled={eventoFinalizado}
                     aria-label="Quitar una entrada"
-                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors"
+                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Minus size={13} />
                   </button>
                   <span className="text-lg font-bold text-foreground w-4 text-center">{qtyEfectivo}</span>
                   <button
                     onClick={() => setQty((q) => Math.min(maxPorCompra, q + 1))}
-                    disabled={qtyEfectivo >= maxPorCompra}
+                    disabled={eventoFinalizado || qtyEfectivo >= maxPorCompra}
                     aria-label="Agregar una entrada"
                     className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
@@ -163,11 +173,11 @@ export function DetailPage() {
             </p>
             <p className="text-2xl font-extrabold text-foreground mb-4">{fmt(sel.precio * qtyEfectivo)}</p>
             <button
-              disabled={sel.cupoDisponible <= 0}
+              disabled={!puedeComprar}
               onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } })}
               className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Comprar entradas
+              {eventoFinalizado ? "Evento finalizado" : "Comprar entradas"}
             </button>
           </div>
         </div>
@@ -184,11 +194,11 @@ export function DetailPage() {
             <span className="text-base font-extrabold text-foreground">{fmt(sel.precio * qtyEfectivo)}</span>
           </div>
           <button
-            disabled={sel.cupoDisponible <= 0}
+            disabled={!puedeComprar}
             onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } })}
             className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Comprar entradas
+            {eventoFinalizado ? "Evento finalizado" : "Comprar entradas"}
           </button>
         </div>
       </div>

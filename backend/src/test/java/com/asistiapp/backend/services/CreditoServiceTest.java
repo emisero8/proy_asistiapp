@@ -105,6 +105,25 @@ class CreditoServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // ─────────────────────────────────────────────
+    // estadoActual — para decidir si hace falta reconciliar contra MP
+    // ─────────────────────────────────────────────
+
+    @Test
+    void estadoActual_ordenExistente_devuelveSuEstado() {
+        transaccion.setEstado(EstadoTransaccion.Pendiente);
+        when(transaccionCreditoRepository.findByExternalReference("ref")).thenReturn(Optional.of(transaccion));
+
+        assertThat(creditoService.estadoActual("ref")).contains(EstadoTransaccion.Pendiente);
+    }
+
+    @Test
+    void estadoActual_ordenInexistente_devuelveVacio() {
+        when(transaccionCreditoRepository.findByExternalReference("ref-x")).thenReturn(Optional.empty());
+
+        assertThat(creditoService.estadoActual("ref-x")).isEmpty();
+    }
+
     @Test
     void ordenNoEncontrada_devuelveNoEncontrada() {
         when(transaccionCreditoRepository.findByExternalReferenceForUpdate("ref")).thenReturn(Optional.empty());
@@ -177,21 +196,54 @@ class CreditoServiceTest {
     }
 
     @Test
-    void marcarOrdenReembolsada_ordenPendiente_quedaReembolsada() {
+    void marcarOrdenReembolsada_ordenPendiente_quedaReembolsadaYDevuelveDatosParaElMail() {
+        organizador.setEmail("organizador@test.com");
+        organizador.setNombre("Organizador Demo");
         ordenEncontrada();
+        when(organizadorRepository.findById(100L)).thenReturn(Optional.of(organizador));
+        when(paqueteCreditoRepository.findById(3L)).thenReturn(Optional.of(paquete));
 
-        creditoService.marcarOrdenReembolsada("ref", 999L);
+        var resultado = creditoService.marcarOrdenReembolsada("ref", 999L);
 
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Reembolsada);
+        assertThat(resultado.reembolsada()).isTrue();
+        assertThat(resultado.emailOrganizador()).isEqualTo("organizador@test.com");
+        assertThat(resultado.nombreOrganizador()).isEqualTo("Organizador Demo");
+        assertThat(resultado.cantidadCreditos()).isEqualTo(10);
     }
 
     @Test
-    void marcarOrdenReembolsada_ordenYaAcreditada_noSeToca() {
+    void marcarOrdenReembolsada_ordenYaAcreditada_noSeTocaYNoHaceFaltaAvisar() {
         transaccion.setEstado(EstadoTransaccion.Aprobada);
         ordenEncontrada();
 
-        creditoService.marcarOrdenReembolsada("ref", 999L);
+        var resultado = creditoService.marcarOrdenReembolsada("ref", 999L);
 
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
+        assertThat(resultado.reembolsada()).isFalse();
+    }
+
+    // ─────────────────────────────────────────────
+    // expirarSiSigueActivaPendiente — job de vencimiento (Fase 21.6)
+    // ─────────────────────────────────────────────
+
+    @Test
+    void expirarSiSigueActivaPendiente_ordenPendiente_quedaExpirada() {
+        ordenEncontrada();
+
+        creditoService.expirarSiSigueActivaPendiente("ref");
+
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Expirada);
+    }
+
+    @Test
+    void expirarSiSigueActivaPendiente_ordenYaAprobadaPorLaReconciliacion_noSeToca() {
+        transaccion.setEstado(EstadoTransaccion.Aprobada);
+        ordenEncontrada();
+
+        creditoService.expirarSiSigueActivaPendiente("ref");
+
+        assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
+        verify(transaccionCreditoRepository, never()).save(any());
     }
 }

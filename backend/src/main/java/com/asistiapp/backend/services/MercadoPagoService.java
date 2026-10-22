@@ -11,6 +11,7 @@ import com.mercadopago.client.preference.PreferencePayerRequest;
 import com.mercadopago.client.preference.PreferenceRequest;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
+import com.mercadopago.net.MPSearchRequest;
 import com.mercadopago.resources.payment.Payment;
 import com.mercadopago.resources.preference.Preference;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -143,6 +145,34 @@ public class MercadoPagoService {
         } catch (MPException e) {
             log.error("Error de comunicación con MercadoPago al consultar el pago {}", paymentId, e);
             throw new PasarelaPagoException("No pudimos comunicarnos con MercadoPago");
+        }
+    }
+
+    /**
+     * Busca en MercadoPago los pagos asociados a una orden nuestra, para la reconciliación
+     * (cuando la orden sigue `Pendiente` pero el webhook pudo no haber llegado nunca).
+     *
+     * @return los pagos encontrados (puede haber más de uno: reintentos, un rechazo seguido
+     *         de una aprobación), o vacío si no hay ninguno o MP no responde — en ese caso la
+     *         orden simplemente sigue `Pendiente`, no es un error que haya que propagar.
+     */
+    public List<Payment> buscarPagosPorReferencia(String externalReference) {
+        try {
+            // limit/offset no son opcionales en la práctica: sin ellos el SDK intenta construir
+            // la query string con un valor null y tira NullPointerException.
+            MPSearchRequest request = MPSearchRequest.builder()
+                    .filters(Map.of("external_reference", externalReference))
+                    .limit(10)
+                    .offset(0)
+                    .build();
+            return paymentClient.search(request).getResults();
+        } catch (MPApiException e) {
+            log.error("MercadoPago rechazó la búsqueda de pagos para la orden {} ({}): {}",
+                    externalReference, e.getStatusCode(), e.getApiResponse().getContent());
+            return List.of();
+        } catch (MPException e) {
+            log.error("Error de comunicación con MercadoPago al buscar pagos de la orden {}", externalReference, e);
+            return List.of();
         }
     }
 

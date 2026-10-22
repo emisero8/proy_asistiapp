@@ -6,6 +6,3 @@ GUIA_DEMO.md
 
 # Logs del backend (logging.file.name)
 /backend/logs/
-
-# Repo de otro proyecto (servife), clonado acá solo como referencia local — nunca se commitea
-/servife-ia/

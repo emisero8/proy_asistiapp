@@ -7,8 +7,10 @@ import com.asistiapp.backend.models.dtos.credito.IniciarCompraCreditoResponseDTO
 import com.asistiapp.backend.models.dtos.credito.MovimientoCreditoResponseDTO;
 import com.asistiapp.backend.models.dtos.credito.PaqueteCreditoDisponibleDTO;
 import com.asistiapp.backend.models.entities.Organizador;
+import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.services.CreditoService;
+import com.asistiapp.backend.services.PagoWebhookService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,6 +36,7 @@ public class CreditoController {
 
     private final CreditoService creditoService;
     private final SecurityUtils securityUtils;
+    private final PagoWebhookService pagoWebhookService;
 
     @PostMapping("/comprar")
     @PreAuthorize("hasRole('Organizador')")
@@ -70,12 +73,18 @@ public class CreditoController {
      * Estado de una orden de créditos para la pantalla de resultado del pago.
      * A diferencia de las entradas, acá el Organizador tiene JWT: se verifica que
      * la orden sea suya.
+     *
+     * Si la orden sigue `Pendiente`, reconcilia contra MercadoPago antes de responder —
+     * no depende solo de que el webhook haya llegado (ver DECISIONES.md).
      */
     @GetMapping("/orden/{externalReference}")
     @PreAuthorize("hasRole('Organizador')")
     public ResponseEntity<EstadoOrdenCreditoResponseDTO> obtenerEstadoOrden(
             @PathVariable String externalReference) {
         Organizador organizador = securityUtils.getOrganizadorAutenticado();
+        if (creditoService.estadoActual(externalReference).filter(e -> e == EstadoTransaccion.Pendiente).isPresent()) {
+            pagoWebhookService.reconciliar(externalReference);
+        }
         return ResponseEntity.ok(creditoService.obtenerEstadoOrden(externalReference, organizador.getId()));
     }
 }

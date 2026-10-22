@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Compra de créditos por parte del Organizador (CU-013, CU-014).
@@ -125,6 +126,12 @@ public class CreditoService {
         return transaccionCreditoRepository.existsByExternalReference(externalReference);
     }
 
+    /** Estado actual de una orden de créditos, para decidir si hace falta reconciliarla contra MP. */
+    @Transactional(readOnly = true)
+    public Optional<EstadoTransaccion> estadoActual(String externalReference) {
+        return transaccionCreditoRepository.findByExternalReference(externalReference).map(TransaccionCredito::getEstado);
+    }
+
     /** Estado de una orden de créditos para la pantalla de resultado del pago. */
     @Transactional(readOnly = true)
     public EstadoOrdenCreditoResponseDTO obtenerEstadoOrden(String externalReference, Long idOrganizador) {
@@ -196,18 +203,54 @@ public class CreditoService {
         return ResultadoPago.CONFIRMADA;
     }
 
-    /** Marca una orden de créditos como Reembolsada una vez devuelto el dinero (no toca una ya Aprobada). */
+    /** Datos para el mail de reembolso — solo tiene sentido leerlos si reembolsada() es true. */
+    public record ReembolsoCreditos(boolean reembolsada, String emailOrganizador, String nombreOrganizador, Integer cantidadCreditos) {
+        static final ReembolsoCreditos NO_HIZO_FALTA = new ReembolsoCreditos(false, null, null, null);
+    }
+
+    /**
+     * Marca una orden de créditos como Reembolsada una vez devuelto el dinero (no toca una
+     * ya Aprobada).
+     *
+     * @return si de verdad se reembolsó ahora (no si ya lo estaba), junto con los datos del
+     *         organizador para que el llamador le avise por mail.
+     */
     @Transactional
-    public void marcarOrdenReembolsada(String externalReference, Long paymentId) {
+    public ReembolsoCreditos marcarOrdenReembolsada(String externalReference, Long paymentId) {
+        TransaccionCredito transaccion = transaccionCreditoRepository.findByExternalReferenceForUpdate(externalReference).orElse(null);
+        if (transaccion == null
+                || transaccion.getEstado() == EstadoTransaccion.Aprobada
+                || transaccion.getEstado() == EstadoTransaccion.Reembolsada) {
+            return ReembolsoCreditos.NO_HIZO_FALTA;
+        }
+        transaccion.setEstado(EstadoTransaccion.Reembolsada);
+        transaccion.setMercadopagoPaymentId(paymentId.toString());
+        transaccionCreditoRepository.save(transaccion);
+        log.info("Orden de créditos {} marcada como Reembolsada (pago MP {})", externalReference, paymentId);
+
+        Organizador organizador = organizadorRepository.findById(transaccion.getIdOrganizador()).orElse(null);
+        Integer cantidadCreditos = paqueteCreditoRepository.findById(transaccion.getIdPaquete())
+                .map(PaqueteCredito::getCantidadCreditos)
+                .orElse(null);
+        return new ReembolsoCreditos(true,
+                organizador != null ? organizador.getEmail() : null,
+                organizador != null ? organizador.getNombre() : null,
+                cantidadCreditos);
+    }
+
+    /**
+     * Vence una orden de créditos abandonada. Llamar siempre DESPUÉS de reconciliar: si
+     * mientras tanto se aprobó el pago, la orden ya no está `Pendiente` y esto no hace nada.
+     */
+    @Transactional
+    public void expirarSiSigueActivaPendiente(String externalReference) {
         transaccionCreditoRepository.findByExternalReferenceForUpdate(externalReference).ifPresent(transaccion -> {
-            if (transaccion.getEstado() == EstadoTransaccion.Aprobada
-                    || transaccion.getEstado() == EstadoTransaccion.Reembolsada) {
+            if (transaccion.getEstado() != EstadoTransaccion.Pendiente) {
                 return;
             }
-            transaccion.setEstado(EstadoTransaccion.Reembolsada);
-            transaccion.setMercadopagoPaymentId(paymentId.toString());
+            transaccion.setEstado(EstadoTransaccion.Expirada);
             transaccionCreditoRepository.save(transaccion);
-            log.info("Orden de créditos {} marcada como Reembolsada (pago MP {})", externalReference, paymentId);
+            log.info("Orden de créditos {} marcada como Expirada (venció sin pagarse)", externalReference);
         });
     }
 

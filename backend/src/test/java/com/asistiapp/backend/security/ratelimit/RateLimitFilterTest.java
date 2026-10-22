@@ -84,6 +84,49 @@ class RateLimitFilterTest {
     }
 
     /**
+     * GET /tickets/orden/{uuid} y /creditos/orden/{uuid} tienen un UUID en el path, así que
+     * no matchean por igualdad exacta como /auth/login — se agrupan por prefijo (RateLimitFilter.
+     * resolverLimite/resolverClavePath). Confirma que, aun así, el límite (30/min) se aplica.
+     */
+    @Test
+    void doFilter_consultaDeOrdenDeEntradas_distintasReferencias_comparteElMismoBalde() throws Exception {
+        when(request.getRemoteAddr()).thenReturn("10.0.0.1");
+        PrintWriter writer = mock(PrintWriter.class);
+        when(response.getWriter()).thenReturn(writer);
+
+        when(request.getRequestURI()).thenReturn("/tickets/orden/ref-1");
+        for (int i = 0; i < 30; i++) {
+            filter.doFilterInternal(request, response, filterChain);
+        }
+        verify(filterChain, times(30)).doFilter(request, response);
+
+        // Otra referencia distinta, misma IP: comparte balde (no es "una orden" lo que se limita, es la IP)
+        when(request.getRequestURI()).thenReturn("/tickets/orden/ref-2");
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain, times(30)).doFilter(request, response); // sigue en 30, no subió
+        verify(response).setStatus(429);
+    }
+
+    @Test
+    void doFilter_consultaDeOrdenDeCreditos_esUnBaldeIndependienteDelDeEntradas() throws Exception {
+        when(request.getRemoteAddr()).thenReturn("10.0.0.1");
+
+        // Agota el balde de /tickets/orden/*
+        when(request.getRequestURI()).thenReturn("/tickets/orden/ref-1");
+        for (int i = 0; i < 30; i++) {
+            filter.doFilterInternal(request, response, filterChain);
+        }
+
+        // /creditos/orden/* no se vio afectado
+        when(request.getRequestURI()).thenReturn("/creditos/orden/ref-x");
+        filter.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain, times(31)).doFilter(request, response);
+        verify(response, never()).setStatus(429);
+    }
+
+    /**
      * Verifica el refill de Bucket4j usando la misma construcción que
      * RateLimitFilter.crearBucket (Bandwidth.classic + Refill.intervally),
      * pero con una ventana corta para no depender de esperar minutos reales.

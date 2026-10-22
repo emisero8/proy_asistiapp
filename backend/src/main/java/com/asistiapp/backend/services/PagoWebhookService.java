@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -36,8 +37,24 @@ public class PagoWebhookService {
         if (consulta.isEmpty()) {
             return; // el pago no existe en MP: nada que hacer (y no tiene sentido que MP reintente)
         }
-        Payment pago = consulta.get();
+        procesarPago(paymentId, consulta.get());
+    }
 
+    /**
+     * Reconciliación activa: se llama al consultar una orden que sigue `Pendiente` (ver
+     * VentaController/CreditoController), por si el webhook nunca llegó (el backend estuvo
+     * caído, una firma rechazada antes de desactivar la validación, etc.). Busca en MercadoPago
+     * los pagos de esa orden y los procesa exactamente igual que si los avisara el webhook —
+     * misma idempotencia, mismos reembolsos automáticos si ya no se puede entregar.
+     */
+    public void reconciliar(String externalReference) {
+        List<Payment> pagos = mercadoPagoService.buscarPagosPorReferencia(externalReference);
+        for (Payment pago : pagos) {
+            procesarPago(pago.getId(), pago);
+        }
+    }
+
+    private void procesarPago(Long paymentId, Payment pago) {
         String referencia = pago.getExternalReference();
         if (referencia == null || referencia.isBlank()) {
             log.info("Pago MP {} sin external_reference: no corresponde a una orden de AsistíAPP", paymentId);
@@ -49,8 +66,8 @@ public class PagoWebhookService {
             procesarPagoAprobado(paymentId, referencia, pago);
         } else if ("refunded".equals(estado)) {
             // Recupera el caso en que se devolvió el dinero pero no llegó a marcarse la orden.
-            ventaService.marcarOrdenReembolsada(referencia, paymentId);
-            creditoService.marcarOrdenReembolsada(referencia, paymentId);
+            avisarReembolsoEntradas(ventaService.marcarOrdenReembolsada(referencia, paymentId));
+            avisarReembolsoCreditos(creditoService.marcarOrdenReembolsada(referencia, paymentId));
         } else {
             // pending / in_process: todavía no hay nada que entregar. rejected / cancelled: la
             // preferencia sigue abierta y el comprador puede reintentar, así que la orden queda
@@ -83,7 +100,7 @@ public class PagoWebhookService {
             case SIN_DISPONIBILIDAD -> {
                 log.warn("Pago MP {} aprobado pero la orden {} ya no se puede entregar: se reembolsa", paymentId, referencia);
                 mercadoPagoService.reembolsar(paymentId);
-                ventaService.marcarOrdenReembolsada(referencia, paymentId);
+                avisarReembolsoEntradas(ventaService.marcarOrdenReembolsada(referencia, paymentId));
             }
             case DUPLICADO -> {
                 log.warn("Pago MP {} duplicado para la orden {} (ya resuelta): se reembolsa", paymentId, referencia);
@@ -103,7 +120,7 @@ public class PagoWebhookService {
             case SIN_DISPONIBILIDAD -> {
                 log.warn("Pago MP {} aprobado pero la orden de créditos {} no se puede acreditar: se reembolsa", paymentId, referencia);
                 mercadoPagoService.reembolsar(paymentId);
-                creditoService.marcarOrdenReembolsada(referencia, paymentId);
+                avisarReembolsoCreditos(creditoService.marcarOrdenReembolsada(referencia, paymentId));
             }
             case DUPLICADO -> {
                 log.warn("Pago MP {} duplicado para la orden de créditos {} (ya resuelta): se reembolsa", paymentId, referencia);
@@ -113,6 +130,22 @@ public class PagoWebhookService {
                     "Pago MP {} no coincide en monto/moneda con la orden de créditos {}: NO se acredita nada, revisar a mano",
                     paymentId, referencia);
             case CONFIRMADA, YA_PROCESADA, NO_ENCONTRADA -> log.info("Pago MP {} (orden de créditos {}): {}", paymentId, referencia, resultado);
+        }
+    }
+
+    /** No manda nada si la orden no se reembolsó recién ahora (ya lo estaba, o no existía). */
+    private void avisarReembolsoEntradas(VentaService.ReembolsoEntradas reembolso) {
+        if (reembolso.reembolsada()) {
+            emailService.enviarNotificacionReembolsoEntradas(
+                    reembolso.emailComprador(), reembolso.nombreComprador(), reembolso.nombreEvento());
+        }
+    }
+
+    /** No manda nada si la orden no se reembolsó recién ahora, o si no se pudo ubicar al organizador. */
+    private void avisarReembolsoCreditos(CreditoService.ReembolsoCreditos reembolso) {
+        if (reembolso.reembolsada() && reembolso.emailOrganizador() != null) {
+            emailService.enviarNotificacionReembolsoCreditos(
+                    reembolso.emailOrganizador(), reembolso.nombreOrganizador(), reembolso.cantidadCreditos());
         }
     }
 }
