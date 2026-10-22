@@ -505,6 +505,25 @@ public class VentaService {
     }
 
     /**
+     * Cuántas entradas más se le pueden vender a este comprador para este evento sin
+     * superar el tope por comprador — para que el POS del Staff Vendedor no deje armar
+     * una venta que `validarLimitePorComprador` va a rechazar a mitad de camino.
+     */
+    @Transactional(readOnly = true)
+    public DisponibilidadCompradorResponseDTO consultarDisponibilidadComprador(Long idEvento, String email) {
+        int limite = limitePorComprador();
+        long yaCompradas = (email == null || email.isBlank())
+                ? 0
+                : entradaRepository.countByEventoIdAndEmailComprador(idEvento, email);
+        int disponible = (int) Math.max(0, limite - yaCompradas);
+        return DisponibilidadCompradorResponseDTO.builder()
+                .limite(limite)
+                .yaCompradas(yaCompradas)
+                .disponible(disponible)
+                .build();
+    }
+
+    /**
      * Genera un código QR único usando UUID + timestamp para garantizar unicidad.
      * En producción se podría usar un QR real con librería como ZXing.
      */

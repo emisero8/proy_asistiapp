@@ -547,4 +547,37 @@ class VentaServiceTest {
 
         assertThat(ventaService.estadoActual("no-existe")).isEmpty();
     }
+
+    // ─────────────────────────────────────────────
+    // consultarDisponibilidadComprador — tope por comprador para el POS
+    // ─────────────────────────────────────────────
+
+    @Test
+    void consultarDisponibilidadComprador_sinEmail_asumeCeroCompradasYDevuelveElLimiteCompleto() {
+        var resultado = ventaService.consultarDisponibilidadComprador(evento.getId(), null);
+
+        assertThat(resultado.getLimite()).isEqualTo(6);
+        assertThat(resultado.getYaCompradas()).isZero();
+        assertThat(resultado.getDisponible()).isEqualTo(6);
+        verify(entradaRepository, never()).countByEventoIdAndEmailComprador(any(), any());
+    }
+
+    @Test
+    void consultarDisponibilidadComprador_conComprasPrevias_restaDelLimite() {
+        when(entradaRepository.countByEventoIdAndEmailComprador(evento.getId(), "ya@compro.com")).thenReturn(4L);
+
+        var resultado = ventaService.consultarDisponibilidadComprador(evento.getId(), "ya@compro.com");
+
+        assertThat(resultado.getYaCompradas()).isEqualTo(4L);
+        assertThat(resultado.getDisponible()).isEqualTo(2);
+    }
+
+    @Test
+    void consultarDisponibilidadComprador_yaAlcanzoElLimite_devuelveCeroNoNegativo() {
+        when(entradaRepository.countByEventoIdAndEmailComprador(evento.getId(), "tope@compro.com")).thenReturn(9L);
+
+        var resultado = ventaService.consultarDisponibilidadComprador(evento.getId(), "tope@compro.com");
+
+        assertThat(resultado.getDisponible()).isZero();
+    }
 }

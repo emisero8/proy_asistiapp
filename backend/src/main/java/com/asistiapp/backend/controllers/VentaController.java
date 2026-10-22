@@ -87,6 +87,19 @@ public class VentaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(entrada);
     }
 
+    /**
+     * Cuántas entradas más se le pueden vender a un comprador (por mail) para este
+     * evento, respetando el tope por comprador — el POS la consulta para no dejar
+     * elegir una cantidad que el backend va a rechazar a mitad de la venta.
+     */
+    @GetMapping("/disponibilidad-comprador")
+    @PreAuthorize("hasRole('Staff_Vendedor')")
+    public ResponseEntity<DisponibilidadCompradorResponseDTO> consultarDisponibilidadComprador(
+            @RequestParam Long idEvento,
+            @RequestParam(required = false) String email) {
+        return ResponseEntity.ok(ventaService.consultarDisponibilidadComprador(idEvento, email));
+    }
+
     // ─────────────────────────────────────────────
     // REPORTES — Solo Organizador
     // ─────────────────────────────────────────────

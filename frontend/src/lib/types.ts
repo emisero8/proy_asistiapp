@@ -208,6 +208,13 @@ export interface VentaManualRequestDTO {
   emailComprador: string;
 }
 
+/** GET /tickets/disponibilidad-comprador: cuánto más se le puede vender a este comprador (CU-019). */
+export interface DisponibilidadCompradorResponseDTO {
+  limite: number;
+  yaCompradas: number;
+  disponible: number;
+}
+
 export interface ValidacionQRRequestDTO {
   codigoQr: string;
 }
