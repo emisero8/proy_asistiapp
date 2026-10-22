@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import {
   ChevronLeft, Pencil, ExternalLink, Ban, Ticket, TrendingUp, Users, ShieldCheck,
-  Search, Store, CreditCard, CheckCircle2, AlertCircle,
+  Search, Store, CreditCard, CheckCircle2, AlertCircle, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
@@ -82,6 +82,98 @@ export function OrganizadorEventoDetallePage() {
     } finally {
       setCancelando(false);
     }
+  }
+
+  async function exportarExcel() {
+    if (!entradasFiltradas || entradasFiltradas.length === 0) return;
+
+    // Carga ExcelJS de forma lazy para no inflar el bundle inicial
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "AsistíAPP";
+    wb.created = new Date();
+
+    const nombreEvento = evento?.nombre ?? "evento";
+    const ws = wb.addWorksheet(nombreEvento.slice(0, 31));
+
+    // Definición de columnas con ancho fijo
+    ws.columns = [
+      { header: "ID",           key: "id",          width: 8  },
+      { header: "Comprador",    key: "comprador",   width: 30 },
+      { header: "Email",        key: "email",       width: 34 },
+      { header: "Tanda",        key: "tanda",       width: 22 },
+      { header: "Precio ($)",   key: "precio",      width: 14 },
+      { header: "Canal",        key: "canal",       width: 12 },
+      { header: "Estado",       key: "estado",      width: 13 },
+      { header: "Fecha Compra", key: "fechaCompra", width: 22 },
+      { header: "Fecha Uso",    key: "fechaUso",    width: 22 },
+    ];
+
+    // ── Cabecera ─────────────────────────────────────────────
+    const headerRow = ws.getRow(1);
+    headerRow.height = 30;
+    headerRow.eachCell((cell) => {
+      cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, size: 11, name: "Calibri" };
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2D3A5C" } };
+      cell.alignment = { horizontal: "center", vertical: "middle" };
+      cell.border    = { bottom: { style: "medium", color: { argb: "FF9CADD3" } } };
+    });
+
+    // ── Filas de datos ───────────────────────────────────────
+    entradasFiltradas.forEach((e) => {
+      const row = ws.addRow({
+        id:          e.id,
+        comprador:   e.nombreComprador,
+        email:       e.emailComprador,
+        tanda:       e.nombreTanda,
+        precio:      e.precioTanda ?? 0,
+        canal:       e.canalVenta,
+        estado:      e.estado,
+        fechaCompra: new Date(e.fechaCompra).toLocaleString("es-AR"),
+        fechaUso:    e.fechaUso ? new Date(e.fechaUso).toLocaleString("es-AR") : "",
+      });
+      row.height = 22;
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.alignment = { vertical: "middle" };
+        cell.font = { name: "Calibri", size: 10 };
+      });
+    });
+
+    // ── Fila de totales ──────────────────────────────────────
+    const totalIngresos = entradasFiltradas.reduce((sum, e) => sum + (e.precioTanda ?? 0), 0);
+    const totalRow = ws.addRow({
+      id:          "TOTAL",
+      comprador:   `${entradasFiltradas.length} entr.`,
+      email:       "",
+      tanda:       "",
+      precio:      totalIngresos,
+      canal:       "",
+      estado:      "",
+      fechaCompra: "",
+      fechaUso:    "",
+    });
+    totalRow.height = 28;
+    totalRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, size: 11, name: "Calibri" };
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B3A52" } };
+      cell.alignment = { vertical: "middle" };
+      cell.border    = { top: { style: "medium", color: { argb: "FF9CADD3" } } };
+    });
+    // Precio total levemente más grande
+    const precioCell = totalRow.getCell("precio");
+    precioCell.font = { bold: true, color: { argb: "FFFFD700" }, size: 12, name: "Calibri" };
+
+    // ── Generar y descargar ───────────────────────────────────
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url  = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href     = url;
+    link.download = `entradas_${nombreEvento.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   const entradasFiltradas = useMemo(() => {
@@ -289,14 +381,28 @@ export function OrganizadorEventoDetallePage() {
                 <p className="text-xs font-bold text-foreground">Compradores</p>
                 <p className="text-[11px] text-muted-foreground">{entradasFiltradas.length} de {entradas?.length ?? 0} entradas</p>
               </div>
-              <div className="relative sm:w-56">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Buscar por nombre o email"
-                  className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative sm:w-56">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Buscar por nombre o email"
+                    className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+                {(entradas?.length ?? 0) > 0 && (
+                  <button
+                    id="btn-exportar-excel"
+                    onClick={exportarExcel}
+                    title="Exportar a Excel"
+                    aria-label="Exportar entradas a Excel"
+                    className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors text-xs font-semibold"
+                  >
+                    <Download size={13} />
+                    Excel
+                  </button>
+                )}
               </div>
             </div>
 
