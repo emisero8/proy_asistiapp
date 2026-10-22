@@ -372,17 +372,17 @@ Cada fase está marcada con su prioridad:
 
 ---
 
-## Fase 21: Integración real con MercadoPago (Checkout Pro) 🔴 — backend ✅ / frontend ⏳
+## Fase 21: Integración real con MercadoPago (Checkout Pro) 🔴 — backend ✅ / frontend ✅
 
 **Objetivo:** reemplazar la simulación de pagos (orden pendiente + webhook que llamaba el propio navegador) por MercadoPago Checkout Pro real, tanto para la compra de entradas como para la compra de créditos del organizador. Propuesta original: `Propuesta_Integracion_MercadoPago.docx`. Decisiones tomadas con el equipo: **una sola orden por compra con `cantidad`**, y **una sola cuenta cobradora de MercadoPago** (la de AsistíAPP; sin Marketplace/OAuth por organizador).
 
 > Esta fase **reemplaza** lo descripto como "simulado" en las Fases 5, 8, 9, 15 y 20.4 de este plan. El flujo simulado (`/tickets/webhook/pago`, `/creditos/webhook/pago`, `confirmarPagoWebhook`) ya no existe en el código.
 
 ### Qué falta (en orden)
-- **21.7 Frontend** (ver Fase 12 de `frontend_implementation_plan.md`): hoy `CheckoutPage` y `WalletPage` siguen llamando a los endpoints simulados que se eliminaron, así que **la compra desde la web está rota hasta cerrar esa fase**.
-- **21.6 Estado de la orden + reconciliación + vencimiento** (ver abajo).
-- **Probar la compra de entradas con un pago real** (hoy solo está probada la de créditos).
+- **Reconciliación y job de vencimiento** (21.6, abajo) — el endpoint de estado de la orden ya está hecho, estas dos partes no.
 - **Pase a producción** (checklist abajo).
+
+> **21.7 Frontend** (Fase 12 de `frontend_implementation_plan.md`) y la **prueba de compra de entradas con un pago real** ya se hicieron y se verificaron end-to-end (sesión del 2026-10-15, rama `feature-mercadopago`) — ver el detalle en esa fase y en `21.6` más abajo.
 
 ### 21.1 — Dependencia y configuración ✅
 - `pom.xml`: `com.mercadopago:sdk-java:3.7.0`.
@@ -429,7 +429,7 @@ Cada fase está marcada con su prioridad:
 - Códigos de respuesta: 200 si no hace falta reintento, 401 firma inválida, 400 id no numérico, 5xx solo ante fallos transitorios de MP (para que reintente).
 - `RateLimitFilter`: el webhook nuevo reemplaza a los dos viejos, 300/min por IP (MP notifica desde pocas IPs).
 - **Eliminado:** `POST /tickets/webhook/pago`, `POST /creditos/webhook/pago`, `VentaService.confirmarPagoWebhook`, `CreditoService.confirmarPagoWebhook`.
-- `POST /tickets/confirmar-compra` (y `enviarConfirmacionCompraAgrupada`) **siguen en el backend pero ya no tienen sentido** (el mail sale del webhook): se eliminan al adaptar el frontend (Fase 12 del plan de frontend), para no mandar el mail dos veces.
+- `POST /tickets/confirmar-compra` (y `enviarConfirmacionCompraAgrupada`) **siguen en el backend pero ya no tienen sentido** (el mail sale del webhook): el frontend ya no los llama desde que se cerró la Fase 12, pero el endpoint no se borró — queda código muerto. Ver deuda técnica en `DECISIONES.md`.
 
 ### 21.5 — Tests ✅
 Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
@@ -448,11 +448,11 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 - Por qué es aceptable en sandbox: aun sin firma, cada aviso se vuelve a consultar a la API de MP y solo se entrega si el pago existe, está aprobado, corresponde a una orden nuestra y el monto coincide; un aviso falso no puede entregar nada sin un pago real.
 - **Antes de producción:** dejar `MP_VALIDAR_FIRMA=true`, usar las credenciales y la clave secreta de **producción**, y comprobar con un pago real de bajo monto que las firmas coinciden. Si no coinciden, investigar antes de lanzar.
 
-### 21.6 — Pendiente: estado de la orden, reconciliación y vencimiento ⏳
-- `GET /tickets/orden/{uuid}` (público): estado de la orden y, si está `Aprobada`, sus entradas, para la página de retorno. Sin JWT; el UUID actúa como token.
-- **Reconciliación:** al consultar una orden `Pendiente`, buscar el pago en MP por `external_reference` (`GET /v1/payments/search`) y procesarlo si ya está aprobado, para no depender solo del aviso. El procesamiento ya es idempotente. Caso de prueba real: la orden de créditos #2 de la base local (pago aprobado en MP cuyos avisos se rechazaron con 401 antes de apagar la validación).
-- **Job de vencimiento:** marcar `Expirada` las órdenes `Pendiente` con `fecha_vencimiento` pasada (primero reconciliando, por si pagaron justo antes).
-- Opcional: mail al comprador cuando se le reembolsa un pago (hoy solo le llega el aviso de MP).
+### 21.6 — Estado de la orden ✅ / reconciliación y vencimiento ⏳
+- ✅ `GET /tickets/orden/{uuid}` (público, `VentaController`) y `GET /creditos/orden/{uuid}` (con chequeo de dueño, `CreditoController`): estado de la orden y, si está `Aprobada`, sus entradas (entradas) o el monto acreditado (créditos), para la página de retorno. El UUID actúa como token.
+- ⏳ **Reconciliación:** al consultar una orden `Pendiente`, buscar el pago en MP por `external_reference` (`GET /v1/payments/search`) y procesarlo si ya está aprobado, para no depender solo del aviso. El procesamiento ya es idempotente. Caso de prueba real: la orden de créditos #2 de la base local (pago aprobado en MP cuyos avisos se rechazaron con 401 antes de apagar la validación). Ver pregunta abierta en `DECISIONES.md`.
+- ⏳ **Job de vencimiento:** marcar `Expirada` las órdenes `Pendiente` con `fecha_vencimiento` pasada (primero reconciliando, por si pagaron justo antes). Ver `DECISIONES.md`.
+- ⏳ Opcional: mail al comprador cuando se le reembolsa un pago (hoy solo le llega el aviso de MP). Ver `DECISIONES.md`.
 
 ### Checklist de pase a producción
 1. Credenciales de **producción** en `MP_ACCESS_TOKEN` y la clave secreta de producción en `MP_WEBHOOK_SECRET`.

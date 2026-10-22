@@ -27,6 +27,7 @@ Si se solicita una revisión de seguridad de código, **DEBES leer el archivo `S
 - Se trabaja **fase por fase, en orden**, marcando cada una con ✅ recién cuando queda terminada y verificada (no antes). Cada fase, al cerrarla, se documenta con: qué se hizo, qué adaptaciones hubo respecto al plan/mockup original y por qué, y cualquier gap de backend que se haya encontrado y corregido en el camino.
 - **No arrancar la fase siguiente sin confirmación del usuario.** Al terminar una fase, parar y preguntar antes de seguir (y antes de commitear/pushear).
 - Si al conectar el frontend aparece un gap real en el backend (falta un endpoint, un DTO, etc.), **corregirlo en el backend correctamente**, no parchear del lado del frontend. Documentar el gap y la corrección en el plan.
+- **`DECISIONES.md`** (raíz del repo) es donde viven tres cosas que no tienen lugar en los planes de fase: decisiones ya tomadas (con fecha, para no volver a discutirlas), preguntas abiertas que hay que responder antes de implementar algo sobre ellas (no asumir, preguntar), y deuda técnica conocida que no es una fase nueva. Se actualiza en el mismo momento en que se toma la decisión o se detecta la deuda, no después.
 
 ## 🎯 GIT / COMMITS — REGLA FIJA
 - **Todo commit y push va SIEMPRE a nombre del usuario, sin ningún rastro de Claude/Anthropic** (nada de trailers `Co-Authored-By: Claude`). Config local ya seteada: `Felipe_Prono <felipeprono@gmail.com>`. Esta regla aplica a este proyecto y a cualquier otro.

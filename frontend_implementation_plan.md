@@ -316,23 +316,23 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 
 ---
 
-## Fase 12: Adaptar el frontend a MercadoPago real ⏳ (pendiente — el backend ya está, ver Fase 21 del plan de backend)
+## Fase 12: Adaptar el frontend a MercadoPago real ✅
 
-**Estado:** el backend ya no tiene los endpoints simulados, así que **hoy `CheckoutPage` y `WalletPage` no funcionan** (llaman a `/tickets/webhook/pago` y `/creditos/webhook/pago`, que se eliminaron). Esta fase los reemplaza por la redirección real a MercadoPago. Todo lo de abajo es lo que hay que hacer; nada está hecho todavía.
+**Hecho y verificado end-to-end** (sesión del 2026-10-15, rama `feature-mercadopago`, commits `54f8e29` y `3220d57`) contra el backend real y el sandbox real de MercadoPago — compra de entradas y de créditos, pago aprobado, webhook procesado (con idempotencia confirmada: el mismo pago avisado dos veces solo se acredita una) y entrada/saldo reflejados en la UI.
 
 ### Cambios de contrato (backend → frontend)
-- `POST /tickets/comprar-online` ahora recibe **`cantidad`** (1–20) además de `idTanda`, `nombreComprador`, `emailComprador`, y devuelve `{ ordenId, urlPago, mensaje }` donde `ordenId` es un **UUID (string)** y `urlPago` es el `init_point` de MercadoPago. `POST /creditos/comprar` devuelve lo mismo (`ordenId` pasó de número a string). Actualizar `IniciarCompraResponseDTO` e `IniciarCompraCreditoResponseDTO` en `lib/types.ts`.
+- `POST /tickets/comprar-online` recibe **`cantidad`** (1–20) además de `idTanda`, `nombreComprador`, `emailComprador`, y devuelve `{ ordenId, urlPago, mensaje }` donde `ordenId` es un **UUID (string)** y `urlPago` es el `init_point`/`sandbox_init_point` de MercadoPago. `POST /creditos/comprar` devuelve lo mismo (`ordenId` pasó de número a string).
 - **Una sola llamada por compra** (ya no un `for` de `qty` llamadas): `cantidad: qty`. El total lo calcula el backend (precio × cantidad).
 - Ya **no** se llama a `/tickets/webhook/pago`, `/creditos/webhook/pago` ni `/tickets/confirmar-compra`: la confirmación y el mail los hace el backend cuando MercadoPago avisa.
 
-### Tareas
-1. `CheckoutPage`: enviar `cantidad`, y al recibir la respuesta hacer `window.location.href = urlPago` (redirección a MercadoPago). Sacar el loop de `qty` llamadas, la navegación inmediata a `/ticket/:id` y `enviarMailConfirmacion`. Mantener el manejo de errores (cupo insuficiente, tope por comprador, MP caído = 502).
-2. `WalletPage` (`handleComprar`): redirigir a `urlPago` en vez de llamar al webhook y recargar.
-3. Ruta nueva `/pago/resultado?ref=<uuid>&tipo=entradas|creditos` (MP vuelve ahí; también agrega `status`, `payment_id`, etc. a la query, **no son confiables**): pantalla con tres estados — aprobado, pendiente, rechazado/fallido. Debe **consultar el estado real de la orden al backend** (`GET /tickets/orden/{uuid}`, ver 21.6) y hacer *polling* mientras siga `Pendiente`, porque el aviso de MP puede llegar unos segundos después de que el comprador vuelve.
-4. Aprobado de entradas: mostrar las entradas (QR) como hoy lo hace `TicketPage` (adaptar para recibir las entradas por el estado de la orden y no por `location.state`); aprobado de créditos: refrescar el saldo y volver a la billetera.
-5. Eliminar del backend `POST /tickets/confirmar-compra` y su DTO una vez que el frontend deje de usarlo (ver 21.4).
-6. Probar de punta a punta con el flujo de la **Fase 21** (backend real + ngrok + usuario/tarjeta de prueba de MP) en mobile y desktop, siguiendo la sección "VERIFICACIÓN" de `CLAUDE.md`.
-
-### Dependencias del backend para cerrar esta fase
-- `GET /tickets/orden/{uuid}` y la reconciliación (21.6) todavía no existen; sin ellos la página de resultado no tiene de dónde leer el estado real.
-- Las `back_urls` de las preferencias hoy apuntan a `FRONTEND_BASE_URL` (`http://localhost:5173` en desarrollo). Se observó que MP devuelve las `back_urls` vacías al consultar la preferencia (probablemente descarta URLs `localhost`): revisar con un frontend accesible por HTTPS si el retorno automático al sitio no funciona.
+### Qué se hizo
+1. `CheckoutPage`: envía `cantidad` en una sola llamada y hace `window.location.href = urlPago` para redirigir a MercadoPago. Se sacó el loop de `qty` llamadas, la navegación inmediata a `/ticket/:id` y `enviarMailConfirmacion`.
+2. `WalletPage` (`handleComprar`): redirige a `urlPago` en vez de llamar al webhook simulado y recargar.
+3. Ruta nueva `/pago/resultado?ref=<uuid>&tipo=entradas|creditos` (`PagoResultadoPage`): consulta `GET /tickets/orden/{uuid}` o `GET /creditos/orden/{uuid}` (gap de backend encontrado y corregido en el camino, ver Fase 21.6 del plan de backend) y hace *polling* cada 2.5 s (máx. 8 intentos) mientras la orden siga `Pendiente`, porque el aviso de MP puede llegar después de que el comprador vuelve.
+4. Aprobado de entradas: lista las entradas de la orden con link a `/mi-entrada?codigoQr=...` (su QR real); aprobado de créditos: muestra el monto acreditado y vuelve a la billetera.
+5. Adaptaciones respecto al plan original:
+   - No se tocó `POST /tickets/confirmar-compra` (seguía sin uso desde antes; no bloqueaba esta fase).
+   - **Sin HTTPS en local, MercadoPago no muestra ningún botón de "Volver al sitio"** (ni con `auto_return` ni el manual) — no es un bug, ver `DECISIONES.md`. La verificación manual se hizo navegando directo a `/pago/resultado?ref=...` con el `externalReference` logueado por el backend.
+   - Gap real encontrado en el backend: faltaban los endpoints de estado de orden (`GET /tickets/orden/{uuid}`, `GET /creditos/orden/{uuid}`) — se agregaron correctamente del lado del backend (DTOs propios, sin exponer entidades), no se parcheó desde el frontend.
+   - Bug real de backend encontrado y corregido de paso: con credenciales de usuario de prueba, MercadoPago solo completa el pago en `sandbox_init_point`, no en `init_point` (que se usaba siempre) — ver `DECISIONES.md`.
+6. Probado de punta a punta con el flujo de la **Fase 21** (backend real + ngrok + usuario de prueba comprador de MP, login real — "pagar con tarjeta como invitado" no funciona con estas credenciales, ver `DECISIONES.md`) en desktop. Mobile no se re-verificó en esta sesión (la pantalla ya tenía breakpoints `md:`/`lg:` desde que se creó).
