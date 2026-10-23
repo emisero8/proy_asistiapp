@@ -1,13 +1,25 @@
 import { Moon, Sun } from "lucide-react";
+import { useLocation } from "react-router";
 import { useTheme } from "../lib/theme";
 
 /**
  * Toggle de tema global — flota sobre cualquier pantalla (fixed, z-50) para no
  * depender de que cada layout (Buyer/Organizador/Staff/Admin) le haga lugar
  * en su propio header.
+ *
+ * Oculto en /staff/scanner: esa pantalla es un overlay de cámara full-black
+ * con sus propios botones circulares (linterna, salir) pegados al borde
+ * derecho — ignora el tema claro/oscuro por diseño (siempre negra), así que
+ * el toggle no solo no hace nada ahí, se superponía visualmente con esos
+ * botones en mobile.
  */
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const location = useLocation();
+
+  if (location.pathname === "/staff/scanner") {
+    return null;
+  }
 
   return (
     <button

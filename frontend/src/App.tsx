@@ -164,7 +164,6 @@ function AppShell() {
 
   return (
     <AuthProvider>
-      <ThemeToggle />
       <Toaster
         position="top-center"
         theme={theme}
@@ -178,6 +177,7 @@ function AppShell() {
       />
       <DialogProvider>
         <BrowserRouter>
+          <ThemeToggle />
           <Suspense fallback={<RouteFallback />}>
             <AnimatedRoutes />
           </Suspense>
