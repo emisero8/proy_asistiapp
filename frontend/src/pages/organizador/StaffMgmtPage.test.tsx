@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Toaster } from "sonner";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { OrganizadorStaffMgmtPage } from "./StaffMgmtPage";
+import { OrganizadorStaffMgmtPage, eventoDisponibleParaStaff } from "./StaffMgmtPage";
 import { DialogProvider } from "../../components/DialogProvider";
 import { api, ApiError } from "../../lib/api";
 import type { EventoResponseDTO, StaffResponseDTO } from "../../lib/types";
@@ -12,7 +12,13 @@ vi.mock("../../lib/api", async (importOriginal) => {
   return { ...actual, api: { ...actual.api, get: vi.fn(), post: vi.fn(), patch: vi.fn() } };
 });
 
-const EVENTO = { id: 5, nombre: "Festival de Jazz", estado: "Publicado" } as EventoResponseDTO;
+const EVENTO = {
+  id: 5,
+  nombre: "Festival de Jazz",
+  estado: "Publicado",
+  fechaEvento: "2099-12-31",
+  horaEvento: "21:00:00",
+} as EventoResponseDTO;
 
 const STAFF: StaffResponseDTO = {
   id: 9,
@@ -165,5 +171,27 @@ describe("OrganizadorStaffMgmtPage — resetear contraseña", () => {
 
     expect(await screen.findAllByText("Ese staff no te pertenece")).not.toHaveLength(0);
     expect(screen.queryByRole("dialog", { name: "Contraseña temporal" })).not.toBeInTheDocument();
+  });
+});
+
+describe("eventoDisponibleParaStaff", () => {
+  function evento(overrides: Partial<EventoResponseDTO>): EventoResponseDTO {
+    return { ...EVENTO, ...overrides };
+  }
+
+  it("evento Publicado y futuro está disponible", () => {
+    expect(eventoDisponibleParaStaff(evento({ fechaEvento: "2099-12-31", horaEvento: "21:00:00" }))).toBe(true);
+  });
+
+  it("evento Cancelado no está disponible, aunque sea futuro", () => {
+    expect(eventoDisponibleParaStaff(evento({ estado: "Cancelado", fechaEvento: "2099-12-31", horaEvento: "21:00:00" }))).toBe(false);
+  });
+
+  it("evento Borrador no está disponible", () => {
+    expect(eventoDisponibleParaStaff(evento({ estado: "Borrador", fechaEvento: "2099-12-31", horaEvento: "21:00:00" }))).toBe(false);
+  });
+
+  it("evento Publicado pero ya finalizado no está disponible", () => {
+    expect(eventoDisponibleParaStaff(evento({ estado: "Publicado", fechaEvento: "2020-01-01", horaEvento: "21:00:00" }))).toBe(false);
   });
 });
