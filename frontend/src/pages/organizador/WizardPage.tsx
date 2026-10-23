@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { Check, ChevronLeft, ChevronRight, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { hoyLocal } from "../../lib/format";
+import { DatePicker } from "../../components/DatePicker";
+import { TimePicker } from "../../components/TimePicker";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
 import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
@@ -266,25 +268,12 @@ export function OrganizadorWizardPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5">Fecha *</label>
-                <input
-                  type="date"
-                  value={date}
-                  min={hoyStr}
-                  onChange={(e) => setDate(e.target.value)}
-                  className={`w-full px-3 py-3 bg-card border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${
-                    fechaEnPasado ? "border-red-500/60" : "border-border"
-                  }`}
-                />
+                <DatePicker value={date} onChange={setDate} min={hoyStr} error={fechaEnPasado} />
                 {fechaEnPasado && <p className="text-[11px] text-red-400 mt-1">La fecha no puede estar en el pasado.</p>}
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1.5">Hora *</label>
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className="w-full px-3 py-3 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                />
+                <TimePicker value={time} onChange={setTime} />
               </div>
             </div>
             <div>
@@ -404,23 +393,11 @@ export function OrganizadorWizardPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Venta desde</label>
-                    <input
-                      type="date"
-                      value={t.desde}
-                      max={date || undefined}
-                      onChange={(e) => updateTanda(t.id, "desde", e.target.value)}
-                      className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
+                    <DatePicker value={t.desde} onChange={(v) => updateTanda(t.id, "desde", v)} max={date || undefined} allowClear />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Venta hasta</label>
-                    <input
-                      type="date"
-                      value={t.hasta}
-                      max={date || undefined}
-                      onChange={(e) => updateTanda(t.id, "hasta", e.target.value)}
-                      className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
+                    <DatePicker value={t.hasta} onChange={(v) => updateTanda(t.id, "hasta", v)} max={date || undefined} allowClear />
                   </div>
                 </div>
                 <p className="text-[10px] text-muted-foreground">

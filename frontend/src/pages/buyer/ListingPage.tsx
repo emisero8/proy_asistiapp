@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
+import { SupportContactLine } from "../../components/SupportContactLine";
 import { useNavigate } from "react-router";
-import { MapPin, Calendar, Sparkles, ArrowRight, Zap, ShieldCheck, TrendingUp, Wallet, Users, Ticket, Check } from "lucide-react";
+import { MapPin, Calendar, Sparkles, ArrowRight, Zap, ShieldCheck, TrendingUp, Wallet, Users, Ticket, Check, LogIn } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, hoyLocal } from "../../lib/format";
 import type { EstadisticasPublicasResponseDTO, EventoPublicoListItemDTO, PaqueteCreditoDisponibleDTO } from "../../lib/types";
@@ -104,11 +105,19 @@ export function ListingPage() {
     <div className="min-h-screen bg-background">
       {/* Header — fijo al hacer scroll, con blur y borde que aparecen recién al bajar */}
       <nav className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? "bg-background/90 backdrop-blur-md border-b border-border" : "bg-transparent"}`}>
-        <div className="max-w-[1800px] mx-auto pl-4 pr-16 lg:pl-8 lg:pr-20 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <h2 className="text-lg font-extrabold text-foreground tracking-tight">
+        <div className="max-w-[1800px] mx-auto pl-4 pr-16 lg:pl-8 lg:pr-20 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-8 min-w-0">
+            <h2 className="text-lg font-extrabold text-foreground tracking-tight flex-none">
               Asistí<span className="text-primary">APP</span>
             </h2>
+            {/* "Eventos" navega a /eventos (buscador y filtros) — siempre visible, no solo
+                cuando hay 16+ eventos publicados (ver botón "Ir a ver todos" más abajo). */}
+            <button
+              onClick={() => navigate("/eventos")}
+              className="text-sm font-semibold text-foreground hover:text-primary transition-colors flex-none"
+            >
+              Eventos
+            </button>
             <div className="hidden lg:flex items-center gap-6">
               {NAV_LINKS.map((l) => (
                 <a key={l.label} href={l.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -117,18 +126,23 @@ export function ListingPage() {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-none">
             <button
               onClick={() => navigate("/organizador/login")}
-              className="hidden sm:block px-4 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors font-medium"
+              aria-label="Ingresar"
+              title="Ingresar a tu cuenta de Organizador"
+              className="w-9 h-9 sm:w-auto sm:h-auto flex-none sm:px-4 py-2 rounded-full sm:rounded-xl text-foreground hover:bg-muted transition-colors font-medium flex items-center justify-center sm:justify-start whitespace-nowrap"
             >
-              Ingresar
+              <LogIn size={15} className="sm:hidden" />
+              <span className="hidden sm:inline text-sm">Ingresar</span>
             </button>
             <button
               onClick={() => navigate("/organizador/registro")}
-              className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-all shadow-md shadow-primary/25"
+              title="Crear una cuenta de Organizador para publicar tus propios eventos"
+              className="px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-primary text-primary-foreground text-xs sm:text-sm font-bold hover:opacity-90 transition-all shadow-md shadow-primary/25 whitespace-nowrap"
             >
-              Crear cuenta gratis
+              <span className="sm:hidden">Organizador</span>
+              <span className="hidden sm:inline">Soy organizador</span>
             </button>
           </div>
         </div>
@@ -515,10 +529,11 @@ export function ListingPage() {
               </div>
             </div>
           </div>
-          <div className="border-t border-border pt-6">
+          <div className="border-t border-border pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <p className="text-xs text-muted-foreground">
               © {new Date().getFullYear()} Asistí<span className="text-primary font-bold">APP</span> · Buenos Aires, Argentina
             </p>
+            <SupportContactLine />
           </div>
         </div>
       </footer>

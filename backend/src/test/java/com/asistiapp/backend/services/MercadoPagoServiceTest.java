@@ -6,6 +6,12 @@ import com.mercadopago.client.payment.PaymentClient;
 import com.mercadopago.client.payment.PaymentRefundClient;
 import com.mercadopago.client.preference.PreferenceClient;
 import com.mercadopago.client.preference.PreferenceRequest;
+import com.mercadopago.exceptions.MPApiException;
+import com.mercadopago.exceptions.MPException;
+import com.mercadopago.net.MPResponse;
+import com.mercadopago.net.MPResultsResourcesPage;
+import com.mercadopago.net.MPSearchRequest;
+import com.mercadopago.resources.payment.Payment;
 import com.mercadopago.resources.preference.Preference;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,10 +22,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
@@ -102,5 +111,36 @@ class MercadoPagoServiceTest {
 
         assertThatThrownBy(() -> mercadoPagoService.crearPreferencia(orden()))
                 .isInstanceOf(PasarelaPagoException.class);
+    }
+
+    // ─────────────────────────────────────────────
+    // buscarPagosPorReferencia — reconciliación de órdenes Pendiente
+    // ─────────────────────────────────────────────
+
+    @Test
+    void buscarPagosPorReferencia_encuentraPagos_losDevuelve() throws Exception {
+        Payment pago = mock(Payment.class);
+        MPResultsResourcesPage<Payment> page = new MPResultsResourcesPage<>();
+        page.setResults(List.of(pago));
+        when(paymentClient.search(any(MPSearchRequest.class))).thenReturn(page);
+
+        List<Payment> resultado = mercadoPagoService.buscarPagosPorReferencia("ext-ref-1");
+
+        assertThat(resultado).containsExactly(pago);
+    }
+
+    @Test
+    void buscarPagosPorReferencia_mercadoPagoRechazaLaBusqueda_devuelveVacioSinPropagarLaExcepcion() throws Exception {
+        MPResponse respuesta = new MPResponse(500, Map.of(), "error interno");
+        when(paymentClient.search(any(MPSearchRequest.class))).thenThrow(new MPApiException("falló", respuesta));
+
+        assertThat(mercadoPagoService.buscarPagosPorReferencia("ext-ref-1")).isEmpty();
+    }
+
+    @Test
+    void buscarPagosPorReferencia_errorDeComunicacion_devuelveVacioSinPropagarLaExcepcion() throws Exception {
+        when(paymentClient.search(any(MPSearchRequest.class))).thenThrow(new MPException("sin red"));
+
+        assertThat(mercadoPagoService.buscarPagosPorReferencia("ext-ref-1")).isEmpty();
     }
 }

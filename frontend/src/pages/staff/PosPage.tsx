@@ -1,10 +1,31 @@
 import { useEffect, useState } from "react";
-import { LogOut, Minus, Plus, QrCode, RotateCcw } from "lucide-react";
+import { ChevronDown, Copy, LogOut, Minus, Plus, QrCode, RotateCcw, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { api, ApiError, API_BASE_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt } from "../../lib/format";
-import type { EntradaResponseDTO, EventoResponseDTO, TandaResponseDTO, VentaManualRequestDTO } from "../../lib/types";
+import type {
+  DisponibilidadCompradorResponseDTO,
+  EntradaResponseDTO,
+  EventoResponseDTO,
+  TandaResponseDTO,
+  VentaManualRequestDTO,
+} from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+
+/** Link público (sin login) donde el comprador ve su entrada y el QR — para que el vendedor se lo pueda mandar. */
+function linkEntrada(codigoQr: string) {
+  return `${window.location.origin}/mi-entrada?codigoQr=${encodeURIComponent(codigoQr)}`;
+}
+
+async function copiarAlPortapapeles(texto: string, mensajeOk: string) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    toast.success(mensajeOk);
+  } catch {
+    toast.error("No pudimos copiar el enlace. Copialo a mano.");
+  }
+}
 
 export function StaffPosPage() {
   useDocumentTitle("Punto de venta");
@@ -23,6 +44,11 @@ export function StaffPosPage() {
   const [entradas, setEntradas] = useState<EntradaResponseDTO[]>([]);
   const [soldToday, setSoldToday] = useState(0);
 
+  // Tope de entradas por comprador (CU-019): se re-consulta por evento y, con debounce,
+  // cada vez que cambia el mail — así el selector de cantidad nunca deja armar una venta
+  // que el backend vaya a rechazar a mitad de camino.
+  const [disponibilidad, setDisponibilidad] = useState<DisponibilidadCompradorResponseDTO | null>(null);
+
   useEffect(() => {
     api
       .get<EventoResponseDTO[]>("/eventos/vendedor")
@@ -40,6 +66,25 @@ export function StaffPosPage() {
     setEvento(e);
     setTanda(e.tandas[0] ?? null);
   }
+
+  useEffect(() => {
+    if (!evento) return;
+    const email = buyerEmail.trim();
+    const handle = setTimeout(() => {
+      const params = new URLSearchParams({ idEvento: String(evento.id) });
+      if (email) params.set("email", email);
+      api
+        .get<DisponibilidadCompradorResponseDTO>(`/tickets/disponibilidad-comprador?${params}`)
+        .then((d) => {
+          setDisponibilidad(d);
+          setQty((q) => Math.min(q, Math.max(1, d.disponible)));
+        })
+        .catch(() => setDisponibilidad(null));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [evento, buyerEmail]);
+
+  const cupoMaximoVenta = Math.min(tanda?.cupoDisponible ?? 1, disponibilidad?.disponible ?? Infinity);
 
   async function handleGenerate() {
     if (!tanda) return;
@@ -153,17 +198,59 @@ export function StaffPosPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-3 font-mono tracking-wider">{entrada.codigoQr}</p>
+                    <div className="w-full flex gap-2 mt-4">
+                      <button
+                        onClick={() => copiarAlPortapapeles(linkEntrada(entrada.codigoQr), "Enlace copiado")}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-muted text-foreground text-xs font-semibold hover:bg-muted/70 transition-colors"
+                      >
+                        <Copy size={13} />
+                        Copiar enlace
+                      </button>
+                      {typeof navigator.share === "function" && (
+                        <button
+                          onClick={() =>
+                            navigator
+                              .share({
+                                title: `Entrada — ${evento.nombre}`,
+                                text: `Tu entrada para ${evento.nombre}`,
+                                url: linkEntrada(entrada.codigoQr),
+                              })
+                              .catch(() => {})
+                          }
+                          aria-label="Compartir entrada"
+                          className="w-10 flex-none flex items-center justify-center rounded-xl bg-muted text-foreground hover:bg-muted/70 transition-colors"
+                        >
+                          <Share2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-            <button
-              onClick={handleReset}
-              className="w-full lg:w-auto lg:px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors flex items-center justify-center gap-2"
-            >
-              <RotateCcw size={15} />
-              Nueva venta
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {entradas.length > 1 && (
+                <button
+                  onClick={() =>
+                    copiarAlPortapapeles(
+                      entradas.map((e) => linkEntrada(e.codigoQr)).join("\n"),
+                      `${entradas.length} enlaces copiados`,
+                    )
+                  }
+                  className="w-full sm:w-auto sm:px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors flex items-center justify-center gap-2"
+                >
+                  <Copy size={15} />
+                  Copiar los {entradas.length} enlaces
+                </button>
+              )}
+              <button
+                onClick={handleReset}
+                className="w-full sm:w-auto sm:px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={15} />
+                Nueva venta
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -171,7 +258,13 @@ export function StaffPosPage() {
   }
 
   const total = (tanda?.precio ?? 0) * qty;
-  const valid = !!tanda && tanda.cupoDisponible > 0 && buyerName.trim().length > 1 && buyerEmail.includes("@");
+  const valid =
+    !!tanda &&
+    tanda.cupoDisponible > 0 &&
+    cupoMaximoVenta > 0 &&
+    qty <= cupoMaximoVenta &&
+    buyerName.trim().length > 1 &&
+    buyerEmail.includes("@");
 
   return (
     <div className="min-h-screen bg-background">
@@ -198,24 +291,32 @@ export function StaffPosPage() {
           {eventos.length > 1 && (
             <div>
               <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-2">Evento</p>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                {eventos.map((e) => (
-                  <button
-                    key={e.id}
-                    onClick={() => selectEvento(e)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${evento?.id === e.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
-                  >
-                    <p className="text-sm font-semibold text-foreground">{e.nombre}</p>
-                  </button>
-                ))}
+              <div className="relative">
+                <select
+                  value={evento?.id ?? ""}
+                  onChange={(e) => {
+                    const next = eventos.find((ev) => ev.id === Number(e.target.value));
+                    if (next) selectEvento(next);
+                  }}
+                  className="w-full appearance-none px-4 py-3 pr-10 bg-card border border-border rounded-xl text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                >
+                  {eventos.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.nombre}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
+              {evento && <p className="text-[11px] text-muted-foreground mt-1.5 px-1">{evento.lugar}</p>}
             </div>
           )}
 
-          {evento && (
-            <div className="bg-primary/10 border border-primary/15 rounded-xl px-3 py-2">
-              <p className="text-xs font-semibold text-foreground truncate">{evento.nombre}</p>
-              <p className="text-[10px] text-muted-foreground">{evento.lugar}</p>
+          {eventos.length === 1 && evento && (
+            <div>
+              <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-1">Evento</p>
+              <p className="text-sm font-semibold text-foreground">{evento.nombre}</p>
+              <p className="text-[11px] text-muted-foreground">{evento.lugar}</p>
             </div>
           )}
 
@@ -242,21 +343,31 @@ export function StaffPosPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between bg-card rounded-xl px-4 py-3.5 border border-border lg:max-w-xs">
-            <span className="text-sm font-semibold text-foreground">Cantidad</span>
-            <div className="flex items-center gap-4">
-              <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Quitar una entrada" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/70 transition-colors">
-                <Minus size={13} />
-              </button>
-              <span className="text-lg font-bold text-foreground w-4 text-center">{qty}</span>
-              <button
-                onClick={() => setQty((q) => Math.min(tanda?.cupoDisponible ?? 1, q + 1))}
-                aria-label="Agregar una entrada"
-                className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors"
-              >
-                <Plus size={13} />
-              </button>
+          <div className="lg:max-w-xs">
+            <div className="flex items-center justify-between bg-card rounded-xl px-4 py-3.5 border border-border">
+              <span className="text-sm font-semibold text-foreground">Cantidad</span>
+              <div className="flex items-center gap-4">
+                <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Quitar una entrada" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/70 transition-colors">
+                  <Minus size={13} />
+                </button>
+                <span className="text-lg font-bold text-foreground w-4 text-center">{qty}</span>
+                <button
+                  onClick={() => setQty((q) => Math.min(cupoMaximoVenta, q + 1))}
+                  disabled={qty >= cupoMaximoVenta}
+                  aria-label="Agregar una entrada"
+                  className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
             </div>
+            {disponibilidad && (
+              <p className="text-[11px] text-muted-foreground mt-1.5 px-1">
+                {disponibilidad.yaCompradas > 0
+                  ? `Este comprador ya tiene ${disponibilidad.yaCompradas} — podés vender hasta ${disponibilidad.disponible} más (tope: ${disponibilidad.limite}).`
+                  : `Máximo ${disponibilidad.limite} entradas por persona para este evento.`}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">

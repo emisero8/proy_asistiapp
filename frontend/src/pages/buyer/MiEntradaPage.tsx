@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { QrCode, AlertCircle, Calendar, Ticket } from "lucide-react";
 import { api, ApiError, API_BASE_URL } from "../../lib/api";
+import { SupportContactLine } from "../../components/SupportContactLine";
 import { formatRelativo } from "../../lib/format";
 import type { EntradaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -153,6 +154,10 @@ export function MiEntradaPage() {
         >
           Ver más eventos
         </button>
+
+        <div className="flex justify-center pt-2">
+          <SupportContactLine />
+        </div>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.MovimientoCreditoRepository;
+import com.asistiapp.backend.repositories.NotificacionRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
 import com.asistiapp.backend.repositories.TokenRecuperacionRepository;
 import com.asistiapp.backend.repositories.TransaccionCreditoRepository;
@@ -54,6 +55,8 @@ class AdminUsuarioServiceTest {
     private TransaccionCreditoRepository transaccionCreditoRepository;
     @Mock
     private TokenRecuperacionRepository tokenRecuperacionRepository;
+    @Mock
+    private NotificacionRepository notificacionRepository;
     @Mock
     private SecurityUtils securityUtils;
 

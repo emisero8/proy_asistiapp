@@ -195,6 +195,75 @@ public class EmailService {
         }
     }
 
+    /**
+     * Avisa al comprador que se le devolvió el dinero de una compra de entradas que no se
+     * pudo entregar (ej. se agotó el cupo entre iniciar el pago y que MercadoPago lo aprobara).
+     * El reembolso en sí ya se hizo contra la API de MP antes de llamar a este método — esto
+     * es solo la notificación, para que no se entere únicamente por el aviso de MercadoPago.
+     */
+    @Async
+    public void enviarNotificacionReembolsoEntradas(String emailDestino, String nombreComprador, String nombreEvento) {
+        try {
+            SimpleMailMessage mensaje = new SimpleMailMessage();
+            mensaje.setTo(emailDestino);
+            mensaje.setSubject("Te devolvimos tu pago — " + nombreEvento + " — AsistíAPP");
+            mensaje.setText(String.format("""
+                    Hola %s,
+
+                    Lamentablemente tu compra para "%s" no se pudo completar (se agotaron las
+                    entradas disponibles justo antes de confirmar tu pago). Ya te devolvimos el
+                    dinero a través de MercadoPago — deberías verlo reflejado en los próximos días
+                    según el medio de pago que hayas usado.
+
+                    Disculpá las molestias. Podés volver a intentar la compra desde la página del
+                    evento si todavía hay entradas disponibles.
+
+                    El equipo de AsistíAPP
+                    """,
+                    nombreComprador, nombreEvento));
+
+            mailSender.send(mensaje);
+            log.info("Notificación de reembolso (entradas) enviada a: {} para el evento: {}", emailDestino, nombreEvento);
+
+        } catch (Exception e) {
+            log.error("Error al enviar notificación de reembolso a {}: {}", emailDestino, e.getMessage());
+        }
+    }
+
+    /**
+     * Avisa al Organizador que se le devolvió el dinero de una compra de créditos que no se
+     * pudo acreditar. El reembolso en sí ya se hizo contra la API de MP antes de llamar a
+     * este método — esto es solo la notificación.
+     */
+    @Async
+    public void enviarNotificacionReembolsoCreditos(String emailDestino, String nombreOrganizador, Integer cantidadCreditos) {
+        try {
+            String descripcionCreditos = cantidadCreditos != null ? cantidadCreditos + " créditos" : "los créditos";
+            SimpleMailMessage mensaje = new SimpleMailMessage();
+            mensaje.setTo(emailDestino);
+            mensaje.setSubject("Te devolvimos tu pago — AsistíAPP");
+            mensaje.setText(String.format("""
+                    Hola %s,
+
+                    Tu compra de %s no se pudo acreditar y ya te devolvimos el dinero a través de
+                    MercadoPago — deberías verlo reflejado en los próximos días según el medio de
+                    pago que hayas usado.
+
+                    Disculpá las molestias. Podés volver a intentar la compra desde la sección de
+                    Créditos de tu panel.
+
+                    El equipo de AsistíAPP
+                    """,
+                    nombreOrganizador, descripcionCreditos));
+
+            mailSender.send(mensaje);
+            log.info("Notificación de reembolso (créditos) enviada a: {}", emailDestino);
+
+        } catch (Exception e) {
+            log.error("Error al enviar notificación de reembolso de créditos a {}: {}", emailDestino, e.getMessage());
+        }
+    }
+
     /** Un bloque de QR + botón por cada entrada. "Entrada N de M" solo si hay más de una. */
     private String construirBloqueEntrada(int numero, int total, String qrDataUri, String codigoQr, String ticketUrl) {
         String etiqueta = total > 1

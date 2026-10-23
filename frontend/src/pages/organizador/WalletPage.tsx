@@ -4,6 +4,8 @@ import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt } from "../../lib/format";
 import type {
+  CompraCreditoResponseDTO,
+  EstadoTransaccion,
   IniciarCompraCreditoResponseDTO,
   MovimientoCreditoResponseDTO,
   PaqueteCreditoDisponibleDTO,
@@ -18,22 +20,34 @@ const TIPO_LABEL: Record<string, string> = {
   Devolucion_Tanda: "Devolución de tanda",
 };
 
+const ESTADO_COMPRA_BADGE: Record<EstadoTransaccion, string> = {
+  Pendiente: "bg-amber-400/15 text-amber-400",
+  Aprobada: "bg-emerald-400/15 text-emerald-400",
+  Rechazada: "bg-red-400/15 text-red-400",
+  Expirada: "bg-muted text-muted-foreground",
+  Reembolsada: "bg-blue-400/15 text-blue-400",
+};
+
 export function OrganizadorWalletPage() {
   useDocumentTitle("Créditos");
   const { session } = useAuth();
   const [historial, setHistorial] = useState<MovimientoCreditoResponseDTO[] | null>(null);
+  const [compras, setCompras] = useState<CompraCreditoResponseDTO[] | null>(null);
   const [paquetes, setPaquetes] = useState<PaqueteCreditoDisponibleDTO[] | null>(null);
   const [selectedPack, setSelectedPack] = useState<number | null>(null);
   const [comprando, setComprando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [vistaHistorial, setVistaHistorial] = useState<"movimientos" | "compras">("movimientos");
 
   function cargar() {
     Promise.all([
       api.get<MovimientoCreditoResponseDTO[]>("/creditos/historial"),
+      api.get<CompraCreditoResponseDTO[]>("/creditos/compras"),
       api.get<PaqueteCreditoDisponibleDTO[]>("/creditos/paquetes"),
     ])
-      .then(([h, p]) => {
+      .then(([h, c, p]) => {
         setHistorial(h);
+        setCompras(c);
         setPaquetes(p);
       })
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar tu billetera."));
@@ -145,33 +159,76 @@ export function OrganizadorWalletPage() {
         </div>
 
         <div className="mt-5 lg:mt-0">
-          <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Historial</p>
-          {historial === null ? (
+          <div className="flex items-center gap-1 mb-3 bg-muted rounded-xl p-1 w-fit">
+            <button
+              onClick={() => setVistaHistorial("movimientos")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                vistaHistorial === "movimientos" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Movimientos
+            </button>
+            <button
+              onClick={() => setVistaHistorial("compras")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                vistaHistorial === "compras" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Mis compras
+            </button>
+          </div>
+
+          {vistaHistorial === "movimientos" ? (
+            historial === null ? (
+              <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />
+            ) : historial.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Todavía no hay movimientos.</p>
+            ) : (
+              <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                {historial.map((tx, i) => {
+                  const esCredito = tx.monto > 0;
+                  return (
+                    <div key={tx.id} className={`px-4 py-3 flex items-center justify-between ${i < historial.length - 1 ? "border-b border-border" : ""}`}>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-none ${esCredito ? "bg-emerald-400/15" : "bg-red-400/10"}`}>
+                          {esCredito ? <ArrowDownLeft size={13} className="text-emerald-400" /> : <ArrowUpRight size={13} className="text-red-400" />}
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-foreground leading-tight">{TIPO_LABEL[tx.tipoMovimiento] ?? tx.tipoMovimiento}</p>
+                          <p className="text-[10px] text-muted-foreground">{new Date(tx.fechaMovimiento).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</p>
+                        </div>
+                      </div>
+                      <span className={`text-sm font-bold ${esCredito ? "text-emerald-400" : "text-red-400"}`}>
+                        {tx.monto > 0 ? "+" : ""}
+                        {tx.monto} cr
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : compras === null ? (
             <div className="h-40 rounded-2xl bg-card border border-border animate-pulse" />
-          ) : historial.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Todavía no hay movimientos.</p>
+          ) : compras.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Todavía no compraste créditos.</p>
           ) : (
             <div className="bg-card border border-border rounded-2xl overflow-hidden">
-              {historial.map((tx, i) => {
-                const esCredito = tx.monto > 0;
-                return (
-                  <div key={tx.id} className={`px-4 py-3 flex items-center justify-between ${i < historial.length - 1 ? "border-b border-border" : ""}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-none ${esCredito ? "bg-emerald-400/15" : "bg-red-400/10"}`}>
-                        {esCredito ? <ArrowDownLeft size={13} className="text-emerald-400" /> : <ArrowUpRight size={13} className="text-red-400" />}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold text-foreground leading-tight">{TIPO_LABEL[tx.tipoMovimiento] ?? tx.tipoMovimiento}</p>
-                        <p className="text-[10px] text-muted-foreground">{new Date(tx.fechaMovimiento).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}</p>
-                      </div>
-                    </div>
-                    <span className={`text-sm font-bold ${esCredito ? "text-emerald-400" : "text-red-400"}`}>
-                      {tx.monto > 0 ? "+" : ""}
-                      {tx.monto} cr
-                    </span>
+              {compras.map((c, i) => (
+                // Compras de antes de MercadoPago no tienen external_reference (columna agregada
+                // después): el índice evita colisiones de key cuando varias comparten null.
+                <div key={c.externalReference ?? `sin-ref-${i}`} className={`px-4 py-3 flex items-center justify-between gap-3 ${i < compras.length - 1 ? "border-b border-border" : ""}`}>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-foreground leading-tight truncate">
+                      {c.nombrePaquete}
+                      {c.cantidadCreditos != null && ` · ${c.cantidadCreditos} créditos`}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(c.fechaTransaccion).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })} · {fmt(c.monto)}
+                    </p>
                   </div>
-                );
-              })}
+                  <span className={`text-[10px] font-bold px-2 py-1 rounded-full flex-none ${ESTADO_COMPRA_BADGE[c.estado]}`}>{c.estado}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

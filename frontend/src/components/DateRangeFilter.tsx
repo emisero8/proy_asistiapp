@@ -1,31 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
-
-const MESES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
-];
-const DIAS = ["L", "M", "M", "J", "V", "S", "D"];
-
-function toISO(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+import { MESES, DIAS, toISO, buildGrid } from "../lib/calendar";
 
 const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 function formatCorto(fechaIso: string): string {
   const [, mes, dia] = fechaIso.split("-");
   return `${Number(dia)} ${MESES_CORTOS[Number(mes) - 1]}`;
-}
-
-/** Grilla de 6x7 celdas para el mes dado, con lunes como primer día. */
-function buildGrid(year: number, month: number): Date[] {
-  const primerDia = new Date(year, month, 1);
-  const offset = (primerDia.getDay() + 6) % 7; // 0=lunes
-  const inicio = new Date(year, month, 1 - offset);
-  return Array.from({ length: 42 }, (_, i) => new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i));
 }
 
 type Props = {

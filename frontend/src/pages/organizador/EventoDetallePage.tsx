@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import {
   ChevronLeft, Pencil, ExternalLink, Ban, Ticket, TrendingUp, Users, ShieldCheck,
-  Search, Store, CreditCard, CheckCircle2, AlertCircle,
+  Search, Store, CreditCard, CheckCircle2, AlertCircle, Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
@@ -81,6 +81,170 @@ export function OrganizadorEventoDetallePage() {
       toast.error(e instanceof ApiError ? e.message : "No pudimos cancelar el evento.");
     } finally {
       setCancelando(false);
+    }
+  }
+
+  async function exportarExcel() {
+    if (!entradasFiltradas || entradasFiltradas.length === 0) return;
+
+    try {
+      // Carga ExcelJS de forma lazy para no inflar el bundle inicial
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "AsistíAPP";
+      wb.created = new Date();
+
+      const nombreEvento = evento?.nombre ?? "evento";
+      // Excel prohíbe \ / * ? : [ ] en el nombre de la hoja (y no puede quedar vacío ni pasar los 31 caracteres)
+      const nombreHoja = nombreEvento.replace(/[\\/*?:[\]]/g, " ").trim().slice(0, 31) || "evento";
+      const ws = wb.addWorksheet(nombreHoja);
+      // Encabezado fijo: con muchas entradas, la fila 1 sigue visible al scrollear
+      ws.views = [{ state: "frozen", ySplit: 1 }];
+
+      // Definición de columnas con ancho fijo. precio/fechas llevan numFmt para que Excel
+      // los trate como número/fecha de verdad (ordenables, filtrables, sumables) y no como texto.
+      ws.columns = [
+        { header: "ID",           key: "id",          width: 8  },
+        { header: "Comprador",    key: "comprador",   width: 30 },
+        { header: "Email",        key: "email",       width: 34 },
+        { header: "Tanda",        key: "tanda",       width: 22 },
+        { header: "Precio",       key: "precio",      width: 14, style: { numFmt: '"$"#,##0' } },
+        { header: "Canal",        key: "canal",       width: 12 },
+        { header: "Estado",       key: "estado",      width: 13 },
+        { header: "Fecha Compra", key: "fechaCompra", width: 20, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+        { header: "Fecha Uso",    key: "fechaUso",    width: 20, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+      ];
+
+      // ── Cabecera ─────────────────────────────────────────────
+      const headerRow = ws.getRow(1);
+      headerRow.height = 30;
+      headerRow.eachCell((cell) => {
+        cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, size: 11, name: "Calibri" };
+        cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2D3A5C" } };
+        cell.alignment = { horizontal: "center", vertical: "middle" };
+        cell.border    = { bottom: { style: "medium", color: { argb: "FF9CADD3" } } };
+      });
+
+      // ── Filas de datos ───────────────────────────────────────
+      entradasFiltradas.forEach((e) => {
+        const row = ws.addRow({
+          id:          e.id,
+          comprador:   e.nombreComprador,
+          email:       e.emailComprador,
+          tanda:       e.nombreTanda,
+          precio:      e.precioTanda ?? 0,
+          canal:       e.canalVenta,
+          estado:      e.estado,
+          fechaCompra: new Date(e.fechaCompra),
+          fechaUso:    e.fechaUso ? new Date(e.fechaUso) : "",
+        });
+        row.height = 22;
+        row.eachCell({ includeEmpty: true }, (cell) => {
+          cell.alignment = { vertical: "middle" };
+          cell.font = { name: "Calibri", size: 10 };
+        });
+      });
+
+      // Autofiltro sobre encabezado + datos, sin la fila de TOTAL (si se incluyera, Excel
+      // la trataría como una fila más para filtrar/ordenar, rompiendo el resumen).
+      ws.autoFilter = { from: "A1", to: `I${1 + entradasFiltradas.length}` };
+
+      // ── Fila de totales ──────────────────────────────────────
+      const totalIngresos = entradasFiltradas.reduce((sum, e) => sum + (e.precioTanda ?? 0), 0);
+      const totalRow = ws.addRow({
+        id:          "TOTAL",
+        comprador:   `${entradasFiltradas.length} entr.`,
+        email:       "",
+        tanda:       "",
+        precio:      totalIngresos,
+        canal:       "",
+        estado:      "",
+        fechaCompra: "",
+        fechaUso:    "",
+      });
+      totalRow.height = 28;
+      totalRow.eachCell({ includeEmpty: true }, (cell) => {
+        cell.font      = { bold: true, color: { argb: "FFFFFFFF" }, size: 11, name: "Calibri" };
+        cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B3A52" } };
+        cell.alignment = { vertical: "middle" };
+        cell.border    = { top: { style: "medium", color: { argb: "FF9CADD3" } } };
+      });
+      // Precio total levemente más grande
+      const precioCell = totalRow.getCell("precio");
+      precioCell.font = { bold: true, color: { argb: "FFFFD700" }, size: 12, name: "Calibri" };
+
+      // ── Hoja de resumen: por tanda y por canal ────────────────
+      // Agrupado sobre entradasFiltradas (lo mismo que se exportó arriba), no sobre `metricas`
+      // del evento completo: si hay un filtro de búsqueda/estado activo, el resumen tiene que
+      // coincidir con lo que realmente se exportó, no con el total del evento.
+      function agrupar<T extends string>(clave: (e: (typeof entradasFiltradas)[number]) => T) {
+        const mapa = new Map<T, { cantidad: number; ingresos: number }>();
+        for (const e of entradasFiltradas) {
+          const k = clave(e);
+          const actual = mapa.get(k) ?? { cantidad: 0, ingresos: 0 };
+          actual.cantidad += 1;
+          actual.ingresos += e.precioTanda ?? 0;
+          mapa.set(k, actual);
+        }
+        return [...mapa.entries()].map(([nombre, v]) => ({ nombre, ...v }));
+      }
+
+      const porTanda = agrupar((e) => e.nombreTanda);
+      const porCanal = agrupar((e) => e.canalVenta);
+
+      const wsResumen = wb.addWorksheet("Resumen");
+      wsResumen.columns = [
+        { header: "", key: "nombre", width: 24 },
+        { header: "", key: "cantidad", width: 14 },
+        { header: "", key: "ingresos", width: 16, style: { numFmt: '"$"#,##0' } },
+      ];
+
+      function bloqueResumen(titulo: string, filas: { nombre: string; cantidad: number; ingresos: number }[]) {
+        const tituloRow = wsResumen.addRow([titulo]);
+        wsResumen.mergeCells(tituloRow.number, 1, tituloRow.number, 3);
+        tituloRow.getCell(1).font = { bold: true, size: 12, color: { argb: "FF2D3A5C" } };
+        tituloRow.height = 24;
+
+        const headerRow = wsResumen.addRow(["", "Entradas", "Ingresos"]);
+        headerRow.eachCell((cell) => {
+          cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10, name: "Calibri" };
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2D3A5C" } };
+          cell.alignment = { horizontal: "center", vertical: "middle" };
+        });
+
+        for (const f of filas) {
+          wsResumen.addRow({ nombre: f.nombre, cantidad: f.cantidad, ingresos: f.ingresos });
+        }
+
+        const totalFila = wsResumen.addRow({
+          nombre: "Total",
+          cantidad: filas.reduce((s, f) => s + f.cantidad, 0),
+          ingresos: filas.reduce((s, f) => s + f.ingresos, 0),
+        });
+        totalFila.eachCell({ includeEmpty: true }, (cell) => {
+          cell.font = { bold: true };
+          cell.border = { top: { style: "thin", color: { argb: "FF9CADD3" } } };
+        });
+
+        wsResumen.addRow([]);
+      }
+
+      bloqueResumen("Por tanda", porTanda);
+      bloqueResumen("Por canal de venta", porCanal);
+
+      // ── Generar y descargar ───────────────────────────────────
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url  = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href     = url;
+      link.download = `entradas_${nombreEvento.replace(/[^a-z0-9]/gi, "_").toLowerCase()}.xlsx`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("No pudimos generar el Excel. Intentá de nuevo.");
     }
   }
 
@@ -289,14 +453,28 @@ export function OrganizadorEventoDetallePage() {
                 <p className="text-xs font-bold text-foreground">Compradores</p>
                 <p className="text-[11px] text-muted-foreground">{entradasFiltradas.length} de {entradas?.length ?? 0} entradas</p>
               </div>
-              <div className="relative sm:w-56">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Buscar por nombre o email"
-                  className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
+              <div className="flex items-center gap-2">
+                <div className="relative sm:w-56">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder="Buscar por nombre o email"
+                    className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+                {(entradas?.length ?? 0) > 0 && (
+                  <button
+                    id="btn-exportar-excel"
+                    onClick={exportarExcel}
+                    title="Exportar a Excel"
+                    aria-label="Exportar entradas a Excel"
+                    className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors text-xs font-semibold"
+                  >
+                    <Download size={13} />
+                    Excel
+                  </button>
+                )}
               </div>
             </div>
 

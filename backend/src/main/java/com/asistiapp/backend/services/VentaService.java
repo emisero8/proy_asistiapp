@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -162,6 +163,12 @@ public class VentaService {
         return transaccionPagoRepository.existsByExternalReference(externalReference);
     }
 
+    /** Estado actual de una orden de entradas, para decidir si hace falta reconciliarla contra MP. */
+    @Transactional(readOnly = true)
+    public Optional<EstadoTransaccion> estadoActual(String externalReference) {
+        return transaccionPagoRepository.findByExternalReference(externalReference).map(TransaccionPago::getEstado);
+    }
+
     /**
      * Estado de una orden para la pantalla de resultado del pago. Si ya está Aprobada,
      * incluye las entradas generadas (con su QR) para que el comprador las vea sin
@@ -267,56 +274,53 @@ public class VentaService {
                 tanda.getEvento().getNombre(), tanda.getNombre());
     }
 
+    /** Datos para el mail de reembolso — solo tiene sentido leerlos si reembolsada() es true. */
+    public record ReembolsoEntradas(boolean reembolsada, String emailComprador, String nombreComprador, String nombreEvento) {
+        static final ReembolsoEntradas NO_HIZO_FALTA = new ReembolsoEntradas(false, null, null, null);
+    }
+
     /**
      * Marca una orden como Reembolsada una vez devuelto el dinero. No toca una orden ya
      * Aprobada (esa se entregó): un reembolso manual desde el panel de MP no la revierte.
+     *
+     * @return si de verdad se reembolsó ahora (no si ya lo estaba), junto con los datos
+     *         del comprador para que el llamador le avise por mail.
      */
     @Transactional
-    public void marcarOrdenReembolsada(String externalReference, Long paymentId) {
-        transaccionPagoRepository.findByExternalReferenceForUpdate(externalReference).ifPresent(transaccion -> {
-            if (transaccion.getEstado() == EstadoTransaccion.Aprobada
-                    || transaccion.getEstado() == EstadoTransaccion.Reembolsada) {
-                return;
-            }
-            transaccion.setEstado(EstadoTransaccion.Reembolsada);
-            transaccion.setMercadopagoPaymentId(paymentId.toString());
-            transaccionPagoRepository.save(transaccion);
-            log.info("Orden {} marcada como Reembolsada (pago MP {})", externalReference, paymentId);
-        });
+    public ReembolsoEntradas marcarOrdenReembolsada(String externalReference, Long paymentId) {
+        TransaccionPago transaccion = transaccionPagoRepository.findByExternalReferenceForUpdate(externalReference).orElse(null);
+        if (transaccion == null
+                || transaccion.getEstado() == EstadoTransaccion.Aprobada
+                || transaccion.getEstado() == EstadoTransaccion.Reembolsada) {
+            return ReembolsoEntradas.NO_HIZO_FALTA;
+        }
+        transaccion.setEstado(EstadoTransaccion.Reembolsada);
+        transaccion.setMercadopagoPaymentId(paymentId.toString());
+        transaccionPagoRepository.save(transaccion);
+        log.info("Orden {} marcada como Reembolsada (pago MP {})", externalReference, paymentId);
+
+        String nombreEvento = tandaRepository.findById(transaccion.getIdTanda())
+                .map(t -> t.getEvento().getNombre())
+                .orElse("el evento");
+        return new ReembolsoEntradas(true, transaccion.getEmailComprador(), transaccion.getNombreComprador(), nombreEvento);
     }
 
-    // ─────────────────────────────────────────────
-    // Confirmación por email de una compra (una o varias entradas)
-    // ─────────────────────────────────────────────
-
     /**
-     * Manda UN SOLO mail con los códigos QR de todas las entradas de una compra.
-     * El codigoQr ya es el token de acceso de cada entrada en el resto de la app
-     * (ver GET /tickets/by-codigo): acá se usa igual, validando que el email que
-     * pide el mail sea el mismo que figura en cada entrada antes de incluirla.
-     *
-     * Público (sin JWT): el Comprador nunca inicia sesión en este flujo (CU-017).
+     * Vence una orden de entradas abandonada (el comprador nunca pagó o cerró la pestaña
+     * de MercadoPago). Llamar siempre DESPUÉS de reconciliar: si mientras tanto se aprobó
+     * el pago, la orden ya no está `Pendiente` y esto no hace nada — no se puede expirar
+     * una orden que se acaba de confirmar.
      */
-    @Transactional(readOnly = true)
-    public void enviarConfirmacionCompraAgrupada(ConfirmarCompraGrupalRequestDTO dto) {
-        List<Entrada> entradas = new ArrayList<>();
-        for (String codigoQr : dto.getCodigosQr()) {
-            Entrada entrada = entradaRepository.findByCodigoQr(codigoQr)
-                    .orElseThrow(() -> new ResourceNotFoundException("Entrada no encontrada: " + codigoQr));
-            if (!entrada.getEmailComprador().equalsIgnoreCase(dto.getEmailComprador())) {
-                throw new ForbiddenActionException("No tenés permiso para confirmar esta entrada");
+    @Transactional
+    public void expirarSiSigueActivaPendiente(String externalReference) {
+        transaccionPagoRepository.findByExternalReferenceForUpdate(externalReference).ifPresent(transaccion -> {
+            if (transaccion.getEstado() != EstadoTransaccion.Pendiente) {
+                return;
             }
-            entradas.add(entrada);
-        }
-
-        Tanda tanda = entradas.get(0).getTanda();
-        emailService.enviarConfirmacionCompra(
-                dto.getEmailComprador(),
-                dto.getNombreComprador(),
-                tanda.getEvento().getNombre(),
-                tanda.getNombre(),
-                dto.getCodigosQr()
-        );
+            transaccion.setEstado(EstadoTransaccion.Expirada);
+            transaccionPagoRepository.save(transaccion);
+            log.info("Orden {} marcada como Expirada (venció sin pagarse)", externalReference);
+        });
     }
 
     // ─────────────────────────────────────────────
@@ -453,6 +457,12 @@ public class VentaService {
                     "Estado: " + tanda.getEvento().getEstado());
         }
         LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime inicioEvento = LocalDateTime.of(tanda.getEvento().getFechaEvento(), tanda.getEvento().getHoraEvento());
+        if (ahora.isAfter(inicioEvento)) {
+            // Independiente de la vigencia propia de la tanda (que es opcional): un evento que
+            // ya pasó no se puede seguir comprando, tenga o no la tanda su propia fecha de cierre.
+            throw new BusinessRuleException("El evento \"" + tanda.getEvento().getNombre() + "\" ya finalizó.");
+        }
         if (tanda.getFechaInicioVigencia() != null && ahora.isBefore(tanda.getFechaInicioVigencia())) {
             throw new BusinessRuleException(
                     "La venta de la tanda \"" + tanda.getNombre() + "\" todavía no está abierta.");
@@ -492,6 +502,25 @@ public class VentaService {
     private int limitePorComprador() {
         return configuracionService.obtenerEntero(
                 CLAVE_MAX_ENTRADAS_POR_COMPRADOR, MAX_ENTRADAS_POR_COMPRADOR_DEFAULT);
+    }
+
+    /**
+     * Cuántas entradas más se le pueden vender a este comprador para este evento sin
+     * superar el tope por comprador — para que el POS del Staff Vendedor no deje armar
+     * una venta que `validarLimitePorComprador` va a rechazar a mitad de camino.
+     */
+    @Transactional(readOnly = true)
+    public DisponibilidadCompradorResponseDTO consultarDisponibilidadComprador(Long idEvento, String email) {
+        int limite = limitePorComprador();
+        long yaCompradas = (email == null || email.isBlank())
+                ? 0
+                : entradaRepository.countByEventoIdAndEmailComprador(idEvento, email);
+        int disponible = (int) Math.max(0, limite - yaCompradas);
+        return DisponibilidadCompradorResponseDTO.builder()
+                .limite(limite)
+                .yaCompradas(yaCompradas)
+                .disponible(disponible)
+                .build();
     }
 
     /**

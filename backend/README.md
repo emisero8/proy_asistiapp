@@ -43,8 +43,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
 No existe auto-registro para el rol Administrador (solo Organizador puede registrarse solo — `POST /auth/register`; Admin y Staff los da de alta un Administrador existente). Para no depender de insertar filas a mano, al arrancar fuera del perfil `prod` (`DevDataSeeder`) el backend crea automáticamente un Administrador si todavía no hay ninguno:
 
 ```
-email:    admin@asistiapp.com
-password: Admin123!
+email:    admin@demo.com
+password: Demo1234!
 ```
 
 Cambiar esta contraseña (o eliminar ese usuario) antes de ir a producción — el seeder no corre si `SPRING_PROFILES_ACTIVE=prod`.

@@ -448,4 +448,47 @@ class EventoServiceTest {
                 .containsExactly("Recién creado", "Antiguo");
         verify(eventoRepository, never()).findByIdOrganizador(any());
     }
+
+    // ─────────────────────────────────────────────
+    // Selector de eventos para el POS del Staff Vendedor (CU-019) — nunca
+    // ofrecer un evento ya finalizado, aunque siga en estado Publicado (no
+    // hay un estado "Finalizado" propio; el backend igual rechazaría la
+    // venta, pero no tiene sentido dejarlo elegir en primer lugar).
+    // ─────────────────────────────────────────────
+
+    @Test
+    void listarEventosPublicadosDeOrganizador_excluyeLosYaFinalizados() {
+        evento.setEstado(EstadoEvento.Publicado);
+        evento.setFechaEvento(LocalDate.now().minusDays(1));
+        when(eventoRepository.findByIdOrganizadorAndEstado(ID_ORGANIZADOR, EstadoEvento.Publicado))
+                .thenReturn(List.of(evento));
+
+        assertThat(eventoService.listarEventosPublicadosDeOrganizador(ID_ORGANIZADOR)).isEmpty();
+    }
+
+    @Test
+    void listarEventosPublicadosDeOrganizador_incluyeLosFuturos() {
+        evento.setEstado(EstadoEvento.Publicado);
+        when(eventoRepository.findByIdOrganizadorAndEstado(ID_ORGANIZADOR, EstadoEvento.Publicado))
+                .thenReturn(List.of(evento));
+
+        assertThat(eventoService.listarEventosPublicadosDeOrganizador(ID_ORGANIZADOR)).hasSize(1);
+    }
+
+    @Test
+    void listarEventoPublicadoDeVendedor_yaFinalizado_devuelveVacio() {
+        evento.setEstado(EstadoEvento.Publicado);
+        evento.setFechaEvento(LocalDate.now().minusDays(1));
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThat(eventoService.listarEventoPublicadoDeVendedor(evento.getId(), ID_ORGANIZADOR)).isEmpty();
+    }
+
+    @Test
+    void listarEventoPublicadoDeVendedor_futuro_devuelveElEvento() {
+        evento.setEstado(EstadoEvento.Publicado);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThat(eventoService.listarEventoPublicadoDeVendedor(evento.getId(), ID_ORGANIZADOR)).hasSize(1);
+    }
 }

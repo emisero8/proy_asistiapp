@@ -41,8 +41,12 @@ public class LogAuditoria {
     @Column(name = "entidad_afectada", nullable = false, length = 50)
     private String entidadAfectada;
 
-    /** ID del registro afectado. */
-    @Column(name = "id_entidad_afectada", nullable = false)
+    /**
+     * ID del registro afectado. Nullable: una acción de alcance global (ej. un anuncio a
+     * todos los usuarios) no tiene una única entidad afectada — AuditoriaAspect no
+     * encuentra ningún Long entre los argumentos ni en el valor de retorno.
+     */
+    @Column(name = "id_entidad_afectada")
     private Long idEntidadAfectada;
 
     /** Detalle adicional o descripción legible del cambio. */

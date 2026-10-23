@@ -208,6 +208,13 @@ export interface VentaManualRequestDTO {
   emailComprador: string;
 }
 
+/** GET /tickets/disponibilidad-comprador: cuánto más se le puede vender a este comprador (CU-019). */
+export interface DisponibilidadCompradorResponseDTO {
+  limite: number;
+  yaCompradas: number;
+  disponible: number;
+}
+
 export interface ValidacionQRRequestDTO {
   codigoQr: string;
 }
@@ -249,10 +256,26 @@ export interface EstadisticasPublicasResponseDTO {
   eventosPublicados: number;
 }
 
+/** GET /public/soporte: datos de contacto configurables por el Admin (ConfiguracionSistema). */
+export interface SoporteResponseDTO {
+  emailSoporte: string | null;
+  whatsappSoporte: string | null;
+}
+
 export interface IniciarCompraCreditoResponseDTO {
   ordenId: number;
   urlPago: string;
   mensaje: string;
+}
+
+/** GET /creditos/compras (CU-019): todas las órdenes del Organizador, en cualquier estado. */
+export interface CompraCreditoResponseDTO {
+  externalReference: string;
+  nombrePaquete: string;
+  cantidadCreditos: number | null;
+  monto: number;
+  estado: EstadoTransaccion;
+  fechaTransaccion: string;
 }
 
 // ── Staff ─────────────────────────────────────────────
@@ -355,6 +378,30 @@ export interface EventoMetricasResponseDTO {
   cupoTotal: number;
   cupoDisponible: number;
   tandas: TandaMetricasDTO[];
+}
+
+// ── Notificaciones (in-app) ───────────────────────────
+
+export type OrigenNotificacion = "Admin" | "Sistema";
+
+export interface NotificacionResponseDTO {
+  id: number;
+  origen: OrigenNotificacion;
+  titulo: string;
+  mensaje: string;
+  leida: boolean;
+  fechaCreacion: string;
+  tipoEntidadRelacionada: string | null;
+  idEntidadRelacionada: number | null;
+}
+
+export interface CrearAnuncioRequestDTO {
+  titulo: string;
+  mensaje: string;
+}
+
+export interface AnuncioEnviadoResponseDTO {
+  enviadas: number;
 }
 
 // ── Errores (contrato de GlobalExceptionHandler) ──────

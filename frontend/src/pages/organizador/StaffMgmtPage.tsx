@@ -11,6 +11,19 @@ const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: st
   Staff_Vendedor: { label: "Staff Vendedor", desc: "Vende y genera entradas en el evento", icon: Store, color: "text-muted-foreground", bg: "bg-muted" },
 };
 
+/**
+ * Solo tiene sentido asignar staff nuevo a un evento Publicado que todavía no terminó —
+ * uno Cancelado o ya finalizado no tiene nada para validar/vender, y uno en Borrador
+ * todavía no tiene tandas en venta. El selector "Evento asignado" no debe ofrecerlos,
+ * aunque sigan en la lista general (que también alimenta el nombre de staff ya asignado
+ * a eventos viejos, y a esa sí hay que mostrarle todo).
+ */
+export function eventoDisponibleParaStaff(ev: EventoResponseDTO): boolean {
+  if (ev.estado !== "Publicado") return false;
+  // Sin "Z": se interpreta en hora local, igual que fechaEvento/horaEvento (LocalDate/LocalTime del backend).
+  return new Date(`${ev.fechaEvento}T${ev.horaEvento}`) > new Date();
+}
+
 export function OrganizadorStaffMgmtPage() {
   useDocumentTitle("Staff");
   const { confirm, alert } = useDialog();
@@ -250,7 +263,7 @@ export function OrganizadorStaffMgmtPage() {
                 className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50"
               >
                 <option value="">Elegí un evento...</option>
-                {eventos.map((ev) => (
+                {eventos.filter(eventoDisponibleParaStaff).map((ev) => (
                   <option key={ev.id} value={ev.id}>
                     {ev.nombre}
                   </option>
@@ -262,6 +275,11 @@ export function OrganizadorStaffMgmtPage() {
                   <button type="button" onClick={cargarEventos} className="text-[11px] font-semibold underline hover:no-underline">
                     Reintentar
                   </button>
+                </p>
+              )}
+              {!errorEventos && eventos.length > 0 && eventos.filter(eventoDisponibleParaStaff).length === 0 && (
+                <p className="text-[11px] text-muted-foreground mt-1.5">
+                  No tenés eventos publicados todavía vigentes — publicá uno para poder asignarle staff.
                 </p>
               )}
               <p className="text-[10px] text-muted-foreground mt-1">
