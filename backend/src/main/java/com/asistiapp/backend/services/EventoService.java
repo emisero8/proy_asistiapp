@@ -79,6 +79,7 @@ public class EventoService {
     public List<EventoResponseDTO> listarEventosPublicadosDeOrganizador(Long idOrganizador) {
         return eventoRepository.findByIdOrganizadorAndEstado(idOrganizador, EstadoEvento.Publicado)
                 .stream()
+                .filter(e -> !yaFinalizo(e))
                 .map(this::toResponseDTO)
                 .toList();
     }
@@ -86,15 +87,22 @@ public class EventoService {
     /**
      * El evento asignado a un Staff Vendedor (CU-019). Devuelve una lista de 0 o
      * 1 elemento: vacía si el evento no existe, no pertenece al organizador del
-     * vendedor, o no está Publicado.
+     * vendedor, no está Publicado, o ya pasó su fecha y hora — vender para un
+     * evento que ya terminó es inútil (el backend lo rechaza igual al confirmar
+     * la venta), así que ni se lo ofrecemos como opción.
      */
     @Transactional(readOnly = true)
     public List<EventoResponseDTO> listarEventoPublicadoDeVendedor(Long idEvento, Long idOrganizador) {
         return eventoRepository.findById(idEvento)
                 .filter(e -> e.getIdOrganizador().equals(idOrganizador))
                 .filter(e -> e.getEstado() == EstadoEvento.Publicado)
+                .filter(e -> !yaFinalizo(e))
                 .map(e -> List.of(toResponseDTO(e)))
                 .orElseGet(List::of);
+    }
+
+    private boolean yaFinalizo(Evento evento) {
+        return !LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento()).isAfter(LocalDateTime.now());
     }
 
     // ─────────────────────────────────────────────

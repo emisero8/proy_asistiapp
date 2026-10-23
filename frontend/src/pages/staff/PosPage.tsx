@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, LogOut, Minus, Plus, QrCode, RotateCcw } from "lucide-react";
+import { ChevronDown, Copy, LogOut, Minus, Plus, QrCode, RotateCcw, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { api, ApiError, API_BASE_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt } from "../../lib/format";
@@ -11,6 +12,20 @@ import type {
   VentaManualRequestDTO,
 } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+
+/** Link público (sin login) donde el comprador ve su entrada y el QR — para que el vendedor se lo pueda mandar. */
+function linkEntrada(codigoQr: string) {
+  return `${window.location.origin}/mi-entrada?codigoQr=${encodeURIComponent(codigoQr)}`;
+}
+
+async function copiarAlPortapapeles(texto: string, mensajeOk: string) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    toast.success(mensajeOk);
+  } catch {
+    toast.error("No pudimos copiar el enlace. Copialo a mano.");
+  }
+}
 
 export function StaffPosPage() {
   useDocumentTitle("Punto de venta");
@@ -183,17 +198,59 @@ export function StaffPosPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-3 font-mono tracking-wider">{entrada.codigoQr}</p>
+                    <div className="w-full flex gap-2 mt-4">
+                      <button
+                        onClick={() => copiarAlPortapapeles(linkEntrada(entrada.codigoQr), "Enlace copiado")}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-muted text-foreground text-xs font-semibold hover:bg-muted/70 transition-colors"
+                      >
+                        <Copy size={13} />
+                        Copiar enlace
+                      </button>
+                      {typeof navigator.share === "function" && (
+                        <button
+                          onClick={() =>
+                            navigator
+                              .share({
+                                title: `Entrada — ${evento.nombre}`,
+                                text: `Tu entrada para ${evento.nombre}`,
+                                url: linkEntrada(entrada.codigoQr),
+                              })
+                              .catch(() => {})
+                          }
+                          aria-label="Compartir entrada"
+                          className="w-10 flex-none flex items-center justify-center rounded-xl bg-muted text-foreground hover:bg-muted/70 transition-colors"
+                        >
+                          <Share2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-            <button
-              onClick={handleReset}
-              className="w-full lg:w-auto lg:px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors flex items-center justify-center gap-2"
-            >
-              <RotateCcw size={15} />
-              Nueva venta
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              {entradas.length > 1 && (
+                <button
+                  onClick={() =>
+                    copiarAlPortapapeles(
+                      entradas.map((e) => linkEntrada(e.codigoQr)).join("\n"),
+                      `${entradas.length} enlaces copiados`,
+                    )
+                  }
+                  className="w-full sm:w-auto sm:px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors flex items-center justify-center gap-2"
+                >
+                  <Copy size={15} />
+                  Copiar los {entradas.length} enlaces
+                </button>
+              )}
+              <button
+                onClick={handleReset}
+                className="w-full sm:w-auto sm:px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={15} />
+                Nueva venta
+              </button>
+            </div>
           </div>
         </div>
       </div>
