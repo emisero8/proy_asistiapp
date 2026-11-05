@@ -21,6 +21,7 @@ export function CheckoutPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmarEmail, setConfirmarEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +38,9 @@ export function CheckoutPage() {
 
   const { evento, tanda, qty } = state;
   const total = tanda.precio * qty;
-  const valid = name.trim().length > 1 && email.length > 4 && email.includes("@");
+  const emailsNoCoinciden = confirmarEmail.length > 0 && email !== confirmarEmail;
+  const valid =
+    name.trim().length > 1 && email.length > 4 && email.includes("@") && email === confirmarEmail;
 
   async function handleConfirm() {
     setLoading(true);
@@ -108,6 +111,24 @@ export function CheckoutPage() {
                 <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
                   <span className="text-green-400 font-bold">✓</span> Recibís la entrada en este email.
                 </p>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Confirmar email</label>
+                <input
+                  type="email"
+                  value={confirmarEmail}
+                  onChange={(e) => setConfirmarEmail(e.target.value)}
+                  onPaste={(e) => e.preventDefault()}
+                  placeholder="Repetí tu email"
+                  className={`w-full px-4 py-3 bg-card border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
+                    emailsNoCoinciden
+                      ? "border-destructive focus:ring-destructive/50"
+                      : "border-border focus:ring-primary/50"
+                  }`}
+                />
+                {emailsNoCoinciden && (
+                  <p className="text-xs text-destructive mt-1.5">Los emails no coinciden.</p>
+                )}
               </div>
               {/* submit oculto: habilita enviar con Enter; el botón visible está en el panel lateral */}
               <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>

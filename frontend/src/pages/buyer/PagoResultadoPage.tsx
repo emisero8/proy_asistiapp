@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { CheckCircle2, AlertCircle, CircleX, Clock3, QrCode } from "lucide-react";
+import { CheckCircle2, AlertCircle, CircleX, Clock3, QrCode, Copy, Check } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import type { EstadoOrdenCreditoResponseDTO, EstadoOrdenEntradasResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -29,7 +29,18 @@ export function PagoResultadoPage() {
   const [error, setError] = useState<string | null>(null);
   const [ordenEntradas, setOrdenEntradas] = useState<EstadoOrdenEntradasResponseDTO | null>(null);
   const [ordenCreditos, setOrdenCreditos] = useState<EstadoOrdenCreditoResponseDTO | null>(null);
+  const [linkCopiado, setLinkCopiado] = useState(false);
   const intentos = useRef(0);
+
+  async function copiarLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopiado(true);
+      setTimeout(() => setLinkCopiado(false), 2500);
+    } catch {
+      // Clipboard API puede fallar en http sin foco de página — no es crítico, se ignora.
+    }
+  }
 
   useEffect(() => {
     if (!ref || (tipo !== "entradas" && tipo !== "creditos")) {
@@ -156,6 +167,20 @@ export function PagoResultadoPage() {
                   titulo="¡Pago aprobado!"
                   texto={`Ya tenés ${ordenEntradas.cantidad > 1 ? `tus ${ordenEntradas.cantidad} entradas` : "tu entrada"} para ${ordenEntradas.nombreEvento}. También te mandamos un mail con el código QR de cada una.`}
                 />
+                <button
+                  onClick={copiarLink}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-primary/40 bg-primary/5 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors"
+                >
+                  {linkCopiado ? (
+                    <>
+                      <Check size={15} /> Enlace copiado
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={15} /> Copiar enlace para compartir
+                    </>
+                  )}
+                </button>
                 <div className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden">
                   {ordenEntradas.entradas.map((entrada, i) => (
                     <button

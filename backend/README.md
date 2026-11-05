@@ -29,6 +29,9 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `MP_WEBHOOK_SECRET` | vacío — clave secreta de Webhooks de MercadoPago |
    | `MP_VALIDAR_FIRMA` | `true` — **dejar en `true` en producción** |
    | `BACKEND_PUBLIC_URL` | `http://localhost:8080` — URL pública HTTPS (ngrok en local) |
+   | `CLOUDINARY_CLOUD_NAME` | vacío — sin esto, subir una imagen de portada de evento falla (el resto de la app funciona igual) |
+   | `CLOUDINARY_API_KEY` | vacío |
+   | `CLOUDINARY_API_SECRET` | vacío |
 
 3. Correr:
    ```
@@ -43,8 +46,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
 No existe auto-registro para el rol Administrador (solo Organizador puede registrarse solo — `POST /auth/register`; Admin y Staff los da de alta un Administrador existente). Para no depender de insertar filas a mano, al arrancar fuera del perfil `prod` (`DevDataSeeder`) el backend crea automáticamente un Administrador si todavía no hay ninguno:
 
 ```
-email:    admin@demo.com
-password: Demo1234!
+email:    admin@asistiapp.com
+password: Admin123!
 ```
 
 Cambiar esta contraseña (o eliminar ese usuario) antes de ir a producción — el seeder no corre si `SPRING_PROFILES_ACTIVE=prod`.
