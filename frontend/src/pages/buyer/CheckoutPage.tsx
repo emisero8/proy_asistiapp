@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt } from "../../lib/format";
+import { iniciarPago, rutaResultadoPago } from "../../lib/pago";
 import type { EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
@@ -49,14 +50,19 @@ export function CheckoutPage() {
       // Una sola orden para las "qty" entradas: el backend genera una Entrada (con
       // su propio QR) por cada unidad al confirmarse el pago, pero la cobra en una
       // sola preferencia de MercadoPago.
-      const orden = await api.post<IniciarCompraResponseDTO>(
-        "/tickets/comprar-online",
-        { idTanda: tanda.id, cantidad: qty, nombreComprador: name, emailComprador: email },
-        { skipAuth: true },
+      // El pago se confirma por el webhook de MercadoPago (o la reconciliación), no acá.
+      // Con HTTPS MercadoPago vuelve solo a /pago/resultado; en local se paga en otra
+      // pestaña y esta se queda esperando ahí (ver lib/pago.ts).
+      const { orden, enPestanaNueva } = await iniciarPago(() =>
+        api.post<IniciarCompraResponseDTO>(
+          "/tickets/comprar-online",
+          { idTanda: tanda.id, cantidad: qty, nombreComprador: name, emailComprador: email },
+          { skipAuth: true },
+        ),
       );
-      // Redirección real a Checkout Pro — el pago se confirma por el webhook de
-      // MercadoPago, no acá. MercadoPago vuelve a /pago/resultado cuando termina.
-      window.location.href = orden.urlPago;
+      if (enPestanaNueva) {
+        navigate(rutaResultadoPago(orden.ordenId, "entradas"), { state: { urlPago: orden.urlPago } });
+      }
     } catch (e: unknown) {
       setError(e instanceof ApiError ? e.message : "No pudimos iniciar el pago. Intentá de nuevo.");
       setLoading(false);

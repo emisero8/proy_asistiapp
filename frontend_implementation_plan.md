@@ -336,3 +336,17 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
    - Gap real encontrado en el backend: faltaban los endpoints de estado de orden (`GET /tickets/orden/{uuid}`, `GET /creditos/orden/{uuid}`) — se agregaron correctamente del lado del backend (DTOs propios, sin exponer entidades), no se parcheó desde el frontend.
    - Bug real de backend encontrado y corregido de paso: con credenciales de usuario de prueba, MercadoPago solo completa el pago en `sandbox_init_point`, no en `init_point` (que se usaba siempre) — ver `DECISIONES.md`.
 6. Probado de punta a punta con el flujo de la **Fase 21** (backend real + ngrok + usuario de prueba comprador de MP, login real — "pagar con tarjeta como invitado" no funciona con estas credenciales, ver `DECISIONES.md`) en desktop. Mobile no se re-verificó en esta sesión (la pantalla ya tenía breakpoints `md:`/`lg:` desde que se creó).
+
+## Fase 13: Pago en pestaña nueva cuando no hay HTTPS ✅
+**Objetivo:** poder mostrar la compra completa en local. Sin HTTPS, MercadoPago no ofrece ninguna forma de volver al sitio después de pagar (ver Fase 12 y `DECISIONES.md`), y la app se va a mostrar sin desplegar.
+
+### Qué se hizo
+1. `lib/pago.ts` (nuevo): `iniciarPago()` abre una pestaña en blanco en el mismo click, crea la orden y le carga la URL de MercadoPago. Solo en `http`; con HTTPS redirige en la misma pestaña como antes. Si el navegador bloquea la pestaña cae a la redirección normal, y si el backend falla cierra la pestaña en blanco.
+2. `CheckoutPage` y `WalletPage`: usan `iniciarPago()` y, si el pago quedó en otra pestaña, navegan a `/pago/resultado` con la referencia de la orden.
+3. `PagoResultadoPage`: la espera pasó de 8 intentos cada 2,5 s a 150 cada 4 s (10 minutos), reconsulta al instante cuando la pestaña recupera el foco, tolera un fallo suelto de red sin cortar la espera, y al agotarse ofrece "Volver a consultar". Si llegó por el flujo de pestaña nueva lo dice y deja reabrir MercadoPago.
+4. `types.ts`: `IniciarCompraCreditoResponseDTO.ordenId` estaba tipado como `number`; el backend manda el UUID como string.
+
+### Adaptaciones y notas
+- Sin cambios de backend: las dos respuestas de inicio de compra ya traían la referencia de la orden en `ordenId`.
+- Tests nuevos: `lib/pago.test.ts` (6) y `PagoResultadoPage.test.tsx` (5), que no tenía ninguno.
+- Verificado en vivo con Playwright en desktop y mobile, para entradas y créditos: se abre el checkout del sandbox en la pestaña nueva y la original queda esperando. El paso a "aprobado" se probó simulando la respuesta de estado de la orden; **el pago real con el usuario comprador de prueba queda por hacer a mano** (requiere login en MercadoPago).

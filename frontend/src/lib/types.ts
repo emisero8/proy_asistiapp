@@ -263,7 +263,7 @@ export interface SoporteResponseDTO {
 }
 
 export interface IniciarCompraCreditoResponseDTO {
-  ordenId: number;
+  ordenId: string;
   urlPago: string;
   mensaje: string;
 }

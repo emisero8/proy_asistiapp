@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { CreditCard, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt } from "../../lib/format";
+import { iniciarPago, rutaResultadoPago } from "../../lib/pago";
 import type {
   CompraCreditoResponseDTO,
   EstadoTransaccion,
@@ -31,6 +33,7 @@ const ESTADO_COMPRA_BADGE: Record<EstadoTransaccion, string> = {
 export function OrganizadorWalletPage() {
   useDocumentTitle("Créditos");
   const { session } = useAuth();
+  const navigate = useNavigate();
   const [historial, setHistorial] = useState<MovimientoCreditoResponseDTO[] | null>(null);
   const [compras, setCompras] = useState<CompraCreditoResponseDTO[] | null>(null);
   const [paquetes, setPaquetes] = useState<PaqueteCreditoDisponibleDTO[] | null>(null);
@@ -59,10 +62,14 @@ export function OrganizadorWalletPage() {
     setComprando(true);
     setError(null);
     try {
-      const orden = await api.post<IniciarCompraCreditoResponseDTO>("/creditos/comprar", { idPaquete });
-      // Redirección real a Checkout Pro — el pago se confirma por el webhook de
-      // MercadoPago, no acá. MercadoPago vuelve a /pago/resultado cuando termina.
-      window.location.href = orden.urlPago;
+      // El pago se confirma por el webhook de MercadoPago (o la reconciliación), no acá.
+      // En local se paga en otra pestaña y esta espera en /pago/resultado (ver lib/pago.ts).
+      const { orden, enPestanaNueva } = await iniciarPago(() =>
+        api.post<IniciarCompraCreditoResponseDTO>("/creditos/comprar", { idPaquete }),
+      );
+      if (enPestanaNueva) {
+        navigate(rutaResultadoPago(orden.ordenId, "creditos"), { state: { urlPago: orden.urlPago } });
+      }
     } catch (e: unknown) {
       setError(e instanceof ApiError ? e.message : "No pudimos procesar la compra.");
       setComprando(false);
