@@ -124,7 +124,6 @@ export function CheckoutPage() {
                   type="email"
                   value={confirmarEmail}
                   onChange={(e) => setConfirmarEmail(e.target.value)}
-                  onPaste={(e) => e.preventDefault()}
                   placeholder="Repetí tu email"
                   className={`w-full px-4 py-3 bg-card border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
                     emailsNoCoinciden
