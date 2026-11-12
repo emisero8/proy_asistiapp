@@ -153,6 +153,14 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- ===== GreenMail (servidor SMTP real dentro del test, sin Docker ni MailHog) ===== -->
+        <dependency>
+            <groupId>com.icegreen</groupId>
+            <artifactId>greenmail-junit5</artifactId>
+            <version>2.0.1</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>

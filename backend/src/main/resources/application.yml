@@ -20,32 +20,26 @@ spring:
       max-file-size: 5MB
       max-request-size: 5MB
 
-  # ── Gmail SMTP (producción) ──────────────────────────────────────────
-  # Descomentar este bloque y comentar el de MailHog para usar Gmail.
-  # mail:
-  #   host: ${SMTP_HOST:smtp.gmail.com}
-  #   port: ${SMTP_PORT:587}
-  #   username: ${SMTP_USERNAME:tu_email@gmail.com}
-  #   password: ${SMTP_PASSWORD:tu_app_password_aqui}
-  #   properties:
-  #     mail:
-  #       smtp:
-  #         auth: true
-  #         starttls:
-  #           enable: true
-
-  # ── MailHog SMTP (desarrollo local) ────────────────────────────────
-  # MailHog corre en localhost:1025 (SMTP) y localhost:8025 (UI web).
-  # Levantar con:  docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
+  # ── SMTP (envío de mails) ────────────────────────────────────────────
+  # Por defecto apunta a MailHog (desarrollo local: SMTP en localhost:1025, bandeja en
+  # http://localhost:8025). Para usar Gmail u otro proveedor NO hace falta editar este archivo:
+  # alcanza con definir variables de entorno (las credenciales nunca van en el repo).
+  #
+  #   Gmail:  SMTP_HOST=smtp.gmail.com  SMTP_PORT=587  SMTP_AUTH=true  SMTP_STARTTLS=true
+  #           SMTP_USERNAME=tu_cuenta@gmail.com  SMTP_PASSWORD=<contraseña de aplicación de 16 letras>
+  #   La contraseña de aplicación se genera en la cuenta de Google (requiere verificación en 2 pasos);
+  #   NO sirve la contraseña normal de la cuenta. Gmail envía siempre desde la cuenta autenticada.
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${SMTP_AUTH:false}
           starttls:
-            enable: false
+            enable: ${SMTP_STARTTLS:false}
 
 server:
   port: ${SERVER_PORT:8080}

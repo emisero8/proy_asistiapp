@@ -1,0 +1,11 @@
+# Se activa con SPRING_PROFILES_ACTIVE=prod y se suma a application.yml (lo que se repite pisa al de arriba).
+# Acá solo va lo que tiene que ser distinto en producción; ver también JwtSecretValidator y AdminInicialSeeder,
+# que se comportan distinto con este perfil.
+spring:
+  jpa:
+    # En desarrollo se imprime cada consulta SQL para depurar; en producción solo llena el log
+    # (y es lento): una sola línea de log por consulta, con los valores de los datos de los compradores.
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false

@@ -23,6 +23,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `DB_PASSWORD`    | `1234`                                           |
    | `SMTP_HOST`      | `localhost` (MailHog)                            |
    | `SMTP_PORT`      | `1025` (MailHog)                                 |
+   | `SMTP_USERNAME` / `SMTP_PASSWORD` | vacíos (MailHog no usa autenticación). Con Gmail: la cuenta y su *contraseña de aplicación* (ver sección Envío de mails) |
+   | `SMTP_AUTH` / `SMTP_STARTTLS` | `false` (MailHog). Con Gmail: `true` y `true` |
    | `JWT_SECRET`     | valor de desarrollo hardcodeado (público). **En producción es obligatorio definirlo**: con `SPRING_PROFILES_ACTIVE=prod` el backend se niega a arrancar si sigue el de desarrollo, o si tiene menos de 32 caracteres |
    | `SPRING_PROFILES_ACTIVE` | vacío en desarrollo. **`prod` en producción**: activa el control de `JWT_SECRET` y evita que se cree un Admin con contraseña pública |
    | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` |
@@ -101,13 +103,15 @@ Esto levanta MailHog con:
 
 Todos los mails que envía el backend (confirmaciones de compra, credenciales de staff, recuperación de contraseña, cancelación de evento) se capturan en la UI web de MailHog — nada sale a internet.
 
-### Producción: Gmail u otro proveedor SMTP
+### Gmail u otro proveedor SMTP (producción, o local si no se puede usar Docker)
 
-En `application.yml` está comentado el bloque de Gmail. Para usarlo, descomentar ese bloque, comentar el de MailHog, y setear las variables de entorno:
+No hace falta editar `application.yml`: el proveedor se elige solo con variables de entorno (los valores por defecto siguen siendo los de MailHog). Para Gmail:
 
 ```
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
+SMTP_AUTH=true
+SMTP_STARTTLS=true
 SMTP_USERNAME=tu_cuenta@gmail.com
 SMTP_PASSWORD=<app password de 16 caracteres, NO la contraseña normal de la cuenta>
 ```
@@ -117,7 +121,13 @@ SMTP_PASSWORD=<app password de 16 caracteres, NO la contraseña normal de la cue
 2. Generarlo en `myaccount.google.com/apppasswords` (Cuenta de Google → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones).
 3. Copiar el código de 16 caracteres que muestra una sola vez — ese es el `SMTP_PASSWORD`.
 
-Para otros proveedores transaccionales (Brevo, SendGrid, Mailgun), el mecanismo es el mismo: son SMTP compatible, solo cambian esas 4 variables.
+Notas:
+- Gmail envía siempre **desde la cuenta autenticada** (no se puede poner otro remitente) y limita el volumen diario (unos 500 mails por cuenta personal): sirve para una demo o un lanzamiento chico, no para volumen.
+- Como los mails salen de verdad, en desarrollo usar una cuenta de prueba y destinatarios propios.
+- Sin Docker (por ejemplo, con la virtualización desactivada en la BIOS) MailHog no se puede levantar con `docker compose`; Gmail con una cuenta de prueba es la alternativa más simple para ver los mails en local.
+- Variables de entorno de usuario en Windows: reabrir la terminal / VS Code para que las tome (ver el `CLAUDE.md` para el caso de MercadoPago, que es igual).
+
+Para otros proveedores transaccionales (Brevo, SendGrid, Mailgun), el mecanismo es el mismo: son SMTP compatible, solo cambian esas variables.
 
 Si el envío falla (MailHog caído, credenciales mal puestas, límite excedido), la operación de negocio (compra, alta de staff, etc.) **igual se completa** — el fallo queda solo logueado (`EmailService` está diseñado para no bloquear el flujo principal por un mail caído). Para detectar fallos sistemáticos, revisar los logs del backend.
 
