@@ -37,7 +37,13 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    ```
    mvn spring-boot:run
    ```
-   Hibernate crea/actualiza el schema solo (`ddl-auto: update`) — no hace falta correr migraciones a mano en dev.
+   Hibernate crea/actualiza el schema solo (`ddl-auto: update`): tablas y columnas nuevas aparecen solas. Lo que **no** hace es cambiar constraints de tablas que ya existen, así que si tu base es anterior a un cambio de ese tipo hay que aplicar a mano los scripts de `db/migraciones/` (todos idempotentes, en orden de fecha):
+
+   ```
+   psql -h localhost -U postgres -d asistiapp_db -f db/migraciones/<archivo>.sql
+   ```
+
+   Si arrancás con una base vacía no necesitás correr ninguno. Si el anuncio global del Admin o marcar una orden como vencida/reembolsada devuelven 500, casi seguro falta alguno.
 
 4. La API queda en `http://localhost:8080`.
 
@@ -49,6 +55,8 @@ No existe auto-registro para el rol Administrador (solo Organizador puede regist
 email:    admin@asistiapp.com
 password: Admin123!
 ```
+
+El seeder **solo crea el Admin si no existe ninguno**. Si tu base ya tenía un Administrador (por ejemplo uno creado a mano), no hace nada y las credenciales de arriba no existen en esa base: usá las de tu Admin. Para saber cuál es: `select email from usuarios where rol = 'Administrador';`.
 
 Cambiar esta contraseña (o eliminar ese usuario) antes de ir a producción — el seeder no corre si `SPRING_PROFILES_ACTIVE=prod`.
 

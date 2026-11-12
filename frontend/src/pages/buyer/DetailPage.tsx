@@ -6,6 +6,7 @@ import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { estadoVentaTanda, etiquetaEstadoTanda } from "../../lib/tanda";
 import type { EventoPublicoDetalleDTO, TandaResponseDTO } from "../../lib/types";
 
 export function DetailPage() {
@@ -24,7 +25,9 @@ export function DetailPage() {
       .get<EventoPublicoDetalleDTO>(`/public/eventos/${urlPublica}`, { skipAuth: true })
       .then((data) => {
         setEvento(data);
-        setSel(data.tandas[0] ?? null);
+        // Preselecciona la primera tanda que se pueda comprar hoy; si no hay ninguna, la primera
+        // a secas para que la pantalla igual muestre el detalle (con la compra deshabilitada).
+        setSel(data.tandas.find((t) => estadoVentaTanda(t) === "disponible") ?? data.tandas[0] ?? null);
       })
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar el evento."));
   }, [urlPublica]);
@@ -56,7 +59,14 @@ export function DetailPage() {
   // El backend ya rechaza la compra de un evento vencido (VentaService.validarTandaDisponible);
   // acá solo evitamos que el comprador llegue a intentarlo.
   const eventoFinalizado = new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
-  const puedeComprar = !eventoFinalizado && sel.cupoDisponible > 0;
+  // Lo mismo con la venta de cada tanda: cerrada, todavía no abierta o agotada se ven pero no se eligen.
+  const hayTandaDisponible = evento.tandas.some((t) => estadoVentaTanda(t) === "disponible");
+  const puedeComprar = !eventoFinalizado && estadoVentaTanda(sel) === "disponible";
+  const textoBotonCompra = eventoFinalizado
+    ? "Evento finalizado"
+    : puedeComprar
+      ? "Comprar entradas"
+      : "Venta no disponible";
 
   return (
     <div className="min-h-screen bg-background">
@@ -95,6 +105,11 @@ export function DetailPage() {
                 Este evento ya finalizó — no se pueden comprar entradas.
               </div>
             )}
+            {!eventoFinalizado && !hayTandaDisponible && (
+              <div className="mt-4 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground lg:max-w-2xl">
+                La venta de entradas no está abierta en este momento.
+              </div>
+            )}
             {evento.descripcion && <p className="mt-4 text-sm text-muted-foreground leading-relaxed lg:max-w-2xl">{evento.descripcion}</p>}
 
             {evento.latitud != null && evento.longitud != null && (
@@ -106,10 +121,12 @@ export function DetailPage() {
             <div className="mt-6 lg:max-w-2xl">
               <h3 className="text-base font-bold text-foreground mb-3">Elegí tu tanda</h3>
               <div className="space-y-2">
-                {evento.tandas.map((t) => (
+                {evento.tandas.map((t) => {
+                  const estadoTanda = estadoVentaTanda(t);
+                  return (
                   <button
                     key={t.id}
-                    disabled={eventoFinalizado || t.cupoDisponible <= 0}
+                    disabled={eventoFinalizado || estadoTanda !== "disponible"}
                     onClick={() => setSel(t)}
                     className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                       sel.id === t.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"
@@ -125,14 +142,13 @@ export function DetailPage() {
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-foreground">{t.nombre}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t.cupoDisponible > 0 ? `${t.cupoDisponible} disponibles` : "Agotada"}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{etiquetaEstadoTanda(estadoTanda, t.cupoDisponible)}</p>
                       </div>
                     </div>
                     <span className="text-sm font-bold text-accent">{fmt(t.precio)}</span>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -142,7 +158,7 @@ export function DetailPage() {
                 <div className="flex items-center gap-4">
                   <button
                     onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    disabled={eventoFinalizado}
+                    disabled={!puedeComprar}
                     aria-label="Quitar una entrada"
                     className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
@@ -151,7 +167,7 @@ export function DetailPage() {
                   <span className="text-lg font-bold text-foreground w-4 text-center">{qtyEfectivo}</span>
                   <button
                     onClick={() => setQty((q) => Math.min(maxPorCompra, q + 1))}
-                    disabled={eventoFinalizado || qtyEfectivo >= maxPorCompra}
+                    disabled={!puedeComprar || qtyEfectivo >= maxPorCompra}
                     aria-label="Agregar una entrada"
                     className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
@@ -168,16 +184,22 @@ export function DetailPage() {
         {/* Panel de compra — sticky en desktop, reemplaza la barra fija de mobile */}
         <div className="hidden lg:block lg:w-80 lg:flex-none lg:sticky lg:top-8">
           <div className="bg-card border border-border rounded-2xl p-5">
-            <p className="text-xs text-muted-foreground mb-1">
-              {qtyEfectivo} × {sel.nombre}
-            </p>
-            <p className="text-2xl font-extrabold text-foreground mb-4">{fmt(sel.precio * qtyEfectivo)}</p>
+            {puedeComprar ? (
+              <>
+                <p className="text-xs text-muted-foreground mb-1">
+                  {qtyEfectivo} × {sel.nombre}
+                </p>
+                <p className="text-2xl font-extrabold text-foreground mb-4">{fmt(sel.precio * qtyEfectivo)}</p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground mb-4">No hay entradas a la venta en este momento.</p>
+            )}
             <button
               disabled={!puedeComprar}
               onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } })}
               className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {eventoFinalizado ? "Evento finalizado" : "Comprar entradas"}
+              {textoBotonCompra}
             </button>
           </div>
         </div>
@@ -187,18 +209,22 @@ export function DetailPage() {
 
       <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
         <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-muted-foreground">
-              {qtyEfectivo} × {sel.nombre}
-            </span>
-            <span className="text-base font-extrabold text-foreground">{fmt(sel.precio * qtyEfectivo)}</span>
-          </div>
+          {puedeComprar ? (
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-muted-foreground">
+                {qtyEfectivo} × {sel.nombre}
+              </span>
+              <span className="text-base font-extrabold text-foreground">{fmt(sel.precio * qtyEfectivo)}</span>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground mb-3">No hay entradas a la venta en este momento.</p>
+          )}
           <button
             disabled={!puedeComprar}
             onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } })}
             className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {eventoFinalizado ? "Evento finalizado" : "Comprar entradas"}
+            {textoBotonCompra}
           </button>
         </div>
       </div>

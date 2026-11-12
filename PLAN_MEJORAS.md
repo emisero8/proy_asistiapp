@@ -32,7 +32,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 | # | Qué | Tamaño | Estado |
 |---|---|---|---|
-| 0.1 | Commitear y pushear el pago en pestaña nueva (Fase 13 del plan de frontend). Está terminado y probado, sin commitear. | S | ⏳ |
+| 0.1 | Commitear y pushear el pago en pestaña nueva (Fase 13 del plan de frontend). Está terminado y probado, sin commitear. | S | ✅ commit `4f341e9`, pusheado |
 | 0.2 | Hacer un pago real con el usuario comprador de prueba de MercadoPago. El paso a "aprobado" se verificó simulando la respuesta del backend, no con un pago de verdad. | S | ⏳ |
 | 0.3 | Decidir qué hacer con `AsistíAPP - Planificación Scrum (1).xlsx` de la raíz (sin versionar). Ya hay una copia en `docs/`; si es la misma, borrarlo. | S | ⏳ |
 | 0.4 | Abrir el PR de `feature-mercadopago` a `master`. La rama ya acumula notificaciones, soporte, POS, calendarios y favicon. | S | ⏳ |
@@ -41,10 +41,14 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 | # | Qué | Tamaño | Estado |
 |---|---|---|---|
-| 1.1 | **Evento de demo con una tanda abierta.** El único evento publicado ("cervecero") tiene las dos tandas con la venta cerrada (29/10 y 6/11): hoy no se puede mostrar una compra. | S | ⏳ |
-| 1.2 | **La pantalla del evento deja avanzar con una tanda cerrada.** La tanda viene seleccionada, "Comprar entradas" está activo y el error ("La venta de la tanda ya cerró") aparece recién al confirmar en el checkout. Mostrar las tandas cerradas como "Venta cerrada", sin poder elegirlas, y desactivar el botón si no queda ninguna abierta. Archivo: `frontend/src/pages/buyer/DetailPage.tsx`. | M | ⏳ |
-| 1.3 | **Script SQL para las bases de los compañeros.** Sin `ALTER TABLE log_auditoria ALTER COLUMN id_entidad_afectada DROP NOT NULL;` el anuncio global del Admin devuelve 500 en cualquier base creada antes del 22/10. Dejarlo como archivo en `backend/db/migraciones/` (donde ya está el de MercadoPago) y mencionarlo en el README. Ya documentado en `DECISIONES.md` (deuda, 2026-10-22), pero solo como nota. | S | ⏳ |
-| 1.4 | **Unificar las credenciales del Admin.** El README documenta `admin@asistiapp.com`, pero en la base de desarrollo actual el que funciona es otro. Revisar el seeder y dejar una sola. | S | ⏳ |
+| 1.1 | **Evento de demo con una tanda abierta.** El único evento publicado ("cervecero") tiene las dos tandas con la venta cerrada (29/10 y 6/11): hoy no se puede mostrar una compra. | S | ✅ evento "Noche de Demo AsistíAPP" (id 54) publicado, 5 cupos a $1.500, venta abierta hasta el 19/12 |
+| 1.2 | **La pantalla del evento deja avanzar con una tanda cerrada.** La tanda viene seleccionada, "Comprar entradas" está activo y el error ("La venta de la tanda ya cerró") aparece recién al confirmar en el checkout. Mostrar las tandas cerradas como "Venta cerrada", sin poder elegirlas, y desactivar el botón si no queda ninguna abierta. Archivo: `frontend/src/pages/buyer/DetailPage.tsx`. | M | ✅ `DetailPage` + `lib/tanda.ts` (misma regla que el backend), con tests |
+| 1.3 | **Script SQL para las bases de los compañeros.** Sin `ALTER TABLE log_auditoria ALTER COLUMN id_entidad_afectada DROP NOT NULL;` el anuncio global del Admin devuelve 500 en cualquier base creada antes del 22/10. Dejarlo como archivo en `backend/db/migraciones/` (donde ya está el de MercadoPago) y mencionarlo en el README. Ya documentado en `DECISIONES.md` (deuda, 2026-10-22), pero solo como nota. | S | ✅ `backend/db/migraciones/2026-10-22-log-auditoria-entidad-nullable.sql` + sección en `backend/README.md` |
+| 1.4 | **Unificar las credenciales del Admin.** El README documenta `admin@asistiapp.com`, pero en la base de desarrollo actual el que funciona es otro. Revisar el seeder y dejar una sola. | S | ✅ No era una inconsistencia del código: ver nota abajo |
+
+**Nota 1.4:** el seeder (`DevDataSeeder`) crea `admin@asistiapp.com` **solo si no existe ningún Administrador**. La base de desarrollo de Felipe ya tenía uno creado a mano (`admin@demo.com`), así que el seeder no actuó; ambas credenciales son correctas, cada una en su base. `GUIA_DEMO.md` (que documenta `admin@demo.com`) está en `.gitignore`: es solo local. Se aclaró en `backend/README.md`. Lo que sí queda abierto es que la contraseña del seeder esté en el código (ítem 2.5).
+
+**Nota 1.1:** el evento de demo tiene 5 cupos porque cada entrada consume un crédito y el Organizador demo tenía 6 disponibles. Si hace falta más cupo, hay que acreditar créditos a ese Organizador. No tiene imagen de portada: se ve el ícono de imagen por defecto.
 
 ## Etapa 2 — Seguridad
 
