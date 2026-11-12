@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
  * backend arrancaba igual y firmaba con la clave pública sin avisar. Ahora no arranca.
  *
  * "Producción" es el perfil de Spring "prod" (SPRING_PROFILES_ACTIVE=prod), el mismo criterio que
- * ya usa DevDataSeeder para no sembrar el Admin de desarrollo.
+ * ya usa AdminInicialSeeder para no crear un Admin con contraseña pública.
  */
 @Slf4j
 @Component

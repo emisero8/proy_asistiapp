@@ -86,6 +86,11 @@ app:
     # inventar cualquiera. Si se despliega detrás de un proxy, ponerlo en su cantidad (normalmente 1);
     # si no, todos los usuarios compartirían la IP del proxy y el mismo límite.
     proxies-confiables: ${RATE_LIMIT_PROXIES_CONFIABLES:0}
+  admin-inicial:
+    # Primer Administrador (solo se crea si no existe ninguno). Sin password: en desarrollo se usa una
+    # de desarrollo pública; con el perfil "prod" no se crea nada. Ver AdminInicialSeeder.
+    email: ${ADMIN_INICIAL_EMAIL:}
+    password: ${ADMIN_INICIAL_PASSWORD:}
   frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
 
 logging:

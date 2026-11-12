@@ -24,7 +24,7 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `SMTP_HOST`      | `localhost` (MailHog)                            |
    | `SMTP_PORT`      | `1025` (MailHog)                                 |
    | `JWT_SECRET`     | valor de desarrollo hardcodeado (público). **En producción es obligatorio definirlo**: con `SPRING_PROFILES_ACTIVE=prod` el backend se niega a arrancar si sigue el de desarrollo, o si tiene menos de 32 caracteres |
-   | `SPRING_PROFILES_ACTIVE` | vacío en desarrollo. **`prod` en producción**: activa el control de `JWT_SECRET` y desactiva el seeder del Admin de desarrollo |
+   | `SPRING_PROFILES_ACTIVE` | vacío en desarrollo. **`prod` en producción**: activa el control de `JWT_SECRET` y evita que se cree un Admin con contraseña pública |
    | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` |
    | `MP_ACCESS_TOKEN` | vacío — Access Token de MercadoPago (ver sección MercadoPago) |
    | `MP_WEBHOOK_SECRET` | vacío — clave secreta de Webhooks de MercadoPago |
@@ -34,6 +34,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `CLOUDINARY_API_KEY` | vacío |
    | `CLOUDINARY_API_SECRET` | vacío |
    | `RATE_LIMIT_PROXIES_CONFIABLES` | `0` — cantidad de proxies propios delante del backend (nginx, balanceador). Con `0` el límite de peticiones cuenta por la IP de la conexión e ignora `X-Forwarded-For`. **Si se despliega detrás de un proxy, ponerlo en su cantidad** (normalmente `1`); si no, todos los usuarios comparten un único límite |
+   | `ADMIN_INICIAL_PASSWORD` | vacío — contraseña del primer Administrador (ver "Primer usuario Administrador"). **Obligatoria en producción** |
+   | `ADMIN_INICIAL_EMAIL` | `admin@asistiapp.com` — email del primer Administrador |
 
 3. Correr:
    ```
@@ -51,16 +53,20 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
 
 ## Primer usuario Administrador
 
-No existe auto-registro para el rol Administrador (solo Organizador puede registrarse solo — `POST /auth/register`; Admin y Staff los da de alta un Administrador existente). Para no depender de insertar filas a mano, al arrancar fuera del perfil `prod` (`DevDataSeeder`) el backend crea automáticamente un Administrador si todavía no hay ninguno:
+No existe auto-registro para el rol Administrador (solo Organizador puede registrarse solo — `POST /auth/register`; Admin y Staff los da de alta un Administrador existente). Para no depender de insertar filas a mano, al arrancar el backend crea el primer Administrador **si todavía no hay ninguno** (`AdminInicialSeeder`). Las credenciales salen de dos variables de entorno:
 
-```
-email:    admin@asistiapp.com
-password: Admin123!
-```
+| Variable | Qué hace |
+|---|---|
+| `ADMIN_INICIAL_PASSWORD` | Contraseña del primer Admin (mínimo 8 caracteres; si es más corta el backend no arranca). **Obligatoria en producción.** |
+| `ADMIN_INICIAL_EMAIL` | Email del primer Admin. Opcional: por defecto `admin@asistiapp.com`. |
 
-El seeder **solo crea el Admin si no existe ninguno**. Si tu base ya tenía un Administrador (por ejemplo uno creado a mano), no hace nada y las credenciales de arriba no existen en esa base: usá las de tu Admin. Para saber cuál es: `select email from usuarios where rol = 'Administrador';`.
+Qué pasa según el caso:
 
-Cambiar esta contraseña (o eliminar ese usuario) antes de ir a producción — el seeder no corre si `SPRING_PROFILES_ACTIVE=prod`.
+- **Con `ADMIN_INICIAL_PASSWORD` definida** (cualquier perfil): se crea el Admin con esas credenciales. La contraseña nunca se escribe en el log.
+- **Desarrollo, sin variables**: se crea `admin@asistiapp.com` / `Admin123!` (contraseña pública de desarrollo, para no obligar a configurar nada en local).
+- **Producción (`SPRING_PROFILES_ACTIVE=prod`), sin `ADMIN_INICIAL_PASSWORD`**: **no se crea ningún Admin** y el backend avisa en el log. Crear uno con una contraseña pública sería regalar el sistema.
+
+Solo actúa si **no existe ningún Administrador**: si tu base ya tenía uno (por ejemplo creado a mano), no hace nada y las credenciales de arriba no existen en esa base — usá las de tu Admin. Para saber cuál es: `select email from usuarios where rol = 'Administrador';`. Una vez creado, cambiar la contraseña desde el panel de Admin y quitar `ADMIN_INICIAL_PASSWORD` del entorno.
 
 ## Documentación de la API (Swagger / OpenAPI)
 
