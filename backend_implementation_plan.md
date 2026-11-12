@@ -460,6 +460,7 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 4. Cambiar `JWT_SECRET` y la contraseña de la base (los defaults de desarrollo son públicos).
 5. Volver a probar aprobado, pendiente, rechazado, compra de varias entradas, tanda agotada (reembolso) y compra de créditos.
 6. Aplicar `backend/db/migraciones/2026-10-15-mercadopago-ordenes.sql` si la base ya existía.
+7. Si hay un proxy o balanceador delante del backend, `RATE_LIMIT_PROXIES_CONFIABLES=<cantidad de proxies>` (normalmente `1`). Sin eso, el límite de peticiones ve a todos los usuarios con la IP del proxy y los trata como uno solo.
 
 ### Notas operativas
 - **ngrok (desarrollo):** `ngrok http --url=<dominio-estatico>.ngrok-free.dev 8080`. El plan gratuito da un dominio estático, así que la URL del webhook en el panel de MP no cambia. Hay que mantener el túnel abierto mientras se prueba. Versiones viejas del agente (3.3.x) son rechazadas por el servicio: `ngrok update`.

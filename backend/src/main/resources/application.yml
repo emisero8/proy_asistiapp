@@ -80,6 +80,12 @@ app:
   cors:
     # Orígenes permitidos del Frontend, separados por coma. Ajustar por entorno.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  rate-limit:
+    # Cuántos proxies/balanceadores PROPIOS hay delante del backend (nginx, etc.). Con 0 se cuenta
+    # a cada cliente por la IP de su conexión y se ignora el header X-Forwarded-For, que lo puede
+    # inventar cualquiera. Si se despliega detrás de un proxy, ponerlo en su cantidad (normalmente 1);
+    # si no, todos los usuarios compartirían la IP del proxy y el mismo límite.
+    proxies-confiables: ${RATE_LIMIT_PROXIES_CONFIABLES:0}
   frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
 
 logging:

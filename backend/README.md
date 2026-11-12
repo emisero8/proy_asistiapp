@@ -32,6 +32,7 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `CLOUDINARY_CLOUD_NAME` | vacío — sin esto, subir una imagen de portada de evento falla (el resto de la app funciona igual) |
    | `CLOUDINARY_API_KEY` | vacío |
    | `CLOUDINARY_API_SECRET` | vacío |
+   | `RATE_LIMIT_PROXIES_CONFIABLES` | `0` — cantidad de proxies propios delante del backend (nginx, balanceador). Con `0` el límite de peticiones cuenta por la IP de la conexión e ignora `X-Forwarded-For`. **Si se despliega detrás de un proxy, ponerlo en su cantidad** (normalmente `1`); si no, todos los usuarios comparten un único límite |
 
 3. Correr:
    ```

@@ -31,7 +31,8 @@ class RateLimitFilterTest {
     @Mock
     private FilterChain filterChain;
 
-    private final RateLimitFilter filter = new RateLimitFilter();
+    // Sin proxies de confianza (el default): se cuenta por la IP de la conexión.
+    private final RateLimitFilter filter = new RateLimitFilter(0);
 
     @Test
     void doFilter_rutaSinLimiteConfigurado_nuncaBloquea() throws Exception {
@@ -124,6 +125,96 @@ class RateLimitFilterTest {
 
         verify(filterChain, times(31)).doFilter(request, response);
         verify(response, never()).setStatus(429);
+    }
+
+    // ── X-Forwarded-For: lo escribe el cliente, no se puede confiar a ciegas ─────────────────────
+
+    /** Hace 6 logins con el X-Forwarded-For indicado por intento; devuelve cuántos pasaron. */
+    private int loginsQuePasan(RateLimitFilter f, String remoteAddr, String... forwardedPorIntento) throws Exception {
+        when(request.getRequestURI()).thenReturn("/auth/login");
+        lenient().when(request.getRemoteAddr()).thenReturn(remoteAddr);
+        lenient().when(response.getWriter()).thenReturn(mock(PrintWriter.class));
+
+        for (String forwarded : forwardedPorIntento) {
+            lenient().when(request.getHeader("X-Forwarded-For")).thenReturn(forwarded);
+            f.doFilterInternal(request, response, filterChain);
+        }
+        return mockingDetails(filterChain).getInvocations().size();
+    }
+
+    @Test
+    void doFilter_sinProxiesDeConfianza_inventarXForwardedForNoEvitaElLimite() throws Exception {
+        // Un atacante cambia el header en cada intento para parecer otra IP: el límite igual debe cortarlo.
+        int pasaron = loginsQuePasan(filter, "10.0.0.1",
+                "1.1.1.1", "2.2.2.2", "3.3.3.3", "4.4.4.4", "5.5.5.5", "6.6.6.6", "7.7.7.7");
+
+        org.assertj.core.api.Assertions.assertThat(pasaron).isEqualTo(5);
+        verify(response, times(2)).setStatus(429);
+    }
+
+    @Test
+    void doFilter_conUnProxyDeConfianza_cuentaPorLaIpQueAgregoElProxy() throws Exception {
+        RateLimitFilter detrasDeProxy = new RateLimitFilter(1);
+
+        // El primer valor es inventado y cambia; el último (agregado por nuestro proxy) es siempre el mismo cliente.
+        int pasaron = loginsQuePasan(detrasDeProxy, "172.16.0.1",
+                "9.9.9.1, 200.1.1.1", "9.9.9.2, 200.1.1.1", "9.9.9.3, 200.1.1.1",
+                "9.9.9.4, 200.1.1.1", "9.9.9.5, 200.1.1.1", "9.9.9.6, 200.1.1.1");
+
+        org.assertj.core.api.Assertions.assertThat(pasaron).isEqualTo(5);
+        verify(response).setStatus(429);
+    }
+
+    @Test
+    void doFilter_conUnProxyDeConfianza_clientesRealesDistintosNoComparteLimite() throws Exception {
+        RateLimitFilter detrasDeProxy = new RateLimitFilter(1);
+        when(request.getRequestURI()).thenReturn("/auth/login");
+        lenient().when(request.getRemoteAddr()).thenReturn("172.16.0.1"); // siempre la IP del proxy
+        lenient().when(response.getWriter()).thenReturn(mock(PrintWriter.class));
+
+        for (int i = 0; i < 5; i++) {
+            when(request.getHeader("X-Forwarded-For")).thenReturn("200.1.1.1");
+            detrasDeProxy.doFilterInternal(request, response, filterChain);
+        }
+        // Otro cliente real detrás del mismo proxy tiene su propio balde.
+        when(request.getHeader("X-Forwarded-For")).thenReturn("200.2.2.2");
+        detrasDeProxy.doFilterInternal(request, response, filterChain);
+
+        verify(filterChain, times(6)).doFilter(request, response);
+        verify(response, never()).setStatus(429);
+    }
+
+    @Test
+    void doFilter_conDosProxies_tomaElSegundoDesdeLaDerecha() throws Exception {
+        RateLimitFilter detrasDeDos = new RateLimitFilter(2);
+
+        // [inventado, cliente real, ip del primer proxy]: el cliente real es el 2º desde la derecha.
+        int pasaron = loginsQuePasan(detrasDeDos, "172.16.0.1",
+                "7.7.7.1, 200.1.1.1, 10.1.1.1", "7.7.7.2, 200.1.1.1, 10.1.1.1", "7.7.7.3, 200.1.1.1, 10.1.1.1",
+                "7.7.7.4, 200.1.1.1, 10.1.1.1", "7.7.7.5, 200.1.1.1, 10.1.1.1", "7.7.7.6, 200.1.1.1, 10.1.1.1");
+
+        org.assertj.core.api.Assertions.assertThat(pasaron).isEqualTo(5);
+    }
+
+    @Test
+    void doFilter_conProxyConfigurado_peroSinHeader_cuentaPorLaIpDeLaConexion() throws Exception {
+        RateLimitFilter detrasDeProxy = new RateLimitFilter(1);
+
+        // Pedido que no pasó por el proxy (header ausente o vacío): no hay nada de qué fiarse, vale la conexión.
+        int pasaron = loginsQuePasan(detrasDeProxy, "10.0.0.7", null, "", " ", null, null, null);
+
+        org.assertj.core.api.Assertions.assertThat(pasaron).isEqualTo(5);
+    }
+
+    @Test
+    void doFilter_conDosProxies_peroHeaderConUnSoloValor_cuentaPorLaIpDeLaConexion() throws Exception {
+        RateLimitFilter detrasDeDos = new RateLimitFilter(2);
+
+        // Un solo valor no alcanza para dos proxies: se ignora y se usa la conexión.
+        int pasaron = loginsQuePasan(detrasDeDos, "10.0.0.7",
+                "1.1.1.1", "2.2.2.2", "3.3.3.3", "4.4.4.4", "5.5.5.5", "6.6.6.6");
+
+        org.assertj.core.api.Assertions.assertThat(pasaron).isEqualTo(5);
     }
 
     /**

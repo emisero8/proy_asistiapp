@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -48,6 +49,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private static final LimiteConfig LIMITE_CONSULTA_ORDEN = new LimiteConfig(30, Duration.ofMinutes(1));
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+
+    /** Cantidad de proxies propios delante del backend (0 = ninguno: se usa la IP de la conexión). */
+    private final int proxiesConfiables;
+
+    public RateLimitFilter(@Value("${app.rate-limit.proxies-confiables:0}") int proxiesConfiables) {
+        this.proxiesConfiables = Math.max(0, proxiesConfiables);
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -98,10 +106,30 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return Bucket.builder().addLimit(limit).build();
     }
 
+    /**
+     * IP con la que se cuenta al cliente.
+     *
+     * El header X-Forwarded-For lo escribe el propio cliente: leer su primer valor (lo que se hacía
+     * antes) deja que cualquiera cambie de "IP" en cada request y nunca agote el balde — con lo cual
+     * el límite de 5 logins/min no frenaba la fuerza bruta, y encima cada valor inventado creaba un
+     * balde nuevo en memoria. Por eso, sin proxies de confianza (default), se usa la IP real de la
+     * conexión y el header se ignora.
+     *
+     * Detrás de N proxies propios (nginx, balanceador…), cada uno agrega al final de X-Forwarded-For
+     * la IP desde la que le llegó el pedido; los valores de la izquierda pueden ser inventados, pero
+     * el N-ésimo desde la derecha lo escribió un proxy nuestro y es el cliente real.
+     */
     private String obtenerIpCliente(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
+        if (proxiesConfiables > 0) {
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                String[] ips = forwarded.split(",");
+                int posicion = ips.length - proxiesConfiables;
+                if (posicion >= 0 && !ips[posicion].isBlank()) {
+                    return ips[posicion].trim();
+                }
+            }
+            // Header ausente o más corto que la cantidad de proxies: el pedido no pasó por ellos.
         }
         return request.getRemoteAddr();
     }
