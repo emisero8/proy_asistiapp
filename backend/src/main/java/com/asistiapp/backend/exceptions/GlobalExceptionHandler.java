@@ -2,16 +2,22 @@ package com.asistiapp.backend.exceptions;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.TypeMismatchException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -28,10 +34,16 @@ import java.util.Map;
  *   "path":    "/api/tickets/validate",
  *   "timestamp": "2024-01-01T12:00:00"
  * }
+ *
+ * Extiende ResponseEntityExceptionHandler para que los errores del propio cliente que detecta
+ * Spring MVC (método HTTP no soportado → 405, Content-Type no soportado → 415, JSON inválido o
+ * parámetro faltante → 400, archivo demasiado grande → 413, ruta inexistente → 404…) respondan con
+ * su código correcto y este mismo formato. Antes caían en el catch-all y devolvían 500, que significa
+ * "falló el servidor" cuando en realidad el que se equivocó fue quien llamó.
  */
 @Slf4j
 @RestControllerAdvice
-public class GlobalExceptionHandler {
+public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     // ─────────────────────────────────────────────
     // 1. Excepciones de negocio propias de la app
@@ -48,9 +60,9 @@ public class GlobalExceptionHandler {
     // 2. Errores de validación de Bean (@Valid)
     // ─────────────────────────────────────────────
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationException(
-            MethodArgumentNotValidException ex, HttpServletRequest request) {
+    @Override
+    protected ResponseEntity<Object> handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
 
         Map<String, String> fieldErrors = new HashMap<>();
         for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
@@ -61,10 +73,10 @@ public class GlobalExceptionHandler {
         body.put("status", HttpStatus.BAD_REQUEST.value());
         body.put("error", "Error de validación en los campos enviados");
         body.put("fields", fieldErrors);
-        body.put("path", request.getRequestURI());
+        body.put("path", pathDe(request));
         body.put("timestamp", LocalDateTime.now().toString());
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).headers(headers).body(body);
     }
 
     // ─────────────────────────────────────────────
@@ -96,19 +108,66 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, "No tienes permisos para realizar esta acción", request.getRequestURI());
     }
 
-    /**
-     * Ruta que no existe: Spring lanza NoResourceFoundException. Sin este handler caía en el
-     * catch-all y respondía 500, cuando el error real es un 404.
-     */
-    @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleRutaInexistente(
-            NoResourceFoundException ex, HttpServletRequest request) {
+    // ─────────────────────────────────────────────
+    // 4. Errores de cliente que detecta Spring MVC antes del controlador
+    // ─────────────────────────────────────────────
 
-        return buildResponse(HttpStatus.NOT_FOUND, "Recurso no encontrado", request.getRequestURI());
+    /**
+     * ResponseEntityExceptionHandler ya clasifica cada caso (404, 405, 406, 413, 415, 400…); todos
+     * pasan por acá para responder con el formato de error de la app en vez del ProblemDetail por
+     * defecto. Los mensajes son propios y en español: nunca se expone el texto interno de la excepción.
+     */
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+
+        String path = pathDe(request);
+
+        // El cliente no acepta JSON: cualquier cuerpo que mandemos va a volver a fallar al escribirlo.
+        if (statusCode.value() == HttpStatus.NOT_ACCEPTABLE.value()) {
+            return ResponseEntity.status(statusCode).headers(headers).build();
+        }
+
+        if (statusCode.is5xxServerError()) {
+            log.error("Error inesperado en {}: {}", path, ex.getMessage(), ex);
+        } else {
+            log.debug("Solicitud rechazada en {} ({}): {}", path, statusCode.value(), ex.getMessage());
+        }
+
+        Map<String, Object> cuerpo = new HashMap<>();
+        cuerpo.put("status", statusCode.value());
+        cuerpo.put("error", mensajeDeCliente(ex, statusCode));
+        cuerpo.put("path", path);
+        cuerpo.put("timestamp", LocalDateTime.now().toString());
+        return ResponseEntity.status(statusCode).headers(headers).body(cuerpo);
+    }
+
+    private static String mensajeDeCliente(Exception ex, HttpStatusCode status) {
+        if (status.is5xxServerError()) {
+            return "Ocurrió un error interno inesperado. Por favor intenta nuevamente.";
+        }
+        if (ex instanceof MissingServletRequestParameterException falta) {
+            return "Falta el parámetro obligatorio '" + falta.getParameterName() + "'";
+        }
+        if (ex instanceof TypeMismatchException mismatch) {
+            return "El valor del parámetro '" + mismatch.getPropertyName() + "' no es válido";
+        }
+        return switch (status.value()) {
+            case 400 -> "La solicitud no es válida: revisá el formato de los datos enviados";
+            case 404 -> "Recurso no encontrado";
+            case 405 -> "Método HTTP no soportado en esta ruta";
+            case 413 -> "El archivo enviado supera el tamaño máximo permitido";
+            case 415 -> "Tipo de contenido no soportado";
+            default -> "No se pudo procesar la solicitud";
+        };
+    }
+
+    private static String pathDe(WebRequest request) {
+        return request instanceof ServletWebRequest servlet ? servlet.getRequest().getRequestURI() : "";
     }
 
     // ─────────────────────────────────────────────
-    // 4. Catch-all: cualquier error inesperado
+    // 5. Catch-all: cualquier error inesperado
     // ─────────────────────────────────────────────
 
     @ExceptionHandler(Exception.class)
