@@ -20,7 +20,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -67,6 +70,26 @@ class EventoControllerSecurityTest {
     @WithMockUser(roles = "Staff_QR")
     void listarMisEventos_conRolIncorrecto_devuelve403() throws Exception {
         mockMvc.perform(get("/eventos"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "Organizador")
+    void eliminarBorrador_conRolOrganizador_devuelve204() throws Exception {
+        Organizador organizador = new Organizador();
+        organizador.setId(1L);
+        when(securityUtils.getOrganizadorAutenticado()).thenReturn(organizador);
+
+        mockMvc.perform(delete("/eventos/7").with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(eventoService).eliminarBorrador(7L, 1L);
+    }
+
+    @Test
+    @WithMockUser(roles = "Staff_QR")
+    void eliminarBorrador_conRolIncorrecto_devuelve403() throws Exception {
+        mockMvc.perform(delete("/eventos/7").with(csrf()))
                 .andExpect(status().isForbidden());
     }
 }

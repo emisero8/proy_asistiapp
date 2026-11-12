@@ -10,7 +10,7 @@ import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO }
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
-  return { ...actual, api: { ...actual.api, get: vi.fn(), patch: vi.fn() } };
+  return { ...actual, api: { ...actual.api, get: vi.fn(), patch: vi.fn(), delete: vi.fn() } };
 });
 vi.mock("../../components/EventMap", () => ({ MapView: () => <div data-testid="map-view" /> }));
 // jsdom no tiene layout: los gráficos de recharts no miden nada, acá solo importan los datos de las tablas.
@@ -90,6 +90,7 @@ function renderPage() {
         <Routes>
           <Route path="/organizador/eventos/:id" element={<OrganizadorEventoDetallePage />} />
           <Route path="/organizador/eventos/:id/editar" element={<p>pantalla de edición</p>} />
+          <Route path="/organizador/dashboard" element={<p>panel del organizador</p>} />
           <Route path="/eventos/:urlPublica" element={<p>página pública</p>} />
         </Routes>
       </MemoryRouter>
@@ -110,6 +111,7 @@ function mockGets(evento: EventoResponseDTO = EVENTO, entradas: EntradaResponseD
 afterEach(() => {
   vi.mocked(api.get).mockReset();
   vi.mocked(api.patch).mockReset();
+  vi.mocked(api.delete).mockReset();
 });
 
 describe("OrganizadorEventoDetallePage — render", () => {
@@ -242,7 +244,7 @@ describe("OrganizadorEventoDetallePage — compradores", () => {
 });
 
 describe("OrganizadorEventoDetallePage — cancelar el evento", () => {
-  it("pide confirmación con el aviso de que no se devuelven créditos; 'No, volver' no cancela nada", async () => {
+  it("pide confirmación con el aviso de qué créditos se devuelven; 'No, volver' no cancela nada", async () => {
     const user = userEvent.setup();
     mockGets();
     renderPage();
@@ -250,7 +252,7 @@ describe("OrganizadorEventoDetallePage — cancelar el evento", () => {
 
     await user.click(screen.getByTitle("Cancelar evento"));
     const dialogo = await screen.findByRole("alertdialog", { name: "Cancelar evento" });
-    expect(within(dialogo).getByText(/no se devuelven créditos/)).toBeInTheDocument();
+    expect(within(dialogo).getByText(/se devuelven los créditos de las entradas sin vender/)).toBeInTheDocument();
     await user.click(within(dialogo).getByRole("button", { name: "No, volver" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
@@ -289,5 +291,60 @@ describe("OrganizadorEventoDetallePage — cancelar el evento", () => {
 
     expect(await screen.findByText("El evento ya fue cancelado")).toBeInTheDocument();
     expect(screen.getByText("Publicado")).toBeInTheDocument();
+  });
+});
+
+describe("OrganizadorEventoDetallePage — eliminar un borrador", () => {
+  it("un evento publicado no ofrece eliminar", async () => {
+    mockGets();
+    renderPage();
+    await screen.findByRole("heading", { name: "Festival de Jazz" });
+
+    expect(screen.queryByTitle("Eliminar borrador")).not.toBeInTheDocument();
+  });
+
+  it("en un borrador pide confirmación; \"No, volver\" no borra nada", async () => {
+    const user = userEvent.setup();
+    mockGets({ ...EVENTO, estado: "Borrador" });
+    renderPage();
+    await screen.findByRole("heading", { name: "Festival de Jazz" });
+
+    await user.click(screen.getByTitle("Eliminar borrador"));
+    const dialogo = await screen.findByRole("alertdialog", { name: "Eliminar borrador" });
+    expect(within(dialogo).getByText(/se devuelven los créditos de sus tandas/)).toBeInTheDocument();
+    await user.click(within(dialogo).getByRole("button", { name: "No, volver" }));
+
+    expect(api.delete).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+  });
+
+  it("al confirmar borra el evento y vuelve al panel", async () => {
+    const user = userEvent.setup();
+    mockGets({ ...EVENTO, estado: "Borrador" });
+    vi.mocked(api.delete).mockResolvedValueOnce(undefined);
+    renderPage();
+    await screen.findByRole("heading", { name: "Festival de Jazz" });
+
+    await user.click(screen.getByTitle("Eliminar borrador"));
+    const dialogo = await screen.findByRole("alertdialog", { name: "Eliminar borrador" });
+    await user.click(within(dialogo).getByRole("button", { name: "Eliminar borrador" }));
+
+    expect(api.delete).toHaveBeenCalledWith("/eventos/5");
+    expect(await screen.findByText("panel del organizador")).toBeInTheDocument();
+  });
+
+  it("si el backend rechaza el borrado muestra su mensaje y se queda en la página", async () => {
+    const user = userEvent.setup();
+    mockGets({ ...EVENTO, estado: "Borrador" });
+    vi.mocked(api.delete).mockRejectedValueOnce(new ApiError({ status: 409, error: "Solo podés eliminar un evento en estado Borrador.", path: "/eventos/5", timestamp: "" }));
+    renderPage();
+    await screen.findByRole("heading", { name: "Festival de Jazz" });
+
+    await user.click(screen.getByTitle("Eliminar borrador"));
+    const dialogo = await screen.findByRole("alertdialog", { name: "Eliminar borrador" });
+    await user.click(within(dialogo).getByRole("button", { name: "Eliminar borrador" }));
+
+    expect(await screen.findByText("Solo podés eliminar un evento en estado Borrador.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Festival de Jazz" })).toBeInTheDocument();
   });
 });

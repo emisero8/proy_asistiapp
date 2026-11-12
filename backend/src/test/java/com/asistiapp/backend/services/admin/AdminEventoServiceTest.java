@@ -147,4 +147,28 @@ class AdminEventoServiceTest {
 
         verify(eventoRepository, never()).delete(any());
     }
+
+    @Test
+    void eliminarEvento_devuelveLosCreditosDeLasEntradasSinVender() {
+        when(eventoRepository.findById(50L)).thenReturn(Optional.of(evento));
+        when(entradaRepository.countByEventoId(50L)).thenReturn(0L);
+        when(transaccionPagoRepository.countOrdenesAbiertasDelEvento(eq(50L), any(), any())).thenReturn(0L);
+
+        adminEventoService.eliminarEvento(50L);
+
+        verify(eventoService).devolverCreditosDeEntradasSinVender(evento);
+    }
+
+    @Test
+    void eliminarEvento_yaCancelado_noDevuelveDeNuevoLosCreditos() {
+        evento.setEstado(EstadoEvento.Cancelado);
+        when(eventoRepository.findById(50L)).thenReturn(Optional.of(evento));
+        when(entradaRepository.countByEventoId(50L)).thenReturn(0L);
+        when(transaccionPagoRepository.countOrdenesAbiertasDelEvento(eq(50L), any(), any())).thenReturn(0L);
+
+        adminEventoService.eliminarEvento(50L);
+
+        verify(eventoService, never()).devolverCreditosDeEntradasSinVender(any());
+        verify(eventoRepository).delete(evento);
+    }
 }

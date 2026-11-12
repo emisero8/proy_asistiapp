@@ -270,6 +270,25 @@ public class EventoService {
     }
 
     /**
+     * Elimina un evento propio que todavía es Borrador (nunca se publicó, así que no tiene ventas
+     * ni órdenes). Las tandas ya habían consumido créditos al crearse: se devuelven los de las
+     * entradas sin vender, igual que al cancelar. Publicados y cancelados no se borran: se cancelan
+     * o quedan como registro.
+     */
+    @Transactional
+    public void eliminarBorrador(Long idEvento, Long idOrganizador) {
+        Evento evento = getEventoOrThrow(idEvento);
+        verificarPropietario(evento, idOrganizador);
+        verificarEstadoBorrador(evento, "eliminar");
+
+        devolverCreditosDeEntradasSinVender(evento);
+        String imagen = evento.getImagenPortadaUrl();
+        eventoRepository.delete(evento);
+        log.info("Borrador eliminado: id={}", idEvento);
+        imagenService.eliminarSiEsNuestra(imagen);
+    }
+
+    /**
      * Al cancelar un evento se devuelven los créditos de las entradas que no se llegaron
      * a vender (la suma de cupoDisponible de cada tanda). Las entradas ya vendidas no
      * afectan créditos — ya cumplieron su función — y el costo de publicar tampoco se

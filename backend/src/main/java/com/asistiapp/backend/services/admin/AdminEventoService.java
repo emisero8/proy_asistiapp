@@ -131,6 +131,10 @@ public class AdminEventoService {
                             + "Cancelalo en su lugar o esperá a que venzan las órdenes pendientes.");
         }
 
+        // Las tandas consumieron créditos al crearse; un evento ya cancelado los devolvió al cancelarse.
+        if (evento.getEstado() != EstadoEvento.Cancelado) {
+            eventoService.devolverCreditosDeEntradasSinVender(evento);
+        }
         eventoRepository.delete(evento);
         log.info("Evento eliminado por Admin: id={}", idEvento);
     }

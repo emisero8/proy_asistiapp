@@ -491,4 +491,63 @@ class EventoServiceTest {
 
         assertThat(eventoService.listarEventoPublicadoDeVendedor(evento.getId(), ID_ORGANIZADOR)).hasSize(1);
     }
+
+    // ─────────────────────────────────────────────
+    // eliminarBorrador
+    // ─────────────────────────────────────────────
+
+    @Test
+    void eliminarBorrador_devuelveLosCreditosDeSusTandasYLoBorra() {
+        agregarTandaAlEvento(); // 50 entradas sin vender, ya consumidas al crear la tanda
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(organizadorRepository.findById(ID_ORGANIZADOR)).thenReturn(Optional.of(organizador));
+
+        eventoService.eliminarBorrador(evento.getId(), ID_ORGANIZADOR);
+
+        verify(creditoLedgerService).registrarDevolucionTanda(organizador, 50, evento.getId());
+        verify(eventoRepository).delete(evento);
+    }
+
+    @Test
+    void eliminarBorrador_sinTandas_loBorraSinTocarCreditos() {
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        eventoService.eliminarBorrador(evento.getId(), ID_ORGANIZADOR);
+
+        verifyNoInteractions(creditoLedgerService);
+        verify(eventoRepository).delete(evento);
+    }
+
+    @Test
+    void eliminarBorrador_publicadoOCancelado_noSeBorra() {
+        for (EstadoEvento estado : new EstadoEvento[]{EstadoEvento.Publicado, EstadoEvento.Cancelado}) {
+            evento.setEstado(estado);
+            when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+            assertThatThrownBy(() -> eventoService.eliminarBorrador(evento.getId(), ID_ORGANIZADOR))
+                    .isInstanceOf(BusinessRuleException.class);
+        }
+        verify(eventoRepository, never()).delete(any());
+        verifyNoInteractions(creditoLedgerService);
+    }
+
+    @Test
+    void eliminarBorrador_deOtroOrganizador_lanzaForbiddenActionException() {
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> eventoService.eliminarBorrador(evento.getId(), ID_OTRO_ORGANIZADOR))
+                .isInstanceOf(ForbiddenActionException.class);
+
+        verify(eventoRepository, never()).delete(any());
+    }
+
+    @Test
+    void eliminarBorrador_borraLaPortadaSiEsNuestra() {
+        evento.setImagenPortadaUrl("https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/portada.png");
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        eventoService.eliminarBorrador(evento.getId(), ID_ORGANIZADOR);
+
+        verify(imagenService).eliminarSiEsNuestra("https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/portada.png");
+    }
 }

@@ -3,7 +3,7 @@ import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate, useParams } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import {
-  ChevronLeft, Pencil, ExternalLink, Ban, Ticket, TrendingUp, Users, ShieldCheck,
+  ChevronLeft, Pencil, ExternalLink, Ban, Trash2, Ticket, TrendingUp, Users, ShieldCheck,
   Search, Store, CreditCard, CheckCircle2, AlertCircle, Download,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export function OrganizadorEventoDetallePage() {
   const [entradas, setEntradas] = useState<EntradaResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
 
   useDocumentTitle(evento?.nombre);
   const { confirm } = useDialog();
@@ -66,7 +67,7 @@ export function OrganizadorEventoDetallePage() {
     if (!evento) return;
     const ok = await confirm({
       titulo: "Cancelar evento",
-      mensaje: `¿Cancelar "${evento.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`,
+      mensaje: `¿Cancelar "${evento.nombre}"? Se avisa por email a los compradores y se devuelven los créditos de las entradas sin vender (el costo de publicar no se devuelve).`,
       confirmarTexto: "Cancelar evento",
       cancelarTexto: "No, volver",
       variante: "destructiva",
@@ -81,6 +82,27 @@ export function OrganizadorEventoDetallePage() {
       toast.error(e instanceof ApiError ? e.message : "No pudimos cancelar el evento.");
     } finally {
       setCancelando(false);
+    }
+  }
+
+  async function eliminarBorrador() {
+    if (!evento) return;
+    const ok = await confirm({
+      titulo: "Eliminar borrador",
+      mensaje: `¿Eliminar "${evento.nombre}"? Se borra para siempre y se devuelven los créditos de sus tandas.`,
+      confirmarTexto: "Eliminar borrador",
+      cancelarTexto: "No, volver",
+      variante: "destructiva",
+    });
+    if (!ok) return;
+    setEliminando(true);
+    try {
+      await api.delete(`/eventos/${evento.id}`);
+      toast.success("Borrador eliminado");
+      navigate("/organizador/dashboard");
+    } catch (e: unknown) {
+      toast.error(e instanceof ApiError ? e.message : "No pudimos eliminar el borrador.");
+      setEliminando(false);
     }
   }
 
@@ -350,6 +372,16 @@ export function OrganizadorEventoDetallePage() {
               >
                 <Ban size={14} />
               </button>
+              {evento.estado === "Borrador" && (
+                <button
+                  onClick={eliminarBorrador}
+                  disabled={eliminando}
+                  title="Eliminar borrador"
+                  className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </>
           )}
         </div>
