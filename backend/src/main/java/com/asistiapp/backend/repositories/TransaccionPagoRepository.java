@@ -24,6 +24,16 @@ public interface TransaccionPagoRepository extends JpaRepository<TransaccionPago
     List<TransaccionPago> findByEstadoAndFechaVencimientoBefore(EstadoTransaccion estado, LocalDateTime antes);
 
     /**
+     * Órdenes de entradas de este evento que siguen abiertas: `Pendiente` y todavía dentro de su
+     * ventana de pago. Un comprador puede estar en la pantalla de MercadoPago pagándolas ahora mismo.
+     */
+    @Query("SELECT COUNT(t) FROM TransaccionPago t WHERE t.estado = :estado AND t.fechaVencimiento > :ahora "
+            + "AND t.idTanda IN (SELECT ta.id FROM Tanda ta WHERE ta.evento.id = :eventoId)")
+    long countOrdenesAbiertasDelEvento(@Param("eventoId") Long eventoId,
+                                       @Param("estado") EstadoTransaccion estado,
+                                       @Param("ahora") LocalDateTime ahora);
+
+    /**
      * Con bloqueo pesimista de la fila: dos notificaciones simultáneas del mismo pago
      * (MercadoPago reintenta) se serializan, y la segunda ve la orden ya resuelta.
      */

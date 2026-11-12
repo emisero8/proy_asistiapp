@@ -8,6 +8,7 @@ import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.repositories.TransaccionPagoRepository;
 import com.asistiapp.backend.services.EventoService;
 import com.asistiapp.backend.services.NotificacionService;
 import com.asistiapp.backend.services.TandaService;
@@ -46,6 +47,9 @@ class AdminEventoServiceTest {
     private TandaService tandaService;
     @Mock
     private NotificacionService notificacionService;
+
+    @Mock
+    private TransaccionPagoRepository transaccionPagoRepository;
 
     @InjectMocks
     private AdminEventoService adminEventoService;
@@ -129,5 +133,18 @@ class AdminEventoServiceTest {
         adminEventoService.eliminarEvento(50L);
 
         verify(eventoRepository).delete(evento);
+    }
+
+    @Test
+    void eliminarEvento_conComprasEnCurso_lanzaBusinessRuleExceptionYNoElimina() {
+        when(eventoRepository.findById(50L)).thenReturn(Optional.of(evento));
+        when(entradaRepository.countByEventoId(50L)).thenReturn(0L);
+        when(transaccionPagoRepository.countOrdenesAbiertasDelEvento(eq(50L), any(), any())).thenReturn(2L);
+
+        assertThatThrownBy(() -> adminEventoService.eliminarEvento(50L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("compras en curso");
+
+        verify(eventoRepository, never()).delete(any());
     }
 }

@@ -64,7 +64,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 | # | Qué | Tamaño | Estado |
 |---|---|---|---|
-| 3.1 | **El Admin puede borrar un evento con órdenes `Pendiente`.** Solo se bloquea si hay entradas vendidas; las órdenes quedan sin evento. **(a confirmar)** qué pasa si alguien paga una de esas órdenes después del borrado. | M | ⏳ |
+| 3.1 | **El Admin puede borrar un evento con órdenes `Pendiente`.** Solo se bloquea si hay entradas vendidas; las órdenes quedan sin evento. **(a confirmar)** qué pasa si alguien paga una de esas órdenes después del borrado. | M | ✅ |
 | 3.2 | **Método HTTP no soportado devuelve 500 en vez de 405.** Falta manejar `HttpRequestMethodNotSupportedException` en el `@ControllerAdvice`. Visto con `DELETE /eventos/{id}` como Organizador y con un `Content-Type` no JSON en el webhook de MercadoPago (debería ser 415); un UTF-8 inválido también da 500 en vez de 400. | S | ✅ |
 | 3.3 | **El Organizador no puede borrar ni un borrador propio.** Solo el Admin borra eventos. **(a confirmar)** si es a propósito; si lo es, anotarlo en `DECISIONES.md`. | S–M | ⏳ |
 | 3.4 | **La regla de "evento finalizado" está duplicada.** Vive en el backend (`EventoService.yaFinalizo`) y otra vez en el frontend (`eventoDisponibleParaStaff` en `StaffMgmtPage.tsx`). Dejar una sola en el backend; de paso, que el backend valide el estado del evento al crear staff. | M | ⏳ |
