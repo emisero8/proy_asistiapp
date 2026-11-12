@@ -59,6 +59,7 @@ const EVENTO: EventoResponseDTO = {
   fechaCreacion: "2026-01-01T00:00:00",
   fechaPublicacion: "2026-01-02T00:00:00",
   fechaCancelacion: null,
+  finalizado: false,
   tandas: [TANDA],
 };
 

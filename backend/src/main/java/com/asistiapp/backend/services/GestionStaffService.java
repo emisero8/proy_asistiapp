@@ -10,6 +10,7 @@ import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.StaffQR;
 import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.models.entities.Usuario;
+import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
 import com.asistiapp.backend.repositories.EventoRepository;
@@ -51,6 +52,7 @@ public class GestionStaffService {
         if (!evento.getIdOrganizador().equals(idOrganizador)) {
             throw new ForbiddenActionException("No podés asignar Staff a un evento que no te pertenece");
         }
+        verificarEventoAsignable(evento);
 
         verificarEmailDisponible(dto.getEmail());
 
@@ -81,6 +83,7 @@ public class GestionStaffService {
         if (!evento.getIdOrganizador().equals(idOrganizador)) {
             throw new ForbiddenActionException("No podés asignar un vendedor a un evento que no te pertenece");
         }
+        verificarEventoAsignable(evento);
 
         verificarEmailDisponible(dto.getEmail());
 
@@ -103,6 +106,16 @@ public class GestionStaffService {
 
         return toResponseDTO(saved.getId(), saved.getNombre(), saved.getEmail(), RolUsuario.Staff_Vendedor,
                 saved.getEstado(), saved.getIdEvento());
+    }
+
+    /** Solo se asigna staff a eventos Publicados que todavía no finalizaron: no tiene qué hacer en otro caso. */
+    private void verificarEventoAsignable(Evento evento) {
+        if (evento.getEstado() != EstadoEvento.Publicado) {
+            throw new BusinessRuleException("Solo se puede asignar staff a un evento Publicado. Estado actual: " + evento.getEstado());
+        }
+        if (evento.yaFinalizo()) {
+            throw new BusinessRuleException("El evento \"" + evento.getNombre() + "\" ya finalizó: no se le puede asignar staff.");
+        }
     }
 
     @Transactional(readOnly = true)

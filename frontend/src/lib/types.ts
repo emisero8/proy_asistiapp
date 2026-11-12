@@ -109,6 +109,8 @@ export interface EventoResponseDTO {
   fechaCreacion: string;
   fechaPublicacion: string | null;
   fechaCancelacion: string | null;
+  /** El backend es la única fuente de "ya finalizó": el inicio del evento quedó atrás. */
+  finalizado: boolean;
   tandas: TandaResponseDTO[];
 }
 

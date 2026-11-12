@@ -457,8 +457,7 @@ public class VentaService {
                     "Estado: " + tanda.getEvento().getEstado());
         }
         LocalDateTime ahora = LocalDateTime.now();
-        LocalDateTime inicioEvento = LocalDateTime.of(tanda.getEvento().getFechaEvento(), tanda.getEvento().getHoraEvento());
-        if (ahora.isAfter(inicioEvento)) {
+        if (tanda.getEvento().yaFinalizo()) {
             // Independiente de la vigencia propia de la tanda (que es opcional): un evento que
             // ya pasó no se puede seguir comprando, tenga o no la tanda su propia fecha de cierre.
             throw new BusinessRuleException("El evento \"" + tanda.getEvento().getNombre() + "\" ya finalizó.");

@@ -18,6 +18,7 @@ const EVENTO = {
   estado: "Publicado",
   fechaEvento: "2099-12-31",
   horaEvento: "21:00:00",
+  finalizado: false,
 } as EventoResponseDTO;
 
 const STAFF: StaffResponseDTO = {
@@ -180,18 +181,18 @@ describe("eventoDisponibleParaStaff", () => {
   }
 
   it("evento Publicado y futuro está disponible", () => {
-    expect(eventoDisponibleParaStaff(evento({ fechaEvento: "2099-12-31", horaEvento: "21:00:00" }))).toBe(true);
+    expect(eventoDisponibleParaStaff(evento({ finalizado: false }))).toBe(true);
   });
 
   it("evento Cancelado no está disponible, aunque sea futuro", () => {
-    expect(eventoDisponibleParaStaff(evento({ estado: "Cancelado", fechaEvento: "2099-12-31", horaEvento: "21:00:00" }))).toBe(false);
+    expect(eventoDisponibleParaStaff(evento({ estado: "Cancelado", finalizado: false }))).toBe(false);
   });
 
   it("evento Borrador no está disponible", () => {
-    expect(eventoDisponibleParaStaff(evento({ estado: "Borrador", fechaEvento: "2099-12-31", horaEvento: "21:00:00" }))).toBe(false);
+    expect(eventoDisponibleParaStaff(evento({ estado: "Borrador", finalizado: false }))).toBe(false);
   });
 
   it("evento Publicado pero ya finalizado no está disponible", () => {
-    expect(eventoDisponibleParaStaff(evento({ estado: "Publicado", fechaEvento: "2020-01-01", horaEvento: "21:00:00" }))).toBe(false);
+    expect(eventoDisponibleParaStaff(evento({ estado: "Publicado", finalizado: true }))).toBe(false);
   });
 });

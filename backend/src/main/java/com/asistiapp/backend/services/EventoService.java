@@ -79,7 +79,7 @@ public class EventoService {
     public List<EventoResponseDTO> listarEventosPublicadosDeOrganizador(Long idOrganizador) {
         return eventoRepository.findByIdOrganizadorAndEstado(idOrganizador, EstadoEvento.Publicado)
                 .stream()
-                .filter(e -> !yaFinalizo(e))
+                .filter(e -> !e.yaFinalizo())
                 .map(this::toResponseDTO)
                 .toList();
     }
@@ -96,13 +96,9 @@ public class EventoService {
         return eventoRepository.findById(idEvento)
                 .filter(e -> e.getIdOrganizador().equals(idOrganizador))
                 .filter(e -> e.getEstado() == EstadoEvento.Publicado)
-                .filter(e -> !yaFinalizo(e))
+                .filter(e -> !e.yaFinalizo())
                 .map(e -> List.of(toResponseDTO(e)))
                 .orElseGet(List::of);
-    }
-
-    private boolean yaFinalizo(Evento evento) {
-        return !LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento()).isAfter(LocalDateTime.now());
     }
 
     // ─────────────────────────────────────────────
@@ -404,6 +400,7 @@ public class EventoService {
                 .fechaCreacion(evento.getFechaCreacion())
                 .fechaPublicacion(evento.getFechaPublicacion())
                 .fechaCancelacion(evento.getFechaCancelacion())
+                .finalizado(evento.yaFinalizo())
                 .tandas(tandaResponses)
                 .build();
     }

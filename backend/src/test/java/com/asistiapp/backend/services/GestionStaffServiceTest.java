@@ -9,6 +9,7 @@ import com.asistiapp.backend.models.dtos.staff.StaffResponseDTO;
 import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.StaffQR;
 import com.asistiapp.backend.models.entities.StaffVendedor;
+import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
 import com.asistiapp.backend.repositories.EventoRepository;
@@ -66,6 +67,10 @@ class GestionStaffServiceTest {
         evento = new Evento();
         evento.setId(10L);
         evento.setIdOrganizador(ID_ORGANIZADOR);
+        evento.setNombre("Fiesta");
+        evento.setEstado(EstadoEvento.Publicado);
+        evento.setFechaEvento(java.time.LocalDate.now().plusDays(10));
+        evento.setHoraEvento(java.time.LocalTime.of(21, 0));
     }
 
     // ─────────────────────────────────────────────
@@ -164,6 +169,37 @@ class GestionStaffServiceTest {
         assertThat(response.getIdEvento()).isEqualTo(10L);
         verify(staffVendedorRepository).save(argThat(s ->
                 s.getIdOrganizador().equals(ID_ORGANIZADOR) && s.getIdEvento().equals(10L)));
+    }
+
+    @Test
+    void crearStaff_enEventoNoPublicado_lanzaBusinessRuleExceptionYNoCreaNada() {
+        for (EstadoEvento estado : new EstadoEvento[]{EstadoEvento.Borrador, EstadoEvento.Cancelado}) {
+            evento.setEstado(estado);
+            when(eventoRepository.findById(10L)).thenReturn(Optional.of(evento));
+
+            assertThatThrownBy(() -> gestionStaffService.crearStaffQR(staffQRDto(), ID_ORGANIZADOR))
+                    .isInstanceOf(BusinessRuleException.class).hasMessageContaining("Publicado");
+            assertThatThrownBy(() -> gestionStaffService.crearStaffVendedor(staffVendedorDto(), ID_ORGANIZADOR))
+                    .isInstanceOf(BusinessRuleException.class).hasMessageContaining("Publicado");
+        }
+        verify(staffQRRepository, never()).save(any());
+        verify(staffVendedorRepository, never()).save(any());
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void crearStaff_enEventoYaFinalizado_lanzaBusinessRuleExceptionYNoCreaNada() {
+        evento.setFechaEvento(java.time.LocalDate.now().minusDays(1));
+        when(eventoRepository.findById(10L)).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> gestionStaffService.crearStaffQR(staffQRDto(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("ya finalizó");
+        assertThatThrownBy(() -> gestionStaffService.crearStaffVendedor(staffVendedorDto(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class).hasMessageContaining("ya finalizó");
+
+        verify(staffQRRepository, never()).save(any());
+        verify(staffVendedorRepository, never()).save(any());
+        verifyNoInteractions(emailService);
     }
 
     // ─────────────────────────────────────────────

@@ -36,6 +36,9 @@ public class EventoResponseDTO {
     private LocalDateTime fechaPublicacion;
     private LocalDateTime fechaCancelacion;
 
+    /** El evento ya empezó o terminó (su fecha y hora de inicio quedaron atrás): ya no se vende ni se le asigna staff. */
+    private boolean finalizado;
+
     /** Lista de tandas del evento. Vacía si el evento aún no tiene tandas. */
     private List<TandaResponseDTO> tandas;
 }

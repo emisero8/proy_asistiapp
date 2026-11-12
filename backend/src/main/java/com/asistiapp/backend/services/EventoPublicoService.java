@@ -31,9 +31,8 @@ public class EventoPublicoService {
 
     @Transactional(readOnly = true)
     public List<EventoPublicoListItemDTO> listarPublicados() {
-        LocalDateTime ahora = LocalDateTime.now();
         return eventoRepository.findByEstado(EstadoEvento.Publicado).stream()
-                .filter(e -> LocalDateTime.of(e.getFechaEvento(), e.getHoraEvento()).isAfter(ahora))
+                .filter(e -> !e.yaFinalizo())
                 .map(this::toListItemDTO)
                 .toList();
     }

@@ -19,9 +19,8 @@ const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: st
  * a eventos viejos, y a esa sí hay que mostrarle todo).
  */
 export function eventoDisponibleParaStaff(ev: EventoResponseDTO): boolean {
-  if (ev.estado !== "Publicado") return false;
-  // Sin "Z": se interpreta en hora local, igual que fechaEvento/horaEvento (LocalDate/LocalTime del backend).
-  return new Date(`${ev.fechaEvento}T${ev.horaEvento}`) > new Date();
+  // "Finalizado" lo decide el backend (EventoResponseDTO.finalizado): acá no se recalcula con la hora del navegador.
+  return ev.estado === "Publicado" && !ev.finalizado;
 }
 
 export function OrganizadorStaffMgmtPage() {
