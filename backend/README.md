@@ -34,6 +34,7 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `CLOUDINARY_API_KEY` | vacío |
    | `CLOUDINARY_API_SECRET` | vacío |
    | `RATE_LIMIT_PROXIES_CONFIABLES` | `0` — cantidad de proxies propios delante del backend (nginx, balanceador). Con `0` el límite de peticiones cuenta por la IP de la conexión e ignora `X-Forwarded-For`. **Si se despliega detrás de un proxy, ponerlo en su cantidad** (normalmente `1`); si no, todos los usuarios comparten un único límite |
+   | `APP_TIMEZONE` | `America/Argentina/Buenos_Aires` — zona horaria de la aplicación. Se fija al arrancar, sin importar cómo esté configurado el servidor (en la nube suele ser UTC). Las fechas de eventos, tandas y vencimiento de órdenes son hora de pared argentina; con otra zona el backend las correría. Un valor inválido hace fallar el arranque |
    | `ADMIN_INICIAL_PASSWORD` | vacío — contraseña del primer Administrador (ver "Primer usuario Administrador"). **Obligatoria en producción** |
    | `ADMIN_INICIAL_EMAIL` | `admin@asistiapp.com` — email del primer Administrador |
 
