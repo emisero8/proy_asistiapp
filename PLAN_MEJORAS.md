@@ -33,7 +33,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | # | Qué | Tamaño | Estado |
 |---|---|---|---|
 | 0.1 | Commitear y pushear el pago en pestaña nueva (Fase 13 del plan de frontend). Está terminado y probado, sin commitear. | S | ✅ commit `4f341e9`, pusheado |
-| 0.2 | Hacer un pago real con el usuario comprador de prueba de MercadoPago. El paso a "aprobado" se verificó simulando la respuesta del backend, no con un pago de verdad. | S | ⏳ |
+| 0.2 | Hacer un pago real con el usuario comprador de prueba de MercadoPago. El paso a "aprobado" se verificó simulando la respuesta del backend, no con un pago de verdad. | S | ✅ 2026-11-12: pago real de $1.500 con el comprador de prueba; la pestaña original pasó sola a "¡Pago aprobado!" con la entrada |
 | 0.3 | Decidir qué hacer con `AsistíAPP - Planificación Scrum (1).xlsx` de la raíz (sin versionar). Ya hay una copia en `docs/`; si es la misma, borrarlo. | S | ⏳ |
 | 0.4 | Abrir el PR de `feature-mercadopago` a `master`. La rama ya acumula notificaciones, soporte, POS, calendarios y favicon. | S | ⏳ |
 
@@ -57,7 +57,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 2.1 | **La auditoría guarda contraseñas en texto plano.** `AuditoriaAspect` (línea 71) arma el detalle con `Arrays.toString(joinPoint.getArgs())`, así que el cambio de contraseña hecho por el Admin (`AdminUsuarioService.cambiarPassword`) deja la contraseña nueva escrita en `log_auditoria`. Enmascarar los argumentos sensibles, limpiar las filas existentes y agregar un test que lo cubra. | M | ✅ `@DatoSensible` + enmascarado por nombre en `AuditoriaAspect`, script de limpieza y 5 tests |
 | 2.2 | **El límite de peticiones se puede saltear.** `RateLimitFilter` (línea 102) usa el header `X-Forwarded-For` tal como lo manda el cliente; cambiándolo en cada request no hay límite. Leerlo solo si hay un proxy de confianza configurado. | S | ✅ IP de la conexión por defecto + `app.rate-limit.proxies-confiables`, 6 tests |
 | 2.3 | **`JWT_SECRET` con valor por defecto.** `application.yml` trae una clave de desarrollo; si en producción no se setea la variable, los tokens se firman con una clave pública en el repo. Que el backend no arranque con el valor por defecto fuera del perfil de desarrollo. Ya documentado en `backend_implementation_plan.md` (checklist de producción, punto 4), pero como paso manual. | S | ✅ `JwtSecretValidator`: con perfil `prod` y el secreto público no arranca; 7 tests |
-| 2.4 | **`MP_VALIDAR_FIRMA=true` antes de producción.** Sigue sin explicación por qué la firma de los avisos del sandbox no coincide. Ya documentado en `backend_implementation_plan.md` (Fase 21, "Pendiente de la firma"). | M | ⏳ |
+| 2.4 | **`MP_VALIDAR_FIRMA=true` antes de producción.** Sigue sin explicación por qué la firma de los avisos del sandbox no coincide. Ya documentado en `backend_implementation_plan.md` (Fase 21, "Pendiente de la firma"). | M | 🔎 Investigado, sin cerrar: ver `DECISIONES.md` (2026-11-12) y "Pendiente de la firma" en el plan de backend. Se cierra en producción |
 | 2.5 | **Contraseña del Admin inicial por variable de entorno.** Hoy la del seeder está en el código y en el README. | S | ⏳ |
 
 ## Etapa 3 — Bugs y comportamiento incorrecto
@@ -65,7 +65,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | # | Qué | Tamaño | Estado |
 |---|---|---|---|
 | 3.1 | **El Admin puede borrar un evento con órdenes `Pendiente`.** Solo se bloquea si hay entradas vendidas; las órdenes quedan sin evento. **(a confirmar)** qué pasa si alguien paga una de esas órdenes después del borrado. | M | ⏳ |
-| 3.2 | **Método HTTP no soportado devuelve 500 en vez de 405.** Falta manejar `HttpRequestMethodNotSupportedException` en el `@ControllerAdvice`. Visto con `DELETE /eventos/{id}` como Organizador. | S | ⏳ |
+| 3.2 | **Método HTTP no soportado devuelve 500 en vez de 405.** Falta manejar `HttpRequestMethodNotSupportedException` en el `@ControllerAdvice`. Visto con `DELETE /eventos/{id}` como Organizador y con un `Content-Type` no JSON en el webhook de MercadoPago (debería ser 415); un UTF-8 inválido también da 500 en vez de 400. | S | ⏳ |
 | 3.3 | **El Organizador no puede borrar ni un borrador propio.** Solo el Admin borra eventos. **(a confirmar)** si es a propósito; si lo es, anotarlo en `DECISIONES.md`. | S–M | ⏳ |
 | 3.4 | **La regla de "evento finalizado" está duplicada.** Vive en el backend (`EventoService.yaFinalizo`) y otra vez en el frontend (`eventoDisponibleParaStaff` en `StaffMgmtPage.tsx`). Dejar una sola en el backend; de paso, que el backend valide el estado del evento al crear staff. | M | ⏳ |
 | 3.5 | **Fechas sin zona horaria explícita.** El frontend compara con la hora del navegador y el backend con la del servidor. Con el servidor en UTC, un evento "finaliza" tres horas corrido. Fijar `America/Argentina/Buenos_Aires` en el backend. | M | ⏳ |

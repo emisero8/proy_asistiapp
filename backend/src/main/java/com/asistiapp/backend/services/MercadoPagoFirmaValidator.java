@@ -40,6 +40,12 @@ public class MercadoPagoFirmaValidator {
      */
     public boolean esValida(String xSignature, String xRequestId, String dataId) {
         boolean firmaCorrecta = firmaCoincide(xSignature, xRequestId, dataId);
+        if (!firmaCorrecta) {
+            // Todo lo que entra en el HMAC salvo el secreto es público (ts y v1 vienen en el header,
+            // que es un MAC, no la clave): con esto se puede probar a mano, sin MP, qué clave firmó.
+            log.warn("Firma de MercadoPago no coincide: x-signature=[{}], x-request-id=[{}], id=[{}]",
+                    paraLog(xSignature), paraLog(xRequestId), paraLog(dataId));
+        }
         if (!firmaCorrecta && !config.isValidarFirmaWebhook()) {
             // Validación apagada (solo sandbox local): se deja pasar, pero se deja constancia.
             // El pago igual se verifica contra la API de MP antes de entregar nada.
@@ -82,6 +88,18 @@ public class MercadoPagoFirmaValidator {
         return MessageDigest.isEqual(
                 esperada.getBytes(StandardCharsets.UTF_8),
                 v1.toLowerCase().getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * El webhook es público: estos valores los controla quien llame. Se recortan y se les quitan
+     * los caracteres de control para que nadie pueda falsificar líneas del log con saltos de línea.
+     */
+    public static String paraLog(String valor) {
+        if (valor == null) {
+            return null;
+        }
+        String limpio = valor.replaceAll("\\p{Cntrl}", "?");
+        return limpio.length() > 200 ? limpio.substring(0, 200) + "…" : limpio;
     }
 
     static String construirManifest(String dataId, String xRequestId, String ts) {

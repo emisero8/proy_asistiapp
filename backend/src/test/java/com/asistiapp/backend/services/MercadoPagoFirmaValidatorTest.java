@@ -124,4 +124,13 @@ class MercadoPagoFirmaValidatorTest {
 
         assertThat(validator.esValida(header, "req-abc", "123456")).isFalse();
     }
+
+    @Test
+    void paraLog_quitaSaltosDeLineaYRecortaLoQueControlaQuienLlama() {
+        // Sin esto, un aviso con "\n2026-… INFO …" en un header falsificaría líneas del log.
+        assertThat(MercadoPagoFirmaValidator.paraLog("ts=1,v1=ab\n2026-11-12 ERROR falso\r\n")).doesNotContain("\n", "\r");
+        assertThat(MercadoPagoFirmaValidator.paraLog("a".repeat(500))).hasSize(201).endsWith("…");
+        assertThat(MercadoPagoFirmaValidator.paraLog("ts=1,v1=ab")).isEqualTo("ts=1,v1=ab");
+        assertThat(MercadoPagoFirmaValidator.paraLog(null)).isNull();
+    }
 }
