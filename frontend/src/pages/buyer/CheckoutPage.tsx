@@ -2,9 +2,9 @@ import { useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
 import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
-import { api, ApiError } from "../../lib/api";
+import { api } from "../../lib/api";
 import { fmt } from "../../lib/format";
-import { iniciarPago, rutaResultadoPago } from "../../lib/pago";
+import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/pago";
 import type { EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
@@ -64,7 +64,7 @@ export function CheckoutPage() {
         navigate(rutaResultadoPago(orden.ordenId, "entradas"), { state: { urlPago: orden.urlPago } });
       }
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos iniciar el pago. Intentá de nuevo.");
+      setError(mensajeDeErrorDePago(e, "No pudimos iniciar el pago. Intentá de nuevo."));
       setLoading(false);
     }
   }

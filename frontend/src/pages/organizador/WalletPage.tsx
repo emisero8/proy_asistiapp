@@ -4,7 +4,7 @@ import { CreditCard, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt } from "../../lib/format";
-import { iniciarPago, rutaResultadoPago } from "../../lib/pago";
+import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/pago";
 import type {
   CompraCreditoResponseDTO,
   EstadoTransaccion,
@@ -71,7 +71,7 @@ export function OrganizadorWalletPage() {
         navigate(rutaResultadoPago(orden.ordenId, "creditos"), { state: { urlPago: orden.urlPago } });
       }
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos procesar la compra.");
+      setError(mensajeDeErrorDePago(e, "No pudimos procesar la compra."));
       setComprando(false);
     }
   }
