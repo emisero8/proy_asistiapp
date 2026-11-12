@@ -72,6 +72,9 @@ app:
     backend-public-url: ${BACKEND_PUBLIC_URL:http://localhost:8080}
     # Minutos que una orden queda abierta para pagar antes de vencer.
     minutos-vencimiento-orden: ${MP_MINUTOS_VENCIMIENTO:30}
+    # Cada cuántos segundos, como mucho, se consulta a MercadoPago por una misma orden cuando el
+    # comprador mira el estado de su pago (el resto de las consultas se responde desde la base).
+    intervalo-reconciliacion-segundos: ${MP_INTERVALO_RECONCILIACION_SEGUNDOS:10}
   jwt:
     # Sin variable de entorno JWT_SECRET seteada, cae al valor de desarrollo de abajo.
     # NUNCA usar ese default en producción — es público (está en el repo).

@@ -31,6 +31,7 @@ public class PagoWebhookService {
     private final VentaService ventaService;
     private final CreditoService creditoService;
     private final EmailService emailService;
+    private final ThrottleReconciliacion throttleReconciliacion;
 
     public void procesarNotificacionPago(Long paymentId) {
         Optional<Payment> consulta = mercadoPagoService.obtenerPago(paymentId);
@@ -51,6 +52,18 @@ public class PagoWebhookService {
         List<Payment> pagos = mercadoPagoService.buscarPagosPorReferencia(externalReference);
         for (Payment pago : pagos) {
             procesarPago(pago.getId(), pago);
+        }
+    }
+
+    /**
+     * Reconciliación disparada por el comprador al mirar el estado de su orden: igual que
+     * {@link #reconciliar}, pero consulta a MercadoPago como mucho una vez por intervalo por orden
+     * (ver ThrottleReconciliacion). Las demás veces no hace nada y el estado se responde desde la base.
+     * El job de vencimiento usa {@link #reconciliar} directo: él no puede saltearse la consulta.
+     */
+    public void reconciliarSiCorresponde(String externalReference) {
+        if (throttleReconciliacion.permitir(externalReference)) {
+            reconciliar(externalReference);
         }
     }
 

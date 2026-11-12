@@ -42,6 +42,8 @@ class PagoWebhookServiceTest {
     private CreditoService creditoService;
     @Mock
     private EmailService emailService;
+    @Mock
+    private ThrottleReconciliacion throttleReconciliacion;
 
     @InjectMocks
     private PagoWebhookService service;
@@ -315,5 +317,39 @@ class PagoWebhookServiceTest {
 
         verify(ventaService, never()).confirmarPagoEntradas(eq(REF), eq(111L), any(), any());
         verify(ventaService).confirmarPagoEntradas(eq(REF), eq(222L), any(), any());
+    }
+
+    // ─────────────────────────────────────────────
+    // reconciliarSiCorresponde — la que dispara el comprador al mirar su orden
+    // ─────────────────────────────────────────────
+
+    @Test
+    void reconciliarSiCorresponde_cuandoTocaConsultar_consultaAMercadoPago() {
+        when(throttleReconciliacion.permitir(REF)).thenReturn(true);
+        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of());
+
+        service.reconciliarSiCorresponde(REF);
+
+        verify(mercadoPagoService).buscarPagosPorReferencia(REF);
+    }
+
+    @Test
+    void reconciliarSiCorresponde_siConsultoHaceUnMomento_noMolestaAMercadoPago() {
+        when(throttleReconciliacion.permitir(REF)).thenReturn(false);
+
+        service.reconciliarSiCorresponde(REF);
+
+        verifyNoInteractions(mercadoPagoService, ventaService, creditoService, emailService);
+    }
+
+    @Test
+    void reconciliar_aSecas_nuncaPasaPorElThrottle() {
+        // El job de vencimiento llama a reconciliar() directo: no puede saltearse la consulta.
+        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of());
+
+        service.reconciliar(REF);
+
+        verifyNoInteractions(throttleReconciliacion);
+        verify(mercadoPagoService).buscarPagosPorReferencia(REF);
     }
 }

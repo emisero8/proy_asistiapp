@@ -92,7 +92,7 @@ public class CreditoController {
             @PathVariable String externalReference) {
         Organizador organizador = securityUtils.getOrganizadorAutenticado();
         if (creditoService.estadoActual(externalReference).filter(e -> e == EstadoTransaccion.Pendiente).isPresent()) {
-            pagoWebhookService.reconciliar(externalReference);
+            pagoWebhookService.reconciliarSiCorresponde(externalReference);
         }
         return ResponseEntity.ok(creditoService.obtenerEstadoOrden(externalReference, organizador.getId()));
     }

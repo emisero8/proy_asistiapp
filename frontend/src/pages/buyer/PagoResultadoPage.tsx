@@ -18,7 +18,9 @@ import { useDocumentTitle } from "../../lib/useDocumentTitle";
  * En local (http) MercadoPago no puede volver solo, así que el checkout se abre en
  * otra pestaña (ver lib/pago.ts) y esta pantalla queda abierta desde ANTES de pagar:
  * por eso la espera cubre varios minutos y no solo la demora del webhook. 4 s entre
- * consultas = 15/min, la mitad del rate limit de estas rutas (30/min por IP).
+ * consultas = 15/min por pestaña. El rate limit de estas rutas es por IP (120/min), así que
+ * varios compradores en un mismo wifi lo pueden compartir: un 429 ("demasiadas solicitudes")
+ * se trata como transitorio y se reintenta, no como un error del pago.
  */
 export const REINTENTOS_MAXIMOS = 150; // 150 × 4 s = 10 minutos
 export const ESPERA_ENTRE_REINTENTOS_MS = 4000;
@@ -62,6 +64,7 @@ export function PagoResultadoPage() {
     let terminado = false;
     let enCurso = false;
     let tieneOrden = false;
+    let esperandoPrimeraRespuesta = false; // 429 antes de conocer la orden: se sigue mostrando "Consultando…"
     let intentos = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -85,6 +88,7 @@ export function PagoResultadoPage() {
           estado = orden.estado;
         }
         tieneOrden = true;
+        esperandoPrimeraRespuesta = false;
         if (estado === "Pendiente") {
           programarSiguiente();
         } else {
@@ -95,13 +99,18 @@ export function PagoResultadoPage() {
         if (tieneOrden) {
           // Un fallo suelto en medio de una espera de minutos no la corta: se reintenta.
           programarSiguiente();
+        } else if (e instanceof ApiError && e.status === 429) {
+          // El límite de consultas es por IP: si hay mucha gente en la misma red puede saltar
+          // sin que nada ande mal con el pago. Se espera y se reintenta, sin asustar al comprador.
+          esperandoPrimeraRespuesta = true;
+          programarSiguiente();
         } else {
           terminado = true;
           setError(e instanceof ApiError ? e.message : "No pudimos consultar el estado de tu pago.");
         }
       } finally {
         enCurso = false;
-        if (!cancelado) setCargando(false);
+        if (!cancelado && !esperandoPrimeraRespuesta) setCargando(false);
       }
     }
 
@@ -109,7 +118,14 @@ export function PagoResultadoPage() {
       intentos += 1;
       if (intentos >= REINTENTOS_MAXIMOS) {
         terminado = true;
-        setEsperaAgotada(true);
+        if (tieneOrden) {
+          setEsperaAgotada(true);
+        } else {
+          // Nunca se pudo consultar (siempre 429): no queda una pantalla de "Consultando…" eterna.
+          esperandoPrimeraRespuesta = false;
+          setError("Hay mucha demanda en este momento y no pudimos consultar tu pago. Si ya pagaste, no te preocupes: te llegará la entrada por email. Intentá de nuevo en unos minutos.");
+          setCargando(false);
+        }
       } else {
         timer = setTimeout(consultar, ESPERA_ENTRE_REINTENTOS_MS);
       }

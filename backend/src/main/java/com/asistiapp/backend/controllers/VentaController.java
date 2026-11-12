@@ -65,7 +65,7 @@ public class VentaController {
     public ResponseEntity<EstadoOrdenEntradasResponseDTO> obtenerEstadoOrden(
             @PathVariable String externalReference) {
         if (ventaService.estadoActual(externalReference).filter(e -> e == EstadoTransaccion.Pendiente).isPresent()) {
-            pagoWebhookService.reconciliar(externalReference);
+            pagoWebhookService.reconciliarSiCorresponde(externalReference);
         }
         return ResponseEntity.ok(ventaService.obtenerEstadoOrden(externalReference));
     }

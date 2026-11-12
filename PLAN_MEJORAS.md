@@ -72,7 +72,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 3.6 | **La venta manual del vendedor no recibe `cantidad`.** El POS hace una llamada por entrada, así que vender varias no es una sola operación atómica. | M | ✅ |
 | 3.7 | **Bloqueo de pegar en "Confirmar email"** (`CheckoutPage.tsx`). Molesta con gestores de contraseñas y autocompletado, y no evita errores de tipeo. Sacarlo. | S | ✅ |
 | 3.8 | **Pestaña de pago bloqueada o en blanco.** Si el navegador bloquea la pestaña nueva, el pago cae a la redirección de siempre y el comprador queda varado en MercadoPago: avisarle antes. Y mientras se crea la orden la pestaña queda en blanco: escribirle "Redirigiendo a MercadoPago…". Archivo: `frontend/src/lib/pago.ts`. | S | ✅ |
-| 3.9 | **La espera del pago puede chocar con el límite de peticiones.** Cada pestaña consulta 15 veces por minuto y el límite es 30 por IP: dos compradores en el mismo wifi ya lo tocan. Espaciar las consultas con el tiempo o subir el límite de ese endpoint. | S | ⏳ |
+| 3.9 | **La espera del pago puede chocar con el límite de peticiones.** Cada pestaña consulta 15 veces por minuto y el límite es 30 por IP: dos compradores en el mismo wifi ya lo tocan. Espaciar las consultas con el tiempo o subir el límite de ese endpoint. | S | ✅ |
 
 ## Etapa 4 — Base de datos e infraestructura
 

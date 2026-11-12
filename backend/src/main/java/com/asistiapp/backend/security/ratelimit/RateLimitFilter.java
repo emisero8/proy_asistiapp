@@ -41,12 +41,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     // Rutas con un UUID en el path (no matchean por igualdad exacta como las de arriba):
     // consultar el estado de una orden, mientras siga Pendiente, puede disparar una llamada
-    // real a la API de MercadoPago (reconciliación) — sin límite, alguien con la referencia
-    // de una orden podría spamear esa llamada saliente. 30/min de sobra para el polling real
-    // de la pantalla de resultado (1 cada 2.5 s, hasta 8 veces).
+    // real a la API de MercadoPago (reconciliación). Esa llamada saliente ya se limita por ORDEN
+    // (ThrottleReconciliacion: una vez cada 10 s), así que este límite por IP solo tiene que frenar
+    // el abuso de lecturas baratas. Tiene que ser holgado: los compradores de un mismo wifi (un
+    // evento, una oficina) comparten IP y cada pestaña consulta 15 veces por minuto (cada 4 s).
+    // 120/min alcanza para ~8 pestañas esperando a la vez desde la misma IP.
     private static final String PREFIJO_ORDEN_ENTRADAS = "/tickets/orden/";
     private static final String PREFIJO_ORDEN_CREDITOS = "/creditos/orden/";
-    private static final LimiteConfig LIMITE_CONSULTA_ORDEN = new LimiteConfig(30, Duration.ofMinutes(1));
+    private static final LimiteConfig LIMITE_CONSULTA_ORDEN = new LimiteConfig(120, Duration.ofMinutes(1));
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
