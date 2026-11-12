@@ -23,7 +23,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `DB_PASSWORD`    | `1234`                                           |
    | `SMTP_HOST`      | `localhost` (MailHog)                            |
    | `SMTP_PORT`      | `1025` (MailHog)                                 |
-   | `JWT_SECRET`     | valor de desarrollo hardcodeado — **nunca reusar en producción** |
+   | `JWT_SECRET`     | valor de desarrollo hardcodeado (público). **En producción es obligatorio definirlo**: con `SPRING_PROFILES_ACTIVE=prod` el backend se niega a arrancar si sigue el de desarrollo, o si tiene menos de 32 caracteres |
+   | `SPRING_PROFILES_ACTIVE` | vacío en desarrollo. **`prod` en producción**: activa el control de `JWT_SECRET` y desactiva el seeder del Admin de desarrollo |
    | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` |
    | `MP_ACCESS_TOKEN` | vacío — Access Token de MercadoPago (ver sección MercadoPago) |
    | `MP_WEBHOOK_SECRET` | vacío — clave secreta de Webhooks de MercadoPago |

@@ -457,7 +457,7 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 1. Credenciales de **producción** en `MP_ACCESS_TOKEN` y la clave secreta de producción en `MP_WEBHOOK_SECRET`.
 2. `MP_VALIDAR_FIRMA=true` y verificar con un pago real de bajo monto.
 3. `BACKEND_PUBLIC_URL` y `FRONTEND_BASE_URL` con los dominios HTTPS finales; webhook configurado en **Modo productivo** del panel con la URL final.
-4. Cambiar `JWT_SECRET` y la contraseña de la base (los defaults de desarrollo son públicos).
+4. `SPRING_PROFILES_ACTIVE=prod`, `JWT_SECRET` propio (aleatorio, 32+ caracteres) y otra contraseña de la base (los defaults de desarrollo son públicos). Con el perfil `prod` el backend no arranca si `JWT_SECRET` sigue siendo el de desarrollo; **sin el perfil `prod` ese control no corre**, así que activarlo es parte del pase a producción.
 5. Volver a probar aprobado, pendiente, rechazado, compra de varias entradas, tanda agotada (reembolso) y compra de créditos.
 6. Aplicar `backend/db/migraciones/2026-10-15-mercadopago-ordenes.sql` si la base ya existía.
 7. Si hay un proxy o balanceador delante del backend, `RATE_LIMIT_PROXIES_CONFIABLES=<cantidad de proxies>` (normalmente `1`). Sin eso, el límite de peticiones ve a todos los usuarios con la IP del proxy y los trata como uno solo.
