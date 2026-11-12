@@ -27,6 +27,9 @@ async function copiarAlPortapapeles(texto: string, mensajeOk: string) {
   }
 }
 
+/** Mismo tope que VentaManualRequestDTO.cantidad en el backend (@Max(20)). */
+const MAX_ENTRADAS_POR_VENTA = 20;
+
 export function StaffPosPage() {
   useDocumentTitle("Punto de venta");
   const { session, logout } = useAuth();
@@ -84,32 +87,25 @@ export function StaffPosPage() {
     return () => clearTimeout(handle);
   }, [evento, buyerEmail]);
 
-  const cupoMaximoVenta = Math.min(tanda?.cupoDisponible ?? 1, disponibilidad?.disponible ?? Infinity);
+  const cupoMaximoVenta = Math.min(MAX_ENTRADAS_POR_VENTA, tanda?.cupoDisponible ?? 1, disponibilidad?.disponible ?? Infinity);
 
   async function handleGenerate() {
     if (!tanda) return;
     setSelling(true);
     setSellError(null);
 
-    // El backend genera una Entrada por llamada — igual que en la compra online,
-    // "vender qty entradas" son qty llamadas secuenciales a venta-manual.
-    const nuevas: EntradaResponseDTO[] = [];
+    // Una sola llamada: el backend genera las qty entradas en una operación atómica (todas o ninguna),
+    // así una falla a mitad de camino no deja la venta partida.
     try {
-      for (let i = 0; i < qty; i++) {
-        const entrada = await api.post<EntradaResponseDTO>("/tickets/venta-manual", {
-          idTanda: tanda.id,
-          nombreComprador: buyerName,
-          emailComprador: buyerEmail,
-        } satisfies VentaManualRequestDTO);
-        nuevas.push(entrada);
-      }
+      const nuevas = await api.post<EntradaResponseDTO[]>("/tickets/venta-manual", {
+        idTanda: tanda.id,
+        cantidad: qty,
+        nombreComprador: buyerName,
+        emailComprador: buyerEmail,
+      } satisfies VentaManualRequestDTO);
       setEntradas(nuevas);
       setSoldToday((c) => c + nuevas.length);
     } catch (e: unknown) {
-      if (nuevas.length > 0) {
-        setEntradas(nuevas);
-        setSoldToday((c) => c + nuevas.length);
-      }
       setSellError(e instanceof ApiError ? e.message : "No pudimos registrar la venta. Intentá de nuevo.");
     } finally {
       setSelling(false);

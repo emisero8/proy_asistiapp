@@ -328,16 +328,18 @@ public class VentaService {
     // ─────────────────────────────────────────────
 
     /**
-     * Registra una venta manual realizada por el Staff Vendedor (CU-019).
-     * Bypasea MercadoPago: genera QR y marca como Pagada de forma inmediata.
-     * Usa Pessimistic Lock para garantizar anti-sobreventa igual que el flujo online.
+     * Registra una venta manual de una o más entradas realizada por el Staff Vendedor (CU-019).
+     * Bypasea MercadoPago: genera un QR por entrada y las marca como Pagadas de forma inmediata.
+     * Usa Pessimistic Lock para garantizar anti-sobreventa igual que el flujo online, y es todo o
+     * nada: si no alcanza el cupo o el límite por comprador, no se genera ninguna entrada (antes el
+     * POS hacía una llamada por entrada y una falla a mitad dejaba la venta partida).
      *
-     * @param dto        datos del comprador y la tanda
+     * @param dto        datos del comprador, la tanda y la cantidad
      * @param idStaffVendedor ID del Staff Vendedor autenticado
-     * @return entrada generada con su código QR
+     * @return las entradas generadas, cada una con su código QR
      */
     @Transactional
-    public EntradaResponseDTO realizarVentaManual(VentaManualRequestDTO dto, Long idStaffVendedor) {
+    public List<EntradaResponseDTO> realizarVentaManual(VentaManualRequestDTO dto, Long idStaffVendedor) {
         // Verificar que el staff vendedor existe
         StaffVendedor staffVendedor = staffVendedorRepository.findById(idStaffVendedor)
                 .orElseThrow(() -> new ResourceNotFoundException("Staff Vendedor no encontrado"));
@@ -359,32 +361,39 @@ public class VentaService {
             throw new ForbiddenActionException("Solo podés vender entradas para el evento que tenés asignado");
         }
 
-        validarTandaDisponible(tanda, 1);
-        validarLimitePorComprador(tanda, dto.getEmailComprador(), 1);
+        int cantidad = dto.getCantidad();
+        validarTandaDisponible(tanda, cantidad);
+        validarLimitePorComprador(tanda, dto.getEmailComprador(), cantidad);
 
-        // Decrementar cupo de forma atómica
-        int filasActualizadas = tandaRepository.decrementarCupo(tanda.getId());
+        // Decrementar cupo de forma atómica, todo o nada: solo si alcanza para la cantidad completa
+        int filasActualizadas = tandaRepository.decrementarCupo(tanda.getId(), cantidad);
         if (filasActualizadas == 0) {
-            throw new BusinessRuleException("Tanda agotada — no hay cupo disponible");
+            throw new BusinessRuleException(cantidad == 1
+                    ? "Tanda agotada — no hay cupo disponible"
+                    : "No hay cupo para " + cantidad + " entradas en esta tanda");
         }
 
-        // Generar la entrada manualmente
-        String codigoQr = generarCodigoQrUnico();
-        Entrada entrada = new Entrada();
-        entrada.setTanda(tanda);
-        entrada.setCodigoQr(codigoQr);
-        entrada.setNombreComprador(dto.getNombreComprador());
-        entrada.setEmailComprador(dto.getEmailComprador());
-        entrada.setEstado(EstadoEntrada.Pagada);
-        entrada.setCanalVenta(CanalVenta.Manual);
-        entrada.setIdStaffVendedor(idStaffVendedor);
+        // Generar las entradas manualmente
+        List<EntradaResponseDTO> generadas = new ArrayList<>();
+        for (int i = 0; i < cantidad; i++) {
+            String codigoQr = generarCodigoQrUnico();
+            Entrada entrada = new Entrada();
+            entrada.setTanda(tanda);
+            entrada.setCodigoQr(codigoQr);
+            entrada.setNombreComprador(dto.getNombreComprador());
+            entrada.setEmailComprador(dto.getEmailComprador());
+            entrada.setEstado(EstadoEntrada.Pagada);
+            entrada.setCanalVenta(CanalVenta.Manual);
+            entrada.setIdStaffVendedor(idStaffVendedor);
 
-        Entrada saved = entradaRepository.save(entrada);
+            Entrada saved = entradaRepository.save(entrada);
+            generadas.add(toResponseDTO(saved));
 
-        log.info("Venta manual registrada: id={}, qr={}, staff={}, evento={}",
-                saved.getId(), codigoQr, idStaffVendedor, tanda.getEvento().getNombre());
+            log.info("Venta manual registrada: id={}, qr={}, staff={}, evento={}",
+                    saved.getId(), codigoQr, idStaffVendedor, tanda.getEvento().getNombre());
+        }
 
-        return toResponseDTO(saved);
+        return generadas;
     }
 
     // ─────────────────────────────────────────────

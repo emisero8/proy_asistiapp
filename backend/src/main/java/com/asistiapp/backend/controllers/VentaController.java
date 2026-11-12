@@ -24,7 +24,7 @@ import java.util.List;
  *   (la confirmación del pago llega por POST /payments/mercadopago/webhook)
  *
  * Endpoints exclusivos Staff_Vendedor:
- *   POST /tickets/venta-manual         → Venta manual directa (CU-019)
+ *   POST /tickets/venta-manual         → Venta manual directa de 1..20 entradas, todo o nada (CU-019)
  *
  * Endpoints para Organizador (reportes):
  *   GET  /tickets/evento/{eventoId}    → Listar entradas de un evento
@@ -75,16 +75,16 @@ public class VentaController {
     // ─────────────────────────────────────────────
 
     /**
-     * Venta manual de entrada — exclusivo para Staff_Vendedor.
-     * Genera QR y marca la entrada como Pagada de forma inmediata.
+     * Venta manual de una o más entradas — exclusivo para Staff_Vendedor.
+     * Genera un QR por entrada y las marca como Pagadas de forma inmediata; es todo o nada.
      */
     @PostMapping("/venta-manual")
     @PreAuthorize("hasRole('Staff_Vendedor')")
-    public ResponseEntity<EntradaResponseDTO> ventaManual(
+    public ResponseEntity<List<EntradaResponseDTO>> ventaManual(
             @Valid @RequestBody VentaManualRequestDTO dto) {
         StaffVendedor staff = securityUtils.getStaffVendedorAutenticado();
-        EntradaResponseDTO entrada = ventaService.realizarVentaManual(dto, staff.getId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(entrada);
+        List<EntradaResponseDTO> entradas = ventaService.realizarVentaManual(dto, staff.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(entradas);
     }
 
     /**

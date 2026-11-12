@@ -7,6 +7,7 @@ import com.asistiapp.backend.models.dtos.entrada.CompraOnlineRequestDTO;
 import com.asistiapp.backend.models.dtos.entrada.IniciarCompraResponseDTO;
 import com.asistiapp.backend.models.dtos.entrada.VentaManualRequestDTO;
 import com.asistiapp.backend.models.entities.*;
+import com.asistiapp.backend.models.enums.CanalVenta;
 import com.asistiapp.backend.models.enums.EstadoEntrada;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.EstadoTransaccion;
@@ -168,7 +169,7 @@ class VentaServiceTest {
                         && o.externalReference().equals("ref-uuid-123")
                         && o.tipo().equals(MercadoPagoService.TIPO_ENTRADAS)));
         // Comprar no descuenta cupo: eso lo hace el webhook al confirmar el pago.
-        verify(tandaRepository, never()).decrementarCupo(anyLong());
+        verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
     }
 
     @Test
@@ -426,7 +427,7 @@ class VentaServiceTest {
         staff.setIdOrganizador(100L);
         when(staffVendedorRepository.findById(1L)).thenReturn(Optional.of(staff));
         when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
-        when(tandaRepository.decrementarCupo(tanda.getId())).thenReturn(0);
+        when(tandaRepository.decrementarCupo(tanda.getId(), 1)).thenReturn(0);
 
         assertThatThrownBy(() -> ventaService.realizarVentaManual(ventaManualDto(), 1L))
                 .isInstanceOf(BusinessRuleException.class)
@@ -440,16 +441,83 @@ class VentaServiceTest {
         staff.setIdOrganizador(100L);
         when(staffVendedorRepository.findById(1L)).thenReturn(Optional.of(staff));
         when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
-        when(tandaRepository.decrementarCupo(tanda.getId())).thenReturn(1);
+        when(tandaRepository.decrementarCupo(tanda.getId(), 1)).thenReturn(1);
         when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
         when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = ventaService.realizarVentaManual(ventaManualDto(), 1L);
 
-        assertThat(response.getEstado()).isEqualTo(EstadoEntrada.Pagada);
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getEstado()).isEqualTo(EstadoEntrada.Pagada);
         verify(entradaRepository).save(argThat(e ->
                 e.getIdStaffVendedor().equals(1L) && e.getCodigoQr() != null));
         verifyNoInteractions(emailService); // la venta manual no envía email de confirmación
+    }
+
+    private void vendedorDeLaTanda() {
+        StaffVendedor staff = new StaffVendedor();
+        staff.setId(1L);
+        staff.setIdOrganizador(100L);
+        when(staffVendedorRepository.findById(1L)).thenReturn(Optional.of(staff));
+        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+    }
+
+    private VentaManualRequestDTO ventaManualDto(int cantidad) {
+        VentaManualRequestDTO dto = ventaManualDto();
+        dto.setCantidad(cantidad);
+        return dto;
+    }
+
+    @Test
+    void realizarVentaManual_conCantidad_generaTodasLasEntradasEnUnaSolaOperacion() {
+        vendedorDeLaTanda();
+        when(tandaRepository.decrementarCupo(tanda.getId(), 3)).thenReturn(1);
+        when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = ventaService.realizarVentaManual(ventaManualDto(3), 1L);
+
+        assertThat(response).hasSize(3);
+        assertThat(response).extracting(r -> r.getCodigoQr()).doesNotHaveDuplicates();
+        verify(tandaRepository, times(1)).decrementarCupo(tanda.getId(), 3);
+        verify(entradaRepository, times(3)).save(argThat(e -> e.getCanalVenta() == CanalVenta.Manual));
+    }
+
+    @Test
+    void realizarVentaManual_masEntradasQueElCupo_noGeneraNinguna() {
+        vendedorDeLaTanda(); // la tanda tiene cupo 5
+
+        assertThatThrownBy(() -> ventaService.realizarVentaManual(ventaManualDto(6), 1L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Solo quedan 5");
+
+        verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void realizarVentaManual_siElCupoSeAgotaEnElInterin_noGeneraNinguna() {
+        vendedorDeLaTanda();
+        // Otra venta se llevó el cupo entre la lectura y el UPDATE condicional: afecta 0 filas.
+        when(tandaRepository.decrementarCupo(tanda.getId(), 3)).thenReturn(0);
+
+        assertThatThrownBy(() -> ventaService.realizarVentaManual(ventaManualDto(3), 1L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("No hay cupo para 3 entradas");
+
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void realizarVentaManual_pasandoElLimitePorComprador_noGeneraNinguna() {
+        vendedorDeLaTanda(); // límite por comprador: 6
+        when(entradaRepository.countByEventoIdAndEmailComprador(any(), any())).thenReturn(4L);
+
+        assertThatThrownBy(() -> ventaService.realizarVentaManual(ventaManualDto(3), 1L))
+                .isInstanceOf(BusinessRuleException.class);
+
+        verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
+        verify(entradaRepository, never()).save(any());
     }
 
     // ─────────────────────────────────────────────

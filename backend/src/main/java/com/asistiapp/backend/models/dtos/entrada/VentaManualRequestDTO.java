@@ -1,6 +1,8 @@
 package com.asistiapp.backend.models.dtos.entrada;
 
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -8,7 +10,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 /**
- * DTO para la venta manual de una entrada por parte del Staff Vendedor (CU-019).
+ * DTO para la venta manual de una o más entradas (una sola operación atómica) por parte del Staff Vendedor (CU-019).
  * Bypasea MercadoPago: la entrada se genera y marca como Pagada de forma inmediata.
  */
 @Getter
@@ -18,6 +20,12 @@ public class VentaManualRequestDTO {
     @NotNull(message = "El ID de la tanda es obligatorio")
     @Positive(message = "El ID de la tanda debe ser un número positivo")
     private Long idTanda;
+
+    /** Cuántas entradas se venden de una vez: se generan todas o ninguna. */
+    @NotNull(message = "La cantidad de entradas es obligatoria")
+    @Min(value = 1, message = "Tenés que vender al menos 1 entrada")
+    @Max(value = 20, message = "No se pueden vender más de 20 entradas por operación")
+    private Integer cantidad = 1;
 
     @NotBlank(message = "El nombre del comprador es obligatorio")
     private String nombreComprador;

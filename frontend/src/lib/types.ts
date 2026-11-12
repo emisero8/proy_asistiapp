@@ -206,6 +206,8 @@ export interface IniciarCompraResponseDTO {
 
 export interface VentaManualRequestDTO {
   idTanda: number;
+  /** 1..20 entradas en una sola operación: se generan todas o ninguna. */
+  cantidad: number;
   nombreComprador: string;
   emailComprador: string;
 }
