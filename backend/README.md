@@ -105,7 +105,7 @@ Todos los mails que envía el backend (confirmaciones de compra, credenciales de
 
 ### Gmail u otro proveedor SMTP (producción, o local si no se puede usar Docker)
 
-No hace falta editar `application.yml`: el proveedor se elige solo con variables de entorno (los valores por defecto siguen siendo los de MailHog). Para Gmail:
+No hace falta editar `application.yml`: el proveedor se elige solo con variables de entorno (de Windows o en un archivo `backend/.env`, ver más abajo) (los valores por defecto siguen siendo los de MailHog). Para Gmail:
 
 ```
 SMTP_HOST=smtp.gmail.com
@@ -120,6 +120,8 @@ SMTP_PASSWORD=<app password de 16 caracteres, NO la contraseña normal de la cue
 1. La cuenta de Gmail tiene que tener verificación en 2 pasos activada.
 2. Generarlo en `myaccount.google.com/apppasswords` (Cuenta de Google → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones).
 3. Copiar el código de 16 caracteres que muestra una sola vez — ese es el `SMTP_PASSWORD`.
+
+**Alternativa: archivo `backend/.env`.** Se puede copiar `backend/.env.example` a `backend/.env`, completar las líneas y arrancar el backend desde `backend/` (`mvn spring-boot:run`). `.env` está en el `.gitignore` (nunca se commitea) y, si no existe, no pasa nada. Las variables de entorno reales pisan a las del archivo. No poner comillas en los valores.
 
 Notas:
 - Gmail envía siempre **desde la cuenta autenticada** (no se puede poner otro remitente) y limita el volumen diario (unos 500 mails por cuenta personal): sirve para una demo o un lanzamiento chico, no para volumen.

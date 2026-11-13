@@ -1,4 +1,8 @@
 spring:
+  config:
+    # Archivo opcional backend/.env (ignorado por Git) con líneas CLAVE=valor: sirve para tener en un solo lugar
+    # las credenciales locales (SMTP_*, MP_*...). Las variables de entorno reales tienen prioridad sobre este archivo.
+    import: optional:file:.env[.properties]
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/asistiapp_db}
     username: ${DB_USERNAME:postgres}
