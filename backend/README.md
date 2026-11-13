@@ -14,24 +14,24 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    ```sql
    CREATE DATABASE asistiapp_db;
    ```
-2. Variables de entorno (todas tienen default de desarrollo si no se setean — ver `application.yml`):
+2. Variables de entorno (todas tienen default de desarrollo si no se setean — ver `application.yml`). **Con `SPRING_PROFILES_ACTIVE=prod` esos defaults NO se usan**: las variables marcadas ⚠️ pasan a ser obligatorias y, si falta alguna, el backend no arranca y el error nombra todas las que faltan (`ConfiguracionProdValidator`):
 
    | Variable         | Default (dev)                                   |
    |------------------|--------------------------------------------------|
-   | `DB_URL`         | `jdbc:postgresql://localhost:5432/asistiapp_db`  |
-   | `DB_USERNAME`    | `postgres`                                       |
-   | `DB_PASSWORD`    | `1234`                                           |
-   | `SMTP_HOST`      | `localhost` (MailHog)                            |
+   | `DB_URL` ⚠️      | `jdbc:postgresql://localhost:5432/asistiapp_db`  |
+   | `DB_USERNAME` ⚠️ | `postgres`                                       |
+   | `DB_PASSWORD` ⚠️ | `1234`                                           |
+   | `SMTP_HOST` ⚠️   | `localhost` (MailHog)                            |
    | `SMTP_PORT`      | `1025` (MailHog)                                 |
    | `SMTP_USERNAME` / `SMTP_PASSWORD` | vacíos (MailHog no usa autenticación). Con Gmail: la cuenta y su *contraseña de aplicación* (ver sección Envío de mails) |
    | `SMTP_AUTH` / `SMTP_STARTTLS` | `false` (MailHog). Con Gmail: `true` y `true` |
    | `JWT_SECRET`     | valor de desarrollo hardcodeado (público). **En producción es obligatorio definirlo**: con `SPRING_PROFILES_ACTIVE=prod` el backend se niega a arrancar si sigue el de desarrollo, o si tiene menos de 32 caracteres |
-   | `SPRING_PROFILES_ACTIVE` | vacío en desarrollo. **`prod` en producción**: activa el control de `JWT_SECRET` y evita que se cree un Admin con contraseña pública |
-   | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173,http://localhost:3000` |
-   | `MP_ACCESS_TOKEN` | vacío — Access Token de MercadoPago (ver sección MercadoPago) |
-   | `MP_WEBHOOK_SECRET` | vacío — clave secreta de Webhooks de MercadoPago |
+   | `SPRING_PROFILES_ACTIVE` | vacío en desarrollo. **`prod` en producción**: activa el control de `JWT_SECRET`, exige las variables marcadas ⚠️ (también `FRONTEND_BASE_URL`), evita que se cree un Admin con contraseña pública, apaga el SQL en el log, baja el nivel de log a INFO y no devuelve mensajes internos en los errores |
+   | `CORS_ALLOWED_ORIGINS` ⚠️ | `http://localhost:5173,http://localhost:3000` |
+   | `MP_ACCESS_TOKEN` ⚠️ | vacío — Access Token de MercadoPago (ver sección MercadoPago) |
+   | `MP_WEBHOOK_SECRET` ⚠️ | vacío — clave secreta de Webhooks de MercadoPago |
    | `MP_VALIDAR_FIRMA` | `true` — **dejar en `true` en producción** |
-   | `BACKEND_PUBLIC_URL` | `http://localhost:8080` — URL pública HTTPS (ngrok en local) |
+   | `BACKEND_PUBLIC_URL` ⚠️ | `http://localhost:8080` — URL pública HTTPS (ngrok en local) |
    | `CLOUDINARY_CLOUD_NAME` | vacío — sin esto, subir una imagen de portada de evento falla (el resto de la app funciona igual) |
    | `CLOUDINARY_API_KEY` | vacío |
    | `CLOUDINARY_API_SECRET` | vacío |

@@ -1,7 +1,20 @@
 # Se activa con SPRING_PROFILES_ACTIVE=prod y se suma a application.yml (lo que se repite pisa al de arriba).
 # Acá solo va lo que tiene que ser distinto en producción; ver también JwtSecretValidator y AdminInicialSeeder,
 # que se comportan distinto con este perfil.
+#
+# NO poner credenciales acá (este archivo se commitea): todo lo secreto va por variable de entorno.
+# Las variables SIN valor por defecto (${NOMBRE} a secas) son obligatorias en producción: si falta alguna, el
+# backend NO arranca y el error nombra todas las que faltan (ConfiguracionProdValidator, que tiene la misma
+# lista; un test verifica que coincidan). Es a propósito: los defaults de application.yml son de desarrollo
+# (contraseña de base "1234", CORS y URLs en localhost, SMTP de MailHog) y en producción fallarían callados o,
+# peor, funcionarían con valores públicos. OJO: Spring deja el texto "${NOMBRE}" sin resolver en vez de
+# fallar, por eso hace falta ese validador.
 spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
   jpa:
     # En desarrollo se imprime cada consulta SQL para depurar; en producción solo llena el log
     # (y es lento): una sola línea de log por consulta, con los valores de los datos de los compradores.
@@ -9,3 +22,27 @@ spring:
     properties:
       hibernate:
         format_sql: false
+
+  mail:
+    host: ${SMTP_HOST}
+
+server:
+  error:
+    # Los errores que no pasan por GlobalExceptionHandler (ruta inexistente, etc.) no devuelven el texto
+    # interno de la excepción.
+    include-message: never
+
+app:
+  mercadopago:
+    access-token: ${MP_ACCESS_TOKEN}
+    webhook-secret: ${MP_WEBHOOK_SECRET}
+    backend-public-url: ${BACKEND_PUBLIC_URL}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+  frontend-base-url: ${FRONTEND_BASE_URL}
+
+logging:
+  level:
+    # DEBUG en desarrollo; en producción solo lo que importa (y sin el detalle de cada request de Spring Security).
+    com.asistiapp: INFO
+    org.springframework.security: WARN

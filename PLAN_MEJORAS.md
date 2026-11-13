@@ -80,7 +80,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 |---|---|---|---|
 | 4.1 | **Migraciones con Flyway** en lugar de `ddl-auto: update`, que no aplica cambios de restricciones. Reemplaza los scripts sueltos de `backend/db/migraciones/` y hace innecesario el ítem 1.3 a futuro. | L | ⏳ |
 | 4.2 | **Claves foráneas reales.** Varias relaciones son un `Long` suelto, y al borrar un usuario hay que limpiar tabla por tabla a mano (`notificaciones`, `movimientos_credito`, `transacciones_credito`, `tokens_recuperacion`). Conviene hacerlo después de 4.1. | L | ⏳ |
-| 4.3 | **Perfiles `dev` y `prod` separados.** Hoy todo vive en un solo `application.yml` con valores por defecto de desarrollo. | M | ⏳ |
+| 4.3 | **Perfiles `dev` y `prod` separados.** Hoy todo vive en un solo `application.yml` con valores por defecto de desarrollo. | M | ✅ |
 | 4.4 | **Apagar `show-sql: true`** fuera de desarrollo. | S | ✅ |
 | 4.5 | **Credenciales de Cloudinary.** Sin ellas no anda la subida de imágenes. Ya documentado en `DECISIONES.md` (deuda). | S | ⏳ |
 | 4.6 | **Verificar el mail de reembolso contra MailHog.** Solo tiene tests unitarios. Ya documentado en `backend_implementation_plan.md` (21.6). | S | ✅ |
