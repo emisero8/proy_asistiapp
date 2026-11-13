@@ -38,7 +38,8 @@ class ConfiguracionProdValidatorTest {
         assertThatThrownBy(() -> ConfiguracionProdValidator.validar(env))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContainingAll("DB_URL", "DB_USERNAME", "DB_PASSWORD", "SMTP_HOST", "MP_ACCESS_TOKEN",
-                        "MP_WEBHOOK_SECRET", "BACKEND_PUBLIC_URL", "CORS_ALLOWED_ORIGINS", "FRONTEND_BASE_URL");
+                        "MP_WEBHOOK_SECRET", "BACKEND_PUBLIC_URL", "CORS_ALLOWED_ORIGINS", "FRONTEND_BASE_URL",
+                        "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET");
     }
 
     @Test

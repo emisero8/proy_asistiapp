@@ -41,6 +41,9 @@ public class ConfiguracionProdValidator implements EnvironmentPostProcessor, Ord
         OBLIGATORIAS_EN_PROD.put("app.mercadopago.backend-public-url", "BACKEND_PUBLIC_URL");
         OBLIGATORIAS_EN_PROD.put("app.cors.allowed-origins", "CORS_ALLOWED_ORIGINS");
         OBLIGATORIAS_EN_PROD.put("app.frontend-base-url", "FRONTEND_BASE_URL");
+        OBLIGATORIAS_EN_PROD.put("app.cloudinary.cloud-name", "CLOUDINARY_CLOUD_NAME");
+        OBLIGATORIAS_EN_PROD.put("app.cloudinary.api-key", "CLOUDINARY_API_KEY");
+        OBLIGATORIAS_EN_PROD.put("app.cloudinary.api-secret", "CLOUDINARY_API_SECRET");
     }
 
     /** Después de cargar application*.yml y el .env (ConfigData corre con HIGHEST_PRECEDENCE + 10). */
