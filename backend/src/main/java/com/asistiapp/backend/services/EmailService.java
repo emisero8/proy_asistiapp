@@ -4,13 +4,14 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import java.util.Base64;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -57,24 +58,28 @@ public class EmailService {
         try {
             int total = codigosQr.size();
             StringBuilder bloques = new StringBuilder();
+            List<byte[]> imagenesQr = new ArrayList<>();
             for (int i = 0; i < total; i++) {
                 String codigoQr = codigosQr.get(i);
-                byte[] qrPng = qrImageService.generarPng(codigoQr, TAMANO_QR_EMAIL_PX);
-                // Base64 data URI: compatible con MailHog y todos los clientes de email.
-                // CID inline requiere soporte explícito del visor (MailHog no lo tiene).
-                String qrDataUri = "data:image/png;base64," + Base64.getEncoder().encodeToString(qrPng);
+                imagenesQr.add(qrImageService.generarPng(codigoQr, TAMANO_QR_EMAIL_PX));
                 String ticketUrl = frontendBaseUrl + "/mi-entrada?codigoQr=" + codigoQr;
-                bloques.append(construirBloqueEntrada(i + 1, total, qrDataUri, codigoQr, ticketUrl));
+                // El QR viaja como imagen inline (cid:), no como data: URI en base64: Gmail (y otros
+                // clientes) bloquean las imágenes data: y mostraban el QR roto. MailHog no resuelve
+                // cid: en su vista HTML, pero ahí el botón "Ver mi entrada" lleva al QR igual.
+                bloques.append(construirBloqueEntrada(i + 1, total, "cid:" + cidDelQr(i), codigoQr, ticketUrl));
             }
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            // multipart=false: ya no usamos CID inline, el HTML lleva la imagen embebida
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, "UTF-8");
             helper.setTo(emailDestino);
             helper.setSubject(total == 1
                     ? "✅ Tu entrada para " + nombreEvento + " — AsistíAPP"
                     : "✅ Tus " + total + " entradas para " + nombreEvento + " — AsistíAPP");
             helper.setText(construirCuerpoEmailHtml(nombreComprador, nombreEvento, nombreTanda, total, bloques.toString()), true);
+            // Las imágenes inline se agregan después del texto HTML que las referencia.
+            for (int i = 0; i < imagenesQr.size(); i++) {
+                helper.addInline(cidDelQr(i), new ByteArrayResource(imagenesQr.get(i)), "image/png");
+            }
 
             mailSender.send(mimeMessage);
             log.info("Email de confirmación enviado a: {} ({} entrada[s]) para el evento: {}",
@@ -264,8 +269,12 @@ public class EmailService {
         }
     }
 
+    private static String cidDelQr(int indice) {
+        return "qr-entrada-" + (indice + 1);
+    }
+
     /** Un bloque de QR + botón por cada entrada. "Entrada N de M" solo si hay más de una. */
-    private String construirBloqueEntrada(int numero, int total, String qrDataUri, String codigoQr, String ticketUrl) {
+    private String construirBloqueEntrada(int numero, int total, String qrSrc, String codigoQr, String ticketUrl) {
         String etiqueta = total > 1
                 ? "<p style=\"margin:0 0 12px;font-size:12px;color:#9cadd3;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;\">Entrada " + numero + " de " + total + "</p>"
                 : "";
@@ -293,7 +302,7 @@ public class EmailService {
                 """,
                 numero > 1 ? "border-top:1px solid #f3f4f6;" : "",
                 etiqueta,
-                qrDataUri,
+                qrSrc,
                 codigoQr,
                 ticketUrl
         );

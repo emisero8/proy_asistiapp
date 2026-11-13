@@ -2,11 +2,18 @@ package com.asistiapp.backend.services;
 
 import com.icegreen.greenmail.junit5.GreenMailExtension;
 import com.icegreen.greenmail.util.ServerSetupTest;
+import jakarta.mail.BodyPart;
+import jakarta.mail.Multipart;
+import jakarta.mail.Part;
 import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mockito;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -71,6 +78,55 @@ class EmailServiceSmtpTest {
                 .enviarNotificacionReembolsoCreditos("org@ejemplo.com", "Óscar", null);
 
         assertThat(cuerpo(unicoMensaje())).contains("Tu compra de los créditos no se pudo acreditar");
+    }
+
+    /**
+     * Gmail bloquea las imágenes data: en base64 (el QR llegaba roto): el QR tiene que viajar como
+     * imagen inline referenciada por cid:, una parte PNG por entrada.
+     */
+    @Test
+    void confirmacionDeCompra_llevaCadaQrComoImagenInline_noComoDataUri() throws Exception {
+        JavaMailSenderImpl sender = new JavaMailSenderImpl();
+        sender.setHost("localhost");
+        sender.setPort(smtp.getSmtp().getPort());
+        sender.setDefaultEncoding("UTF-8");
+        EmailService servicio = new EmailService(sender, new QrImageService());
+
+        servicio.enviarConfirmacionCompra("ana@ejemplo.com", "Ana", "Noche de Demo", "General",
+                List.of("QR-AAA", "QR-BBB"));
+
+        MimeMessage mail = unicoMensaje();
+        assertThat(mail.getSubject()).isEqualTo("✅ Tus 2 entradas para Noche de Demo — AsistíAPP");
+        List<Part> partes = new ArrayList<>();
+        recolectar(mail, partes);
+        String html = null;
+        List<String> imagenes = new ArrayList<>();
+        for (Part parte : partes) {
+            if (parte.isMimeType("text/html")) {
+                html = (String) parte.getContent();
+            } else if (parte.isMimeType("image/png")) {
+                String[] id = parte.getHeader("Content-ID");
+                assertThat(id).isNotNull();
+                imagenes.add(id[0]);
+                try (InputStream in = parte.getInputStream()) {
+                    assertThat(in.readNBytes(4)).containsExactly(0x89, 0x50, 0x4E, 0x47); // firma PNG
+                }
+            }
+        }
+        assertThat(html).contains("src=\"cid:qr-entrada-1\"").contains("src=\"cid:qr-entrada-2\"").doesNotContain("data:image");
+        assertThat(imagenes).containsExactlyInAnyOrder("<qr-entrada-1>", "<qr-entrada-2>");
+    }
+
+    private static void recolectar(Part parte, List<Part> acumulado) throws Exception {
+        if (parte.isMimeType("multipart/*")) {
+            Multipart multipart = (Multipart) parte.getContent();
+            for (int i = 0; i < multipart.getCount(); i++) {
+                BodyPart hija = multipart.getBodyPart(i);
+                recolectar(hija, acumulado);
+            }
+        } else {
+            acumulado.add(parte);
+        }
     }
 
     @Test
