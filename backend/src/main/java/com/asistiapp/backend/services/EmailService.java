@@ -58,6 +58,7 @@ public class EmailService {
         try {
             int total = codigosQr.size();
             StringBuilder bloques = new StringBuilder();
+            StringBuilder textoEntradas = new StringBuilder();
             List<byte[]> imagenesQr = new ArrayList<>();
             for (int i = 0; i < total; i++) {
                 String codigoQr = codigosQr.get(i);
@@ -67,6 +68,11 @@ public class EmailService {
                 // clientes) bloquean las imágenes data: y mostraban el QR roto. MailHog no resuelve
                 // cid: en su vista HTML, pero ahí el botón "Ver mi entrada" lleva al QR igual.
                 bloques.append(construirBloqueEntrada(i + 1, total, "cid:" + cidDelQr(i), codigoQr, ticketUrl));
+                if (total > 1) {
+                    textoEntradas.append("Entrada ").append(i + 1).append(" de ").append(total).append("\n");
+                }
+                textoEntradas.append("Código: ").append(codigoQr).append("\n")
+                        .append("Ver mi entrada (con el QR): ").append(ticketUrl).append("\n\n");
             }
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
@@ -75,7 +81,15 @@ public class EmailService {
             helper.setSubject(total == 1
                     ? "✅ Tu entrada para " + nombreEvento + " — AsistíAPP"
                     : "✅ Tus " + total + " entradas para " + nombreEvento + " — AsistíAPP");
-            helper.setText(construirCuerpoEmailHtml(nombreComprador, nombreEvento, nombreTanda, total, bloques.toString()), true);
+            // Texto plano + HTML (multipart/alternative): los filtros de spam desconfían de los mails solo-HTML y
+            // los clientes sin HTML igual muestran lo esencial (evento, códigos y el link a cada entrada).
+            String textoPlano = "¡Compra confirmada!\n"
+                    + "Hola " + nombreComprador + ", ya tenés " + (total == 1 ? "tu entrada" : "tus " + total + " entradas") + ".\n\n"
+                    + "Evento: " + nombreEvento + "\n"
+                    + "Tanda: " + nombreTanda + "\n\n"
+                    + textoEntradas
+                    + "Mostrá el código QR en la puerta del evento.\n— AsistíAPP\n";
+            helper.setText(textoPlano, construirCuerpoEmailHtml(nombreComprador, nombreEvento, nombreTanda, total, bloques.toString()));
             // Las imágenes inline se agregan después del texto HTML que las referencia.
             for (int i = 0; i < imagenesQr.size(); i++) {
                 helper.addInline(cidDelQr(i), new ByteArrayResource(imagenesQr.get(i)), "image/png");

@@ -28,6 +28,33 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 ---
 
+## Estado actual — por dónde vamos (cierre del 2026-11-12)
+
+**Hecho (todo commiteado y pusheado a `feature-mercadopago`):** Etapa 1 completa, Etapa 2 completa salvo 2.4 (se cierra en producción), **Etapa 3 completa (3.1–3.9)** y de la Etapa 4: **4.3, 4.4, 4.5 y 4.6**. Además, en la sesión del 12/11 salieron cosas que no estaban en el plan: SMTP configurable por variables de entorno (Gmail sin editar `application.yml`), lectura de un `backend/.env` opcional, el QR del mail de confirmación como imagen inline `cid:` (Gmail bloqueaba la `data:` URI) y la versión en texto plano del mismo mail. Suite del backend: **334 tests, 0 fallos**.
+
+**Falta, en el orden que recomiendo:**
+1. **4.8 — decidir si y dónde se despliega.** Es la decisión que ordena el resto: define cómo se maneja la base (4.1, 4.2), si hay más de una instancia (4.7) y qué dominio/proveedor de mail se usa (SPF/DKIM/DMARC; ver `DECISIONES.md` 2026-11-12, mail en spam). Conviene tenerla antes que lo demás de la Etapa 4.
+2. **4.1 Flyway** (L) y **4.2 claves foráneas** (L): recién después de 4.8. Pasar `ddl-auto` a `validate` en producción depende de 4.1.
+3. **4.7 límite de peticiones en memoria** (M): solo importa si corre más de una instancia.
+4. Etapas 5, 6 y 7 según el tiempo; empezar por los ítems S (5.6, 6.1, 6.3, 7.1–7.3).
+5. **0.3** (qué hacer con el `.xlsx`) y **0.4** (abrir el PR `feature-mercadopago` → `master`, desde la web; hay que armar título y descripción): pendientes de decisión de Felipe.
+
+**Preguntas abiertas (no asumir):**
+- **6.4:** la venta manual del POS **no manda ningún mail** al comprador (confirmado el 12/11: el único mail de entrada sale de la compra online, en `PagoWebhookService`). ¿Debe mandarlo?
+- El mail de confirmación cayó en spam de Gmail con la cuenta de prueba: ver el hallazgo en `DECISIONES.md` (se resuelve con dominio propio, 4.8).
+- La cuenta demo `staffvendedor@demo.com` no acepta `Demo1234!` (devuelve 401), aunque la documentación la da como válida: averiguar si hay que resetearla o corregir la doc.
+- El evento 17 de desarrollo se borró por accidente durante una prueba de 3.1; se puede volver a sembrar si hace falta.
+
+**Cómo está la máquina de desarrollo (para retomar):**
+- Backend en `localhost:8080` (se levanta desde PowerShell: `cd backend; mvn.cmd spring-boot:run`, con las variables `MP_*` y `CLOUDINARY_*` de usuario cargadas en la sesión) y Vite en `localhost:5173`. Si un build raro falla con "cannot access…" o "Unresolved compilation problem", usar `mvn clean test` (la extensión de Java de VS Code deja clases a medias en `target/`).
+- **Gmail ya está configurado** en `backend/.env` (ignorado por Git; contiene la contraseña de aplicación, nunca pegarla en el chat ni commitearla). Mientras esté, **todo mail que mande la app sale de verdad** por esa cuenta; para volver a MailHog, renombrar o borrar el `.env`. Docker no anda en esta máquina (virtualización desactivada en la BIOS), por eso no hay MailHog.
+- Los tests del frontend se corren desde PowerShell (`npx vitest run`), no desde Git Bash.
+- Datos de prueba que quedaron: el evento de demo "Noche de Demo AsistíAPP" (id 54, tanda 44) ya tiene entradas vendidas de las pruebas del 12/11.
+
+**Reglas de trabajo vigentes:** una fase por vez y parar a preguntar antes de seguir; confirmar antes de cada commit/push; commits a nombre de Felipe, sin ningún rastro de Claude; no stagear el `.xlsx`; credenciales solo en variables de entorno o en `.env`; verificar en vivo y limpiar los datos de prueba; documentar en `DECISIONES.md` y en este plan en el mismo cambio.
+
+---
+
 ## Etapa 0 — Cerrar lo que está abierto
 
 | # | Qué | Tamaño | Estado |
@@ -105,7 +132,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 6.1 | **Auditoría accesible desde mobile** en el panel de Admin. | S | ⏳ |
 | 6.2 | **Notificaciones automáticas.** Existen la campanita y el anuncio global, pero no avisos por evento cancelado, staff asignado, créditos acreditados, etc. Primero definir cuáles. | M–L | ⏳ |
 | 6.3 | **Aclarar que el enlace de la entrada es la entrada.** Quien tenga `/mi-entrada?codigoQr=…` puede entrar. Decirlo en el texto del botón de compartir del POS y de la pantalla de resultado. | S | ⏳ |
-| 6.4 | **Enviar la entrada por mail desde el POS.** **(a confirmar)** si hace falta; hoy el vendedor solo copia o comparte el enlace. | M | ⏳ |
+| 6.4 | **Enviar la entrada por mail desde el POS.** Confirmado el 12/11: hoy la venta manual no manda ningún mail. **(a confirmar)** si hace falta; hoy el vendedor solo copia o comparte el enlace. | M | ⏳ |
 
 ## Etapa 7 — Documentación y repo
 

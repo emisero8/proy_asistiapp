@@ -100,10 +100,13 @@ class EmailServiceSmtpTest {
         List<Part> partes = new ArrayList<>();
         recolectar(mail, partes);
         String html = null;
+        String texto = null;
         List<String> imagenes = new ArrayList<>();
         for (Part parte : partes) {
             if (parte.isMimeType("text/html")) {
                 html = (String) parte.getContent();
+            } else if (parte.isMimeType("text/plain")) {
+                texto = (String) parte.getContent();
             } else if (parte.isMimeType("image/png")) {
                 String[] id = parte.getHeader("Content-ID");
                 assertThat(id).isNotNull();
@@ -114,6 +117,10 @@ class EmailServiceSmtpTest {
             }
         }
         assertThat(html).contains("src=\"cid:qr-entrada-1\"").contains("src=\"cid:qr-entrada-2\"").doesNotContain("data:image");
+        // Versión en texto plano (multipart/alternative): lo esencial sin HTML.
+        assertThat(texto).contains("Hola Ana, ya tenés tus 2 entradas.").contains("Evento: Noche de Demo")
+                .contains("Entrada 1 de 2").contains("Código: QR-AAA").contains("/mi-entrada?codigoQr=QR-BBB")
+                .doesNotContain("<");
         assertThat(imagenes).containsExactlyInAnyOrder("<qr-entrada-1>", "<qr-entrada-2>");
     }
 
