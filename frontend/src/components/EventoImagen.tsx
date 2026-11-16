@@ -22,7 +22,7 @@ export function EventoImagen({ src, alt = "", className, loading = "lazy", iconS
 
   if (!src || fallo) {
     return (
-      <div className={`${className} bg-gradient-to-br from-primary/25 via-card to-background flex items-center justify-center`}>
+      <div className={`${className} bg-muted bg-gradient-to-br from-primary/15 to-transparent flex items-center justify-center`}>
         <ImageOff size={iconSize} className="text-primary/40" />
       </div>
     );

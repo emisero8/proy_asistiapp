@@ -133,9 +133,12 @@ El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, 
 |---|---|---|
 | `AppShell` (`components/AppShell.tsx`) | Organizador y Admin (vía `OrganizadorLayout`/`AdminLayout`, que solo lo configuran) | Sidebar de 208 px en desktop (logo + campanita, navegación, usuario, tema, "Salir"); barra superior + pestañas inferiores en mobile; link "Saltar al contenido". |
 | `AuthLayout` + `AuthHeader` (`components/AuthLayout.tsx`) | Ingreso de Organizador/Admin/Staff, registro, recupero | Header con logo y tema, tarjeta sobre el fondo de marca, panel de marca oscuro opcional (desktop). |
+| `PublicHeader` (`components/PublicHeader.tsx`) | Flujo de compra: detalle, checkout, resultado del pago, mi entrada | Header sticky: "Volver" (atrás si hay historial en la app, si no a `/eventos`), logo, link a Eventos y tema. |
 | `AnimatedOutlet` (`components/AnimatedOutlet.tsx`) | Dentro de cada layout | Transición de página, `Suspense` y `RouteErrorBoundary` por ruta: si una pantalla falla, el shell sigue funcionando. |
 
-- **Nada flota sobre el contenido.** Tema, campanita y "Salir" viven en el header de cada estructura. El toggle flotante global (`FloatingThemeToggle`) es **transitorio**: solo aparece en las pantallas que todavía no tienen header propio (comprador y POS) y se elimina al migrarlas.
+- **Nada flota sobre el contenido.** Tema, campanita y "Salir" viven en el header de cada estructura. El toggle flotante global (`FloatingThemeToggle`) es **transitorio**: solo aparece en las pantallas que todavía no tienen header propio (Home, `/eventos` y POS) y se elimina al migrarlas.
+- **Compra en dos columnas:** en desktop, contenido a la izquierda y panel de compra/resumen sticky a la derecha (`lg:grid-cols-[minmax(0,1fr)_360px]`); en mobile, la misma acción en `StickyActionBar` y el resumen visible arriba del formulario.
+- **Peso del bundle inicial:** los módulos que se cargan siempre (`App.tsx`, `ThemeToggle`, `RouteErrorBoundary`, `AnimatedOutlet`) importan componentes desde su archivo (`./ui/Button`), **no** desde el barrel `components/ui` — el barrel arrastraría todos los componentes a la carga inicial. Las pantallas (lazy) sí usan el barrel.
 - **Errores de render:** `RouteErrorBoundary` evita la pantalla en blanco. Un chunk que no carga (versión nueva desplegada) recarga sola una vez y, si persiste, ofrece "Recargar".
 
 ## Radios
@@ -264,6 +267,7 @@ Tamaños: `h-9 px-3 text-xs` (chico, filas/tablas) · `h-11 px-5 text-sm` (está
 ```
 - **Todo `<label>` va conectado** (`htmlFor` + `id`). Todo campo de datos personales lleva `autoComplete` (`name`, `email`, `current-password`, `new-password`).
 - **Ayuda y error:** con `<Field hint error>`, el error **reemplaza** a la ayuda mientras exista (no se muestran los dos: suelen decir lo mismo). Validar al salir del campo o al enviar, no mientras se escribe; al enviar con errores, llevar el foco al primer campo inválido (ver `organizador/RegisterPage`).
+- **Placeholders:** solo como ejemplo de formato ("maria@ejemplo.com"), nunca en lugar del label. Se muestran al 60 % de `muted-foreground` para que no se confundan con un valor ya cargado.
 - **Contraseñas:** `<PasswordInput>` (mostrar/ocultar con `aria-pressed`, alcanzable con teclado).
 - Textarea: mismas clases sin `h-11`, con `py-3 resize-none`.
 - Select: `<select>` **nativo** estilado como input + `appearance-none` + chevron (es lo más usable en mobile).

@@ -1,221 +1,213 @@
-import { useEffect, useState } from "react";
-import { EventoImagen } from "../../components/EventoImagen";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ChevronLeft, MapPin, Calendar, Clock, Minus, Plus } from "lucide-react";
+import { Calendar, Clock, MapPin, ShieldCheck, Ticket } from "lucide-react";
+import { EventoImagen } from "../../components/EventoImagen";
+import { PublicHeader } from "../../components/PublicHeader";
+import { MapView } from "../../components/EventMap";
+import { Alert, Button, Card, EmptyState, ErrorState, QuantityStepper, RadioCardGroup, Skeleton, StickyActionBar } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
-import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
-import type { EventoPublicoDetalleDTO, TandaResponseDTO } from "../../lib/types";
+import type { EventoPublicoDetalleDTO } from "../../lib/types";
 
 export function DetailPage() {
   const { urlPublica } = useParams<{ urlPublica: string }>();
   const navigate = useNavigate();
   const [evento, setEvento] = useState<EventoPublicoDetalleDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sel, setSel] = useState<TandaResponseDTO | null>(null);
+  const [selId, setSelId] = useState<number | null>(null);
   const [qty, setQty] = useState(1);
 
   useDocumentTitle(evento?.nombre);
 
-  useEffect(() => {
+  const cargar = useCallback(() => {
     if (!urlPublica) return;
+    setError(null);
     api
       .get<EventoPublicoDetalleDTO>(`/public/eventos/${urlPublica}`, { skipAuth: true })
       .then((data) => {
         setEvento(data);
-        setSel(data.tandas[0] ?? null);
+        // Arranca elegida la primera tanda CON cupo: antes se elegía la primera aunque estuviera
+        // agotada, y el botón de compra quedaba deshabilitado sin explicar por qué.
+        setSelId((data.tandas.find((t) => t.cupoDisponible > 0) ?? data.tandas[0])?.id ?? null);
       })
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar el evento."));
   }, [urlPublica]);
 
+  useEffect(cargar, [cargar]);
+
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-8">
-        <p className="text-sm text-destructive text-center">{error}</p>
+      <div className="min-h-dvh bg-background">
+        <PublicHeader back="historial" />
+        <div className="mx-auto max-w-md px-4 py-16">
+          <ErrorState
+            title="No pudimos mostrar este evento"
+            description={error}
+            onRetry={cargar}
+            secondaryAction={
+              <Button variant="ghost" size="sm" onClick={() => navigate("/eventos")}>
+                Ver otros eventos
+              </Button>
+            }
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (!evento) {
+    return (
+      <div className="min-h-dvh bg-background" aria-busy="true">
+        <PublicHeader back="historial" />
+        <span className="sr-only">Cargando evento…</span>
+        <div className="mx-auto max-w-6xl px-4 py-6 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-10 lg:px-8 lg:py-10">
+          <div className="space-y-4">
+            <Skeleton className="aspect-[16/9] w-full rounded-2xl" />
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-20 w-full rounded-xl" />
+          </div>
+          <Skeleton className="mt-6 hidden h-48 rounded-2xl lg:mt-0 lg:block" />
+        </div>
       </div>
     );
   }
 
   // Un evento sin tandas cargadas no tiene nada para vender: antes `!sel` lo dejaba en el
   // skeleton de carga para siempre.
-  if (evento && evento.tandas.length === 0) {
+  if (evento.tandas.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background p-8 text-center">
-        <p className="text-lg font-extrabold text-foreground">{evento.nombre}</p>
-        <p className="text-sm text-muted-foreground">Este evento todavía no tiene entradas a la venta.</p>
-        <button onClick={() => navigate("/eventos")} className="text-primary text-sm font-semibold">
-          Ver otros eventos
-        </button>
-      </div>
-    );
-  }
-
-  if (!evento || !sel) {
-    return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-md mx-auto animate-pulse">
-          <div className="h-56 bg-muted" />
-          <div className="px-4 pt-5 space-y-3">
-            <div className="h-6 bg-muted rounded w-3/4" />
-            <div className="h-4 bg-muted rounded w-1/2" />
-          </div>
+      <div className="min-h-dvh bg-background">
+        <PublicHeader back="historial" />
+        <div className="mx-auto max-w-md px-4 py-16">
+          <EmptyState
+            icon={Ticket}
+            title={evento.nombre}
+            description="Este evento todavía no tiene entradas a la venta."
+            action={
+              <Button variant="secondary" onClick={() => navigate("/eventos")}>
+                Ver otros eventos
+              </Button>
+            }
+          />
         </div>
       </div>
     );
   }
 
+  const sel = evento.tandas.find((t) => t.id === selId) ?? evento.tandas[0];
   const maxPorCompra = Math.max(1, Math.min(sel.cupoDisponible || 1, evento.maxEntradasPorCompra ?? 6));
   const qtyEfectivo = Math.min(qty, maxPorCompra);
   // El backend ya rechaza la compra de un evento vencido (VentaService.validarTandaDisponible);
   // acá solo evitamos que el comprador llegue a intentarlo.
   const eventoFinalizado = new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
+  const agotado = evento.tandas.every((t) => t.cupoDisponible <= 0);
   const puedeComprar = !eventoFinalizado && sel.cupoDisponible > 0;
+  const total = sel.precio * qtyEfectivo;
+  const textoBoton = eventoFinalizado ? "Evento finalizado" : agotado ? "Entradas agotadas" : "Comprar entradas";
+
+  function comprar() {
+    navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } });
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-[1800px] mx-auto lg:px-8 lg:py-8">
-        <div className="lg:max-w-5xl lg:mx-auto">
-        <div className="relative lg:max-w-2xl lg:mx-auto lg:rounded-2xl lg:overflow-hidden">
-          <EventoImagen src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-full h-56 lg:h-72 xl:h-80 object-cover" iconSize={32} />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent" />
-          <button
-            onClick={() => navigate(-1)}
-            aria-label="Volver"
-            className="absolute top-4 left-4 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/70 transition-colors"
-          >
-            <ChevronLeft size={18} />
-          </button>
-        </div>
+    <div className="min-h-dvh bg-background">
+      <PublicHeader back="historial" />
 
-        <div className="lg:flex lg:gap-8 lg:items-start lg:mt-8">
-        <div className="lg:flex-1 lg:min-w-0">
-          <div className="px-4 lg:px-0 pt-5 pb-4">
-            <h1 className="text-2xl lg:text-3xl font-extrabold text-foreground leading-tight">{evento.nombre}</h1>
-            <div className="mt-3 space-y-2">
-              {[
-                { Icon: MapPin, text: evento.lugar },
-                { Icon: Calendar, text: formatFecha(evento.fechaEvento) },
-                { Icon: Clock, text: formatHora(evento.horaEvento) },
-              ].map(({ Icon, text }) => (
-                <div key={text} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Icon size={14} className="text-primary flex-none" />
-                  <span>{text}</span>
-                </div>
-              ))}
+      <div className="mx-auto max-w-6xl px-4 pt-4 pb-44 lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-10 lg:px-8 lg:py-10">
+        <article className="min-w-0 space-y-6">
+          <EventoImagen
+            src={evento.imagenPortadaUrl}
+            alt={evento.nombre}
+            loading="eager"
+            className="aspect-[16/9] w-full rounded-2xl object-cover"
+            iconSize={32}
+          />
+
+          <header>
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-foreground lg:text-4xl">{evento.nombre}</h1>
+            <ul className="mt-4 flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-5">
+              <li className="flex items-center gap-2">
+                <Calendar size={16} aria-hidden="true" className="flex-none text-primary" />
+                {formatFecha(evento.fechaEvento)}
+              </li>
+              <li className="flex items-center gap-2">
+                <Clock size={16} aria-hidden="true" className="flex-none text-primary" />
+                {formatHora(evento.horaEvento)}
+              </li>
+              <li className="flex items-center gap-2">
+                <MapPin size={16} aria-hidden="true" className="flex-none text-primary" />
+                {evento.lugar}
+              </li>
+            </ul>
+          </header>
+
+          {eventoFinalizado && <Alert tone="warning">Este evento ya finalizó: no se pueden comprar entradas.</Alert>}
+          {!eventoFinalizado && agotado && <Alert tone="warning">Las entradas para este evento están agotadas.</Alert>}
+
+          {evento.descripcion && (
+            <section>
+              <h2 className="mb-2 text-base font-bold text-foreground">Sobre el evento</h2>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{evento.descripcion}</p>
+            </section>
+          )}
+
+          <section className="space-y-4">
+            <RadioCardGroup
+              label="Elegí tu tanda"
+              value={sel.id}
+              onChange={(id) => setSelId(id)}
+              options={evento.tandas.map((t) => ({
+                value: t.id,
+                label: t.nombre,
+                description: t.cupoDisponible > 0 ? `${t.cupoDisponible} disponibles` : "Agotada",
+                aside: fmt(t.precio),
+                disabled: eventoFinalizado || t.cupoDisponible <= 0,
+              }))}
+            />
+            <Card padding="sm" className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Cantidad</p>
+                <p className="text-xs text-muted-foreground">Hasta {maxPorCompra} por compra</p>
+              </div>
+              <QuantityStepper value={qtyEfectivo} onChange={setQty} max={maxPorCompra} disabled={!puedeComprar} />
+            </Card>
+          </section>
+
+          {evento.latitud != null && evento.longitud != null && (
+            <section>
+              <h2 className="mb-3 text-base font-bold text-foreground">Cómo llegar</h2>
+              <MapView coords={{ lat: evento.latitud, lng: evento.longitud }} lugar={evento.lugar} />
+            </section>
+          )}
+        </article>
+
+        {/* Resumen de compra — panel sticky en desktop */}
+        <aside className="hidden lg:sticky lg:top-24 lg:block">
+          <Card className="space-y-4">
+            <div>
+              <p className="text-xs text-muted-foreground">
+                {qtyEfectivo} × {sel.nombre}
+              </p>
+              <p className="mt-0.5 text-3xl font-extrabold tabular-nums text-foreground">{fmt(total)}</p>
             </div>
-            {eventoFinalizado && (
-              <div className="mt-4 rounded-xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground lg:max-w-2xl">
-                Este evento ya finalizó — no se pueden comprar entradas.
-              </div>
-            )}
-            {evento.descripcion && <p className="mt-4 text-sm text-muted-foreground leading-relaxed lg:max-w-2xl">{evento.descripcion}</p>}
-
-            {evento.latitud != null && evento.longitud != null && (
-              <div className="mt-5 lg:max-w-2xl">
-                <MapView coords={{ lat: evento.latitud, lng: evento.longitud }} lugar={evento.lugar} />
-              </div>
-            )}
-
-            <div className="mt-6 lg:max-w-2xl">
-              <h3 className="text-base font-bold text-foreground mb-3">Elegí tu tanda</h3>
-              <div className="space-y-2">
-                {evento.tandas.map((t) => (
-                  <button
-                    key={t.id}
-                    disabled={eventoFinalizado || t.cupoDisponible <= 0}
-                    onClick={() => setSel(t)}
-                    className={`w-full flex items-center justify-between p-4 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                      sel.id === t.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-none transition-colors ${
-                          sel.id === t.id ? "border-primary bg-primary" : "border-muted-foreground"
-                        }`}
-                      >
-                        {sel.id === t.id && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{t.nombre}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t.cupoDisponible > 0 ? `${t.cupoDisponible} disponibles` : "Agotada"}
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-bold text-accent">{fmt(t.precio)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-4 lg:max-w-2xl bg-card rounded-xl px-4 py-3.5 border border-border">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-foreground">Cantidad</span>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    disabled={eventoFinalizado}
-                    aria-label="Quitar una entrada"
-                    className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-foreground hover:bg-muted/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Minus size={13} />
-                  </button>
-                  <span className="text-lg font-bold text-foreground w-4 text-center">{qtyEfectivo}</span>
-                  <button
-                    onClick={() => setQty((q) => Math.min(maxPorCompra, q + 1))}
-                    disabled={eventoFinalizado || qtyEfectivo >= maxPorCompra}
-                    aria-label="Agregar una entrada"
-                    className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <Plus size={13} />
-                  </button>
-                </div>
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-2">Máximo {evento.maxEntradasPorCompra} entradas por persona para este evento.</p>
-            </div>
-            <div className="h-32 lg:hidden" />
-          </div>
-        </div>
-
-        {/* Panel de compra — sticky en desktop, reemplaza la barra fija de mobile */}
-        <div className="hidden lg:block lg:w-80 lg:flex-none lg:sticky lg:top-8">
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <p className="text-xs text-muted-foreground mb-1">
-              {qtyEfectivo} × {sel.nombre}
+            <Button block size="lg" disabled={!puedeComprar} onClick={comprar}>
+              {textoBoton}
+            </Button>
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <ShieldCheck size={14} aria-hidden="true" className="flex-none text-success" />
+              Pago seguro con MercadoPago. Recibís las entradas por email.
             </p>
-            <p className="text-2xl font-extrabold text-foreground mb-4">{fmt(sel.precio * qtyEfectivo)}</p>
-            <button
-              disabled={!puedeComprar}
-              onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } })}
-              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {eventoFinalizado ? "Evento finalizado" : "Comprar entradas"}
-            </button>
-          </div>
-        </div>
-        </div>
-        </div>
+          </Card>
+        </aside>
       </div>
 
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-muted-foreground">
-              {qtyEfectivo} × {sel.nombre}
-            </span>
-            <span className="text-base font-extrabold text-foreground">{fmt(sel.precio * qtyEfectivo)}</span>
-          </div>
-          <button
-            disabled={!puedeComprar}
-            onClick={() => navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } })}
-            className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {eventoFinalizado ? "Evento finalizado" : "Comprar entradas"}
-          </button>
-        </div>
-      </div>
+      <StickyActionBar summary={`${qtyEfectivo} × ${sel.nombre}`} amount={fmt(total)}>
+        <Button block size="lg" disabled={!puedeComprar} onClick={comprar}>
+          {textoBoton}
+        </Button>
+      </StickyActionBar>
     </div>
   );
 }

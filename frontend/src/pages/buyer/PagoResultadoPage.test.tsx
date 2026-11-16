@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { api } from "../../lib/api";
+import { ThemeProvider } from "../../lib/theme";
 import { PagoResultadoPage } from "./PagoResultadoPage";
 
 function renderResultado() {
   render(
-    <MemoryRouter initialEntries={["/pago/resultado?ref=abc-123&tipo=entradas"]}>
-      <PagoResultadoPage />
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={["/pago/resultado?ref=abc-123&tipo=entradas"]}>
+        <PagoResultadoPage />
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 

@@ -61,7 +61,7 @@ type Superficie = "card" | "sunken";
 type TamanoControl = "sm" | "md";
 
 const CONTROL =
-  "w-full rounded-xl border border-border-strong text-sm text-foreground placeholder:text-muted-foreground " +
+  "w-full rounded-xl border border-border-strong text-sm text-foreground placeholder:text-muted-foreground/60 " +
   "transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard " +
   "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 " +
   "disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:ring-destructive/25";

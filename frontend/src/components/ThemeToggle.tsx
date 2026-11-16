@@ -1,7 +1,9 @@
 import { Moon, Sun } from "lucide-react";
 import { useLocation } from "react-router";
 import { useTheme } from "../lib/theme";
-import { IconButton } from "./ui";
+// Import directo (no el barrel "./ui"): este archivo va en el bundle inicial y el barrel
+// arrastraría todos los componentes de ui a la carga inicial.
+import { IconButton } from "./ui/Button";
 
 /**
  * Botón de tema claro/oscuro para ubicar dentro de un header (shell de Organizador/Admin,
@@ -27,7 +29,17 @@ export function ThemeToggle({ variant = "ghost" }: { variant?: "ghost" | "second
  * se migra (13.4–13.8); cuando cubra toda la app, `FloatingThemeToggle` se elimina.
  */
 function tieneToggleEnSuHeader(pathname: string): boolean {
-  return pathname.startsWith("/organizador") || pathname.startsWith("/admin") || pathname === "/staff/login" || pathname === "/staff/scanner";
+  return (
+    pathname.startsWith("/organizador") ||
+    pathname.startsWith("/admin") ||
+    pathname === "/staff/login" ||
+    pathname === "/staff/scanner" ||
+    // Flujo de compra (13.4): PublicHeader
+    pathname.startsWith("/eventos/") ||
+    pathname === "/checkout" ||
+    pathname === "/pago/resultado" ||
+    pathname === "/mi-entrada"
+  );
 }
 
 /**

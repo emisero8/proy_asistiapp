@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { EventoImagen } from "../../components/EventoImagen";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { ChevronLeft } from "lucide-react";
+import { Calendar, MapPin, ShieldCheck, ShoppingBag } from "lucide-react";
+import { EventoImagen } from "../../components/EventoImagen";
+import { PublicHeader } from "../../components/PublicHeader";
+import { Alert, Button, Card, EmptyState, Field, Input, StickyActionBar } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
-import { fmt } from "../../lib/format";
+import { fmt, formatFecha } from "../../lib/format";
 import type { EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
@@ -12,6 +14,8 @@ interface CheckoutState {
   tanda: TandaResponseDTO;
   qty: number;
 }
+
+const FORM_ID = "checkout-datos";
 
 export function CheckoutPage() {
   useDocumentTitle("Finalizar compra");
@@ -23,21 +27,31 @@ export function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tocados, setTocados] = useState({ name: false, email: false });
+  const [intento, setIntento] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   if (!state) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background p-8 text-center">
-        <p className="text-sm text-muted-foreground">No hay ninguna compra en curso.</p>
-        <button onClick={() => navigate("/")} className="text-primary text-sm font-semibold">
-          Volver al inicio
-        </button>
+      <div className="min-h-dvh bg-background">
+        <PublicHeader />
+        <div className="mx-auto max-w-md px-4 py-16">
+          <EmptyState
+            icon={ShoppingBag}
+            title="No hay ninguna compra en curso"
+            description="Elegí un evento y la cantidad de entradas para empezar."
+            action={<Button onClick={() => navigate("/eventos")}>Ver eventos</Button>}
+          />
+        </div>
       </div>
     );
   }
 
   const { evento, tanda, qty } = state;
   const total = tanda.precio * qty;
-  const valid = name.trim().length > 1 && email.length > 4 && email.includes("@");
+  const errorNombre = name.trim().length > 1 ? undefined : "Ingresá tu nombre y apellido.";
+  const errorEmail = email.length > 4 && email.includes("@") ? undefined : "Ingresá un email válido: ahí te llegan las entradas.";
+  const valid = !errorNombre && !errorEmail;
 
   async function handleConfirm() {
     setLoading(true);
@@ -60,130 +74,126 @@ export function CheckoutPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="px-4 lg:px-8 pt-6 pb-3 border-b border-border bg-background sticky top-0 z-10">
-        <div className="max-w-[1800px] mx-auto">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors"
-          >
-            <ChevronLeft size={15} />
-            Volver
-          </button>
-          <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Finalizar compra</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Sin registro. Solo tu nombre y email.</p>
-        </div>
-      </div>
+  const etiquetaCantidad = `${qty} entrada${qty > 1 ? "s" : ""} · ${tanda.nombre}`;
+  const botonPagar = (
+    <Button type="submit" form={FORM_ID} block size="lg" loading={loading} loadingText="Redirigiendo a MercadoPago…">
+      Pagar {fmt(total)}
+    </Button>
+  );
 
-      <div className="max-w-[1800px] mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
-        <div className="lg:flex-1 lg:min-w-0 px-4 lg:px-0 py-4 lg:py-0 space-y-5 pb-32 lg:pb-0">
+  return (
+    <div className="min-h-dvh bg-background">
+      <PublicHeader back="historial" />
+
+      <div className="mx-auto max-w-6xl px-4 pt-6 pb-44 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-10 lg:px-8 lg:py-10">
+        <div className="min-w-0 space-y-6">
           <div>
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Tus datos</p>
+            <h1 className="text-2xl font-extrabold tracking-tight text-foreground lg:text-3xl">Finalizar compra</h1>
+            <p className="mt-1 text-sm text-muted-foreground">No necesitás crear una cuenta: te mandamos las entradas por email.</p>
+          </div>
+
+          {/* Resumen del pedido — también en mobile (antes solo se veía "2 × General", sin el evento) */}
+          <Card padding="sm" as="section" aria-label="Tu pedido" className="lg:hidden">
+            <ResumenPedido evento={evento} etiqueta={etiquetaCantidad} total={total} />
+          </Card>
+
+          <Card as="section" aria-labelledby="checkout-datos-titulo">
+            <h2 id="checkout-datos-titulo" className="text-base font-bold text-foreground">
+              Tus datos
+            </h2>
             <form
-              className="space-y-3"
+              id={FORM_ID}
+              ref={formRef}
+              noValidate
+              className="mt-4 space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (valid && !loading) handleConfirm();
+                if (loading) return;
+                if (!valid) {
+                  setIntento(true);
+                  requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+                  return;
+                }
+                handleConfirm();
               }}
             >
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Nombre completo</label>
-                <input
+              <Field label="Nombre y apellido" error={intento || tocados.name ? errorNombre : undefined}>
+                <Input
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setTocados((t) => ({ ...t, name: true }))}
                   placeholder="María García"
-                  className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Email</label>
-                <input
+              </Field>
+              <Field
+                label="Email"
+                hint="Te mandamos las entradas a este email: revisá que esté bien escrito."
+                error={intento || tocados.email ? errorEmail : undefined}
+              >
+                <Input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setTocados((t) => ({ ...t, email: true }))}
                   placeholder="maria@ejemplo.com"
-                  className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-                <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-                  <span className="text-green-400 font-bold">✓</span> Recibís la entrada en este email.
-                </p>
-              </div>
-              {/* submit oculto: habilita enviar con Enter; el botón visible está en el panel lateral */}
-              <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>
-                Confirmar
-              </button>
+              </Field>
             </form>
-          </div>
+          </Card>
 
-          <div>
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Método de pago</p>
-            <div className="p-3.5 rounded-xl border border-primary bg-primary/10 lg:max-w-xs">
-              <span className="text-xl block mb-1.5">🔵</span>
-              <p className="text-xs font-bold text-foreground">MercadoPago</p>
-              <p className="text-[11px] text-muted-foreground">Único método disponible por ahora</p>
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>
-          )}
+          {error && <Alert tone="danger">{error}</Alert>}
         </div>
 
-        {/* Resumen + confirmación — sticky en desktop */}
-        <div className="hidden lg:block lg:w-80 lg:flex-none lg:sticky lg:top-28">
-          <div className="bg-card rounded-2xl p-4 border border-border">
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Resumen</p>
-            <div className="flex gap-3">
-              <EventoImagen src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-16 aspect-[3/4] rounded-xl object-cover flex-none" iconSize={16} />
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-foreground leading-tight line-clamp-2">{evento.nombre}</h4>
-                <p className="text-xs text-muted-foreground mt-0.5">{tanda.nombre}</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-              <span className="text-sm text-muted-foreground">
-                {qty} entrada{qty > 1 ? "s" : ""} × {fmt(tanda.precio)}
-              </span>
-              <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
-            </div>
-            <button
-              disabled={!valid || loading}
-              onClick={handleConfirm}
-              className={`mt-4 w-full py-4 rounded-2xl font-bold text-base transition-all ${
-                valid && !loading
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              }`}
-            >
-              {loading ? "Procesando..." : `Confirmar compra · ${fmt(total)}`}
-            </button>
-          </div>
-        </div>
+        {/* Resumen + pago — panel sticky en desktop */}
+        <aside className="hidden lg:sticky lg:top-24 lg:block">
+          <Card className="space-y-5" as="section" aria-label="Tu pedido">
+            <ResumenPedido evento={evento} etiqueta={etiquetaCantidad} total={total} />
+            {botonPagar}
+            <NotaPago />
+          </Card>
+        </aside>
       </div>
 
-      {/* Resumen + confirmación fijos — mobile */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-muted-foreground">
-              {qty} entrada{qty > 1 ? "s" : ""} × {tanda.nombre}
-            </span>
-            <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
-          </div>
-          <button
-            disabled={!valid || loading}
-            onClick={handleConfirm}
-            className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
-              valid && !loading
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]"
-                : "bg-muted text-muted-foreground cursor-not-allowed"
-            }`}
-          >
-            {loading ? "Procesando..." : `Confirmar compra · ${fmt(total)}`}
-          </button>
+      <StickyActionBar summary={etiquetaCantidad} amount={fmt(total)}>
+        {botonPagar}
+      </StickyActionBar>
+    </div>
+  );
+}
+
+function ResumenPedido({ evento, etiqueta, total }: { evento: EventoPublicoDetalleDTO; etiqueta: string; total: number }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3">
+        <EventoImagen src={evento.imagenPortadaUrl} alt="" className="aspect-[3/4] w-16 flex-none rounded-xl object-cover" iconSize={16} />
+        <div className="min-w-0">
+          <p className="line-clamp-2 text-sm font-bold leading-snug text-foreground">{evento.nombre}</p>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Calendar size={12} aria-hidden="true" className="flex-none" />
+            {formatFecha(evento.fechaEvento)}
+          </p>
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <MapPin size={12} aria-hidden="true" className="flex-none" />
+            <span className="truncate">{evento.lugar}</span>
+          </p>
         </div>
+      </div>
+      <div className="flex items-baseline justify-between gap-3 border-t border-border pt-4">
+        <span className="text-sm text-muted-foreground">{etiqueta}</span>
+        <span className="text-xl font-extrabold tabular-nums text-foreground">{fmt(total)}</span>
       </div>
     </div>
+  );
+}
+
+function NotaPago() {
+  return (
+    <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+      <ShieldCheck size={14} aria-hidden="true" className="mt-0.5 flex-none text-success" />
+      Te llevamos a MercadoPago para pagar de forma segura. Al confirmarse el pago, te llegan las entradas con su QR.
+    </p>
   );
 }

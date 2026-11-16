@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { RefreshCw, TriangleAlert } from "lucide-react";
-import { Button } from "./ui";
+// Import directo (no el barrel "./ui"): ver ThemeToggle.tsx.
+import { Button } from "./ui/Button";
 
 const CLAVE_RECARGA = "asistiapp_recarga_por_chunk";
 const VENTANA_RECARGA_MS = 10_000;
