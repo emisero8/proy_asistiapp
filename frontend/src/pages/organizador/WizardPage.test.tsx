@@ -8,7 +8,7 @@ import type { MovimientoCreditoResponseDTO } from "../../lib/types";
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
-  return { ...actual, api: { ...actual.api, get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn() } };
+  return { ...actual, api: { ...actual.api, get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() } };
 });
 
 // Leaflet necesita layout real (tamaños, tiles): el mapa se prueba aparte, acá es ruido.
@@ -87,6 +87,7 @@ afterEach(() => {
   vi.mocked(api.post).mockReset();
   vi.mocked(api.put).mockReset();
   vi.mocked(api.patch).mockReset();
+  vi.mocked(api.delete).mockReset();
 });
 
 describe("validarTandaContraEvento", () => {
@@ -321,5 +322,75 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     expect(await screen.findByText("Créditos insuficientes")).toBeInTheDocument();
     expect(screen.queryByText("¡Evento publicado!")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Publicar evento" })).toBeEnabled());
+  });
+
+});
+
+describe("OrganizadorWizardPage — reintento de publicación (bug 1)", () => {
+  it("si publicar falla, el reintento no vuelve a crear las tandas ya creadas", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    vi.mocked(api.patch).mockRejectedValueOnce(apiError("Error temporal", 500)).mockResolvedValueOnce({});
+    const { container } = renderWizard();
+    await avanzarAlPaso2(container, user);
+    await completarTanda(user);
+    vi.mocked(api.post).mockResolvedValueOnce({ id: 501 });
+
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+    await screen.findByText("Error temporal");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Publicar evento" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    expect(await screen.findByText("¡Evento publicado!")).toBeInTheDocument();
+    const tandasCreadas = vi.mocked(api.post).mock.calls.filter(([path]) => path === "/eventos/77/tandas");
+    expect(tandasCreadas).toHaveLength(1);
+    expect(api.put).not.toHaveBeenCalled();
+    expect(api.patch).toHaveBeenCalledTimes(2);
+  });
+
+  it("si la tanda cambió antes de reintentar, la actualiza en vez de crear otra", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    vi.mocked(api.patch).mockRejectedValueOnce(apiError("Error temporal", 500)).mockResolvedValueOnce({});
+    const { container } = renderWizard();
+    await avanzarAlPaso2(container, user);
+    await completarTanda(user, "Anticipada", "12000", "200");
+    vi.mocked(api.post).mockResolvedValueOnce({ id: 501 });
+
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+    await screen.findByText("Error temporal");
+    const precio = screen.getByPlaceholderText("12000");
+    await user.clear(precio);
+    await user.type(precio, "15000");
+    vi.mocked(api.put).mockResolvedValueOnce({ id: 501 });
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    expect(await screen.findByText("¡Evento publicado!")).toBeInTheDocument();
+    expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === "/eventos/77/tandas")).toHaveLength(1);
+    expect(api.put).toHaveBeenCalledWith("/eventos/77/tandas/501", expect.objectContaining({ precio: 15000 }));
+  });
+
+  it("si se eliminó una tanda ya creada antes de reintentar, la borra del borrador", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    vi.mocked(api.patch).mockRejectedValueOnce(apiError("Error temporal", 500)).mockResolvedValueOnce({});
+    const { container } = renderWizard();
+    await avanzarAlPaso2(container, user);
+    await completarTanda(user);
+    await user.click(screen.getByRole("button", { name: "Agregar tanda" }));
+    await user.type(screen.getAllByPlaceholderText("Anticipada 1")[1], "General");
+    await user.type(screen.getAllByPlaceholderText("12000")[1], "20000");
+    await user.type(screen.getAllByPlaceholderText("200")[1], "100");
+    vi.mocked(api.post).mockResolvedValueOnce({ id: 501 }).mockResolvedValueOnce({ id: 502 });
+
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+    await screen.findByText("Error temporal");
+    await user.click(screen.getAllByRole("button", { name: /^Eliminar la tanda/ })[1]);
+    vi.mocked(api.delete).mockResolvedValueOnce(undefined);
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    expect(await screen.findByText("¡Evento publicado!")).toBeInTheDocument();
+    expect(api.delete).toHaveBeenCalledWith("/eventos/77/tandas/502");
+    expect(vi.mocked(api.post).mock.calls.filter(([path]) => path === "/eventos/77/tandas")).toHaveLength(2);
   });
 });

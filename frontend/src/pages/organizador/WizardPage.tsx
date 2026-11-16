@@ -7,7 +7,7 @@ import { DatePicker } from "../../components/DatePicker";
 import { TimePicker } from "../../components/TimePicker";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
-import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
+import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface WizardTanda {
@@ -49,6 +49,8 @@ export function OrganizadorWizardPage() {
   const [error, setError] = useState<string | null>(null);
   const [movimiento, setMovimiento] = useState<MovimientoCreditoResponseDTO | null>(null);
   const [resumen, setResumen] = useState<CreditosResumenResponseDTO | null>(null);
+  /** Tandas ya creadas en el borrador (id local → id del backend + lo que se mandó), para que un reintento no las duplique. */
+  const tandasCreadasRef = useRef(new Map<number, { tandaId: number; firma: string }>());
   const saldo = resumen?.saldo ?? null;
 
   useEffect(() => {
@@ -124,7 +126,16 @@ export function OrganizadorWizardPage() {
     if (!eventoId) return;
     setLoading(true);
     setError(null);
+    const creadas = tandasCreadasRef.current;
     try {
+      // Reintento después de un fallo: las tandas que se sacaron de la lista pero ya
+      // estaban creadas en el borrador se borran del backend.
+      const idsLocales = new Set(tandas.map((t) => t.id));
+      for (const [idLocal, creada] of [...creadas]) {
+        if (idsLocales.has(idLocal)) continue;
+        await api.delete(`/eventos/${eventoId}/tandas/${creada.tandaId}`);
+        creadas.delete(idLocal);
+      }
       for (const t of tandas) {
         // Si el "hasta" cae el mismo día del evento, la venta cierra cuando
         // empieza el evento (no a las 23:59) para no chocar con la validación.
@@ -136,7 +147,19 @@ export function OrganizadorWizardPage() {
           fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
           fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
         };
-        await api.post(`/eventos/${eventoId}/tandas`, dto);
+        const firma = JSON.stringify(dto);
+        const yaCreada = creadas.get(t.id);
+        // Ya creada en un intento anterior: no se vuelve a crear (antes se duplicaba);
+        // solo se actualiza si el organizador la cambió antes de reintentar.
+        if (yaCreada) {
+          if (yaCreada.firma !== firma) {
+            await api.put(`/eventos/${eventoId}/tandas/${yaCreada.tandaId}`, dto);
+            creadas.set(t.id, { tandaId: yaCreada.tandaId, firma });
+          }
+          continue;
+        }
+        const nueva = await api.post<TandaResponseDTO>(`/eventos/${eventoId}/tandas`, dto);
+        creadas.set(t.id, { tandaId: nueva.id, firma });
       }
       await api.patch(`/eventos/${eventoId}/publicar`);
       const historial = await api.get<MovimientoCreditoResponseDTO[]>("/creditos/historial");
