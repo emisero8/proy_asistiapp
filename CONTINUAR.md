@@ -27,7 +27,7 @@ Se trabaja ítem por ítem sobre `PLAN_MEJORAS.md` (8 etapas). **Hecho y pushead
 **Falta, en el orden recomendado:**
 
 1. **4.8 — decidido el 16/11: por ahora no se despliega nada, se sigue en local** (`DECISIONES.md`). Por eso **4.1 Flyway**, **4.2 claves foráneas** y **4.7** (límite de peticiones en memoria) quedan **en pausa**: solo importan si se despliega. Si Felipe pide una muestra en la web, se reabre 4.8.
-2. Etapas 5 y 6: ya no queda ningún ítem chico, todo es M o L (5.1, 5.3, 5.4, 5.5, 5.2, 6.2, 6.4).
+2. Etapas 5 y 6: ya no queda ningún ítem chico, todo es M o L (5.1, 5.3, 5.5, 5.2, 6.2, 6.4); el 5.4 se cerró el 16/11.
 
 **Preguntas abiertas (no asumir, preguntar):**
 

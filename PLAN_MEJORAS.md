@@ -34,7 +34,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 **Falta, en el orden que recomiendo:**
 1. **4.8 — decidido el 2026-11-16: por ahora no se despliega, se sigue en local** (ver `DECISIONES.md`). Por eso **4.1 Flyway** (L), **4.2 claves foráneas** (L) y **4.7 límite de peticiones en memoria** (M) quedan **en pausa**: solo importan si se despliega (pasar `ddl-auto` a `validate` en producción depende de 4.1; 4.7 solo con más de una instancia). Si se vuelve a querer una muestra en la web, se reabre 4.8.
-2. Etapas 5 y 6 según el tiempo. **Ya no queda ningún ítem S**: lo que falta es M o L (5.1, 5.3, 5.4, 5.5, 5.2, 6.2 y 6.4; 6.4 espera una respuesta de Felipe, ver abajo). El 7.4 no es código, es una forma de trabajar.
+2. Etapas 5 y 6 según el tiempo. **Ya no queda ningún ítem S**: lo que falta es M o L (5.1, 5.3, 5.5, 5.2, 6.2 y 6.4; 6.4 espera una respuesta de Felipe, ver abajo). El 7.4 no es código, es una forma de trabajar.
 
 **Preguntas abiertas (no asumir):**
 - **6.4:** la venta manual del POS **no manda ningún mail** al comprador (confirmado el 12/11: el único mail de entrada sale de la compra online, en `PagoWebhookService`). ¿Debe mandarlo?
@@ -118,7 +118,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 5.1 | **Generar `types.ts` desde el OpenAPI del backend** (`/v3/api-docs`). Está escrito a mano y ya se desfasó una vez: `ordenId` de créditos figuraba como `number` y era `string`. | M | ⏳ |
 | 5.2 | **Suite end-to-end fija con Playwright.** Hoy se instala y desinstala en cada verificación con scripts descartables, así que nada queda como regresión. Cubrir compra, venta del vendedor, escaneo y publicación. | L | ⏳ |
 | 5.3 | **Reescribir los tests de fecha y hora contra `DatePicker`/`TimePicker`.** Siguen pasando gracias a un `<input>` nativo oculto que quedó como puente; después se puede sacar. | M | ⏳ |
-| 5.4 | **Tests para `ListingPage` y `PosPage`.** No tienen ninguno y las dos cambiaron bastante. | M | ⏳ |
+| 5.4 | **Tests para `ListingPage` y `PosPage`.** No tienen ninguno y las dos cambiaron bastante. | M | ✅ 2026-11-16: `ListingPage.test.tsx` (17 tests) y `PosPage.test.tsx` (22 tests). Cubren estados de carga/error/vacío, orden por fecha, el tope de 16 eventos con el botón "Ir a ver todos" y el link fijo a `/eventos` (los dos bugs de la home que ya habían pasado), la línea de soporte, el tope de cantidad del POS (cupo de la tanda, tope por comprador, máximo 20, mail que ya agotó el tope), la validación del formulario, la venta en una sola llamada, el error de venta, "Vendidas hoy" y "Nueva venta", y copiar enlaces. Se comprobó que sirven: se rompió a propósito el código real de 3 formas (tope de 20, tope por comprador, tope de 16) y 4 tests fallaron; se revirtió. Suite del frontend: **20 archivos, 197 tests, 0 fallos**; lint sin mensajes en los tests nuevos |
 | 5.5 | **Mover el botón de tema claro/oscuro al header o a la navegación.** Como botón flotante ya causó dos bugs (tapaba botones del escáner; no respondía en el home). | M | ⏳ |
 | 5.6 | **Borrar las órdenes `Pendiente` huérfanas** que quedaron de las pruebas del 10/11 si el job de vencimiento no las cerró. | S | ✅ 2026-11-16: en esta base había 5 `Pendiente` (ids 25–29), pero eran del 10/9, del flujo simulado previo a MercadoPago: sin `fecha_vencimiento`, por eso el job nunca las tocó. Sin entradas asociadas; borradas. Limpieza de datos locales, sin cambio de código |
 
