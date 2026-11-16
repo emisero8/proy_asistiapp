@@ -18,6 +18,11 @@ function linkEntrada(codigoQr: string) {
   return `${window.location.origin}/mi-entrada?codigoQr=${encodeURIComponent(codigoQr)}`;
 }
 
+/** La primera tanda con cupo (antes la primera aunque estuviera agotada: el botón quedaba gris sin explicación). */
+function tandaInicial(e: EventoResponseDTO): TandaResponseDTO | null {
+  return e.tandas.find((t) => t.cupoDisponible > 0) ?? e.tandas[0] ?? null;
+}
+
 async function copiarAlPortapapeles(texto: string, mensajeOk: string) {
   try {
     await navigator.clipboard.writeText(texto);
@@ -56,7 +61,7 @@ export function StaffPosPage() {
         setEventos(data);
         if (data.length > 0) {
           setEvento(data[0]);
-          setTanda(data[0].tandas[0] ?? null);
+          setTanda(tandaInicial(data[0]));
         }
       })
       .catch((e: unknown) => setLoadError(e instanceof ApiError ? e.message : "No pudimos cargar los eventos."));
@@ -64,7 +69,7 @@ export function StaffPosPage() {
 
   function selectEvento(e: EventoResponseDTO) {
     setEvento(e);
-    setTanda(e.tandas[0] ?? null);
+    setTanda(tandaInicial(e));
   }
 
   useEffect(() => {
