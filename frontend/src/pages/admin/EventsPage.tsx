@@ -33,6 +33,15 @@ export function AdminEventsPage() {
   }
 
   async function cancelarEvento(e: EventoResponseDTO) {
+    // Irreversible y avisa a terceros: se confirma, igual que desde el panel del organizador.
+    const ok = await confirm({
+      titulo: "Cancelar evento",
+      mensaje: `¿Cancelar "${e.nombre}"? Se avisa por email a los compradores y al organizador, y se le devuelven los créditos de las entradas sin vender. No se puede deshacer.`,
+      confirmarTexto: "Cancelar evento",
+      cancelarTexto: "No, volver",
+      variante: "destructiva",
+    });
+    if (!ok) return;
     setBusyId(e.id);
     try {
       const updated = await api.patch<EventoResponseDTO>(`/admin/eventos/${e.id}/cancelar`);
