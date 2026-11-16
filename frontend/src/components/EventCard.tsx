@@ -9,7 +9,7 @@ import { Badge } from "./ui";
 
 interface EventCardProps {
   evento: EventoPublicoListItemDTO;
-  /** Etiqueta destacada sobre la portada ("Próximo", "Hoy") — con el acento secundario, usar con mesura. */
+  /** Etiqueta sobre la portada: "Hoy" va con --accent (atención) y el resto ("Próximo") con --secondary. */
   etiqueta?: string;
   /** Las primeras tarjetas visibles cargan la portada sin `lazy`. */
   prioridad?: boolean;
@@ -34,7 +34,7 @@ export function EventCard({ evento, etiqueta, prioridad = false, className, styl
           iconSize={22}
         />
         {etiqueta && (
-          <Badge tone="highlight" className="absolute left-2.5 top-2.5 shadow-raised">
+          <Badge tone={etiqueta === "Hoy" ? "accent" : "highlight"} className="absolute left-2.5 top-2.5 shadow-raised">
             {etiqueta}
           </Badge>
         )}

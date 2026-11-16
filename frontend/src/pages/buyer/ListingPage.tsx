@@ -176,13 +176,13 @@ export function ListingPage() {
 
           <div className="relative mx-auto flex max-w-3xl flex-col items-center py-16 text-center animate-fade-in-up">
             <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1.5 text-2xs font-semibold uppercase tracking-[0.16em] text-foreground backdrop-blur-md">
-              <span aria-hidden="true" className="size-2 rounded-full bg-highlight" />
+              <span aria-hidden="true" className="size-2 rounded-full bg-accent" />
               {hayShowsHoy ? "Hay shows hoy" : "Entradas 100% digitales"}
             </span>
             <h1 className="mb-5 font-display text-4xl font-extrabold uppercase leading-[0.95] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
               Viví el show
               <br />
-              <span className="text-primary">en primera fila</span>
+              <span className="text-secondary">en primera fila</span>
             </h1>
             <p className="mb-8 max-w-md text-sm text-muted-foreground lg:text-base">
               Encontrá los próximos recitales y fiestas, comprá tu entrada digital y entrá con un QR — sin filas, sin papel.
@@ -215,7 +215,7 @@ export function ListingPage() {
                     key={item}
                     className="flex items-center gap-2 whitespace-nowrap px-6 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-foreground"
                   >
-                    <span className="text-primary">✦</span>
+                    <span className="text-accent">✦</span>
                     {item}
                   </span>
                 ))}
@@ -321,12 +321,12 @@ export function ListingPage() {
         <section aria-labelledby="ventajas-titulo" className="border-t border-border bg-card/40">
           <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8 lg:py-16">
             <h2 id="ventajas-titulo" className="mb-8 text-center font-display text-xl font-extrabold uppercase tracking-tight text-foreground lg:text-2xl">
-              Tu entrada, <span className="text-primary">sin vueltas</span>
+              Tu entrada, <span className="text-secondary">sin vueltas</span>
             </h2>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:gap-6">
               {FEATURES.map((f) => (
                 <li key={f.title} className="rounded-2xl border border-border bg-card p-5">
-                  <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-secondary/12 text-secondary">
                     <f.icon size={18} aria-hidden="true" />
                   </span>
                   <h3 className="mb-1 text-sm font-semibold text-foreground">{f.title}</h3>
@@ -341,9 +341,9 @@ export function ListingPage() {
         <section id="para-organizadores" aria-labelledby="org-titulo" className="scroll-mt-16 border-t border-border">
           <div className="mx-auto max-w-7xl px-4 py-14 lg:px-8 lg:py-20">
             <div className="mx-auto mb-10 max-w-xl text-center lg:mb-14">
-              <p className="mb-2 text-2xs font-semibold uppercase tracking-[0.16em] text-primary">Para organizadores</p>
+              <p className="mb-2 text-2xs font-semibold uppercase tracking-[0.16em] text-secondary">Para organizadores</p>
               <h2 id="org-titulo" className="mb-3 font-display text-2xl font-extrabold uppercase tracking-tight text-foreground lg:text-3xl">
-                Vendé entradas, <span className="text-primary">sin comisión</span>
+                Vendé entradas, <span className="text-secondary">sin comisión</span>
               </h2>
               <p className="text-sm text-muted-foreground lg:text-base">
                 Publicá tu evento, vendé online o en la puerta y validá cada entrada con QR — todo desde un mismo panel.
@@ -359,7 +359,7 @@ export function ListingPage() {
                   { icon: Ticket, value: stats.entradasVendidas, label: "Entradas vendidas" },
                 ].map((s) => (
                   <div key={s.label} className="rounded-2xl border border-border bg-card p-4 text-center sm:p-5">
-                    <s.icon size={18} aria-hidden="true" className="mx-auto mb-2 text-primary" />
+                    <s.icon size={18} aria-hidden="true" className="mx-auto mb-2 text-secondary" />
                     <dd className="text-xl font-extrabold tabular-nums leading-none text-foreground sm:text-2xl lg:text-3xl">
                       {s.value.toLocaleString("es-AR")}
                     </dd>
@@ -372,7 +372,7 @@ export function ListingPage() {
             <ul className="mb-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:mb-20 lg:grid-cols-4">
               {ORG_FEATURES.map((f) => (
                 <li key={f.title} className="rounded-2xl border border-border bg-card p-5">
-                  <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-secondary/12 text-secondary">
                     <f.icon size={18} aria-hidden="true" />
                   </span>
                   <h3 className="mb-1 text-sm font-semibold text-foreground">{f.title}</h3>
@@ -387,7 +387,7 @@ export function ListingPage() {
                 <li aria-hidden="true" className="absolute left-[12.5%] right-[12.5%] top-7 hidden h-px bg-border-strong lg:block" />
                 {ORG_STEPS.map((s) => (
                   <li key={s.num} className="relative flex flex-col items-center text-center">
-                    <span className="relative z-10 mb-4 flex size-14 items-center justify-center rounded-2xl border border-primary/30 bg-background text-lg font-extrabold text-primary">
+                    <span className="relative z-10 mb-4 flex size-14 items-center justify-center rounded-2xl border border-secondary/40 bg-background text-lg font-extrabold text-secondary">
                       {s.num}
                     </span>
                     <h4 className="mb-1.5 text-sm font-semibold text-foreground">{s.title}</h4>
@@ -421,7 +421,7 @@ export function ListingPage() {
         {/* CTA final para organizadores */}
         <section aria-labelledby="cta-titulo" className="border-t border-border bg-card/40 px-4 py-20 lg:py-28">
           <div className="mx-auto max-w-2xl text-center">
-            <p className="mb-4 text-2xs font-semibold uppercase tracking-[0.2em] text-primary">Empezá hoy</p>
+            <p className="mb-4 text-2xs font-semibold uppercase tracking-[0.2em] text-secondary">Empezá hoy</p>
             <h2 id="cta-titulo" className="mb-5 font-display text-3xl font-extrabold uppercase leading-tight text-foreground sm:text-4xl lg:text-5xl">
               Tu primer evento,
               <br />

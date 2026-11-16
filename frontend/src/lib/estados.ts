@@ -19,6 +19,7 @@ export type Tono =
   | "primary"
   | "primary-strong"
   | "highlight"
+  | "accent"
   | "success"
   | "warning"
   | "danger"

@@ -3,10 +3,10 @@
 /* =====================================================================
    Tokens de diseño de AsistíAPP — fuente de verdad: DESIGN.md.
 
-   Identidad: azul marino (--primary) como color de marca + un segundo
-   acento moderado, verde azulado (--highlight), reservado para resaltar
-   con mesura (destacados, "Próximo", 2.ª serie de gráficos). Nunca para
-   CTAs, estados ni decoración.
+   Identidad: tres colores de marca con roles fijos — azul marino
+   (--primary, lo interactivo), verde azulado (--secondary, identidad de
+   apoyo) y terracota (--accent, atención puntual). Ninguno se usa para
+   estados: para eso están los semánticos.
 
    Colores semánticos (--success / --warning / --destructive / --info):
    siempre por token, nunca con clases literales de Tailwind (emerald-400,
@@ -35,21 +35,27 @@
   --popover-foreground: #1c1a15;
   --surface-sunken: #f5efe2;
 
-  /* Marca */
+  /* Marca — tres roles (ver "Roles de color" en DESIGN.md):
+     --primary   azul marino: todo lo que se toca (CTAs, links, nav activa,
+                 foco, selección) y los precios.
+     --secondary verde azulado: identidad de apoyo, nunca interactiva
+                 (íconos de secciones, palabras destacadas de títulos,
+                 eyebrows, "Próximo", 2.ª serie de gráficos).
+     --accent    terracota: puntual, para llamar la atención ("Hoy", el
+                 punto del hero, detalles). Como mucho uno o dos por vista.
+     --highlight queda como alias de --secondary por compatibilidad. */
   --primary: #2b3c64;
   --primary-foreground: #ffffff;
-  /* --accent = --primary (precios, chips de marca). Se mantiene por
-     compatibilidad; el segundo acento real es --highlight. */
-  --accent: #2b3c64;
+  --secondary: #1d6b66;
+  --secondary-foreground: #ffffff;
+  --accent: #9c4425;
   --accent-foreground: #ffffff;
-  --highlight: #1d6b66;
-  --highlight-foreground: #ffffff;
+  --highlight: var(--secondary);
+  --highlight-foreground: var(--secondary-foreground);
 
   /* Neutros. --muted-foreground pasa de #6b6659 a #5c574b: el anterior
      daba 4,0:1 sobre --muted y ~4,5:1 sobre el fondo, y se usa mucho en
      textos de 10–12 px. */
-  --secondary: #e2d7bf;
-  --secondary-foreground: #1c1a15;
   --muted: #e2d7bf;
   --muted-foreground: #5c574b;
 
@@ -74,7 +80,7 @@
   /* Gráficos */
   --chart-1: #2b3c64;
   --chart-2: #1d6b66;
-  --chart-3: #6b7fae;
+  --chart-3: #9c4425;
   --chart-4: #94a3b8;
   --chart-5: #772238;
 
@@ -110,13 +116,13 @@
 
   --primary: #9cadd3;
   --primary-foreground: #0d1a2b;
-  --accent: #9cadd3;
-  --accent-foreground: #0d1a2b;
-  --highlight: #7cc7bd;
-  --highlight-foreground: #0b2522;
+  --secondary: #7cc7bd;
+  --secondary-foreground: #0b2522;
+  --accent: #f29a76;
+  --accent-foreground: #2a0f05;
+  --highlight: var(--secondary);
+  --highlight-foreground: var(--secondary-foreground);
 
-  --secondary: #263349;
-  --secondary-foreground: #f8fafc;
   --muted: #253247;
   --muted-foreground: #9aa8bd;
 
@@ -140,7 +146,7 @@
 
   --chart-1: #9cadd3;
   --chart-2: #7cc7bd;
-  --chart-3: #5b6f9c;
+  --chart-3: #f29a76;
   --chart-4: #64748b;
   --chart-5: #e5788a;
 

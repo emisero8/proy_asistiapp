@@ -337,7 +337,7 @@ export function StaffPosPage() {
                       <p className="text-[10px] text-muted-foreground">{t.cupoDisponible === 0 ? "Agotada" : `${t.cupoDisponible} disp.`}</p>
                     </div>
                   </div>
-                  <span className="text-sm font-bold text-accent">{fmt(t.precio)}</span>
+                  <span className="text-sm font-bold text-primary">{fmt(t.precio)}</span>
                 </button>
               ))}
             </div>

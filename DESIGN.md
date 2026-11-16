@@ -24,16 +24,26 @@ Todos los colores son **tokens con valor por modo** (claro en `:root`, oscuro en
 
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
-| `primary` | `#2b3c64` | `#9cadd3` | Identidad. CTA principal, links, foco, selección, precios. |
-| `primary-foreground` | `#ffffff` | `#0d1a2b` | Texto/ícono sobre relleno `primary`. |
-| `highlight` | `#1d6b66` | `#7cc7bd` | **Segundo acento, uso moderado** (ver reglas). |
-| `highlight-foreground` | `#ffffff` | `#0b2522` | Texto sobre relleno `highlight`. |
-| `accent` | = `primary` | = `primary` | Compatibilidad (precios con `text-accent`). No es un segundo color: para eso está `highlight`. |
+Tres colores de marca con **roles fijos**: combinan (mismo peso, misma saturación contenida) pero se distinguen por tono — azul (225°), verde azulado (175°) y terracota (15°).
 
-**Reglas del acento `highlight` (verde azulado):**
-- ✅ Sí: marcar lo destacado o próximo ("Próximo", "Destacado"), la 2.ª serie de un gráfico, un dato que hay que mirar primero en una tarjeta de métricas.
-- ❌ No: CTAs (siempre `primary`), estados (para eso están los semánticos), fondos grandes, decoración, degradés.
-- Regla práctica: **como mucho un elemento `highlight` por zona visible.** Si aparece en todos lados deja de resaltar.
+| Token | Claro | Oscuro | Uso |
+|---|---|---|---|
+| `primary` | `#2b3c64` | `#9cadd3` | **Lo que se toca.** CTA principal, links, navegación activa, foco, selección, precios. |
+| `primary-foreground` | `#ffffff` | `#0d1a2b` | Texto/ícono sobre relleno `primary`. |
+| `secondary` | `#1d6b66` | `#7cc7bd` | **Identidad de apoyo, nunca interactiva.** Íconos de secciones, palabras destacadas de un título, eyebrows, "Próximo", 2.ª serie de gráficos, la métrica a mirar primero (`StatCard emphasis="highlight"`). |
+| `secondary-foreground` | `#ffffff` | `#0b2522` | Texto sobre relleno `secondary`. |
+| `accent` | `#9c4425` | `#f29a76` | **Atención puntual.** Badge "Hoy", el punto del hero, detalles chicos. 3.ª serie de gráficos. |
+| `accent-foreground` | `#ffffff` | `#2a0f05` | Texto sobre relleno `accent`. |
+| `highlight` | = `secondary` | = `secondary` | Alias por compatibilidad (`Badge tone="highlight"`, `StatCard`). |
+
+Contraste como texto: entre 5,0:1 y 9,8:1 sobre `background` y `card` en los dos modos.
+
+**Reglas:**
+- Un botón o link es **siempre** `primary`. `secondary` y `accent` nunca indican que algo se puede tocar.
+- Ninguno de los tres se usa para estados (para eso están los semánticos), fondos grandes ni degradés.
+- `accent`: **como mucho uno o dos elementos por vista.** Si aparece en todos lados deja de llamar la atención.
+- `secondary` en suave: `bg-secondary/12 text-secondary` (tiles de íconos), igual que los semánticos.
+- Badges: `tone="highlight"` (secundario, "Próximo") y `tone="accent"` ("Hoy").
 
 ### Semánticos
 
@@ -72,7 +82,7 @@ De la más baja a la más alta — cada nivel tiene que distinguirse del anterio
 
 ### Gráficos (`recharts`)
 
-`--chart-1` (= primary), `--chart-2` (= highlight), `--chart-3`, `--chart-4` (neutro), `--chart-5` (= destructive). Los `fill`/`contentStyle` de recharts son estilos inline de JS: se pasan como `"var(--chart-1)"`, `"var(--popover)"`, nunca hex.
+`--chart-1` (= primary), `--chart-2` (= secondary), `--chart-3` (= accent), `--chart-4` (neutro), `--chart-5` (= destructive). Los `fill`/`contentStyle` de recharts son estilos inline de JS: se pasan como `"var(--chart-1)"`, `"var(--popover)"`, nunca hex.
 
 ### Excepción documentada
 
@@ -360,7 +370,7 @@ Mismo patrón con `warning`, `success` o `info` (`primary`).
 
 ### Poster card y carrusel del catálogo
 
-`<EventCard evento etiqueta? prioridad?>` (`components/EventCard.tsx`) — **la misma tarjeta** en la Home y en `/eventos` (y su `EventCardSkeleton` para la carga). Portada real a `aspect-[3/4]` con precio "Desde" en pill, título + fecha + lugar debajo. Es un `<Link>` (se puede abrir en otra pestaña; foco visible). Hover: borde `primary/40` + `shadow-raised` + zoom leve de la portada; **no se "levanta"**. Etiqueta opcional con `highlight` ("Próximo", "Hoy") — una por pantalla visible, no en todas.
+`<EventCard evento etiqueta? prioridad?>` (`components/EventCard.tsx`) — **la misma tarjeta** en la Home y en `/eventos` (y su `EventCardSkeleton` para la carga). Portada real a `aspect-[3/4]` con precio "Desde" en pill, título + fecha + lugar debajo. Es un `<Link>` (se puede abrir en otra pestaña; foco visible). Hover: borde `primary/40` + `shadow-raised` + zoom leve de la portada; **no se "levanta"**. Etiqueta opcional: "Hoy" con `accent`, "Próximo" con `highlight` (secundario) — una por pantalla visible, no en todas.
 
 **Home:** hasta 4 eventos, una sola grilla; con más, carrusel de los 6 próximos (`snap-x`, sin avance automático; flechas en desktop en la fila del título, deshabilitadas en los extremos) + grilla "Más eventos" con los siguientes, **sin repetir ninguno**. Nada de autoplay: un carrusel que se mueve solo distrae y es difícil de leer.
 
