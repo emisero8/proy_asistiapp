@@ -123,13 +123,13 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 5.3 | **Reescribir los tests de fecha y hora contra `DatePicker`/`TimePicker`.** Siguen pasando gracias a un `<input>` nativo oculto que quedó como puente; después se puede sacar. | M | ⏳ |
 | 5.4 | **Tests para `ListingPage` y `PosPage`.** No tienen ninguno y las dos cambiaron bastante. | M | ⏳ |
 | 5.5 | **Mover el botón de tema claro/oscuro al header o a la navegación.** Como botón flotante ya causó dos bugs (tapaba botones del escáner; no respondía en el home). | M | ⏳ |
-| 5.6 | **Borrar las órdenes `Pendiente` huérfanas** que quedaron de las pruebas del 10/11 si el job de vencimiento no las cerró. | S | ⏳ |
+| 5.6 | **Borrar las órdenes `Pendiente` huérfanas** que quedaron de las pruebas del 10/11 si el job de vencimiento no las cerró. | S | ✅ 2026-11-16: en esta base había 5 `Pendiente` (ids 25–29), pero eran del 10/9, del flujo simulado previo a MercadoPago: sin `fecha_vencimiento`, por eso el job nunca las tocó. Sin entradas asociadas; borradas. Limpieza de datos locales, sin cambio de código |
 
 ## Etapa 6 — UX y funcionalidad faltante
 
 | # | Qué | Tamaño | Estado |
 |---|---|---|---|
-| 6.1 | **Auditoría accesible desde mobile** en el panel de Admin. | S | ⏳ |
+| 6.1 | **Auditoría accesible desde mobile** en el panel de Admin. | S | ✅ 2026-11-16: `AdminLayout` la suma como 5ª pestaña de la bottom tab bar (`grid-cols-5`, igual que `OrganizadorLayout`) y unifica la lista de pestañas con la del sidebar. Verificado en vivo con Playwright en mobile (390px) y desktop (1440px), sin errores de consola. Pendiente menor, fuera del ítem: la tabla de la pantalla tiene `min-w-[720px]` y en mobile se desplaza en horizontal |
 | 6.2 | **Notificaciones automáticas.** Existen la campanita y el anuncio global, pero no avisos por evento cancelado, staff asignado, créditos acreditados, etc. Primero definir cuáles. | M–L | ⏳ |
 | 6.3 | **Aclarar que el enlace de la entrada es la entrada.** Quien tenga `/mi-entrada?codigoQr=…` puede entrar. Decirlo en el texto del botón de compartir del POS y de la pantalla de resultado. | S | ⏳ |
 | 6.4 | **Enviar la entrada por mail desde el POS.** Confirmado el 12/11: hoy la venta manual no manda ningún mail. **(a confirmar)** si hace falta; hoy el vendedor solo copia o comparte el enlace. | M | ⏳ |
