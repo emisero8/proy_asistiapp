@@ -18,13 +18,17 @@ function renderPage() {
   );
 }
 
+const PACK = { id: 4, nombre: "Pro", cantidadCreditos: 300, precio: 120000, estado: "Activo" };
+
 beforeEach(() => {
-  vi.mocked(api.get).mockImplementation(async (path: string) => (path === "/admin/paquetes-credito" ? [] : []));
+  vi.mocked(api.get).mockImplementation(async (path: string) => (path === "/admin/paquetes-credito" ? [PACK] : []));
 });
 
 afterEach(() => {
   vi.mocked(api.get).mockReset();
   vi.mocked(api.post).mockReset();
+  vi.mocked(api.put).mockReset();
+  vi.mocked(api.patch).mockReset();
 });
 
 async function escribirAnuncio(user: ReturnType<typeof userEvent.setup>) {
@@ -55,5 +59,49 @@ describe("AdminConfigPage — anuncio global", () => {
     await user.click(within(dialogo).getByRole("button", { name: "Enviar" }));
 
     expect(api.post).toHaveBeenCalledWith("/admin/notificaciones", { titulo: "Mantenimiento", mensaje: "El sábado a la noche." });
+  });
+});
+
+describe("AdminConfigPage — paquetes", () => {
+  it("el precio se edita con teclado: un valor inválido avisa y Enter guarda con el mismo contrato", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.put).mockResolvedValueOnce({ ...PACK, precio: 150000 });
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Editar el precio de Pro" }));
+    const campo = screen.getByLabelText("Precio de Pro");
+    expect(campo).toHaveFocus();
+
+    await user.clear(campo);
+    await user.type(campo, "0{Enter}");
+    expect(screen.getByText("Ingresá un precio mayor a 0.")).toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalled();
+
+    await user.clear(campo);
+    await user.type(campo, "150000{Enter}");
+    expect(api.put).toHaveBeenCalledWith("/admin/paquetes-credito/4", { nombre: "Pro", cantidadCreditos: 300, precio: 150000 });
+  });
+
+  it("Escape cancela la edición sin guardar", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Editar el precio de Pro" }));
+    await user.keyboard("{Escape}");
+
+    expect(screen.queryByLabelText("Precio de Pro")).not.toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalled();
+  });
+
+  it("la disponibilidad es un switch con nombre: apagarlo deshabilita el paquete", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.patch).mockResolvedValueOnce({ ...PACK, estado: "Deshabilitado" });
+    renderPage();
+
+    const sw = await screen.findByRole("switch", { name: "Paquete Pro disponible" });
+    expect(sw).toHaveAttribute("aria-checked", "true");
+    await user.click(sw);
+
+    expect(api.patch).toHaveBeenCalledWith("/admin/paquetes-credito/4/deshabilitar");
   });
 });

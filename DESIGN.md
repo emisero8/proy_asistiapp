@@ -346,6 +346,20 @@ La métrica protagonista de un panel puede ir en `bg-primary/[0.08] border-prima
 - Panel: `bg-popover border border-border rounded-xl shadow-overlay animate-scale-in min-w-[180px] py-1`; ítems `role="menuitem"`, `h-9 px-3 text-sm rounded-lg mx-1 hover:bg-muted`; ítem destructivo al final, separado, `text-destructive hover:bg-destructive/10`.
 - Cierra con Escape, clic afuera y al elegir; se navega con flechas. **No debe recortarse** dentro de contenedores con `overflow` (posicionado fuera del flujo de la tabla) — `<Menu label="Acciones de …" items={[…]} />` ya lo resuelve (portal + `position: fixed`); se aplica en las tablas de Admin en 13.7.
 
+### Tablas (Admin)
+
+**Una sola `<table>`** que desde `lg` es tabla y en mobile/tablet muestra cada fila como tarjeta (no dos markups: duplicarían el contenido para lectores de pantalla y para los tests):
+- `<thead className="sr-only lg:not-sr-only">` (los encabezados siguen existiendo para lectores de pantalla).
+- `<tr className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 lg:table-row lg:p-0">`; cada `<td>` con `lg:table-cell` y `order-*` / `lg:order-none` para ubicar en la tarjeta (nombre + menú arriba, badges abajo).
+- Datos que en desktop tienen su columna (email, fecha) se repiten como línea secundaria en la tarjeta (`lg:hidden`) y su celda queda `hidden lg:table-cell`.
+- Encabezado `bg-surface-sunken text-2xs uppercase tracking-wider`; filas `divide-y divide-border`, hover `bg-surface-sunken`. Acciones en `<Menu label="Acciones de …">`.
+
+### Feedback de una acción
+
+- **Mutación** (suspender, guardar, crear): un toast (`toast.success` / `toast.error`). No además un aviso inline: el mismo mensaje dos veces no suma.
+- **Carga fallida**: `<ErrorState onRetry>` en lugar del contenido.
+- **Validación**: el error en el campo (`<Field error>`).
+
 ### Diálogos (confirm / alert / prompt)
 
 **Nunca `window.confirm` / `alert` / `prompt`.** Se usa `useDialog()` (`lib/dialogs.ts`), provisto por `<DialogProvider>` en `App.tsx`:

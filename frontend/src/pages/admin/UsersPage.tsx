@@ -1,18 +1,13 @@
 import { useEffect, useState } from "react";
-import { Check, CircleX, KeyRound, Search, Trash2 } from "lucide-react";
+import { Check, CircleX, KeyRound, Search, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
-import { Menu } from "../../components/ui";
-
-const ROLE_COLORS: Record<RolUsuario, string> = {
-  Administrador: "bg-primary text-primary-foreground",
-  Organizador: "bg-primary/15 text-primary",
-  Staff_QR: "bg-muted text-foreground",
-  Staff_Vendedor: "bg-muted text-muted-foreground",
-};
+import { Badge, Card, EmptyState, ErrorState, Input, Menu, PageHeader, Select, Skeleton, StatusBadge } from "../../components/ui";
+import { cn } from "../../lib/cn";
+import { ETIQUETA_ROL, TONO_ROL } from "../../lib/estados";
 
 const ROLES: RolUsuario[] = ["Administrador", "Organizador", "Staff_QR", "Staff_Vendedor"];
 
@@ -34,6 +29,11 @@ export function AdminUsersPage() {
 
   useEffect(load, []);
 
+  function reintentar() {
+    setError(null);
+    load();
+  }
+
   const filtered = (users ?? []).filter((u) => {
     const q = search.toLowerCase();
     const matchesSearch = u.nombre.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
@@ -50,7 +50,6 @@ export function AdminUsersPage() {
       toast.success(updated.estado === "Activo" ? `${u.nombre} reactivado` : `${u.nombre} suspendido`);
     } catch (e: unknown) {
       const message = e instanceof ApiError ? e.message : "No pudimos actualizar el estado.";
-      setError(message);
       toast.error(message);
     } finally {
       setBusyId(null);
@@ -74,7 +73,6 @@ export function AdminUsersPage() {
       toast.success(`Contraseña de ${u.nombre} actualizada`);
     } catch (e: unknown) {
       const message = e instanceof ApiError ? e.message : "No pudimos cambiar la contraseña.";
-      setError(message);
       toast.error(message);
     } finally {
       setBusyId(null);
@@ -96,114 +94,138 @@ export function AdminUsersPage() {
       toast.success(`${u.nombre} eliminado`);
     } catch (e: unknown) {
       const message = e instanceof ApiError ? e.message : "No pudimos eliminar el usuario.";
-      setError(message);
       toast.error(message);
     } finally {
       setBusyId(null);
     }
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="px-4 lg:px-8 pt-8 pb-5 border-b border-border">
-        <h1 className="text-xl font-extrabold text-foreground">Gestión de Usuarios</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">{users?.length ?? 0} usuarios en el sistema</p>
-      </div>
+  const hayFiltros = search.trim() !== "" || roleFilter !== "todos";
 
-      <div className="px-4 lg:px-8 py-5 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+      <PageHeader
+        title="Usuarios"
+        description={users === null ? "Todas las cuentas del sistema." : `${users.length} ${users.length === 1 ? "usuario" : "usuarios"} en el sistema.`}
+      />
+
+      {error && users === null && <ErrorState title="No pudimos cargar los usuarios" description={error} onRetry={reintentar} />}
+
+      {!error && users === null && (
+        <div className="space-y-2" aria-busy="true">
+          <span className="sr-only">Cargando usuarios…</span>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 rounded-2xl" />
+          ))}
+        </div>
+      )}
+
+      {users !== null && (
+        <Card as="section" padding="none" aria-label="Lista de usuarios" className="overflow-hidden">
+          <div className="flex flex-col gap-2 border-b border-border p-4 sm:flex-row md:p-5">
+            <Input
+              type="search"
+              size="sm"
+              surface="sunken"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nombre o email..."
-              className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+              aria-label="Buscar usuarios por nombre o email"
+              leadingIcon={<Search size={15} />}
+              className="min-w-0 sm:flex-1"
             />
-          </div>
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
-            className="px-3 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-          >
-            <option value="todos">Todos los roles</option>
-            {ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
-
-        {users === null && !error && (
-          <div className="space-y-2">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-14 rounded-2xl bg-card border border-border animate-pulse" />
-            ))}
-          </div>
-        )}
-
-        {users !== null && (
-        <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-          <table className="w-full min-w-[640px]">
-            <thead>
-              <tr className="border-b border-border">
-                {["Usuario", "Email", "Rol", "Estado", "Acciones"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((u, i) => (
-                <tr key={u.id} className={`${i < filtered.length - 1 ? "border-b border-border" : ""} hover:bg-muted/30 transition-colors ${busyId === u.id ? "opacity-50" : ""}`}>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-none">
-                        {u.nombre.charAt(0)}
-                      </div>
-                      <span className="text-sm font-semibold text-foreground">{u.nombre}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{u.email}</td>
-                  <td className="px-4 py-3.5">
-                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${ROLE_COLORS[u.rol]}`}>{u.rol}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-1.5">
-                      <div className={`w-1.5 h-1.5 rounded-full ${u.estado === "Activo" ? "bg-emerald-400" : "bg-red-400"}`} />
-                      <span className={`text-xs font-semibold ${u.estado === "Activo" ? "text-emerald-400" : "text-red-400"}`}>{u.estado}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    {/* Menú en portal: antes vivía dentro del overflow-x-auto de la tabla y se recortaba. */}
-                    <Menu
-                      label={`Acciones de ${u.nombre}`}
-                      disabled={busyId === u.id}
-                      items={[
-                        u.estado === "Activo"
-                          ? { label: "Suspender", icon: CircleX, onSelect: () => toggleStatus(u) }
-                          : { label: "Activar", icon: Check, onSelect: () => toggleStatus(u) },
-                        { label: "Cambiar contraseña", icon: KeyRound, onSelect: () => resetPassword(u) },
-                        { label: "Eliminar", icon: Trash2, tone: "danger", separatorBefore: true, onSelect: () => deleteUser(u) },
-                      ]}
-                    />
-                  </td>
-                </tr>
+            <Select
+              size="sm"
+              surface="sunken"
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
+              aria-label="Filtrar por rol"
+              className="sm:w-48"
+            >
+              <option value="todos">Todos los roles</option>
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {ETIQUETA_ROL[r]}
+                </option>
               ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground text-sm">No se encontraron usuarios.</p>
-            </div>
+            </Select>
+          </div>
+
+          {filtered.length === 0 ? (
+            <EmptyState
+              variant="plain"
+              icon={Users}
+              title={hayFiltros ? "Ningún usuario coincide con la búsqueda" : "Todavía no hay usuarios"}
+            />
+          ) : (
+            // Una sola tabla: desde lg se ve como tabla; en mobile/tablet cada fila es una tarjeta
+            // (flex). Así no se duplica el contenido para lectores de pantalla.
+            <table className="w-full text-sm">
+              <thead className="sr-only lg:not-sr-only">
+                <tr className="border-b border-border bg-surface-sunken text-2xs uppercase tracking-wider text-muted-foreground">
+                  <th scope="col" className="px-5 py-2.5 text-left font-semibold">Usuario</th>
+                  <th scope="col" className="px-4 py-2.5 text-left font-semibold">Email</th>
+                  <th scope="col" className="px-4 py-2.5 text-left font-semibold">Rol</th>
+                  <th scope="col" className="px-4 py-2.5 text-left font-semibold">Estado</th>
+                  <th scope="col" className="px-5 py-2.5 text-right font-semibold">
+                    <span className="sr-only">Acciones</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((u) => (
+                  <tr
+                    key={u.id}
+                    className={cn(
+                      "flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors duration-(--duration-fast) hover:bg-surface-sunken lg:table-row lg:p-0",
+                      busyId === u.id && "opacity-50",
+                    )}
+                  >
+                    <td className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] lg:px-5 lg:py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="flex size-9 flex-none items-center justify-center rounded-full bg-secondary/12 text-xs font-bold text-secondary"
+                        >
+                          {u.nombre.charAt(0).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-foreground">{u.nombre}</p>
+                          <p className="truncate text-xs text-muted-foreground lg:hidden">{u.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="hidden max-w-64 truncate px-4 py-3 text-muted-foreground lg:table-cell">{u.email}</td>
+                    <td className="order-3 basis-auto pl-12 lg:order-none lg:table-cell lg:px-4 lg:py-3">
+                      <Badge tone={TONO_ROL[u.rol]} size="sm">
+                        {ETIQUETA_ROL[u.rol]}
+                      </Badge>
+                    </td>
+                    <td className="order-4 lg:order-none lg:table-cell lg:px-4 lg:py-3">
+                      <StatusBadge tipo="usuario" estado={u.estado} size="sm" dot />
+                    </td>
+                    <td className="order-2 flex-none lg:order-none lg:table-cell lg:px-5 lg:py-3 lg:text-right">
+                      {/* Menú en portal: no lo recorta ningún overflow. */}
+                      <Menu
+                        label={`Acciones de ${u.nombre}`}
+                        disabled={busyId === u.id}
+                        placement="bottom-end"
+                        items={[
+                          u.estado === "Activo"
+                            ? { label: "Suspender", icon: CircleX, onSelect: () => toggleStatus(u) }
+                            : { label: "Activar", icon: Check, onSelect: () => toggleStatus(u) },
+                          { label: "Cambiar contraseña", icon: KeyRound, onSelect: () => resetPassword(u) },
+                          { label: "Eliminar", icon: Trash2, tone: "danger", separatorBefore: true, onSelect: () => deleteUser(u) },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </div>
-        )}
-      </div>
+        </Card>
+      )}
     </div>
   );
 }

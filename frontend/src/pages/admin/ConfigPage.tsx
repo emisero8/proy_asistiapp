@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
-import { Check, Megaphone, Plus } from "lucide-react";
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import { Megaphone, Package, Pencil, Plus, Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { Button, Card, EmptyState, ErrorState, Field, IconButton, Input, PageHeader, Skeleton, Switch, Textarea } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
+import { cn } from "../../lib/cn";
 import { fmt } from "../../lib/format";
 import type {
   AnuncioEnviadoResponseDTO,
@@ -27,6 +29,7 @@ export function AdminConfigPage() {
 
   const [editPackId, setEditPackId] = useState<number | null>(null);
   const [editPrice, setEditPrice] = useState("");
+  const [editPriceError, setEditPriceError] = useState<string | null>(null);
   const [packBusy, setPackBusy] = useState<number | null>(null);
 
   const [newPackOpen, setNewPackOpen] = useState(false);
@@ -38,13 +41,13 @@ export function AdminConfigPage() {
   const [emailSoporte, setEmailSoporte] = useState("");
   const [whatsappSoporte, setWhatsappSoporte] = useState("");
   const [savingConfig, setSavingConfig] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const [anuncioTitulo, setAnuncioTitulo] = useState("");
   const [anuncioMensaje, setAnuncioMensaje] = useState("");
   const [enviandoAnuncio, setEnviandoAnuncio] = useState(false);
 
   function load() {
+    setError(null);
     Promise.all([api.get<PaqueteCreditoResponseDTO[]>("/admin/paquetes-credito"), api.get<ConfiguracionSistemaResponseDTO[]>("/admin/configuraciones")])
       .then(([packsData, configsData]) => {
         setPacks(packsData);
@@ -68,9 +71,7 @@ export function AdminConfigPage() {
       setPacks((ps) => ps!.map((x) => (x.id === p.id ? updated : x)));
       toast.success(updated.estado === "Activo" ? `Pack ${p.nombre} activado` : `Pack ${p.nombre} desactivado`);
     } catch (e: unknown) {
-      const message = e instanceof ApiError ? e.message : "No pudimos actualizar el paquete.";
-      setError(message);
-      toast.error(message);
+      toast.error(e instanceof ApiError ? e.message : "No pudimos actualizar el paquete.");
     } finally {
       setPackBusy(null);
     }
@@ -79,12 +80,19 @@ export function AdminConfigPage() {
   function startEditPrice(p: PaqueteCreditoResponseDTO) {
     setEditPackId(p.id);
     setEditPrice(String(p.precio));
+    setEditPriceError(null);
+  }
+
+  function cancelEditPrice() {
+    setEditPackId(null);
+    setEditPriceError(null);
   }
 
   async function savePrice(p: PaqueteCreditoResponseDTO) {
     const precio = parseFloat(editPrice);
+    // Antes un precio inválido cerraba la edición sin avisar: ahora se explica y se queda abierta.
     if (!precio || precio <= 0) {
-      setEditPackId(null);
+      setEditPriceError("Ingresá un precio mayor a 0.");
       return;
     }
     setPackBusy(p.id);
@@ -96,22 +104,20 @@ export function AdminConfigPage() {
       } satisfies PaqueteCreditoRequestDTO);
       setPacks((ps) => ps!.map((x) => (x.id === p.id ? updated : x)));
       toast.success(`Precio de ${p.nombre} actualizado a ${fmt(precio)}`);
+      setEditPackId(null);
     } catch (e: unknown) {
-      const message = e instanceof ApiError ? e.message : "No pudimos actualizar el precio.";
-      setError(message);
-      toast.error(message);
+      toast.error(e instanceof ApiError ? e.message : "No pudimos actualizar el precio.");
     } finally {
       setPackBusy(null);
-      setEditPackId(null);
     }
   }
 
-  async function createPack() {
+  async function createPack(e: FormEvent) {
+    e.preventDefault();
     const cantidadCreditos = parseInt(newPack.cantidadCreditos, 10);
     const precio = parseFloat(newPack.precio);
     if (!newPack.nombre.trim() || !cantidadCreditos || cantidadCreditos <= 0 || !precio || precio <= 0) return;
     setCreatingPack(true);
-    setError(null);
     try {
       const created = await api.post<PaqueteCreditoResponseDTO>("/admin/paquetes-credito", {
         nombre: newPack.nombre.trim(),
@@ -122,18 +128,16 @@ export function AdminConfigPage() {
       setNewPack({ nombre: "", cantidadCreditos: "", precio: "" });
       setNewPackOpen(false);
       toast.success(`Pack ${created.nombre} creado`);
-    } catch (e: unknown) {
-      const message = e instanceof ApiError ? e.message : "No pudimos crear el paquete.";
-      setError(message);
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(err instanceof ApiError ? err.message : "No pudimos crear el paquete.");
     } finally {
       setCreatingPack(false);
     }
   }
 
-  async function handleSaveConfig() {
+  async function handleSaveConfig(e: FormEvent) {
+    e.preventDefault();
     setSavingConfig(true);
-    setError(null);
     try {
       await api.put(`/admin/configuraciones/${CLAVE_BIENVENIDA}`, {
         valor: welcomeCredits,
@@ -155,19 +159,17 @@ export function AdminConfigPage() {
           descripcion: "WhatsApp de contacto de soporte (número completo, sin espacios ni signos).",
         });
       }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2200);
+      toast.success("Configuración guardada");
       load();
-    } catch (e: unknown) {
-      const message = e instanceof ApiError ? e.message : "No pudimos guardar la configuración.";
-      setError(message);
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(err instanceof ApiError ? err.message : "No pudimos guardar la configuración.");
     } finally {
       setSavingConfig(false);
     }
   }
 
-  async function enviarAnuncio() {
+  async function enviarAnuncio(e: FormEvent) {
+    e.preventDefault();
     if (!anuncioTitulo.trim() || !anuncioMensaje.trim()) return;
     // Llega a todos los usuarios activos y no se puede retirar: se confirma antes de enviar.
     const ok = await confirm({
@@ -178,7 +180,6 @@ export function AdminConfigPage() {
     });
     if (!ok) return;
     setEnviandoAnuncio(true);
-    setError(null);
     try {
       const { enviadas } = await api.post<AnuncioEnviadoResponseDTO>("/admin/notificaciones", {
         titulo: anuncioTitulo.trim(),
@@ -187,260 +188,208 @@ export function AdminConfigPage() {
       toast.success(`Anuncio enviado a ${enviadas} usuarios`);
       setAnuncioTitulo("");
       setAnuncioMensaje("");
-    } catch (e: unknown) {
-      const message = e instanceof ApiError ? e.message : "No pudimos enviar el anuncio.";
-      setError(message);
-      toast.error(message);
+    } catch (err: unknown) {
+      toast.error(err instanceof ApiError ? err.message : "No pudimos enviar el anuncio.");
     } finally {
       setEnviandoAnuncio(false);
     }
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="px-4 lg:px-8 pt-8 pb-5 border-b border-border">
-        <h1 className="text-xl font-extrabold text-foreground">Configuración y Paquetes</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Paquetes de créditos y ajustes globales del sistema</p>
+  function teclasPrecio(e: KeyboardEvent<HTMLInputElement>, p: PaqueteCreditoResponseDTO) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void savePrice(p);
+    } else if (e.key === "Escape") {
+      cancelEditPrice();
+    }
+  }
+
+  if (error && packs === null) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+        <ErrorState title="No pudimos cargar la configuración" description={error} onRetry={load} />
       </div>
+    );
+  }
 
-      <div className="px-4 lg:px-8 py-5 space-y-5">
-        {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
+  return (
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+      <PageHeader title="Configuración" description="Paquetes de créditos, parámetros del sistema y anuncios." />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-          {/* Paquetes de créditos */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-foreground">Paquetes de Créditos</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Configurar precios y disponibilidad</p>
-              </div>
-              <button
-                onClick={() => setNewPackOpen((o) => !o)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/15 text-primary text-xs font-bold hover:bg-primary/25 transition-colors"
-              >
-                <Plus size={12} />
-                Nuevo
-              </button>
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        {/* Paquetes de créditos */}
+        <Card as="section" padding="none" aria-labelledby="packs-titulo" className="overflow-hidden">
+          <div className="flex items-center justify-between gap-3 border-b border-border p-4 md:p-5">
+            <div>
+              <h2 id="packs-titulo" className="text-base font-bold text-foreground">
+                Paquetes de créditos
+              </h2>
+              <p className="text-xs text-muted-foreground">Precios y disponibilidad para los organizadores.</p>
             </div>
+            {!newPackOpen && (
+              <Button variant="secondary" size="sm" leftIcon={<Plus size={15} />} onClick={() => setNewPackOpen(true)}>
+                Nuevo paquete
+              </Button>
+            )}
+          </div>
 
-            {newPackOpen && (
-              <div className="px-5 py-4 border-b border-border space-y-2 bg-background/50">
-                <input
-                  value={newPack.nombre}
-                  onChange={(e) => setNewPack((p) => ({ ...p, nombre: e.target.value }))}
-                  placeholder="Nombre del paquete (ej. Pro)"
-                  className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                />
-                <div className="flex gap-2">
-                  <input
-                    type="number"
+          {newPackOpen && (
+            <form onSubmit={createPack} aria-label="Nuevo paquete" className="space-y-3 border-b border-border bg-surface-sunken p-4 md:p-5">
+              <Field label="Nombre">
+                <Input value={newPack.nombre} onChange={(e) => setNewPack((p) => ({ ...p, nombre: e.target.value }))} placeholder="Ej. Pro" />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Créditos">
+                  <Input
+                    inputMode="numeric"
                     value={newPack.cantidadCreditos}
                     onChange={(e) => setNewPack((p) => ({ ...p, cantidadCreditos: e.target.value }))}
-                    placeholder="Créditos"
-                    className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    placeholder="100"
                   />
-                  <input
-                    type="number"
-                    value={newPack.precio}
-                    onChange={(e) => setNewPack((p) => ({ ...p, precio: e.target.value }))}
-                    placeholder="Precio $"
-                    className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                  <button
-                    disabled={creatingPack}
-                    onClick={createPack}
-                    className="px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                  >
-                    {creatingPack ? "..." : "Crear"}
-                  </button>
-                </div>
+                </Field>
+                <Field label="Precio ($)">
+                  <Input inputMode="decimal" value={newPack.precio} onChange={(e) => setNewPack((p) => ({ ...p, precio: e.target.value }))} placeholder="25000" />
+                </Field>
               </div>
-            )}
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setNewPackOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button type="submit" size="sm" loading={creatingPack} loadingText="Creando…">
+                  Crear paquete
+                </Button>
+              </div>
+            </form>
+          )}
 
-            <div className="divide-y divide-border">
-              {packs?.map((pack) => (
-                <div key={pack.id} className={`px-5 py-3.5 transition-colors ${pack.estado === "Deshabilitado" ? "opacity-50" : ""} ${packBusy === pack.id ? "opacity-30" : ""}`}>
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold ${
-                          pack.estado === "Activo" ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-                        }`}
+          {packs === null ? (
+            <div className="space-y-2 p-4" aria-busy="true">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-14" />
+              ))}
+            </div>
+          ) : packs.length === 0 ? (
+            <EmptyState variant="plain" icon={Package} title="Todavía no hay paquetes de crédito" description="Creá el primero para que los organizadores puedan comprar créditos." />
+          ) : (
+            <ul className="divide-y divide-border">
+              {packs.map((pack) => {
+                const activo = pack.estado === "Activo";
+                const editando = editPackId === pack.id;
+                return (
+                  <li key={pack.id} className={cn("flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 md:px-5", packBusy === pack.id && "opacity-50")}>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "flex size-10 flex-none items-center justify-center rounded-xl text-xs font-bold tabular-nums",
+                          activo ? "bg-secondary/12 text-secondary" : "bg-muted text-muted-foreground",
+                        )}
                       >
                         {pack.cantidadCreditos}
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{pack.nombre}</p>
-                        <p className="text-xs text-muted-foreground">{pack.cantidadCreditos} créditos</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-5">
-                      <div className="flex flex-col items-end">
-                        {editPackId === pack.id ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground">$</span>
-                            <input
-                              value={editPrice}
-                              onChange={(e) => setEditPrice(e.target.value)}
-                              className="w-20 px-2 py-1 bg-background border border-primary/50 rounded-lg text-xs text-foreground focus:outline-none"
-                            />
-                            <button onClick={() => savePrice(pack)} className="px-2 py-1 bg-primary text-primary-foreground text-xs rounded-lg font-bold">
-                              OK
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => startEditPrice(pack)}>
-                            <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity font-semibold">Editar precio</span>
-                            <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{fmt(pack.precio)}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2.5 border-l border-border pl-5">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${pack.estado === "Activo" ? "text-emerald-400" : "text-muted-foreground"}`}>
-                          {pack.estado === "Activo" ? "Activo" : "Inactivo"}
-                        </span>
-                        <button
-                          onClick={() => togglePack(pack)}
-                          className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5 ${
-                            pack.estado === "Activo" ? "bg-primary justify-end" : "bg-muted justify-start"
-                          }`}
-                        >
-                          <div className="w-5 h-5 rounded-full bg-white shadow-sm" />
-                        </button>
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{pack.nombre}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {pack.cantidadCreditos} créditos{!activo && " · Inactivo"}
+                        </p>
                       </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-              {packs !== null && packs.length === 0 && (
-                <div className="py-10 text-center">
-                  <p className="text-muted-foreground text-sm">Todavía no hay paquetes de crédito.</p>
-                </div>
-              )}
-              {packs === null && (
-                <div className="p-5 space-y-2.5">
-                  {[0, 1, 2].map((i) => (
-                    <div key={i} className="h-14 rounded-xl bg-background/60 animate-pulse" />
-                  ))}
-                </div>
-              )}
-            </div>
+
+                    {!editando && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-bold tabular-nums text-foreground">{fmt(pack.precio)}</span>
+                        <IconButton label={`Editar el precio de ${pack.nombre}`} icon={<Pencil size={15} />} size="sm" onClick={() => startEditPrice(pack)} />
+                      </div>
+                    )}
+
+                    <Switch
+                      checked={activo}
+                      onCheckedChange={() => togglePack(pack)}
+                      label={`Paquete ${pack.nombre} disponible`}
+                      disabled={packBusy === pack.id}
+                    />
+
+                    {/* Edición del precio en su propia fila: Enter guarda, Escape cancela. */}
+                    {editando && (
+                      <div className="flex w-full flex-wrap items-start gap-2 sm:pl-13">
+                        <Field label={`Precio de ${pack.nombre}`} labelHidden error={editPriceError} className="w-40">
+                          <Input
+                            size="sm"
+                            surface="sunken"
+                            inputMode="decimal"
+                            value={editPrice}
+                            onChange={(e) => {
+                              setEditPrice(e.target.value);
+                              setEditPriceError(null);
+                            }}
+                            onKeyDown={(e) => teclasPrecio(e, pack)}
+                            leadingIcon={<span className="text-xs">$</span>}
+                            autoFocus
+                          />
+                        </Field>
+                        <Button size="sm" leftIcon={<Save size={15} />} onClick={() => savePrice(pack)} aria-label={`Guardar el precio de ${pack.nombre}`}>
+                          Guardar
+                        </Button>
+                        <Button variant="ghost" size="sm" leftIcon={<X size={15} />} onClick={cancelEditPrice}>
+                          Cancelar
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
+        {/* Configuración global */}
+        <Card as="form" onSubmit={handleSaveConfig} aria-labelledby="config-titulo" className="space-y-5">
+          <div>
+            <h2 id="config-titulo" className="text-base font-bold text-foreground">
+              Parámetros del sistema
+            </h2>
+            <p className="text-xs text-muted-foreground">Se aplican a todos los organizadores.</p>
           </div>
-
-          {/* Configuración global */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <p className="text-sm font-bold text-foreground">Configuración Global</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Parámetros operativos del sistema</p>
-            </div>
-            <div className="px-5 py-4 space-y-4">
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Créditos de bienvenida (por registro)</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    value={welcomeCredits}
-                    onChange={(e) => setWelcomeCredits(e.target.value)}
-                    className="flex-1 px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-                  />
-                  <span className="text-xs text-muted-foreground flex-none">créditos</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1">Asignados automáticamente al crear una cuenta nueva.</p>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Costo de publicación por evento</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    value={publicacionCost}
-                    onChange={(e) => setPublicacionCost(e.target.value)}
-                    className="flex-1 px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-                  />
-                  <span className="text-xs text-muted-foreground flex-none">créditos</span>
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-1">Se descuentan del Organizador al publicar un evento.</p>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Mail de soporte</label>
-                <input
-                  type="email"
-                  value={emailSoporte}
-                  onChange={(e) => setEmailSoporte(e.target.value)}
-                  placeholder="soporte@asistiapp.com"
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">Visible para cualquier usuario, incluido el Comprador.</p>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">WhatsApp de soporte (opcional)</label>
-                <input
-                  value={whatsappSoporte}
-                  onChange={(e) => setWhatsappSoporte(e.target.value)}
-                  placeholder="5493400000000"
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">Número completo con código de país, sin espacios ni signos.</p>
-              </div>
-
-              <button
-                disabled={savingConfig}
-                onClick={handleSaveConfig}
-                className={`w-full py-3 rounded-xl font-bold text-sm transition-all disabled:opacity-50 ${
-                  saved ? "bg-emerald-500 text-white" : "bg-primary text-primary-foreground hover:bg-primary/90"
-                }`}
-              >
-                {saved ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <Check size={15} />
-                    ¡Cambios guardados!
-                  </span>
-                ) : savingConfig ? (
-                  "Guardando..."
-                ) : (
-                  "Guardar cambios"
-                )}
-              </button>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Créditos de bienvenida" hint="Al crear una cuenta de organizador.">
+              <Input inputMode="numeric" value={welcomeCredits} onChange={(e) => setWelcomeCredits(e.target.value)} />
+            </Field>
+            <Field label="Costo de publicar un evento" hint="En créditos, al publicar.">
+              <Input inputMode="numeric" value={publicacionCost} onChange={(e) => setPublicacionCost(e.target.value)} />
+            </Field>
           </div>
+          <Field label="Mail de soporte" hint="Visible para cualquier usuario, incluido el comprador.">
+            <Input type="email" value={emailSoporte} onChange={(e) => setEmailSoporte(e.target.value)} placeholder="soporte@asistiapp.com" />
+          </Field>
+          <Field label="WhatsApp de soporte (opcional)" hint="Número completo con código de país, sin espacios ni signos.">
+            <Input inputMode="tel" value={whatsappSoporte} onChange={(e) => setWhatsappSoporte(e.target.value)} placeholder="5493400000000" />
+          </Field>
+          <Button type="submit" block loading={savingConfig} loadingText="Guardando…">
+            Guardar cambios
+          </Button>
+        </Card>
 
-          {/* Anuncio global */}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden lg:col-span-2">
-            <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-              <Megaphone size={15} className="text-primary" />
-              <div>
-                <p className="text-sm font-bold text-foreground">Anuncio global</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Se entrega como notificación in-app a todos los usuarios activos</p>
-              </div>
-            </div>
-            <div className="px-5 py-4 space-y-3">
-              <input
-                value={anuncioTitulo}
-                onChange={(e) => setAnuncioTitulo(e.target.value)}
-                placeholder="Título (ej. Mantenimiento programado)"
-                maxLength={150}
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-              />
-              <textarea
-                value={anuncioMensaje}
-                onChange={(e) => setAnuncioMensaje(e.target.value)}
-                placeholder="Mensaje"
-                maxLength={1000}
-                rows={3}
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all resize-none"
-              />
-              <button
-                disabled={enviandoAnuncio || !anuncioTitulo.trim() || !anuncioMensaje.trim()}
-                onClick={enviarAnuncio}
-                className="px-4 py-2.5 bg-primary text-primary-foreground text-sm font-bold rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {enviandoAnuncio ? "Enviando..." : "Enviar anuncio"}
-              </button>
-            </div>
+        {/* Anuncio global */}
+        <Card as="form" onSubmit={enviarAnuncio} aria-labelledby="anuncio-titulo" className="space-y-4 lg:col-span-2">
+          <div>
+            <h2 id="anuncio-titulo" className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Megaphone size={16} aria-hidden="true" className="text-secondary" />
+              Anuncio global
+            </h2>
+            <p className="text-xs text-muted-foreground">Llega como notificación in-app a todos los usuarios activos.</p>
           </div>
-        </div>
+          <Field label="Título">
+            <Input value={anuncioTitulo} onChange={(e) => setAnuncioTitulo(e.target.value)} placeholder="Título (ej. Mantenimiento programado)" maxLength={150} />
+          </Field>
+          <Field label="Mensaje" hint={`${anuncioMensaje.length} / 1000`}>
+            <Textarea value={anuncioMensaje} onChange={(e) => setAnuncioMensaje(e.target.value)} placeholder="Mensaje" maxLength={1000} rows={3} />
+          </Field>
+          <div className="flex justify-end">
+            <Button type="submit" leftIcon={<Megaphone size={16} />} disabled={!anuncioTitulo.trim() || !anuncioMensaje.trim()} loading={enviandoAnuncio} loadingText="Enviando…">
+              Enviar anuncio
+            </Button>
+          </div>
+        </Card>
       </div>
     </div>
   );

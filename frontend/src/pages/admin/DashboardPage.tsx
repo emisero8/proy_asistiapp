@@ -1,20 +1,25 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
-import { Calendar, CalendarCheck, ChevronRight, CircleDollarSign, History, Ticket, Users } from "lucide-react";
+import { Link } from "react-router";
+import { ArrowRight, Calendar, CircleDollarSign, History, Ticket, Users } from "lucide-react";
+import { Card, EmptyState, ErrorState, PageHeader, Skeleton, StatCard } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { describirAccion } from "../../lib/auditoria";
 import { fmt, formatRelativo } from "../../lib/format";
 import type { AdminMetricasResponseDTO, LogAuditoriaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
+/**
+ * Panel del Admin: métricas globales y la actividad reciente. Los tres "atajos" que había
+ * (Usuarios, Eventos, Configuración) se sacaron: repetían el sidebar / la barra de pestañas.
+ */
 export function AdminDashboardPage() {
   useDocumentTitle("Dashboard · Admin");
-  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<AdminMetricasResponseDTO | null>(null);
   const [actividad, setActividad] = useState<LogAuditoriaResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  function cargar() {
+    setError(null);
     api
       .get<AdminMetricasResponseDTO>("/admin/metricas")
       .then(setMetrics)
@@ -23,99 +28,79 @@ export function AdminDashboardPage() {
       .get<LogAuditoriaResponseDTO[]>("/admin/auditoria")
       .then((logs) => setActividad(logs.slice(0, 6)))
       .catch(() => setActividad([]));
-  }, []);
+  }
 
-  const cards = metrics
-    ? [
-        { label: "Organizadores activos", value: metrics.organizadoresActivos.toLocaleString("es-AR"), icon: Users, color: "text-primary", bg: "bg-primary/10" },
-        { label: "Eventos activos", value: metrics.eventosActivos.toLocaleString("es-AR"), sub: `${metrics.eventosTotales.toLocaleString("es-AR")} en total`, icon: Calendar, color: "text-emerald-400", bg: "bg-emerald-400/10" },
-        { label: "Ingresos totales", value: fmt(metrics.ingresosTotales), icon: CircleDollarSign, color: "text-foreground", bg: "bg-muted" },
-        { label: "Entradas vendidas", value: metrics.entradasVendidas.toLocaleString("es-AR"), icon: Ticket, color: "text-muted-foreground", bg: "bg-muted" },
-      ]
-    : [];
-
-  const shortcuts = [
-    { label: "Gestión de Usuarios", desc: "Ver y administrar todos los usuarios", to: "/admin/usuarios", icon: Users, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Gestión de Eventos", desc: "Supervisar eventos de toda la plataforma", to: "/admin/eventos", icon: CalendarCheck, color: "text-emerald-400", bg: "bg-emerald-400/10" },
-    { label: "Configuración y Paquetes", desc: "Paquetes de créditos y ajustes globales", to: "/admin/config", icon: CircleDollarSign, color: "text-foreground", bg: "bg-muted" },
-  ];
+  useEffect(cargar, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="relative overflow-hidden px-4 lg:px-8 pt-8 pb-5 border-b border-border">
-        <div className="absolute -top-16 right-0 w-64 h-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
-        <p className="relative text-[10px] text-muted-foreground tracking-[0.2em] uppercase font-semibold">Sistema · Backoffice</p>
-        <h1 className="relative text-xl font-extrabold text-foreground mt-0.5">Dashboard Global</h1>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6 lg:space-y-8 lg:px-8 lg:py-8">
+      <PageHeader eyebrow="Administración" title="Panel general" />
 
-      <div className="px-4 lg:px-8 py-5 space-y-5">
-        {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
+      {error && metrics === null && <ErrorState title="No pudimos cargar las métricas" description={error} onRetry={cargar} />}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {metrics === null && !error
-            ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="bg-card border border-border rounded-2xl p-4 h-28 animate-pulse" />)
-            : cards.map((m) => (
-                <div key={m.label} className="bg-card border border-border rounded-2xl p-4 hover:border-primary/30 transition-colors">
-                  <div className={`w-9 h-9 rounded-xl ${m.bg} flex items-center justify-center mb-3`}>
-                    <m.icon size={17} className={m.color} />
-                  </div>
-                  <p className="text-2xl font-extrabold text-foreground leading-none">{m.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{m.label}</p>
-                  {m.sub && <p className="text-[10px] text-muted-foreground mt-1.5">{m.sub}</p>}
-                </div>
-              ))}
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {shortcuts.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => navigate(item.to)}
-              className="bg-card border border-border rounded-2xl p-4 text-left hover:border-primary/40 transition-all group"
-            >
-              <div className={`w-9 h-9 rounded-xl ${item.bg} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                <item.icon size={17} className={item.color} />
-              </div>
-              <p className="text-sm font-bold text-foreground">{item.label}</p>
-              <p className="text-xs text-muted-foreground mt-1 leading-snug">{item.desc}</p>
-              <div className="flex items-center gap-1 mt-3 text-primary text-xs font-semibold">
-                Ir <ChevronRight size={12} />
-              </div>
-            </button>
+      {!error && metrics === null && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true">
+          <span className="sr-only">Cargando métricas…</span>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
           ))}
         </div>
+      )}
 
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-border flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <History size={14} className="text-muted-foreground" />
-              <p className="text-xs font-bold text-foreground">Actividad reciente</p>
-            </div>
-            <button
-              onClick={() => navigate("/admin/auditoria")}
-              className="text-xs font-semibold text-primary hover:underline"
-            >
-              Ver todo
-            </button>
-          </div>
-          {actividad === null ? (
-            <div className="p-4 space-y-2">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="h-9 rounded-xl bg-muted animate-pulse" />
-              ))}
-            </div>
-          ) : actividad.length === 0 ? (
-            <p className="text-xs text-muted-foreground p-4">Todavía no hay actividad registrada.</p>
-          ) : (
-            actividad.map((log, i) => (
-              <div key={log.id} className={`px-4 py-3 flex items-center justify-between gap-3 ${i < actividad.length - 1 ? "border-b border-border" : ""}`}>
-                <p className="text-xs text-foreground/90 truncate">{describirAccion(log)}</p>
-                <span className="text-[10px] text-muted-foreground flex-none">{formatRelativo(log.fechaHora)}</span>
-              </div>
-            ))
-          )}
+      {metrics && (
+        <section aria-label="Métricas de la plataforma" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            label="Ingresos totales"
+            value={fmt(metrics.ingresosTotales)}
+            icon={CircleDollarSign}
+            emphasis="primary"
+            className="col-span-2 lg:col-span-1"
+          />
+          <StatCard label="Entradas vendidas" value={metrics.entradasVendidas.toLocaleString("es-AR")} icon={Ticket} />
+          <StatCard label="Organizadores activos" value={metrics.organizadoresActivos.toLocaleString("es-AR")} icon={Users} />
+          <StatCard
+            label="Eventos activos"
+            value={metrics.eventosActivos.toLocaleString("es-AR")}
+            hint={`${metrics.eventosTotales.toLocaleString("es-AR")} en total`}
+            icon={Calendar}
+            className="col-span-2 lg:col-span-1"
+          />
+        </section>
+      )}
+
+      <Card as="section" padding="none" aria-labelledby="actividad-titulo" className="overflow-hidden">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 md:px-5">
+          <h2 id="actividad-titulo" className="flex items-center gap-2 text-base font-bold text-foreground">
+            <History size={16} aria-hidden="true" className="text-secondary" />
+            Actividad reciente
+          </h2>
+          <Link to="/admin/auditoria" className="inline-flex items-center gap-1 rounded-md text-sm font-semibold text-primary underline-offset-4 hover:underline">
+            <span className="sm:hidden">Ver todo</span>
+            <span className="hidden sm:inline">Ver toda la auditoría</span>
+            <ArrowRight size={15} aria-hidden="true" />
+          </Link>
         </div>
-      </div>
+        {actividad === null ? (
+          <div className="space-y-2 p-4" aria-busy="true">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-10" />
+            ))}
+          </div>
+        ) : actividad.length === 0 ? (
+          <EmptyState variant="plain" icon={History} title="Todavía no hay actividad registrada" />
+        ) : (
+          <ul className="divide-y divide-border">
+            {actividad.map((log) => (
+              <li key={log.id} className="flex items-center justify-between gap-3 px-4 py-3 md:px-5">
+                <p className="min-w-0 truncate text-sm text-foreground">{describirAccion(log)}</p>
+                <time dateTime={log.fechaHora} className="flex-none text-xs text-muted-foreground">
+                  {formatRelativo(log.fechaHora)}
+                </time>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

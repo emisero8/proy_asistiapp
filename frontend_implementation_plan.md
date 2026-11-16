@@ -472,8 +472,22 @@ Dashboard, EventoDetalle (export con estado de carga), Wizard/Editar (`Field`), 
 - **Hallazgos que no se tocaron** (en `DECISIONES.md` → deuda): un borrador abandonado no se puede publicar desde ninguna pantalla (funcionalidad nueva, pregunta abierta); las sugerencias de dirección no se recorren con teclado.
 - Build: CSS 86,5 → **82,5 kB**; JS de carga inicial sin cambios (294,0 kB). Lint: 0 errores, las mismas 4 warnings.
 
-### 13.7 — Admin
+### Entre 13.6 y 13.7 — pedido del usuario (commit propio `223d799`)
+En el header de la Home, "Para organizadores" pasa antes de "Cómo funciona" (además coincide con el orden de la página: "Cómo funciona" es parte de esa sección).
+
+### 13.7 — Admin ✅
 Tablas de Usuarios/Eventos con `Menu` accesible y vista en tarjetas en mobile; Config con `Switch` y edición de precio accesible por teclado/touch; Dashboard sin atajos que repiten el sidebar; feedback único (toast) en mutaciones.
+
+**Antes de empezar** (commits propios, encontrados al auditar estas pantallas): "Cancelar evento" en Admin → Eventos se ejecutaba sin confirmar (`3f4e334`) y "Enviar anuncio" mandaba la notificación a todos los usuarios activos con un click (`52ebe61`). Ahora ambos confirman diciendo a quién afecta. Con tests.
+
+**Resultado:**
+- **Tablas responsive** (Usuarios, Eventos, Auditoría): una sola `<table>` que desde `lg` es tabla y en mobile/tablet muestra cada fila como tarjeta (patrón en `DESIGN.md` → Tablas). Fuera el `min-w-[640px]` con scroll horizontal (en tablet había que desplazarse para ver el estado y las acciones). Encabezados con `scope`, roles con `ETIQUETA_ROL`/`TONO_ROL` ("Staff QR" en vez de `Staff_QR`), estados con `StatusBadge` (antes `emerald-400`/`red-400` literales). Auditoría en mobile muestra el detalle completo (en desktop se cortaba con un `title` que solo se leía con mouse). Buscadores con nombre accesible y estados vacíos/de error propios.
+- **Panel:** `StatCard` (ingresos como métrica protagonista); se sacan los 3 atajos que repetían el sidebar y la mancha difuminada del encabezado; "Actividad reciente" con link a la auditoría.
+- **Configuración:** la disponibilidad de cada paquete es un `Switch` con nombre ("Paquete Pro disponible"); antes un botón sin nombre accesible. **Precio editable con teclado** (antes un `div` clickeable solo con mouse): botón "Editar el precio de X", campo con foco, Enter guarda, Escape cancela; un precio inválido **avisa** (antes cerraba la edición sin decir nada). Alta de paquete, parámetros y anuncio como formularios con `Field` (Enter envía); contador de caracteres del anuncio.
+- **Feedback único:** las mutaciones avisan solo con toast (antes cada error salía dos veces: toast + banner rojo que no se iba); la carga fallida muestra `ErrorState` con "Reintentar".
+- **Tests:** 206/206 (7 nuevos en 13.7 + 4 de los dos arreglos previos: precio con teclado, Escape, switch de disponibilidad, confirmación de cancelar y del anuncio). Los tests de Usuarios no cambiaron.
+- **Verificación** (Playwright, build de producción, backend real con el admin de desarrollo): las 5 pantallas con el backend real y con datos interceptados en **390/820/1440 × claro/oscuro**; **0 errores de consola** y **ningún scroll horizontal** en ninguna vista (medido en 390, 820 y 1440); el menú de acciones queda dentro del viewport; precio inválido avisa; 3 switches con nombre. Ninguna mutación se envió al backend (se bloquearon en el navegador). Corregido en la verificación: el editor de precio quedaba apretado en la columna (pasa a una fila propia con "Guardar"/"Cancelar" con texto); "Ver toda la auditoría" partía el título en mobile; un "—" suelto en registros sin detalle.
+- Build: CSS 82,5 → **80,9 kB**; JS de carga inicial sin cambios (294,0 kB). Lint: 0 errores, las mismas 4 warnings.
 
 ### 13.8 — Staff
 Scanner (marco de teléfono conservado en desktop, `h-dvh` en mobile, resultado anunciado con `aria-live`, máxima legibilidad y velocidad en la validación); POS con los componentes compartidos.
