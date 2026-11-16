@@ -1,5 +1,6 @@
 # Guía de Desarrollo AsistíAPP (Full-Stack)
 
+- **Retomando el trabajo (sesión nueva o PC nueva): leer primero `CONTINUAR.md`** (dónde estamos, qué falta, trampas conocidas y cómo montar el entorno) y la sección "Estado actual" de `PLAN_MEJORAS.md`.
 - **Repo:** monorepo en GitHub (`proy_asistiapp`), raíz en `AsistiApp/`. `backend/` (Java/Spring Boot) y `frontend/` (React/Vite) son hermanos en el mismo repo.
 - **Frontend real:** `frontend/` — proyecto Vite + React + TypeScript **nuevo y limpio**, desarrollado y buildeado directo con `npm install && npm run dev` / `npm run build` (NO es el harness de Figma Make). Estructura multi-archivo normal: `src/App.tsx` (router), `src/lib/` (api.ts, auth.tsx, types.ts, format.ts), `src/pages/{buyer,organizador,staff,admin}/`.
 - **`figma-reference/`:** el export crudo original de Figma Make (single-file `App.tsx`, mock data). Es **solo material de consulta** de diseño/patrones — nunca se edita ni se shipea. Cuando haga falta ver cómo resolvía una pantalla el mockup, mirar ahí.
