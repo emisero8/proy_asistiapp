@@ -12,7 +12,16 @@ describe("Field", () => {
     expect(screen.getByLabelText("Email")).toHaveAttribute("type", "email");
   });
 
-  it("asocia ayuda y error al control y lo marca inválido", () => {
+  it("asocia la ayuda al control", () => {
+    render(
+      <Field label="Contraseña" hint="Mínimo 8 caracteres.">
+        <Input type="password" />
+      </Field>,
+    );
+    expect(screen.getByLabelText("Contraseña")).toHaveAccessibleDescription("Mínimo 8 caracteres.");
+  });
+
+  it("con error, el error reemplaza a la ayuda (visible y anunciado) y marca el control inválido", () => {
     render(
       <Field label="Contraseña" hint="Mínimo 8 caracteres." error="Es demasiado corta.">
         <Input type="password" />
@@ -20,7 +29,8 @@ describe("Field", () => {
     );
     const input = screen.getByLabelText("Contraseña");
     expect(input).toHaveAttribute("aria-invalid", "true");
-    expect(input).toHaveAccessibleDescription("Mínimo 8 caracteres. Es demasiado corta.");
+    expect(input).toHaveAccessibleDescription("Es demasiado corta.");
+    expect(screen.queryByText("Mínimo 8 caracteres.")).not.toBeInTheDocument();
   });
 
   it("sin error no marca aria-invalid", () => {

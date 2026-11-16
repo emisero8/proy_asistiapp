@@ -1,104 +1,28 @@
-import { NavLink } from "react-router";
-import { AnimatedOutlet } from "../../components/AnimatedOutlet";
-import { LayoutDashboard, Users, Calendar, CircleDollarSign, History, LogOut } from "lucide-react";
-import { NotificationBell } from "../../components/NotificationBell";
+import { LayoutDashboard, Users, Calendar, CircleDollarSign, History } from "lucide-react";
+import { AppShell, type ShellNavItem } from "../../components/AppShell";
 import { useAuth } from "../../lib/auth";
 
-const TABS = [
-  { to: "/admin/dashboard", label: "Dashboard", Icon: LayoutDashboard },
-  { to: "/admin/usuarios", label: "Usuarios", Icon: Users },
-  { to: "/admin/eventos", label: "Eventos", Icon: Calendar },
-  { to: "/admin/config", label: "Config", Icon: CircleDollarSign },
+// Las 5 secciones también en mobile: antes Auditoría solo se alcanzaba desde el sidebar de
+// desktop (o con "Ver todo" del Dashboard), porque la barra inferior era un grid fijo de 4.
+const NAV: ShellNavItem[] = [
+  { to: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/admin/usuarios", label: "Usuarios", icon: Users },
+  { to: "/admin/eventos", label: "Eventos", icon: Calendar },
+  { to: "/admin/config", label: "Configuración", mobileLabel: "Config", icon: CircleDollarSign },
+  { to: "/admin/auditoria", label: "Auditoría", icon: History },
 ];
-
-// Solo en el sidebar de desktop: la bottom tab bar de mobile es un grid-cols-4 fijo,
-// agregar un 5to ítem ahí la rompería. En mobile se llega por "Ver todo" del Dashboard.
-const TABS_SOLO_DESKTOP = [{ to: "/admin/auditoria", label: "Auditoría", Icon: History }];
 
 export function AdminLayout() {
   const { session, logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-52">
-      {/* Notificaciones + cerrar sesión — fijo arriba a la derecha, a la izquierda del
-          toggle de tema, visible en todas las pantallas de Admin (mismo lugar que en Organizador). */}
-      <div className="fixed top-3 right-14 z-50 flex items-center gap-2">
-        <NotificationBell />
-        <button
-          onClick={logout}
-          title="Cerrar sesión"
-          aria-label="Cerrar sesión"
-          className="h-9 pl-2.5 pr-3 rounded-full bg-card border border-border shadow-lg shadow-black/10 flex items-center gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
-        >
-          <LogOut size={15} />
-          <span className="text-xs font-semibold hidden sm:inline">Salir</span>
-        </button>
-      </div>
-
-      {/* Sidebar — desktop (md+) */}
-      <aside className="hidden md:flex md:flex-col md:fixed md:inset-y-0 md:left-0 md:w-52 md:border-r md:border-border md:bg-card/40 relative overflow-hidden">
-        <div className="absolute -top-20 -left-16 w-56 h-56 rounded-full bg-primary/15 blur-3xl pointer-events-none" />
-
-        {/* Header: logo + bienvenida + perfil */}
-        <div className="px-5 pt-7 pb-4 border-b border-border/50 relative">
-          <h2 className="text-xl font-extrabold text-foreground tracking-tight">
-            Asistí<span className="text-primary">APP</span>
-          </h2>
-          <p className="text-[11px] tracking-widest uppercase mt-1 mb-3 font-semibold">
-            <span className="text-foreground/80">Bienvenido </span><span className="text-foreground">Administrador</span>
-          </p>
-          {/* No existe una pantalla de perfil de Administrador: este bloque solo identifica la
-              sesión (antes era un botón "Ver Perfil" que llevaba al dashboard). */}
-          <div className="w-full flex items-center gap-2.5 px-2 py-2">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-primary-foreground flex-none">
-              {session?.nombre?.charAt(0) ?? "A"}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate leading-tight">{session?.nombre}</p>
-              <p className="text-[10px] text-muted-foreground truncate leading-tight">Administrador</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-3 py-4 space-y-1 relative">
-          {[...TABS, ...TABS_SOLO_DESKTOP].map(({ to, label, Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                  isActive ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`
-              }
-            >
-              <Icon size={16} />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-      </aside>
-
-      <AnimatedOutlet />
-
-      {/* Bottom tab bar — mobile only */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-md">
-        <div className="max-w-md mx-auto grid grid-cols-4">
-          {TABS.map(({ to, label, Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex flex-col items-center gap-1 py-2.5 text-[10px] font-semibold transition-colors ${
-                  isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                }`
-              }
-            >
-              <Icon size={18} />
-              {label}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
-    </div>
+    <AppShell
+      nav={NAV}
+      mobileNav={NAV}
+      // Sin perfilTo: no existe pantalla de perfil de Administrador.
+      usuario={{ nombre: session?.nombre ?? "", rol: "Administrador" }}
+      // RequireRole manda a /admin/login apenas se borra la sesión.
+      onLogout={logout}
+    />
   );
 }

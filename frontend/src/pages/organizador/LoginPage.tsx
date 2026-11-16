@@ -1,17 +1,26 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
-import { Eye, EyeOff, AlertCircle, Zap, ShieldCheck, TrendingUp } from "lucide-react";
+import { Link, useNavigate } from "react-router";
+import { MailCheck, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { AuthBackground } from "../../components/AuthBackground";
+import { AuthHeader, AuthLayout, type AuthBrand } from "../../components/AuthLayout";
+import { Alert, Button, Field, Input, PasswordInput } from "../../components/ui";
 import type { AuthResponseDTO, LoginRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
-const LOGIN_FEATURES = [
-  { icon: Zap, text: "Publicá tu evento en minutos" },
-  { icon: ShieldCheck, text: "Validación QR sin planillas" },
-  { icon: TrendingUp, text: "Ventas en vivo desde cualquier lado" },
-];
+const MARCA: AuthBrand = {
+  title: (
+    <>
+      Tu evento, <span className="text-[#9cadd3]">sin comisión</span>
+    </>
+  ),
+  description: "Publicá, gestioná tu staff y controlá el acceso — todo desde un solo panel.",
+  features: [
+    { icon: Zap, text: "Publicá tu evento en minutos" },
+    { icon: ShieldCheck, text: "Validación QR sin planillas" },
+    { icon: TrendingUp, text: "Ventas en vivo desde cualquier lado" },
+  ],
+};
 
 export function OrganizadorLoginPage() {
   useDocumentTitle("Ingreso de organizador");
@@ -20,7 +29,6 @@ export function OrganizadorLoginPage() {
 
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
-  const [show, setShow] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,160 +70,121 @@ export function OrganizadorLoginPage() {
     }
   }
 
+  function volverAlLogin() {
+    setForgot(false);
+    setRecoverySent(false);
+    setError(null);
+  }
+
   return (
-    <div className="min-h-screen lg:flex bg-background relative">
-      {/* La foto de fondo solo se ve del lado derecho, detrás de la tarjeta de login —
-          el panel izquierdo es sólido y la tapa por completo. */}
-      <AuthBackground />
-      {/* Panel de marca — negro sólido fijo (no depende del tema) con acentos azul marino pastel, con vidrio esmerilado. */}
-      <div className="hidden lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:px-16 relative overflow-hidden bg-[#09090b]">
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "22px 22px" }}
-        />
-        <div className="absolute -top-24 -right-20 w-96 h-96 rounded-full bg-[#9cadd3]/15 blur-3xl" />
-        <div className="absolute -bottom-24 -left-16 w-80 h-80 rounded-full bg-[#9cadd3]/10 blur-3xl" />
-
-        <button onClick={() => navigate("/")} className="relative text-left w-fit mb-8 group">
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Asistí<span className="text-[#9cadd3]">APP</span>
-          </h1>
-          <span className="block h-0.5 w-0 bg-[#9cadd3] transition-all duration-300 group-hover:w-full mt-0.5" />
-        </button>
-
-        <h2 className="text-4xl font-extrabold text-white tracking-tight relative leading-tight">
-          Tu evento, <span className="text-[#9cadd3]">sin comisión</span>
-        </h2>
-        <p className="text-white/70 text-base mt-3 max-w-sm relative">
-          Publicá, gestioná tu staff y controlá el acceso — todo desde un solo panel.
-        </p>
-
-        <div className="relative mt-10 space-y-2.5 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-xl shadow-black/20">
-          {LOGIN_FEATURES.map((f) => (
-            <div key={f.text} className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#9cadd3]/15 backdrop-blur-md border border-[#9cadd3]/25 flex items-center justify-center flex-none">
-                <f.icon size={14} className="text-[#9cadd3]" />
-              </div>
-              <span className="text-sm text-white/90 font-medium">{f.text}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="relative z-10 flex flex-col justify-center px-6 lg:w-1/2 lg:px-16 py-12">
-        <div className="max-w-sm mx-auto w-full lg:bg-card/60 lg:backdrop-blur-xl lg:border lg:border-border lg:rounded-3xl lg:p-8 lg:shadow-xl lg:shadow-black/5">
-          <div className="mb-10 lg:hidden">
-            <button onClick={() => navigate("/")} className="text-left">
-              <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
-                Asistí<span className="text-primary">APP</span>
-              </h1>
-            </button>
-            <p className="text-muted-foreground text-sm mt-1">Panel del Organizador</p>
-          </div>
-
-          {!forgot ? (
+    <AuthLayout brand={MARCA}>
+      {!forgot ? (
+        <>
+          <AuthHeader title="Ingresá a tu panel" description="Panel del organizador" />
           <form
             className="space-y-4"
+            noValidate
             onSubmit={(e) => {
               e.preventDefault();
               if (!loading && email && pass) handleLogin();
             }}
           >
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Email</label>
-              <input
+            <Field label="Email">
+              <Input
                 type="email"
+                autoComplete="username"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
                 placeholder="hola@miempresa.com"
-                className="w-full px-4 py-3.5 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Contraseña</label>
-              <div className="relative">
-                <input
-                  type={show ? "text" : "password"}
+            </Field>
+            <div className="space-y-1.5">
+              <Field label="Contraseña">
+                <PasswordInput
+                  autoComplete="current-password"
                   value={pass}
-                  onChange={(e) => setPass(e.target.value)}
+                  onChange={(e) => {
+                    setPass(e.target.value);
+                    setError(null);
+                  }}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3.5 pr-11 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-                <button
-                  type="button"
-                  aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
-                  aria-pressed={show}
-                  onClick={() => setShow((s) => !s)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              </Field>
+              <div className="flex justify-end">
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => {
+                    setForgot(true);
+                    setError(null);
+                  }}
                 >
-                  {show ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                  ¿Olvidaste tu contraseña?
+                </Button>
               </div>
             </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
-            <button type="button" onClick={() => setForgot(true)} className="text-xs text-primary hover:underline text-right w-full block">
-              ¿Olvidaste tu contraseña?
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !email || !pass}
-              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98] transition-all mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Ingresando..." : "Ingresar al panel"}
-            </button>
-            <p className="text-center text-xs text-muted-foreground pt-2">
-              ¿No tenés cuenta?{" "}
-              <button type="button" onClick={() => navigate("/organizador/registro")} className="text-primary hover:underline font-semibold">
-                Registrate gratis
-              </button>
-            </p>
+            {error && <Alert tone="danger">{error}</Alert>}
+            <Button type="submit" block size="lg" loading={loading} loadingText="Ingresando…" disabled={!email || !pass}>
+              Ingresar al panel
+            </Button>
           </form>
-        ) : recoverySent ? (
-          <div className="space-y-4 text-center">
-            <p className="text-sm text-foreground">
-              Si <span className="font-medium">{email}</span> está registrado, te enviamos un email con instrucciones para restablecer tu contraseña.
-            </p>
-            <button onClick={() => { setForgot(false); setRecoverySent(false); }} className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors">
-              ← Volver al login
-            </button>
-          </div>
-        ) : (
+          <p className="mt-6 border-t border-border pt-5 text-center text-sm text-muted-foreground">
+            ¿No tenés cuenta?{" "}
+            <Link to="/organizador/registro" className="font-semibold text-primary underline-offset-4 hover:underline">
+              Registrate gratis
+            </Link>
+          </p>
+        </>
+      ) : recoverySent ? (
+        <div className="text-center">
+          <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-success/12 text-success">
+            <MailCheck size={22} aria-hidden="true" />
+          </span>
+          <h1 className="text-xl font-extrabold tracking-tight text-foreground">Revisá tu email</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Si <span className="font-medium text-foreground">{email}</span> está registrado, te enviamos un link para restablecer tu
+            contraseña.
+          </p>
+          <Button variant="secondary" block className="mt-6" onClick={volverAlLogin}>
+            Volver al ingreso
+          </Button>
+        </div>
+      ) : (
+        <>
+          <AuthHeader title="Recuperar contraseña" description="Ingresá tu email y te enviamos un link para crear una nueva." />
           <form
             className="space-y-4"
+            noValidate
             onSubmit={(e) => {
               e.preventDefault();
               if (!loading && email) handleRecovery();
             }}
           >
-            <div className="bg-primary/10 border border-primary/30 rounded-2xl p-4 flex gap-3">
-              <AlertCircle size={18} className="text-primary flex-none mt-0.5" />
-              <p className="text-sm text-foreground">Ingresá tu email y te enviamos un link para restablecer tu contraseña.</p>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Email</label>
-              <input
+            <Field label="Email">
+              <Input
                 type="email"
+                autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
                 placeholder="hola@miempresa.com"
-                className="w-full px-4 py-3.5 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
               />
-            </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading || !email}
-              className="w-full py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Enviando..." : "Enviar link de recupero"}
-            </button>
-            <button type="button" onClick={() => setForgot(false)} className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors">
-              ← Volver al login
-            </button>
+            </Field>
+            {error && <Alert tone="danger">{error}</Alert>}
+            <Button type="submit" block size="lg" loading={loading} loadingText="Enviando…" disabled={!email}>
+              Enviar link de recupero
+            </Button>
+            <Button variant="ghost" block onClick={volverAlLogin}>
+              Volver al ingreso
+            </Button>
           </form>
-          )}
-        </div>
-      </div>
-    </div>
+        </>
+      )}
+    </AuthLayout>
   );
 }

@@ -70,9 +70,14 @@ export function useFloatingPosition(
     actualizar();
     window.addEventListener("resize", actualizar);
     window.addEventListener("scroll", actualizar, true);
+    // El contenido del panel puede cambiar de tamaño después de abrir (ej. skeleton → lista):
+    // se reubica para no quedar cortado o mal alineado.
+    const observador = typeof ResizeObserver !== "undefined" ? new ResizeObserver(actualizar) : null;
+    if (flotanteRef.current) observador?.observe(flotanteRef.current);
     return () => {
       window.removeEventListener("resize", actualizar);
       window.removeEventListener("scroll", actualizar, true);
+      observador?.disconnect();
     };
   }, [abierto, ubicacion, separacion, anclaRef, flotanteRef]);
 

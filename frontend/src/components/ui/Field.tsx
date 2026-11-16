@@ -5,7 +5,7 @@ import { FieldContext, useFieldControl } from "./fieldContext";
 
 interface FieldProps {
   label: ReactNode;
-  /** Texto de ayuda permanente debajo del control. */
+  /** Texto de ayuda debajo del control. Si hay `error`, el error lo reemplaza (no se muestran los dos: suelen decir lo mismo). */
   hint?: ReactNode;
   /** Error de validación: pinta el control en rojo y lo anuncia (`aria-invalid` + `aria-describedby`). */
   error?: ReactNode;
@@ -25,7 +25,8 @@ export function Field({ label, hint, error, required, labelHidden, className, ch
   const id = useId();
   const hintId = `${id}-ayuda`;
   const errorId = `${id}-error`;
-  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
+  const mostrarAyuda = Boolean(hint) && !error;
+  const describedBy = error ? errorId : mostrarAyuda ? hintId : undefined;
 
   return (
     <FieldContext.Provider value={{ id, describedBy, invalid: Boolean(error), required }}>
@@ -40,7 +41,7 @@ export function Field({ label, hint, error, required, labelHidden, className, ch
           )}
         </label>
         {children}
-        {hint && (
+        {mostrarAyuda && (
           <p id={hintId} className="text-xs text-muted-foreground">
             {hint}
           </p>

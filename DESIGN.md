@@ -76,7 +76,7 @@ De la más baja a la más alta — cada nivel tiene que distinguirse del anterio
 
 ### Excepción documentada
 
-El panel de marca del login de Organizador (y el de recupero de contraseña, que lo replica) es **siempre oscuro, independiente del tema**: usa hex literal (`#09090b` + acentos `#9cadd3`) a propósito. En 13.3 pasa a un `AuthLayout` compartido con esos valores centralizados.
+El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, recupero) es **siempre oscuro, independiente del tema**: usa hex literal (`#09090b` + acentos `#9cadd3`) a propósito, centralizado en `components/AuthLayout.tsx` (constantes `MARCA_FONDO`/`MARCA_ACENTO`) — no se repite en cada pantalla.
 
 ---
 
@@ -126,6 +126,17 @@ El panel de marca del login de Organizador (y el de recupero de contraseña, que
 - **Responsive real:** toda pantalla define `md:`/`lg:` desde el principio. Layout establecido: sidebar fija de **208 px** (`w-52`) en desktop para Organizador y Admin, barra inferior en mobile; pantallas de detalle/checkout en dos columnas con panel sticky en desktop.
 - **Ancho de contenido:** formularios `max-w-2xl`, paneles con métricas/tablas `max-w-6xl`, listados públicos `max-w-[1400px]`. Entre `md` y `lg` (tablet) el contenido usa el ancho disponible — no se queda en `max-w-md` con el sidebar ya visible (se corrige en 13.6).
 - Al pie de un contenedor con barra fija inferior, dejar espacio (`pb-32 lg:pb-0`) para que el contenido no quede tapado.
+
+### Estructuras de pantalla
+
+| Estructura | Dónde | Qué resuelve |
+|---|---|---|
+| `AppShell` (`components/AppShell.tsx`) | Organizador y Admin (vía `OrganizadorLayout`/`AdminLayout`, que solo lo configuran) | Sidebar de 208 px en desktop (logo + campanita, navegación, usuario, tema, "Salir"); barra superior + pestañas inferiores en mobile; link "Saltar al contenido". |
+| `AuthLayout` + `AuthHeader` (`components/AuthLayout.tsx`) | Ingreso de Organizador/Admin/Staff, registro, recupero | Header con logo y tema, tarjeta sobre el fondo de marca, panel de marca oscuro opcional (desktop). |
+| `AnimatedOutlet` (`components/AnimatedOutlet.tsx`) | Dentro de cada layout | Transición de página, `Suspense` y `RouteErrorBoundary` por ruta: si una pantalla falla, el shell sigue funcionando. |
+
+- **Nada flota sobre el contenido.** Tema, campanita y "Salir" viven en el header de cada estructura. El toggle flotante global (`FloatingThemeToggle`) es **transitorio**: solo aparece en las pantallas que todavía no tienen header propio (comprador y POS) y se elimina al migrarlas.
+- **Errores de render:** `RouteErrorBoundary` evita la pantalla en blanco. Un chunk que no carga (versión nueva desplegada) recarga sola una vez y, si persiste, ofrece "Recargar".
 
 ## Radios
 
@@ -252,6 +263,8 @@ Tamaños: `h-9 px-3 text-xs` (chico, filas/tablas) · `h-11 px-5 text-sm` (está
 </div>
 ```
 - **Todo `<label>` va conectado** (`htmlFor` + `id`). Todo campo de datos personales lleva `autoComplete` (`name`, `email`, `current-password`, `new-password`).
+- **Ayuda y error:** con `<Field hint error>`, el error **reemplaza** a la ayuda mientras exista (no se muestran los dos: suelen decir lo mismo). Validar al salir del campo o al enviar, no mientras se escribe; al enviar con errores, llevar el foco al primer campo inválido (ver `organizador/RegisterPage`).
+- **Contraseñas:** `<PasswordInput>` (mostrar/ocultar con `aria-pressed`, alcanzable con teclado).
 - Textarea: mismas clases sin `h-11`, con `py-3 resize-none`.
 - Select: `<select>` **nativo** estilado como input + `appearance-none` + chevron (es lo más usable en mobile).
 - Fechas/horas: `DatePicker` / `TimePicker` / `DateRangeFilter` (componentes propios, ya existen).

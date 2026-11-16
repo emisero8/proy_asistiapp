@@ -1,37 +1,46 @@
 import { Moon, Sun } from "lucide-react";
 import { useLocation } from "react-router";
 import { useTheme } from "../lib/theme";
+import { IconButton } from "./ui";
 
 /**
- * Toggle de tema global — flota sobre cualquier pantalla (fixed, z-[60]) para no
- * depender de que cada layout (Buyer/Organizador/Staff/Admin) le haga lugar
- * en su propio header. z-[60] y no z-50: varias pantallas (ej. el nav sticky
- * de ListingPage) usan z-50 a todo el ancho, y al montarse después en el DOM
- * le ganaban el empate de z-index al toggle — tapándole los clicks en esa
- * esquina aunque visualmente el botón se viera encima.
- *
- * Oculto en /staff/scanner: esa pantalla es un overlay de cámara full-black
- * con sus propios botones circulares (linterna, salir) pegados al borde
- * derecho — ignora el tema claro/oscuro por diseño (siempre negra), así que
- * el toggle no solo no hace nada ahí, se superponía visualmente con esos
- * botones en mobile.
+ * Botón de tema claro/oscuro para ubicar dentro de un header (shell de Organizador/Admin,
+ * pantallas de acceso). Es la forma definitiva: cada pantalla le hace lugar en su propio
+ * header en vez de que un botón flote encima del contenido.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ variant = "ghost" }: { variant?: "ghost" | "secondary" }) {
   const { theme, toggleTheme } = useTheme();
-  const location = useLocation();
-
-  if (location.pathname === "/staff/scanner") {
-    return null;
-  }
-
   return (
-    <button
+    <IconButton
       onClick={toggleTheme}
-      aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
-      title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
-      className="fixed top-3 right-3 z-[60] w-9 h-9 rounded-full bg-card border border-border shadow-lg shadow-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
-    >
-      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-    </button>
+      label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      icon={theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+      variant={variant}
+      round
+    />
+  );
+}
+
+/**
+ * Rutas que ya tienen el toggle en su propio header (o que no lo necesitan: el Scanner es
+ * una pantalla siempre negra, independiente del tema). Se amplía a medida que cada sección
+ * se migra (13.4–13.8); cuando cubra toda la app, `FloatingThemeToggle` se elimina.
+ */
+function tieneToggleEnSuHeader(pathname: string): boolean {
+  return pathname.startsWith("/organizador") || pathname.startsWith("/admin") || pathname === "/staff/login" || pathname === "/staff/scanner";
+}
+
+/**
+ * Toggle flotante (fixed arriba a la derecha) — **transitorio**, solo para las pantallas que
+ * todavía no tienen header propio con lugar para el toggle. z-[60] porque varias de esas
+ * pantallas tienen headers sticky en z-50 que, montados después en el DOM, le tapaban los clicks.
+ */
+export function FloatingThemeToggle() {
+  const { pathname } = useLocation();
+  if (tieneToggleEnSuHeader(pathname)) return null;
+  return (
+    <div className="fixed right-3 top-3 z-[60] rounded-full bg-card shadow-raised">
+      <ThemeToggle variant="secondary" />
+    </div>
   );
 }
