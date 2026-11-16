@@ -1,581 +1,391 @@
 # AsistíAPP — Design System
 
-## Overview
+> Fuente de verdad del lenguaje visual del frontend (`frontend/`). Los valores viven en
+> `frontend/src/styles/theme.css`; este documento explica **qué** usar y **cuándo**.
+> Última revisión: Fase 13.1 (2026-11-16). Las decisiones que lo cambiaron están en `DECISIONES.md`.
 
-AsistíAPP is a ticketing and access-control platform for independent event organizers in Argentina. The UI is a set of high-fidelity functional mockups built in **React + TypeScript + Tailwind CSS v4**, rendered inside device frames so stakeholders can interact with every screen without a real backend.
+## Principios
 
-There are **four audience modes**, each with its own frame:
+1. **Jerarquía antes que decoración.** Un elemento se diferencia por tamaño, peso, contraste y superficie — no por sumarle un color, una sombra o un degradé.
+2. **Cada elemento tiene una razón para estar.** Si un título ya lo dice, no se repite en la descripción; si una acción es obvia, no lleva etiqueta extra.
+3. **Todo lo interactivo se nota y responde:** cursor, hover, foco con teclado, press y deshabilitado coherentes en toda la app.
+4. **Accesible por defecto:** contraste ≥ 4,5:1 para texto en ambos temas, foco visible, `prefers-reduced-motion` respetado, controles con nombre accesible.
+5. **Una sola interpretación por componente.** Un botón primario, un input o un badge se ven igual en todas las pantallas.
 
-| Mode | Frame | Screens |
-|---|---|---|
-| Buyer (`buyer`) | Phone 390×844 r-50 | A–D: Listing → Detail → Checkout → Ticket |
-| Organizer (`org`) | Phone 390×844 r-50 | E–H + E2: Login, Register, Dashboard, Wizard, Wallet, Staff Mgmt |
-| Staff (`staff`) | Phone 390×844 r-50 | I–J: Scanner QR, Valid overlay, Invalid overlay + POS for Vendedor |
-| Admin (`admin`) | Desktop 1100×700 r-16 | K–N: Dashboard, Users, Events, Config |
+La app es real (no una demo en marcos de dispositivo): se usa en cualquier navegador, en mobile, tablet y desktop, en modo claro y oscuro. Audiencias: Comprador (público, sin cuenta), Organizador, Staff (QR y Vendedor) y Administrador.
 
 ---
 
-## Color Tokens
+## Color
 
-All tokens are CSS custom properties set in `src/styles/theme.css`. **Brand identity: monocromática — azul marino** como único color de marca, en tono pastel/desaturado (nada de neón). Reemplaza al esquema de 3 matices (celeste/violeta/lima, "TicketVibe" — ver referencia [nuevo-diseño/stitch_ticketvibe_modern_ticketing_platform](../nuevo-diseño/stitch_ticketvibe_modern_ticketing_platform/)) tras confirmar que, para este producto, menos matices con más contraste de intensidad lee más prolijo que varios colores compitiendo entre sí.
+Todos los colores son **tokens con valor por modo** (claro en `:root`, oscuro en `.dark`). El código usa siempre la utilidad del token (`bg-primary`, `text-success`, `border-border-strong`…) **sin condicionales `dark:`** — el token resuelve solo. Nunca hex/rgb literal en componentes, salvo la excepción documentada más abajo.
 
-- `--primary` **=** `--accent` (mismo valor): azul marino. Es el único color de marca — CTA, links, foco, precios, urgencia, identidad. No hay un segundo matiz "de marca"; la diferenciación entre elementos se logra con **intensidad**, no con hue: sólido (`bg-primary`), suave (`bg-primary/10`), o solo borde/texto (`text-primary`).
-- `--secondary` es neutro (mismo valor que `--muted`) — dejó de ser un color de marca. Existe como token por la estructura de `@theme inline`, pero no aporta un matiz propio.
-- `--destructive` (bordó apagado) es la **única excepción real**, y no cuenta como color de marca: es señal de sistema para error/cancelar, tan necesaria como `--border` o `--ring`. Se eligió deliberadamente lejos en la rueda cromática del azul (bordó, no el rojo-anaranjado que tenía antes) para que nunca se confunda con nada de marca.
+### Marca
 
-`--primary`/`--accent` son claros/saturados y como TEXTO sobre fondo blanco (modo claro) pierden contraste, así que usan el patrón de **valor distinto por modo** (no `dark:` por-uso en cada archivo — el propio token resuelve distinto según el modo, así el código siempre usa `bg-primary`/`text-accent` sin condicionales).
-
-| Token | Claro (`:root`) | Oscuro (`.dark`) | Uso |
+| Token | Claro | Oscuro | Uso |
 |---|---|---|---|
-| `--background` | `#f8fafc` | `#020617` | Fondo de pantalla |
-| `--foreground` | `#0f172a` | `#f8fafc` | Texto principal |
-| `--card` | `#ffffff` | `#0f172a` | Superficie de tarjetas |
-| `--card-foreground` | `#0f172a` | `#f8fafc` | Texto sobre tarjetas |
-| `--primary` / `--accent` | `#2b3c64` (azul marino) | `#9cadd3` (azul marino pastel) | Único color de marca — **valor distinto por modo**, ver nota arriba |
-| `--primary-foreground` / `--accent-foreground` | `#ffffff` | `#0d1a2b` | Texto sobre botones primary/accent |
-| `--secondary` | `#f1f5f9` | `#1e293b` | Neutro — igual a `--muted`, no es color de marca |
-| `--secondary-foreground` | `#0f172a` | `#f8fafc` | Texto sobre `--secondary` |
-| `--muted` | `#f1f5f9` | `#1e293b` | Superficie secundaria, inputs, chips inactivos |
-| `--muted-foreground` | `#64748b` | `#94a3b8` | Texto placeholder, labels secundarias |
-| `--destructive` | `#772238` (bordó) | `#ac394d` (bordó claro) | Errores, cancelar, eliminar — única excepción, no es de marca |
-| `--destructive-foreground` | `#ffffff` | `#ffffff` | Texto sobre `--destructive` (mismo en los dos modos, no es pastel a propósito) |
-| `--border` | `rgba(15,23,42,0.1)` | `rgba(248,250,252,0.08)` | Bordes sutiles de tarjetas/inputs |
-| `--ring` | `#2b3c64` | `#9cadd3` | Color del focus ring — sigue a `--primary` |
+| `primary` | `#2b3c64` | `#9cadd3` | Identidad. CTA principal, links, foco, selección, precios. |
+| `primary-foreground` | `#ffffff` | `#0d1a2b` | Texto/ícono sobre relleno `primary`. |
+| `highlight` | `#1d6b66` | `#7cc7bd` | **Segundo acento, uso moderado** (ver reglas). |
+| `highlight-foreground` | `#ffffff` | `#0b2522` | Texto sobre relleno `highlight`. |
+| `accent` | = `primary` | = `primary` | Compatibilidad (precios con `text-accent`). No es un segundo color: para eso está `highlight`. |
 
-Los neutros son una escala fría (familia *slate*, ~222° de matiz) que casualmente es **el mismo matiz que el azul marino** — todo el sistema de color gira sobre un solo eje azul, con el bordó como único contraste que se permite.
+**Reglas del acento `highlight` (verde azulado):**
+- ✅ Sí: marcar lo destacado o próximo ("Próximo", "Destacado"), la 2.ª serie de un gráfico, un dato que hay que mirar primero en una tarjeta de métricas.
+- ❌ No: CTAs (siempre `primary`), estados (para eso están los semánticos), fondos grandes, decoración, degradés.
+- Regla práctica: **como mucho un elemento `highlight` por zona visible.** Si aparece en todos lados deja de resaltar.
 
-**Regla para agregar un token nuevo:** si el color es claro/muy saturado (piensa "¿esto se lee bien como texto sobre blanco?"), necesita el patrón de dos valores como `--primary`. Si es un color medio (como `--destructive`), un solo valor sirve para los dos modos. **No agregar un cuarto/quinto color "para diferenciar"** (roles, tandas, tarjetas de métrica) — usar intensidad del azul (sólido/`/10`/borde) o neutro (`text-foreground` / `text-muted-foreground`) en su lugar, ver tabla de abajo.
+### Semánticos
 
-**Excepción documentada:** el panel de marca del login de Organizador (`OrganizadorLoginPage`) usa hex literal (`#09090b` translúcido + acentos `#9cadd3`) a propósito — es un panel siempre-oscuro que no depende del tema, no un olvido de tokens.
+| Token | Claro | Oscuro | Uso |
+|---|---|---|---|
+| `success` | `#24683f` | `#6fcf97` | Válido, pagada, activo, crédito acreditado. |
+| `warning` | `#8a5000` | `#f0b44c` | Borrador, pendiente, "ya usada", cerca del límite. |
+| `destructive` | `#772238` | `#e5788a` | Error, cancelar, eliminar, suspendido. |
+| `info` | = `primary` | = `primary` | Avisos informativos (sin agregar un tono nuevo). |
 
-### Semantic Color Usage
+Cada uno tiene su `-foreground` para cuando se usa como **relleno sólido** (`bg-success text-success-foreground`). Patrones:
+- **Texto/ícono:** `text-success`.
+- **Fondo suave (badges, avisos):** `bg-success/12 text-success` (+ `border-success/25` si lleva borde).
+- **Relleno sólido:** `bg-destructive text-destructive-foreground`. **Nunca `text-white`** sobre un relleno semántico: en modo oscuro los rellenos son pasteles y el texto va oscuro.
 
-Clases literales de Tailwind (no tokens custom). Dos categorías bien separadas:
+> Las clases literales de Tailwind (`text-emerald-400`, `bg-red-400/15`, `text-amber-400`, `text-violet-400`…) **ya no se usan** para estados: no se adaptan al tema y en modo claro daban 1,6–1,9:1 de contraste. Las pantallas que todavía las tienen se migran en las sub-fases 13.4–13.8. **Excepción:** el overlay del Scanner (siempre negro, independiente del tema) puede usar tonos fijos — se define en 13.8.
 
-**Estados reales (universales, se mantienen sin importar la paleta de marca):**
+### Superficies y neutros
 
-| Context | Color |
+De la más baja a la más alta — cada nivel tiene que distinguirse del anterior:
+
+| Token | Claro | Oscuro | Uso |
+|---|---|---|---|
+| `surface-sunken` | `#f5efe2` | `#10182a` | "Hundido" **dentro** de una tarjeta: encabezado de tabla, input sobre card, código copiable. |
+| `background` | `#ece4d1` | `#0a0f1e` | Fondo de pantalla. |
+| `card` | `#fffdf8` | `#161f33` | Tarjetas, paneles, inputs sobre el fondo. |
+| `popover` | `#fffdf8` | `#1c273d` | Menús, popovers, calendario. |
+| `muted` | `#e2d7bf` | `#253247` | Chips inactivos, botones neutros, skeletons. |
+| `foreground` | `#1c1a15` | `#f8fafc` | Texto principal. |
+| `muted-foreground` | `#5c574b` | `#9aa8bd` | Texto secundario, labels, placeholders. |
+| `border` | `rgba(51,42,24,.15)` | `rgba(238,242,250,.14)` | Bordes de tarjetas, separadores. |
+| `border-strong` | `rgba(51,42,24,.30)` | `rgba(238,242,250,.26)` | Bordes de inputs, separadores con peso. |
+| `ring` | = `primary` | = `primary` | Anillo de foco. |
+
+**Regla de contraste de controles:** un input o un chip **sobre `background`** usa `bg-card` + borde (en modo claro `bg-muted` sobre `background` casi no se distingue). Sobre una `card`, el input puede ir en `bg-surface-sunken`.
+
+### Gráficos (`recharts`)
+
+`--chart-1` (= primary), `--chart-2` (= highlight), `--chart-3`, `--chart-4` (neutro), `--chart-5` (= destructive). Los `fill`/`contentStyle` de recharts son estilos inline de JS: se pasan como `"var(--chart-1)"`, `"var(--popover)"`, nunca hex.
+
+### Excepción documentada
+
+El panel de marca del login de Organizador (y el de recupero de contraseña, que lo replica) es **siempre oscuro, independiente del tema**: usa hex literal (`#09090b` + acentos `#9cadd3`) a propósito. En 13.3 pasa a un `AuthLayout` compartido con esos valores centralizados.
+
+---
+
+## Modo claro / oscuro
+
+- **Mecanismo:** clase `.dark` en `<html>` (`src/lib/theme.tsx`: `ThemeProvider` + `useTheme()`); Tailwind la usa vía `@custom-variant dark`.
+- **Persistencia:** `localStorage` (`asistiapp_theme`). Default: oscuro.
+- **Regla:** toda pantalla nueva se verifica en los dos modos. Si un color se lee bien solo en uno, el token está mal elegido — se corrige el token, no se agrega `dark:` en la pantalla.
+- **Toast (`sonner`):** ya toma `var(--card)`/`var(--border)`/`var(--foreground)` en `App.tsx`.
+
+---
+
+## Tipografía
+
+| Familia | Clase | Uso |
+|---|---|---|
+| **Inter** (400–800) | `font-sans` (default) | Toda la UI. |
+| **Anybody** (700–900) | `font-display` | Solo titulares de marketing en mayúsculas (hero de la Home, encabezados de sección del catálogo). Nunca texto de UI. |
+| **JetBrains Mono** (500–700) | `font-mono` | Códigos de ticket, IDs, datos técnicos. |
+
+### Escala
+
+| Rol | Clases | Notas |
+|---|---|---|
+| Display (marketing) | `font-display uppercase font-extrabold text-4xl sm:text-5xl lg:text-6xl` | Solo Home / landing. Sin degradé de texto. |
+| Título de página | `text-xl lg:text-2xl font-extrabold` | Uno por pantalla, como `<h1>`. |
+| Título de sección | `text-base lg:text-lg font-bold` | `<h2>`. |
+| Título de tarjeta | `text-sm font-semibold` | `<h3>`. |
+| Cuerpo | `text-sm` | Párrafos, celdas, inputs. |
+| Secundario / meta | `text-xs text-muted-foreground` | Fechas, ayudas, subtítulos. |
+| Overline / caption | `text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground` | **Piso: 11 px** (`text-2xs`). |
+| Precio | `font-bold text-accent` (listado) / `font-extrabold text-foreground` (totales) | |
+| Código | `font-mono tracking-wider` | |
+
+- **No usar `text-[9px]` ni `text-[10px]`** (ilegibles, sobre todo en mayúsculas con tracking). `text-2xs` (11 px) es el mínimo; las pantallas existentes se migran en 13.4–13.8.
+- **Pesos con intención:** `extrabold` solo para el título de página y cifras protagonistas; `bold` secciones; `semibold` títulos de tarjeta y botones; el resto `normal`/`medium`. Si todo es `extrabold`, nada resalta.
+- La capa base de `theme.css` ya da a `h1–h4` el tamaño y peso de esta escala (útil para componentes nuevos); las clases explícitas la pisan.
+
+---
+
+## Espaciado y layout
+
+- Grilla base de 4 px (Tailwind).
+- Padding de pantalla: `px-4` mobile, `lg:px-8` desktop.
+- Separación entre secciones: `space-y-6` (o `gap-6`); dentro de una tarjeta, `space-y-3`/`space-y-4`.
+- Padding de tarjeta: `p-4` (compacta) / `p-5` (estándar).
+- **Responsive real:** toda pantalla define `md:`/`lg:` desde el principio. Layout establecido: sidebar fija de **208 px** (`w-52`) en desktop para Organizador y Admin, barra inferior en mobile; pantallas de detalle/checkout en dos columnas con panel sticky en desktop.
+- **Ancho de contenido:** formularios `max-w-2xl`, paneles con métricas/tablas `max-w-6xl`, listados públicos `max-w-[1400px]`. Entre `md` y `lg` (tablet) el contenido usa el ancho disponible — no se queda en `max-w-md` con el sidebar ya visible (se corrige en 13.6).
+- Al pie de un contenedor con barra fija inferior, dejar espacio (`pb-32 lg:pb-0`) para que el contenido no quede tapado.
+
+## Radios
+
+Escala monotónica (antes `rounded-xl` y `rounded-2xl` valían lo mismo):
+
+| Clase | Valor | Uso |
+|---|---|---|
+| `rounded-md` | 8 px | Miniaturas, checkbox. |
+| `rounded-lg` | 10 px | Chips dentro de tablas, ítems de menú, botones chicos de fila. |
+| `rounded-xl` | 12 px | **Controles:** inputs, botones, filas seleccionables, avisos. |
+| `rounded-2xl` | 16 px | **Tarjetas** y paneles. |
+| `rounded-3xl` | 24 px | Modales grandes, la entrada (ticket), hero de saldo. |
+| `rounded-full` | — | Pills, avatares, botones de ícono redondos. |
+
+## Elevación
+
+Las tarjetas **no llevan sombra por defecto**: el borde y el contraste de superficie alcanzan. Solo lo que flota:
+
+| Clase | Uso |
 |---|---|
-| Success / Valid entry / crédito | `text-emerald-400`, `bg-emerald-400/10–15` |
-| Error / Invalid entry / débito | `text-red-400`, `bg-red-400/10–15` (nota: distinto de `--destructive`, que es el bordó de marca para error/cancelar en formularios y menús — este rojo puro queda reservado al overlay de escaneo y al historial de créditos, que ya eran así antes de este sistema) |
-| Active pulse indicator | `bg-green-400 animate-pulse` |
+| `shadow-raised` | Hover de tarjetas clickeables, botones flotantes. |
+| `shadow-overlay` | Menús, popovers, calendario, campanita. |
+| `shadow-modal` | Diálogos. |
 
-**Diferenciadores decorativos (4 tarjetas de métrica, roles de usuario, etc.) — ya NO usan un color por elemento.** Se resuelven así, rotando entre azul marino y neutro:
+**Sin sombras de color** (`shadow-primary/30` y similares, "glow"): se retiran de las pantallas en 13.4–13.8.
 
-| Rol visual | Clases |
+## Movimiento
+
+| Token | Valor | Uso |
+|---|---|---|
+| `--duration-fast` | 120 ms | Hover: color, borde, fondo. |
+| `--duration-base` | 180 ms | Popovers, press, toggles. |
+| `--duration-slow` | 260 ms | Overlays, entrada de contenido. |
+| `ease-standard` | `cubic-bezier(.2,0,0,1)` | Transiciones de estado. |
+| `ease-emphasized` | `cubic-bezier(.16,1,.3,1)` | Entradas (aparecer). |
+
+Uso en clases: `transition-colors duration-(--duration-fast) ease-standard`.
+
+- **Hover = cambio de color/borde/fondo.** Nada de `hover:scale-*` en chips, botones chicos ni tarjetas.
+- **Press:** `active:scale-[0.98]` solo en el CTA principal de la pantalla.
+- **Animaciones disponibles** (`globals.css`): `animate-fade-in-up` (280 ms, 8 px), `animate-fade-in` (200 ms), `animate-scale-in` (160 ms, menús/popovers), `.page-transition` (160 ms, solo opacidad), `.marquee-track`.
+- **Transición de página:** la aplica `<AnimatedOutlet>` (`src/components/AnimatedOutlet.tsx`) adentro de cada layout — se remonta solo el contenido de la ruta; sidebar, campanita y barras quedan montados. Es solo opacidad y sin `fill-mode` para no romper los `position: fixed` de adentro.
+- **`prefers-reduced-motion`:** resuelto **globalmente** en `theme.css` (animaciones y transiciones instantáneas, sin retrasos escalonados; los spinners siguen girando porque son feedback). En JS, lo que anima por código (carrusel automático, `scrollIntoView({ behavior: "smooth" })`) tiene que consultar `matchMedia("(prefers-reduced-motion: reduce)")` — se aplica al migrar cada pantalla.
+
+---
+
+## Estados de interacción
+
+Resueltos en la capa base de `theme.css` — **no se repiten clase por clase**:
+
+| Estado | Regla |
 |---|---|
-| Azul marino sólido | `bg-primary text-primary-foreground` (o `text-primary` / `bg-primary/10` para íconos-chip) |
-| Azul marino suave | `bg-primary/15 text-primary` |
-| Neutro fuerte | `bg-muted text-foreground` |
-| Neutro suave | `bg-muted text-muted-foreground` |
+| **Cursor** | `pointer` en todo lo interactivo real (`button`, `a[href]`, `select`, checkbox/radio, `label[for]`, `[role=button|switch|tab|menuitem|option|checkbox|radio]`); `not-allowed` en `:disabled`/`[aria-disabled=true]`. Texto e inputs de texto mantienen su cursor. **No** agregar `cursor-pointer` a mano salvo un caso no cubierto; **nunca** a elementos que no son interactivos. |
+| **Foco** | `:focus-visible` → anillo de 2 px `ring` con 2 px de separación, solo con teclado. Inputs pueden usar su propio anillo (`focus:ring-2 focus:ring-primary/40`). **Prohibido** `focus:outline-none` sin un reemplazo visible. |
+| **Hover** | Cambio de color/fondo/borde en `--duration-fast`. Botón primario: `hover:bg-primary/90`. Neutros: `hover:bg-muted`. Fila/tarjeta clickeable: `hover:border-primary/40` (+ `hover:shadow-raised` opcional). |
+| **Active** | `active:scale-[0.98]` solo en el CTA principal. |
+| **Disabled** | `disabled:opacity-50` (el cursor ya lo pone la base). Si el motivo no es obvio, mostrarlo en texto cerca del control — un botón gris sin explicación no es un estado útil. |
+| **Loading** | El control que dispara la acción muestra su propio estado (texto "Guardando…" o spinner + `aria-busy`) y queda deshabilitado; nunca dos envíos. |
 
-Ejemplo real: `ROLE_COLORS` en `admin/UsersPage.tsx` (Administrador/Organizador/Staff QR/Staff Vendedor) usa exactamente estos 4 en ese orden.
+## Estados de UI (carga, vacío, error, éxito)
 
----
-
-## Light / Dark Mode
-
-Toda la app soporta modo claro y oscuro — **no es mobile-only ni dark-only**, cualquier pantalla nueva tiene que verse bien en ambos.
-
-- **Mecanismo:** clase `.dark` en `<html>`, agregada/sacada por `src/lib/theme.tsx` (`ThemeProvider` + hook `useTheme()`). Tailwind ya está configurado para esto (`@custom-variant dark (&:is(.dark *))` en `theme.css`) — no hace falta tocar esa parte.
-- **Persistencia:** el modo elegido se guarda en `localStorage` (`asistiapp_theme`). Default: **oscuro** (identidad original de la app).
-- **Toggle:** `src/components/ThemeToggle.tsx` — un botón flotante (`fixed`, `z-50`, esquina superior derecha) montado una sola vez en `App.tsx`, visible en cualquier pantalla sin que cada layout tenga que hacerle lugar en su header.
-- **Regla para código nuevo:** usar siempre los tokens (`bg-card`, `text-foreground`, `border-border`, `bg-primary`, etc.), nunca hex/rgb literal para colores que deban adaptarse al modo. Si de verdad necesitás un color que **no** cambie con el tema (ej. un panel de marca siempre-oscuro como en `OrganizadorLoginPage`), usá hex literal a propósito y dejalo comentado como tal — es la excepción, no la regla.
-- **`recharts` (gráficos):** los `contentStyle`/`fill` de `Tooltip`/`Cell` son estilos inline de JS, no CSS — ahí hay que pasar `"var(--card)"`, `"var(--foreground)"`, etc. explícitamente como string (ver `DashboardPage.tsx` del Organizador) en vez de hex hardcodeado, si no el tooltip queda fijo en un modo.
-
----
-
-## Typography
-
-Tres familias, cada una con un rol fijo — todas importadas en `src/styles/fonts.css` desde Google Fonts y expuestas como utilidades Tailwind vía `--font-sans`/`--font-display`/`--font-mono` en el `@theme inline` de `theme.css`:
-
-- **Inter** (`font-sans`, default — no hace falta la clase, es la familia base del `body`): weights 400–800. Texto de UI, body, labels, botones.
-- **Anybody** (`font-display`): weights 700–900. Solo para titulares grandes de alto impacto — hero de la Home, encabezados de sección en mayúsculas (`Todos los eventos`, `Tu entrada, sin vueltas`). Siempre en mayúsculas (`uppercase`) y bien condensado/extendido, nunca para texto de UI normal.
-- **JetBrains Mono** (`font-mono`): weights 500–700. Códigos de ticket, IDs, y cualquier dato "técnico" (ya se usaba como `font-mono` genérico antes de sumar la fuente real).
-
-Do **not** add Tailwind font-size / font-weight classes unless overriding—the `theme.css` base layer handles default sizing for `h1–h4`, `label`, `button`, `input`.
-
-| Element | Class pattern |
-|---|---|
-| Brand wordmark | `text-xl font-extrabold` + `<span className="text-primary">APP</span>` |
-| Hero / display heading | `font-display uppercase font-extrabold` + gradiente `bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary` (ver Home) |
-| Section heading | `text-lg font-extrabold text-foreground` (o `font-display uppercase` si es un heading grande de sección, ver Home) |
-| Card title | `text-sm font-bold text-foreground` |
-| Body / description | `text-sm text-muted-foreground leading-relaxed` |
-| Overline label | `text-[10px] text-muted-foreground tracking-[0.2em] uppercase` |
-| Price | `text-accent font-bold text-sm` (listing) / `text-base font-extrabold text-foreground` (checkout) |
-| Badge / tag | `text-[10px] font-bold tracking-widest uppercase` |
-| Monospace code | `font-mono tracking-wider` (ticket IDs) |
-
----
-
-## Spacing & Layout
-
-- Base unit: Tailwind's 4px grid.
-- Screen padding: `px-4` (mobile) / `px-7` (admin desktop).
-- Top safe-area offset: `pt-14` (accounts for status bar + notch simulation).
-- Card border-radius: `rounded-2xl` (16px). Inputs: `rounded-xl` or `rounded-2xl`.
-- Gaps between cards/sections: `space-y-4` or `space-y-5`.
-
----
-
-## Device Frames
-
-### Phone Frame (Buyer / Org / Staff)
-```
-width: 390px  height: 844px  border-radius: 50px
-background: var(--background)  [or #000 for Staff]
-box-shadow: 0 0 0 1px rgba(255,255,255,0.08),
-            0 40px 80px rgba(0,0,0,0.85),
-            0 0 120px rgba(124,58,237,0.15)
-```
-- Status bar (`pt-3 pb-1`) simulates iOS notch: time left, pill center, signal/battery right.
-- Staff QR scanner hides the status bar (full-bleed immersive).
-- Organizer has a bottom tab bar when logged in (4 items: Dashboard, Crear, Créditos, Staff).
-
-### Desktop Frame (Admin)
-```
-width: 1100px  height: 700px  border-radius: 16px
-background: var(--background)
-box-shadow: same as phone
-```
-- No browser chrome simulation — the `AdminShell` fills the frame directly.
-- `AdminShell` uses a 208px sidebar + flex-1 main area.
+- **Carga inicial:** skeleton con la forma del contenido real (`bg-muted animate-pulse rounded-*`), no un spinner de pantalla completa ni el texto "Cargando…".
+- **Vacío:** ícono en cuadro + título + una línea de ayuda + **la acción que lo resuelve** (ej. "Crear evento"). Sin emojis.
+- **Error de carga:** mensaje claro + botón **"Reintentar"** (y "Volver" si la pantalla depende de un parámetro). Un texto rojo suelto no es un estado de error.
+- **Resultado de una acción (mutación):** toast (`sonner`) — `toast.success` / `toast.error`. **No** duplicar con un mensaje inline.
+- **Error de un campo:** inline debajo del campo, `text-xs text-destructive`, conectado con `aria-describedby` + `aria-invalid`.
 
 ---
 
 ## Component Patterns
 
-### Buttons
+> En la sub-fase 13.2 estos patrones pasan a ser componentes en `src/components/ui/` (`Button`, `Field`, `Badge`, `Menu`, …) y las pantallas los usan en vez de copiar clases. Hasta entonces, estas son las recetas de referencia. **No inventar variantes nuevas.**
 
-**Primary CTA**
+### Botones
+
 ```tsx
-<button className="w-full py-4 rounded-2xl bg-primary text-white font-bold text-base
-  hover:bg-primary/90 active:scale-[0.98] transition-all">
-  Label
+// Primario — una acción principal por zona
+<button className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl
+  bg-primary text-primary-foreground text-sm font-semibold
+  transition-colors duration-(--duration-fast) hover:bg-primary/90
+  active:scale-[0.98] disabled:opacity-50">
+  Guardar
 </button>
-```
 
-**Disabled CTA**
-```tsx
-<button disabled className="w-full py-4 rounded-2xl bg-muted text-muted-foreground cursor-not-allowed">
-  Label
-</button>
-```
+// Secundario
+<button className="inline-flex items-center justify-center gap-2 h-11 px-5 rounded-xl
+  bg-card border border-border-strong text-foreground text-sm font-semibold
+  transition-colors duration-(--duration-fast) hover:bg-muted disabled:opacity-50">
 
-**Ghost / secondary**
-```tsx
-<button className="w-full py-3.5 rounded-2xl bg-card border border-border
-  text-foreground font-semibold text-sm hover:bg-muted transition-colors">
-  Label
-</button>
-```
+// Destructivo (confirmaciones)
+<button className="... bg-destructive text-destructive-foreground hover:bg-destructive/90">
 
-**Back link**
-```tsx
-<button className="flex items-center gap-1 text-muted-foreground text-sm
-  hover:text-foreground transition-colors">
-  <ChevronLeft size={15} />Volver
-</button>
-```
+// Ghost / link
+<button className="text-sm font-semibold text-primary hover:underline underline-offset-4">
 
-**Icon-only round** (used in headers)
-```tsx
-<button className="w-9 h-9 rounded-full bg-muted flex items-center justify-center
-  text-muted-foreground hover:text-foreground transition-colors">
+// Solo ícono — siempre con aria-label
+<button aria-label="Cerrar sesión" className="w-9 h-9 rounded-full inline-flex items-center
+  justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
   <LogOut size={16} />
 </button>
 ```
-
-### Cards
-
-**Standard info card**
-```tsx
-<div className="bg-card border border-border rounded-2xl p-4">
-  …content…
-</div>
-```
-
-**Selectable card (radio-style)**
-```tsx
-<button className={`w-full flex … p-4 rounded-xl border text-left transition-all
-  ${selected ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}>
-```
-
-**Hero gradient card** (wallet balance)
-```tsx
-<div className="relative overflow-hidden rounded-3xl bg-primary p-5">
-  <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10" />
-  …
-</div>
-```
+Tamaños: `h-9 px-3 text-xs` (chico, filas/tablas) · `h-11 px-5 text-sm` (estándar) · `h-12 px-6 text-base` (CTA de pantalla, ancho completo en mobile).
 
 ### Inputs
 
-**Standard text input**
 ```tsx
-<input className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm
-  text-foreground placeholder:text-muted-foreground
-  focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" />
-```
-
-**Error state**: add `border-red-500/60` instead of `border-border`.
-
-**Textarea**: same classes + `resize-none`.
-
-### Filter Chips / Tabs
-```tsx
-<button className={`flex-none px-3 py-1 rounded-full text-xs font-semibold transition-all
-  ${active ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
-```
-Buyer Listing uses a slightly larger variant (`px-3.5 py-1.5`) for the date-range chips (Todos/Hoy/Este finde/Próximo finde) — same active/inactive logic, just more tap-friendly since it's the primary filter on that screen.
-
-### Poster Card (Buyer Listing)
-Real event `imagenPortadaUrl` at `aspect-[3/4]`, not a small thumbnail — the artwork carries the card, same idea as the hero carousel below. Used both in the "Destacados" carousel and the main grid.
-```tsx
-<button className="group text-left" onClick={...}>
-  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted">
-    {imagenPortadaUrl ? (
-      <img src={imagenPortadaUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-    ) : (
-      <div className="w-full h-full bg-gradient-to-br from-primary/20 via-card to-background flex items-center justify-center">
-        <Sparkles size={22} className="text-primary/40" />
-      </div>
-    )}
-    <span className="absolute top-2.5 right-2.5 bg-background/85 backdrop-blur-sm text-accent
-      text-[11px] font-bold px-2.5 py-1 rounded-full">Desde {fmt(precioDesde)}</span>
-  </div>
-  <div className="mt-2.5">
-    <h3 className="text-foreground font-semibold text-sm leading-snug line-clamp-2">{nombre}</h3>
-    {/* fecha + lugar, text-xs text-muted-foreground, con ícono de 11px */}
-  </div>
-</button>
-```
-No cover image → gradient placeholder (`from-primary/20 via-card to-background`) with a centered `Sparkles` icon at low opacity. Never leave a bare empty `bg-muted` box.
-
-### Hero Carousel (Buyer Listing "Destacados")
-Same poster card, bigger (`w-[62%] sm:w-[38%] lg:w-[24%]`), horizontal scroll-snap, with title+date overlaid on a bottom gradient instead of below the image (there's no room for a caption at that width, and it reads as "featured" rather than "browsable grid item"):
-```tsx
-<div className="flex gap-3 lg:gap-4 overflow-x-auto hide-scrollbar snap-x snap-mandatory px-4 lg:px-8">
-  <button className="relative flex-none w-[62%] sm:w-[38%] lg:w-[24%] aspect-[3/4] snap-start rounded-2xl overflow-hidden">
-    {/* imagen o gradient placeholder, igual que la poster card */}
-    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-    <div className="absolute bottom-0 left-0 right-0 p-3 text-left">
-      <p className="text-white font-extrabold text-sm leading-tight line-clamp-2">{nombre}</p>
-      <p className="text-white/70 text-[11px] mt-1">{formatFecha(fechaEvento)}</p>
-    </div>
-  </button>
+<div>
+  <label htmlFor="email" className="block text-xs font-medium text-muted-foreground mb-1.5">Email</label>
+  <input id="email" type="email" autoComplete="email"
+    aria-invalid={!!error || undefined} aria-describedby={error ? "email-error" : undefined}
+    className="w-full h-11 px-4 rounded-xl bg-card border border-border-strong text-sm text-foreground
+      placeholder:text-muted-foreground transition-colors
+      focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary
+      aria-[invalid=true]:border-destructive" />
+  {error && <p id="email-error" className="mt-1.5 text-xs text-destructive">{error}</p>}
 </div>
 ```
+- **Todo `<label>` va conectado** (`htmlFor` + `id`). Todo campo de datos personales lleva `autoComplete` (`name`, `email`, `current-password`, `new-password`).
+- Textarea: mismas clases sin `h-11`, con `py-3 resize-none`.
+- Select: `<select>` **nativo** estilado como input + `appearance-none` + chevron (es lo más usable en mobile).
+- Fechas/horas: `DatePicker` / `TimePicker` / `DateRangeFilter` (componentes propios, ya existen).
 
-### Ticker / Marquee
-Infinite horizontal scroll for a short list of value props. The content is duplicated once in the component (two `flex-none` groups with identical children) and CSS shifts exactly by `-50%`, so the loop seam never shows:
+### Selección
+
+- **Opción tipo radio en tarjeta** (tanda, pack de créditos): grupo con `role="radiogroup"`, cada opción `role="radio"` + `aria-checked`. Seleccionada `border-primary bg-primary/10`; resto `border-border bg-card hover:border-primary/40`; agotada/deshabilitada `opacity-50` + motivo en texto.
+- **Chips de filtro:** `h-8 px-3.5 rounded-full text-xs font-semibold` + `aria-pressed`. Activo `bg-primary text-primary-foreground`; inactivo `bg-card border border-border text-muted-foreground hover:text-foreground`.
+- **Switch:** `role="switch"` + `aria-checked` + nombre accesible. `w-10 h-6 rounded-full`, encendido `bg-primary`, apagado `bg-switch-background`.
+- **Checkbox:** `<input type="checkbox">` real (estilado con `accent-primary` o custom), nunca un `<button>` que lo imita.
+
+### Tarjetas
+
 ```tsx
-<div className="overflow-hidden border-y border-border bg-card/60 py-2.5">
-  <div className="flex w-max marquee-track">
-    {[0, 1].map(copia => (
-      <div key={copia} className="flex items-center flex-none">
-        {ITEMS.map(item => (
-          <span key={item} className="flex items-center gap-2 px-6 text-[11px] font-bold
-            tracking-widest uppercase text-muted-foreground whitespace-nowrap">
-            <span className="text-primary">✦</span>{item}
-          </span>
-        ))}
-      </div>
-    ))}
-  </div>
-</div>
+<div className="bg-card border border-border rounded-2xl p-5">…</div>
 ```
-`.marquee-track` (`marquee` keyframe, `translateX(0)` → `translateX(-50%)`, 26s linear infinite) lives in `globals.css` next to the other animation classes.
+- Tarjeta clickeable entera: un único `<button>`/`<a>` como elemento principal (patrón "enlace extendido" con `after:absolute after:inset-0` si tiene acciones secundarias encima, ver `organizador/DashboardPage`). **Nunca** controles interactivos anidados dentro de otro control.
+- **No todo es una tarjeta:** listas, tablas y secciones pueden separarse con `divide-y divide-border` o espacio, sin caja propia.
 
-### Badges / Pills
+### Badges
 
-| Type | Classes |
+```tsx
+<span className="inline-flex items-center gap-1 h-6 px-2.5 rounded-full text-2xs font-semibold bg-success/12 text-success">
+  Publicado
+</span>
+```
+Tono por significado (un solo mapa, `lib/estados.ts` en 13.2):
+
+| Estado | Tono |
 |---|---|
-| Category (violet) | `bg-violet-400/15 text-violet-400 text-[10px] font-bold px-2.5 py-1 rounded-full` |
-| Staff QR | `bg-violet-400/10 text-violet-400` |
-| Staff Vendedor | `bg-amber-400/10 text-amber-400` |
-| Status: activo | `bg-emerald-400/15 text-emerald-400` |
-| Status: cancelado/suspendido | `bg-red-400/15 text-red-400` |
-| Popular pack | `bg-accent text-accent-foreground` |
+| Publicado · Activo · Aprobada · Pagada · Válida | `success` |
+| Borrador · Pendiente · Usada | `warning` |
+| Cancelado · Suspendido · Rechazada · Reembolsada | `destructive` |
+| Expirada · Inactivo | neutro (`bg-muted text-muted-foreground`) |
+| Roles de usuario | intensidades de `primary` / neutro (`ROLE_COLORS` en `admin/UsersPage.tsx`) |
+| Destacado / Próximo | `bg-highlight text-highlight-foreground` |
 
-### Metric Cards (4-column grid in dashboards)
+### Tarjeta de métrica
+
 ```tsx
-<div className="bg-card border border-border rounded-2xl p-3.5">
-  <div className={`w-8 h-8 rounded-xl ${m.bg} flex items-center justify-center mb-2.5`}>
-    <m.icon size={16} className={m.color} />
-  </div>
-  <p className="text-lg font-extrabold text-foreground leading-none">{value}</p>
-  <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
-  <p className="text-[10px] text-primary mt-1 font-semibold flex items-center gap-0.5">
-    <ArrowUpRight size={10} />{sub}
+<div className="bg-card border border-border rounded-2xl p-4">
+  <p className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+    <Ticket size={13} /> Entradas vendidas
   </p>
+  <p className="mt-2 text-2xl font-extrabold text-foreground tabular-nums">1.240</p>
+  <p className="mt-0.5 text-xs text-muted-foreground">de 2.000 disponibles</p>
 </div>
 ```
+La métrica protagonista de un panel puede ir en `bg-primary/[0.08] border-primary/30` con la cifra en `text-primary`. Cifras con `tabular-nums`.
 
-### Three-dot Dropdown Menu
-```tsx
-// Parent must have: onClick={() => setOpenMenu(null)}
-// Cell must have:   onClick={e => e.stopPropagation()}
-<div className="relative" onClick={e => e.stopPropagation()}>
-  <button onClick={() => setOpenMenu(openMenu === id ? null : id)}>···</button>
-  {openMenu === id && (
-    <div className="absolute right-0 top-9 z-50 bg-card border border-border
-      rounded-xl shadow-xl shadow-black/40 overflow-hidden min-w-[160px]">
-      <button className="w-full text-left px-4 py-2.5 text-xs font-semibold
-        text-foreground hover:bg-muted transition-colors flex items-center gap-2">
-        <Icon size={13} />Acción
-      </button>
-      <div className="border-t border-border" />
-      <button className="w-full text-left px-4 py-2.5 text-xs font-semibold
-        text-red-400 hover:bg-red-400/10 transition-colors flex items-center gap-2">
-        <Trash2 size={13} />Eliminar
-      </button>
-    </div>
-  )}
-</div>
-```
+### Menú de acciones (tres puntos)
 
-### Toggle Switch (Admin Config)
-```tsx
-<button onClick={toggle}
-  className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5
-    ${enabled ? "bg-primary justify-end" : "bg-muted justify-start"}`}>
-  <div className="w-5 h-5 rounded-full bg-white shadow-sm" />
-</button>
-```
+- Disparador: botón de ícono con `aria-label="Acciones de <nombre>"`, `aria-haspopup="menu"`, `aria-expanded`.
+- Panel: `bg-popover border border-border rounded-xl shadow-overlay animate-scale-in min-w-[180px] py-1`; ítems `role="menuitem"`, `h-9 px-3 text-sm rounded-lg mx-1 hover:bg-muted`; ítem destructivo al final, separado, `text-destructive hover:bg-destructive/10`.
+- Cierra con Escape, clic afuera y al elegir; se navega con flechas. **No debe recortarse** dentro de contenedores con `overflow` (posicionado fuera del flujo de la tabla) — se implementa en 13.2 y se aplica en 13.7.
 
-### Dialogs (confirm / alert / prompt)
-**Nunca usar `window.confirm` / `window.alert` / `window.prompt`** (cartel nativo del navegador, rompe el diseño y no sigue el tema). Se usa `useDialog()` (`lib/dialogs.ts`), provisto por `<DialogProvider>` en `App.tsx` (`components/DialogProvider.tsx`). API con promesas, así cada llamada cambia en una sola línea:
+### Diálogos (confirm / alert / prompt)
+
+**Nunca `window.confirm` / `alert` / `prompt`.** Se usa `useDialog()` (`lib/dialogs.ts`), provisto por `<DialogProvider>` en `App.tsx`:
 ```tsx
 const { confirm, alert, prompt } = useDialog();
-
 const ok = await confirm({
   titulo: "Cancelar evento",
   mensaje: `¿Cancelar "${ev.nombre}"? Se avisa por email a los compradores.`,
   confirmarTexto: "Cancelar evento",
-  cancelarTexto: "No, volver",        // cuando "Cancelar" sería ambiguo
+  cancelarTexto: "No, volver",
   variante: "destructiva",
 });
-if (!ok) return;                      // false si cancela, Escape o clic afuera
-
-await alert({ titulo: "Contraseña temporal", mensaje: "…", copiable: passwordTemporal }); // `copiable` agrega el botón "Copiar"
-
-const nueva = await prompt({          // null si cancela
-  titulo: "Cambiar contraseña", etiqueta: "Nueva contraseña", tipo: "password",
-  validar: (v) => (v.length >= 8 ? null : "Mínimo 8 caracteres"), // el diálogo no se cierra mientras devuelva un error
-});
 ```
-Reglas de diseño y comportamiento (ya resueltas en el componente, no se reimplementan por pantalla):
-- Panel: `max-w-sm rounded-2xl bg-card border border-border shadow-2xl p-5` sobre un fondo `bg-black/60 backdrop-blur-sm` (`z-[100]`). En mobile los botones se apilan a todo el ancho (acción principal arriba); desde `sm:` van en fila, a la derecha.
-- Ícono en cuadro redondeado: `TriangleAlert` con `bg-destructive/15 text-destructive` en la variante `destructiva`, `Info` con `bg-primary/10 text-primary` en el resto. El botón de confirmar destructivo usa `bg-destructive text-destructive-foreground`.
-- Accesibilidad: `role="alertdialog"` si es destructivo, `dialog` si no; `aria-modal`, `aria-labelledby`/`aria-describedby`. **Foco inicial** en "Cancelar" si es destructivo (un Enter distraído no borra nada), en "Confirmar" si no, en el input en un `prompt`. Tab queda atrapado dentro, Escape cancela, se bloquea el scroll del fondo y al cerrar el foco vuelve al botón que lo abrió.
-- Si se piden varios a la vez se muestran de a uno, en orden.
-- En los tests, renderizar la pantalla dentro de `<DialogProvider>` (sin él, `useDialog()` tira un error explícito).
+Ya resuelto en el componente: foco inicial en "Cancelar" si es destructivo, Tab atrapado, Escape cancela, scroll del fondo bloqueado, foco devuelto al cerrar, `role="alertdialog"`/`dialog`, botones apilados en mobile. En tests, renderizar dentro de `<DialogProvider>`.
 
-### QR Code Component
-Custom SVG-based generator (no external library). `<QRCodeSVG seed="string" />` produces a deterministic 25-module QR-like grid with real finder patterns. Used in Buyer success screen and Staff Vendedor generated ticket.
-
-### Scanner Camera Simulation
-CSS-only camera effect:
-```tsx
-<div className="absolute inset-0 bg-gradient-to-b from-neutral-900 via-neutral-800 to-neutral-900" />
-<div className="absolute inset-0 opacity-[0.04]"
-  style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.4) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,0.4) 1px,transparent 1px)",
-    backgroundSize: "20px 20px" }} />
-<div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.82)_100%)]" />
-```
-Scan line animation via `scan-line-anim` CSS class (see globals.css).
-
----
-
-## Scrolling
-
-All scrollable areas use `.hide-scrollbar` (defined in `globals.css`):
-```css
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-```
-Always add `<div className="h-8" />` (or `h-24` above sticky footers) at the bottom of scroll containers so content isn't hidden under sticky bars.
-
----
-
-## CSS Animations (globals.css)
-
-| Class | Keyframe | Usage |
-|---|---|---|
-| `scan-line-anim` | `scan-line` 2s ease-in-out infinite | QR scanner sweep line |
-| `countdown-bar` | `countdown` 3.5s linear forwards | Valid overlay auto-dismiss bar |
-| `countdown-bar-red` | `countdown` 4s linear forwards | Invalid overlay auto-dismiss bar |
-| `marquee-track` | `marquee` 26s linear infinite | Ticker en Buyer Listing (ver Poster Card / Ticker arriba) |
-
----
-
-## Screen Inventory
-
-### Section 1 — Buyer
-| Screen | Key | Notable interactions |
-|---|---|---|
-| A. Listing | `listing` | Search input + category filter chips, featured card + list cards |
-| B. Detail | `detail` | Tanda radio selection, quantity stepper, sticky buy footer |
-| C. Checkout | `checkout` | Name + email fields enable button; payment method pre-selected as "mp" |
-| D. Ticket | `success` | QR code display, download + back buttons |
-
-### Section 2 — Organizer
-| Screen | Key | Notable interactions |
-|---|---|---|
-| E. Login | `login` | Toggle to recover-password sub-view; "Registrate gratis" → register |
-| E2. Register | `register` | 5 fields + terms checkbox; on success shows welcome credits screen |
-| F. Dashboard | `dashboard` | Metrics grid, BarChart (recharts), recent sales list, quick-action buttons |
-| G. Wizard | `wizard` | 2-step: basic info → tanda config; publish → success state with credit deduction |
-| H. Wallet | `wallet` | Balance hero card, pack selection (expand-to-pay), transaction history |
-| Staff Mgmt | `staff` | Role legend, staff list, add-member form with role toggle |
-
-### Section 3 — Staff
-| Screen | Key | Notable interactions |
-|---|---|---|
-| Staff Login | (entry) | Email + password; demo credential buttons; routes by `role` field |
-| I. Scanner | `scanner` | Camera simulation, scan-frame corners, simulate-valid/invalid buttons, manual code entry, stats counters |
-| J. Valid | `valid` | Full-screen emerald overlay, ticket holder info, countdown bar auto-dismiss |
-| J. Invalid | `invalid` | Full-screen red overlay, reason code + detail, countdown bar auto-dismiss |
-| Vendedor POS | (role-routed) | Tanda selection, quantity, optional buyer name, Efectivo/Transferencia payment, generate QR |
-
-### Section 4 — Admin Backoffice
-| Screen | Key | Notable interactions |
-|---|---|---|
-| Admin Login | `login` | Email + password; any credential enters |
-| K. Dashboard | `dashboard` | 4 KPI cards, 3 quick-nav cards, activity log |
-| L. Users | `users` | Search + role filter, sortable table, three-dot menu (Suspender/Activar / Cambiar contraseña / Eliminar) |
-| M. Events | `events` | Search, table with status badges, three-dot menu (Editar / Cancelar / Eliminar) |
-| N. Config | `config` | Credit packs list (inline price edit + toggle), global settings card with save confirmation |
-
----
-
-## State Architecture
-
-Everything lives in `src/app/App.tsx`. Key state in `App()`:
+### Avisos inline
 
 ```tsx
-const [mode, setMode]           = useState<AppMode>("buyer");
-const [buyerScreen, ...]        = useState<BuyerScreen>("listing");
-const [orgScreen, ...]          = useState<OrgScreen>("login");
-const [orgLoggedIn, ...]        = useState(false);
-const [selEvent, ...]           = useState<BuyerEvent>(EVENTS[0]);
-const [selTanda, ...]           = useState<Tanda>(EVENTS[0].tandas[0]);
-const [selQty, ...]             = useState(1);
-const [buyerName, ...]          = useState("");
-const [staffForced, ...]        = useState<StaffScreen | undefined>(undefined);
+<div role="alert" className="flex gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+  <AlertCircle size={16} className="flex-none mt-0.5" /> {mensaje}
+</div>
 ```
+Mismo patrón con `warning`, `success` o `info` (`primary`).
 
-`AdminShell` owns its own `screen: AdminScreen` state internally (including `"login"`).
-`StaffShell` owns its own `account: StaffAccount | null` and `screen: StaffScreen` state.
+### Imágenes de evento
 
----
+`<EventoImagen>` (`components/EventoImagen.tsx`) para toda portada: si no hay URL o la imagen falla, muestra un placeholder (`ImageOff` sobre `from-primary/25 via-card to-background`), nunca el ícono de imagen rota del navegador. `loading="lazy"` salvo lo que se ve sin scrollear.
 
-## Data Layer (mock)
+### Poster card y carrusel del catálogo
 
-All data is static constant arrays at the top of `App.tsx`.
+Portada real a `aspect-[3/4]` con precio "Desde" en pill sobre la imagen y título + fecha + lugar debajo (grilla) o sobre un degradé inferior (carrusel "Destacados", `snap-x`). En 13.5 pasa a un `EventCard` compartido entre la Home y `/eventos`.
 
-| Constant | Type | Count | Description |
-|---|---|---|---|
-| `EVENTS` | `BuyerEvent[]` | 6 | Events with tandas, images (Unsplash URLs) |
-| `SALES_CHART` | array | 3 | Tanda names + sold qty for org BarChart |
-| `TRANSACTIONS` | array | 5 | Credit wallet history |
-| `CREDIT_PACKS` | array | 3 | Buyer-facing packs (Starter/Pro/Studio) |
-| `ADMIN_USERS` | `AdminUser[]` | 6 | System users with roles + status |
-| `ADMIN_EVENTS` | `AdminEvent[]` | 6 | Global event list for admin |
-| `ADMIN_PACKS` | `CreditPackAdmin[]` | 4 | Packs with enabled toggle |
-| `DEFAULT_STAFF` | `StaffMember[]` | 2 | Pre-populated org staff |
-| `STAFF_ACCOUNTS` | `StaffAccount[]` | 2 | Login credentials (diego/sofia + pass 1234) |
-| `INVALID_REASONS` | array | 4 | QR error codes + messages |
-| `VALID_TICKETS` | array | 3 | Mock ticket holders for valid overlay |
+### Ticker / marquee
+
+Contenido duplicado dos veces en el componente; `.marquee-track` lo desplaza exactamente `-50%` en 26 s lineal infinito. Con reduced-motion queda quieto (regla global).
+
+### Scanner del Staff QR
+
+Overlay de cámara siempre negro (no depende del tema). **En desktop conserva el marco de teléfono** (decisión 2026-11-16); en mobile ocupa toda la pantalla. Prioridad: velocidad y claridad del resultado (válido/inválido legible a distancia, en menos de un segundo). Se rediseña en 13.8.
 
 ---
 
-## Icons
+## Iconos
 
-Package: `lucide-react` v0.487.0.
+`lucide-react` v0.487.0. **Usar `CircleX`, nunca `XCircle`** (no existe en esta versión). Tamaños: 13–14 px en texto `xs`/`sm`, 16 px en botones, 18 px en navegación. Íconos decorativos con `aria-hidden`; los que son la única etiqueta de un botón, con `aria-label` en el botón.
 
-> **Important**: In v0.487, `XCircle` was renamed to `CircleX`. Always use `CircleX`.
+## Formato
 
-Frequently used icons in this project:
-`Search`, `MapPin`, `Calendar`, `Clock`, `ChevronLeft`, `ChevronRight`, `ChevronDown`,
-`Plus`, `Minus`, `Download`, `Check`, `LayoutDashboard`, `Ticket`, `Wallet`, `LogOut`,
-`Eye`, `EyeOff`, `TrendingUp`, `Users`, `ShieldCheck`, `ArrowUpRight`, `ArrowDownLeft`,
-`Sparkles`, `ImagePlus`, `Trash2`, `CircleDollarSign`, `CreditCard`, `AlertCircle`,
-`FlashlightOff`, `Flashlight`, `UserCheck`, `CircleX`, `Hash`, `UserPlus`, `BadgeCheck`,
-`QrCode`, `Store`, `PartyPopper`, `RotateCcw`, `Share2`, `ClipboardCheck`.
+`fmt(n)` (`lib/format.ts`) para montos en pesos (`$12.000`); `formatFecha`/`formatHora`/`formatRelativo` para fechas. Nunca mostrar una fecha ISO cruda (`2026-12-01`) en la UI.
+
+## Scroll
+
+`.hide-scrollbar` (globals.css) solo para carruseles y filas de chips horizontales — las listas verticales largas mantienen su scrollbar.
 
 ---
 
-## Charts
-
-Package: `recharts`.
-
-**Org Dashboard** — `BarChart` with custom cell colors per tanda:
-```tsx
-<BarChart data={SALES_CHART} barCategoryGap="30%">
-  <XAxis dataKey="tanda" tick={{ fill: "#6e6b8f", fontSize: 10 }} axisLine={false} tickLine={false} />
-  <YAxis hide />
-  <Tooltip contentStyle={{ background: "#131222", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11, color: "#f0eeff" }}
-    cursor={{ fill: "rgba(124,58,237,0.08)" }} />
-  <Bar dataKey="vendidas" radius={[6,6,0,0]}>
-    {SALES_CHART.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-  </Bar>
-</BarChart>
-```
-
-All charts wrapped in `<ResponsiveContainer width="100%" height={...}>`.
-
----
-
-## Formatting Helpers
-
-```tsx
-const fmt = (n: number) => `$${Math.abs(n).toLocaleString("es-AR")}`;
-```
-Used for all peso amounts throughout the app.
-
----
-
-## File Structure
+## Estructura
 
 ```
-src/
-  app/
-    App.tsx          ← all components + App root (single file)
-    components/      ← empty (all code lives in App.tsx)
+frontend/src/
+  App.tsx                 rutas (code-split por pantalla)
+  components/             componentes compartidos (AnimatedOutlet, DialogProvider, EventoImagen,
+                          DatePicker, TimePicker, DateRangeFilter, EventMap, NotificationBell, …)
+  components/ui/          primitivas del sistema de diseño (Fase 13.2)
+  lib/                    api.ts, auth.tsx, types.ts, format.ts, theme.tsx, dialogs.ts, …
+  pages/{buyer,organizador,staff,admin}/
   styles/
-    fonts.css        ← Google Fonts @import (Inter)
-    globals.css      ← hide-scrollbar, scan-line, countdown keyframes
-    theme.css        ← CSS custom properties + @theme inline block
-    index.css        ← @import chain
+    fonts.css             Google Fonts (Inter, Anybody, JetBrains Mono)
+    tailwind.css          import de Tailwind v4
+    theme.css             TOKENS + capa base (interacción, tipografía, reduced-motion)
+    globals.css           animaciones y utilidades (.hide-scrollbar, .marquee-track, …)
 ```
 
----
+## Do / Don't
 
-## Naming Conventions
+**Do**
+- Usar tokens (`bg-card`, `text-success`, `border-border-strong`) — nunca hex/rgb en componentes.
+- Verificar cada pantalla en mobile, tablet y desktop, en claro y oscuro, y con teclado.
+- Mostrar el motivo cuando una acción está deshabilitada.
+- Dar a cada carga un skeleton, a cada vacío una acción y a cada error un "Reintentar".
 
-- Components: PascalCase — `ListingScreen`, `AdminShell`, `QRCodeSVG`
-- Types: PascalCase — `BuyerScreen`, `OrgScreen`, `AdminUser`
-- Data constants: SCREAMING_SNAKE_CASE — `EVENTS`, `ADMIN_PACKS`
-- CSS animation classes: kebab-case — `scan-line-anim`, `countdown-bar`
-
----
-
-## Do's and Don'ts
-
-**Do:**
-- Keep all component code in `src/app/App.tsx`.
-- Use `hide-scrollbar` on every scrollable div.
-- Pre-select default values so forms/selections feel ready (e.g., payment method, first tanda).
-- Use `active:scale-[0.98]` on primary CTAs for tactile feel.
-- Close three-dot menus on parent click via `e.stopPropagation()` / `onClick={() => setOpenMenu(null)}`.
-
-**Don't:**
-- Don't import `XCircle` from lucide-react — it doesn't exist in v0.487. Use `CircleX`.
-- Don't add duplicate React imports — keep a single `import { useState, useEffect, useCallback } from "react"`.
-- Don't use `npm`/`vite build`/`index.html` — the Figma Make harness handles all of that.
-- Don't use font-size or font-weight Tailwind classes on elements already styled by `theme.css` base layer unless intentionally overriding.
-- Don't put scrollable content behind sticky footers without a spacer div at the bottom.
+**Don't**
+- `text-emerald-*`/`text-red-*`/`text-amber-*`/`text-violet-*` para estados — usar los semánticos.
+- `focus:outline-none` sin reemplazo visible.
+- `hover:scale-*` en elementos chicos, sombras de color, degradés decorativos, manchas difuminadas de fondo.
+- `text-[9px]`/`text-[10px]`.
+- Emojis como íconos o como estado vacío.
+- Elementos interactivos anidados (`<button>` dentro de `role="button"`), o un `div` con `onClick` sin rol ni teclado.
+- `window.confirm`/`alert`/`prompt`.

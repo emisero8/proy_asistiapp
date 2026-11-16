@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router";
+import { AnimatedOutlet } from "../../components/AnimatedOutlet";
 import { LayoutDashboard, Users, Calendar, CircleDollarSign, History, LogOut } from "lucide-react";
 import { NotificationBell } from "../../components/NotificationBell";
 import { useAuth } from "../../lib/auth";
@@ -81,7 +82,7 @@ export function AdminLayout() {
         </nav>
       </aside>
 
-      <Outlet />
+      <AnimatedOutlet />
 
       {/* Bottom tab bar — mobile only */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-md">

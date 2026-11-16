@@ -336,3 +336,85 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
    - Gap real encontrado en el backend: faltaban los endpoints de estado de orden (`GET /tickets/orden/{uuid}`, `GET /creditos/orden/{uuid}`) — se agregaron correctamente del lado del backend (DTOs propios, sin exponer entidades), no se parcheó desde el frontend.
    - Bug real de backend encontrado y corregido de paso: con credenciales de usuario de prueba, MercadoPago solo completa el pago en `sandbox_init_point`, no en `init_point` (que se usaba siempre) — ver `DECISIONES.md`.
 6. Probado de punta a punta con el flujo de la **Fase 21** (backend real + ngrok + usuario de prueba comprador de MP, login real — "pagar con tarjeta como invitado" no funciona con estas credenciales, ver `DECISIONES.md`) en desktop. Mobile no se re-verificó en esta sesión (la pantalla ya tenía breakpoints `md:`/`lg:` desde que se creó).
+
+---
+
+## Fase 13: Evolución visual profesional del frontend (rama `redesign-frontend`)
+
+**Objetivo:** llevar la UI de "buena base" a producto comercial — consistente, accesible y con feedback en cada interacción — **sin rediseñar desde cero, sin tocar el backend y sin cambiar ningún contrato de API** (`lib/api.ts` y `lib/types.ts` no cambian endpoints, DTOs ni bodies). Sale de una auditoría completa del frontend (2026-11-16) que encontró problemas globales de interacción (botones sin `cursor: pointer`, foco invisible, remontaje de layouts en cada navegación), colores de estado que no cumplen contraste en modo claro, ausencia de componentes compartidos (cada página reinterpreta botón/input/badge/menú) y 6 bugs funcionales de frontend.
+
+**Decisiones aprobadas** (detalle en `DECISIONES.md`, 2026-11-16): azul marino como identidad + verde azulado `#1d6b66` como **segundo acento moderado** (`--highlight`); tokens semánticos (éxito/advertencia/error/info) y escalones de superficie; el Scanner conserva el marco de teléfono en desktop; limpieza de código/assets muertos solo tras verificar referencias.
+
+**Reglas de trabajo de esta fase:**
+- Sub-fases en orden, cada una cerrada con lint + tests + build (y Playwright contra backend real cuando toca pantallas), con pausa y aprobación antes de la siguiente y antes de cada commit.
+- **Los 6 bugs funcionales no se mezclan con cambios visuales:** van en commits propios (ver 13.B).
+- Sin dependencias nuevas salvo justificación explícita.
+- Punto de partida marcado con el tag local `rediseno-inicio` (= `9180cb9`, igual a `master`).
+- **Línea base medida antes de tocar nada:** lint 0 errores / 4 warnings preexistentes (`only-export-components` en `theme.tsx`, `auth.tsx`, `StaffMgmtPage.tsx`, `WizardPage.tsx`); tests 13 archivos / 124 en verde; build OK, CSS 91,16 kB.
+
+### 13.0 — Limpieza verificada ✅ (pendiente de commit)
+Borrar lo que no usa nada, después de verificar referencias en código, tests, docs, backend y configs:
+- `pages/buyer/TicketPage.tsx` + ruta `/ticket/:id` (nadie navega ahí desde la Fase 12; los mails del backend apuntan a `/mi-entrada` — `EmailService.java:66`).
+- `pages/PagePlaceholder.tsx` (sin referencias).
+- CSS sin uso en `globals.css`: `scan-line-anim`, `countdown-bar`, `countdown-bar-red` (+ sus keyframes).
+- Dependencia `tw-animate-css` (importada en `tailwind.css`, ninguna utilidad suya en uso).
+- `public/ticket.png` (1,7 MB) y `public/fiesta.jpg` (110 KB): sin referencias y **copias byte a byte idénticas** de `media/ticket.png` y `media/fiesta.jpg` (mismo SHA-256), así que siguen versionados según la convención de la 9.3b.
+
+**Resultado:** hecho tal cual. `npm uninstall tw-animate-css` solo tocó esa entrada de `package.json` y sus 11 líneas del lockfile. Lint 0 errores / 4 warnings (los mismos de la línea base); tests 124/124; build OK, CSS 91,16 → 88,97 kB, y `dist/` deja de llevar ~1,8 MB de imágenes sin uso.
+- **Nota de entorno (no es un problema del código):** en Windows, `npm test` desde una ruta con la unidad en minúscula (`c:\…`) hace que Vitest cargue su módulo dos veces y todas las suites fallen con *"Vitest failed to find the current suite"* sin correr ningún test. Desde `C:\…` (mayúscula) corre normal. Si aparece ese error, es esto.
+
+### 13.1 — Fundamentos globales (tokens + base) ✅ (pendiente de commit)
+- Tokens nuevos en `theme.css` (valor por modo): `--highlight`, `--success`, `--warning`, `--info` (+ `-foreground`), `--surface-sunken`, `--border-strong`, elevaciones (`--shadow-raised/overlay/modal`), movimiento (`--duration-*`, `--ease-standard`), tamaño `text-2xs` (11 px, piso tipográfico).
+- Correcciones de contraste: `--muted-foreground` claro y `--destructive` oscuro.
+- Escala de radios monotónica (hoy `rounded-xl` y `rounded-2xl` valen ambos 16 px).
+- Capa base: `cursor: pointer` en todo lo interactivo, `not-allowed` en lo deshabilitado, `:focus-visible` global, `prefers-reduced-motion` global, tipografía base de `h1–h4` coherente con el uso real.
+- Transición de página movida adentro de los layouts (los layouts dejan de remontarse en cada navegación).
+- `DESIGN.md` reescrito según el código real.
+
+**Resultado:**
+- `theme.css`: tokens nuevos (`highlight`, `success`, `warning`, `info` + `-foreground`, `surface-sunken`, `border-strong`, `shadow-raised/overlay/modal`, `--duration-*`, `ease-standard`/`ease-emphasized`, `text-2xs`), todos medidos para ≥ 4,5:1 como texto en su modo. Correcciones: `--muted-foreground` claro `#6b6659 → #5c574b`; `--destructive` oscuro `#ac394d → #e5788a` con `--destructive-foreground` oscuro (el único relleno destructivo con `text-white`, el badge de `NotificationBell`, pasa a `text-destructive-foreground`). Radios: `sm 6 / md 8 / lg 10 / xl 12 / 2xl 16 / 3xl 24` px. Capa base: cursor, `:focus-visible`, reduced-motion global (incluye anular los `animation-delay` escalonados; los spinners siguen girando), `::selection`, tipografía de `h1–h4`. Se verificó antes que **ningún título ni label depende de la capa base** (todos traen tamaño/peso propios), así que ese cambio no altera nada visible hoy.
+- `globals.css`: animaciones más breves (`fade-in-up` 280 ms / 8 px, `fade-in` 200 ms, `scale-in` 160 ms); el bloque de reduced-motion por clase se reemplaza por la regla global.
+- Transición de página: nuevo `components/AnimatedOutlet.tsx` (`key={pathname}` + `Suspense` propio) usado por `OrganizadorLayout`, `AdminLayout` y un layout sin chrome para las rutas públicas/logins/Staff. Desaparecen el `onAnimationEnd` + `setTimeout` que sacaban la animación para que `fixed` volviera a funcionar (ya no hay `transform`). Bonus: mientras baja el chunk de la próxima pantalla, el sidebar queda visible con un spinner en el área de contenido.
+- **Verificación** (Playwright contra el backend real; build de producción servido con `vite preview` en el puerto 3000, que el CORS del backend ya permite): 64 capturas — Home, `/eventos`, detalle, los 4 accesos, Dashboard/Créditos/Perfil del Organizador y Dashboard/Usuarios/Config del Admin — en 390 y 1440 px × claro/oscuro, **0 errores de consola y 0 `pageerror`**. Medido: en 4 navegaciones por el sidebar del Organizador el `<aside>` es el mismo nodo del DOM y la campanita hace **0** pedidos (antes 1 por navegación); cursor `pointer` en botones habilitados, `not-allowed` en deshabilitados, `auto` en párrafos y `text` en inputs; foco con Tab → anillo de 2 px `#2b3c64`; con reduced-motion la transición de página y el marquee quedan en ~0 s y los retrasos escalonados en 0. Datos de prueba: un organizador creado con `POST /auth/register` y eliminado al terminar con `DELETE /admin/usuarios/{id}` (la base quedó solo con el admin, como estaba). Para ver tarjetas y tandas con contenido sin escribir en la base (el catálogo real estaba vacío y un organizador con eventos ya no se puede eliminar), una pasada interceptó `GET /public/eventos` en el navegador con datos del mismo contrato.
+- **Hallazgos nuevos en la verificación** (no se tocan acá, quedan asignados):
+  - **Si falla la carga de un chunk lazy, toda la app queda en blanco** (no hay *error boundary*). En desarrollo lo disparó un Vite con dependencias optimizadas desactualizadas (504 *Outdated Optimize Dep*); en producción pasa con pestañas abiertas durante un deploy (hashes viejos). → 13.3: *error boundary* con "Recargar".
+  - **Confirmado visualmente:** el menú de fila de `/admin/usuarios` queda recortado por el `overflow-x-auto` de la tabla. → 13.7.
+  - El anillo de foco del link "¿Olvidaste tu contraseña?" ocupa todo el ancho porque el botón es `w-full`. → 13.3 (variante link de `Button`).
+
+### 13.2 — Componentes compartidos (`components/ui/`)
+`Button`, `IconButton`, `Field` (+ `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `RadioCardGroup`), `Badge` + `StatusBadge` (mapa único de estados en `lib/estados.ts`), `Alert`, `Card`, `PageHeader`, `StatCard`, `Skeleton`, `Spinner`, `EmptyState`, `ErrorState`, `Popover` + `useDismiss`, `Menu`, `Tooltip`, `QuantityStepper`, `StickyActionBar`. Migrar DatePicker/DateRangeFilter/TimePicker/EventMap/NotificationBell a `useDismiss`. Tests de los componentes con comportamiento (Menu, Switch, Field).
+
+### 13.3 — Shell y autenticación
+`AppShell` único para Organizador y Admin (sidebar de 208 px, barra superior en mobile con campana/tema/salir, Auditoría accesible en mobile); el tema, la campana y "Salir" dejan de flotar sobre el contenido (fuera los parches `pr-16`/`pt-14`); `AuthLayout` compartido por los logins de Organizador/Staff/Admin y el reset de contraseña; *error boundary* de rutas con "Recargar" (hoy un chunk lazy que no carga deja la app en blanco — detectado en la verificación de 13.1).
+
+### 13.4 — Flujo de compra
+`DetailPage`, `CheckoutPage`, `PagoResultadoPage`, `MiEntradaPage`: selección de tanda como radio group real, campos con label/autocomplete/validación inline, resumen del evento también en mobile, método de pago simplificado, estados de carga/error con acción.
+
+### 13.5 — Home y catálogo
+`ListingPage`, `AllEventsPage`: `EventCard` compartida, sin duplicar "Destacados" con la grilla, foco visible en tarjetas, carrusel que respeta reduced-motion y pausa con foco, sin glows/manchas/colores literales, CTAs consolidados, `EmptyState`.
+
+### 13.6 — Organizador
+Dashboard, EventoDetalle (export con estado de carga), Wizard/Editar (`Field`), Wallet (packs como radio group, sin interactivo anidado), Staff, Perfil; contenedores pensados para tablet (hoy el contenido queda en 448 px entre 768 y 1023 px).
+
+### 13.7 — Admin
+Tablas de Usuarios/Eventos con `Menu` accesible y vista en tarjetas en mobile; Config con `Switch` y edición de precio accesible por teclado/touch; Dashboard sin atajos que repiten el sidebar; feedback único (toast) en mutaciones.
+
+### 13.8 — Staff
+Scanner (marco de teléfono conservado en desktop, `h-dvh` en mobile, resultado anunciado con `aria-live`, máxima legibilidad y velocidad en la validación); POS con los componentes compartidos.
+
+### 13.9 — Cierre
+Pasada de accesibilidad y contraste en ambos temas, comparación de bundle/CSS contra la línea base, `DESIGN.md` final.
+
+### 13.B — Bugs funcionales detectados en la auditoría (commits separados, no mezclados con lo visual)
+1. **Wizard duplica tandas al reintentar:** `handlePublicar` crea las tandas una por una y después publica; si algo falla a mitad de camino, el reintento vuelve a crear las ya creadas (`WizardPage.tsx`, loop de `POST /eventos/{id}/tandas`).
+2. **Dashboard del organizador queda en error para siempre:** un fallo puntual del refresco de 20 s setea `error` y nunca se limpia, ocultando todo el panel (`DashboardPage.tsx`, `cargar()`).
+3. **Resultado del pago deja de consultar en silencio:** tras 8 reintentos (~20 s) frena el polling pero sigue diciendo "se actualiza sola" (`PagoResultadoPage.tsx`).
+4. **Detalle de evento sin tandas:** skeleton infinito (`DetailPage.tsx`, condición `!evento || !sel`).
+5. **Admin, "Ver Perfil" lleva al dashboard** (`AdminLayout.tsx`).
+6. **Wizard, pantalla de éxito con la fecha cruda** (`2026-12-01` en vez de `formatFecha`).
+
+### Verificación de toda la fase
+- Por sub-fase: `npm run lint`, `npm test`, `npm run build`; los nombres accesibles y textos que usan los tests no cambian en la misma sub-fase que se migra un componente.
+- Contrato intacto: un diff filtrado por `api.(get|post|put|patch|delete)` tiene que mostrar las mismas URLs y bodies.
+- Capturas Playwright por ruta tocada: 390 / 820 / 1440 px × claro/oscuro, consola sin errores, recorrido solo con teclado.
+- Flujos end-to-end contra el backend real (compra con MP sandbox, crear/publicar/cancelar, staff, scanner, POS, admin, notificaciones), con datos de prueba sembrados y limpiados.

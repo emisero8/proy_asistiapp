@@ -18,12 +18,12 @@
 }
 
 /* ---------------------------------------------------------------------
-   Animaciones generales del sistema — transición de página, entrada de
-   contenido (hero, grillas de tarjetas con stagger) y aparición de menús
-   flotantes (dropdowns de tres puntos). Todo respeta prefers-reduced-motion.
+   Animaciones del sistema — breves y discretas (duraciones de theme.css:
+   --duration-fast/base/slow). prefers-reduced-motion se resuelve de forma
+   global en la capa base de theme.css, no acá clase por clase.
    ------------------------------------------------------------------- */
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes fade-in {
@@ -31,7 +31,7 @@
   to   { opacity: 1; }
 }
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
 }
 @keyframes bounce-x {
@@ -39,27 +39,28 @@
   50%      { transform: translateX(4px); }
 }
 
+/* Entrada de contenido (hero, grillas con stagger, panel de diálogos). */
 .animate-fade-in-up {
-  animation: fade-in-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-in-up 280ms var(--ease-emphasized) both;
 }
 .animate-fade-in {
-  animation: fade-in 0.4s ease-out both;
+  animation: fade-in 200ms ease-out both;
 }
+/* Aparición de menús y popovers. */
 .animate-scale-in {
-  animation: scale-in 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-/* Se re-monta en cada cambio de ruta (key={pathname} en App.tsx) — le da
-   una entrada suave a toda pantalla nueva sin tocar cada page individual. */
-.page-transition {
-  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: scale-in 160ms var(--ease-emphasized) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-in-up,
-  .animate-fade-in,
-  .animate-scale-in,
-  .page-transition,
-  [class*="animate-[bounce-x"] {
-    animation: none;
-  }
+/* Transición de página: la aplica <AnimatedOutlet> (components/), que se
+   remonta con cada cambio de ruta adentro de su layout. Solo opacidad y sin
+   fill-mode a propósito: un transform (aunque sea la identidad) convertiría
+   al contenedor en el "viewport" de los position: fixed de adentro (barras
+   inferiores de compra, etc.), y un fill forwards dejaría la opacidad
+   aplicada después de terminar. */
+@keyframes page-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.page-transition {
+  animation: page-enter 160ms ease-out;
 }
