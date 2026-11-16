@@ -6,6 +6,7 @@ import { ThemeProvider, useTheme } from "./lib/theme";
 import { DialogProvider } from "./components/DialogProvider";
 import { FloatingThemeToggle } from "./components/ThemeToggle";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
+import { EntradaSeccion } from "./components/EntradaSeccion";
 import { AnimatedOutlet, RouteFallback } from "./components/AnimatedOutlet";
 
 const ListingPage = lazy(() => import("./pages/buyer/ListingPage").then((m) => ({ default: m.ListingPage })));
@@ -132,6 +133,12 @@ function AppRoutes() {
         <Route path="/admin/config" element={<AdminConfigPage />} />
         <Route path="/admin/auditoria" element={<AdminAuditoriaPage />} />
       </Route>
+
+      {/* Entrada de cada sección y rutas inexistentes dentro de ella: al panel con sesión,
+          al login sin ella (las rutas concretas de arriba tienen prioridad sobre "/admin/*"). */}
+      <Route path="/admin/*" element={<EntradaSeccion seccion="admin" />} />
+      <Route path="/organizador/*" element={<EntradaSeccion seccion="organizador" />} />
+      <Route path="/staff/*" element={<EntradaSeccion seccion="staff" />} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
