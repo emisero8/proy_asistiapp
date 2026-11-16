@@ -10,6 +10,7 @@ import type {
   PaqueteCreditoResponseDTO,
 } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { useDialog } from "../../lib/dialogs";
 
 const CLAVE_BIENVENIDA = "creditos_bienvenida";
 const CLAVE_PUBLICACION = "creditos_por_publicacion";
@@ -20,6 +21,7 @@ const DEFAULT_PUBLICACION = 1;
 
 export function AdminConfigPage() {
   useDocumentTitle("Configuración · Admin");
+  const { confirm } = useDialog();
   const [packs, setPacks] = useState<PaqueteCreditoResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -167,6 +169,14 @@ export function AdminConfigPage() {
 
   async function enviarAnuncio() {
     if (!anuncioTitulo.trim() || !anuncioMensaje.trim()) return;
+    // Llega a todos los usuarios activos y no se puede retirar: se confirma antes de enviar.
+    const ok = await confirm({
+      titulo: "Enviar anuncio",
+      mensaje: `¿Enviar "${anuncioTitulo.trim()}" como notificación a todos los usuarios activos? Una vez enviado no se puede retirar.`,
+      confirmarTexto: "Enviar",
+      cancelarTexto: "No, volver",
+    });
+    if (!ok) return;
     setEnviandoAnuncio(true);
     setError(null);
     try {
