@@ -138,7 +138,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 | # | Qué | Tamaño | Estado |
 |---|---|---|---|
-| 7.1 | **Actualizar `CLAUDE.md`.** Dice que el frontend "todavía no" integra MercadoPago y que `CheckoutPage`/`WalletPage` "están rotos" (ya está hecho), que probar el pago necesita ngrok (ya no, por la reconciliación) y menciona la estética "TicketVibe" celeste/violeta/lima cuando la app usa el azul marino monocromo. | S | ⏳ |
+| 7.1 | **Actualizar `CLAUDE.md`.** Dice que el frontend "todavía no" integra MercadoPago y que `CheckoutPage`/`WalletPage` "están rotos" (ya está hecho), que probar el pago necesita ngrok (ya no, por la reconciliación) y menciona la estética "TicketVibe" celeste/violeta/lima cuando la app usa el azul marino monocromo. | S | ✅ 2026-11-16: cada afirmación se contrastó antes con el código (`MercadoPagoService` solo manda `notification_url` si `BACKEND_PUBLIC_URL` es HTTPS; `DESIGN.md` declara reemplazada la paleta TicketVibe). Se corrigieron los 3 puntos del ítem y se actualizó el párrafo de SMTP (variables `SMTP_*`, `backend/.env`, MailHog standalone, y que con un `.env` de Gmail los mails salen de verdad). Se sumó "ni pegadas en el chat" a la regla de credenciales, tomada de `CONTINUAR.md` |
 | 7.2 | **Sección "cómo probar un pago en local" en el README.** Comprador de prueba, pestaña nueva, sin ngrok. Hoy está solo en `CLAUDE.md`. | S | ⏳ |
 | 7.3 | **Aclarar en el README que las credenciales son solo de desarrollo.** Va junto con 1.4 y 2.5. | S | ⏳ |
 | 7.4 | **Ramas más chicas de acá en adelante,** una por tema, para que los PR se puedan revisar. | — | ⏳ |
