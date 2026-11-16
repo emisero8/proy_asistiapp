@@ -28,27 +28,39 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 ---
 
-## Estado actual — por dónde vamos (actualizado el 2026-11-16)
+## Estado actual — por dónde vamos (actualizado el 2026-11-16, cierre del día)
 
-**Hecho (todo commiteado y pusheado a `feature-mercadopago`):** Etapa 0 completa (0.3 y 0.4 salieron del plan), Etapa 1 completa, Etapa 2 completa salvo 2.4 (se cierra en producción), **Etapa 3 completa (3.1–3.9)** y de la Etapa 4: **4.3, 4.4, 4.5 y 4.6**. El 16/11 se cerraron además los ítems chicos **5.6, 6.1, 6.3, 7.1, 7.2 y 7.3**. Además, en la sesión del 12/11 salieron cosas que no estaban en el plan: SMTP configurable por variables de entorno (Gmail sin editar `application.yml`), lectura de un `backend/.env` opcional, el QR del mail de confirmación como imagen inline `cid:` (Gmail bloqueaba la `data:` URI) y la versión en texto plano del mismo mail. Suite del backend: **334 tests, 0 fallos**.
+> Para retomar desde otra máquina leer también `CONTINUAR.md`: tiene el detalle de lo que falta, las trampas conocidas y cómo montar el entorno.
 
-**Falta, en el orden que recomiendo:**
-1. **4.8 — decidido el 2026-11-16: por ahora no se despliega, se sigue en local** (ver `DECISIONES.md`). Por eso **4.1 Flyway** (L), **4.2 claves foráneas** (L) y **4.7 límite de peticiones en memoria** (M) quedan **en pausa**: solo importan si se despliega (pasar `ddl-auto` a `validate` en producción depende de 4.1; 4.7 solo con más de una instancia). Si se vuelve a querer una muestra en la web, se reabre 4.8.
-2. Etapas 5 y 6 según el tiempo. **Ya no queda ningún ítem S**: lo que falta es M o L (5.3, 5.5, 5.2 y 6.2; el 6.4 se cerró el 16/11). El 7.4 no es código, es una forma de trabajar.
+**Hecho (todo commiteado y pusheado a `feature-mercadopago`):**
+- Etapas **0, 1 y 3 completas** (0.3 y 0.4 salieron del plan: los resuelve Felipe por fuera); Etapa **2** completa salvo 2.4 (se cierra en producción); de la Etapa 4: **4.3, 4.4, 4.5 y 4.6**.
+- **Etapa 5:** 5.1 (guardia de desfasajes de `types.ts` contra el OpenAPI del backend), 5.4 (tests de `ListingPage` y `PosPage`) y 5.6. **Etapa 6:** 6.1, 6.3 y 6.4. **Etapa 7:** 7.1, 7.2 y 7.3. Todos cerrados el 16/11.
+- Fuera del plan, el 12/11: SMTP configurable por variables de entorno (Gmail sin editar `application.yml`), lectura de un `backend/.env` opcional, el QR del mail de confirmación como imagen inline `cid:` y la versión en texto plano del mismo mail.
+- Suites: backend **338 tests, 0 fallos**; frontend **21 archivos, 200 tests, 0 fallos**; typecheck, lint y build limpios.
 
-**Preguntas abiertas (no asumir):**
-- El mail de confirmación cayó en spam de Gmail con la cuenta de prueba: ver el hallazgo en `DECISIONES.md` (se resuelve con dominio propio, 4.8).
-- La cuenta demo `staffvendedor@demo.com` no acepta `Demo1234!` (devuelve 401), aunque la documentación la da como válida. Aclarado el 16/11: un 401 en el login es "credenciales inválidas" (email inexistente o contraseña distinta, el backend no distingue). En la base de esta PC esa cuenta ni existe; en la de la PC anterior lo más probable es que se haya reseteado (el reseteo genera una contraseña al azar), pero no se pudo comprobar desde acá. Falta decidir: resetearla en esa base o corregir `GUIA_DEMO.md`.
-- El evento 17 de desarrollo se borró por accidente durante una prueba de 3.1; se puede volver a sembrar si hace falta.
+**Decisiones de Felipe del 16/11** (en `DECISIONES.md`): **por ahora no se despliega nada, se sigue en local** (4.8); **el POS sí manda mail** al comprador (6.4).
 
-**Cómo está la máquina de desarrollo (para retomar):**
-- Backend en `localhost:8080` (se levanta desde PowerShell: `cd backend; mvn.cmd spring-boot:run`, con las variables `MP_*` y `CLOUDINARY_*` de usuario cargadas en la sesión) y Vite en `localhost:5173`. Si un build raro falla con "cannot access…" o "Unresolved compilation problem", usar `mvn clean test` (la extensión de Java de VS Code deja clases a medias en `target/`).
-- **Gmail ya está configurado** en `backend/.env` (ignorado por Git; contiene la contraseña de aplicación, nunca pegarla en el chat ni commitearla). Mientras esté, **todo mail que mande la app sale de verdad** por esa cuenta; para volver a MailHog, renombrar o borrar el `.env`. Docker no anda en esta máquina (virtualización desactivada en la BIOS), por eso no hay MailHog.
-- Los tests del frontend se corren desde PowerShell (`npx vitest run`), no desde Git Bash.
-- Datos de prueba que quedaron: el evento de demo "Noche de Demo AsistíAPP" (id 54, tanda 44) ya tiene entradas vendidas de las pruebas del 12/11.
+**Falta, en el orden que recomiendo** (detalle de cada uno en `CONTINUAR.md`, sección 4):
+1. **5.3** — reescribir los tests de fecha y hora contra `DatePicker`/`TimePicker` y sacar el `<input>` nativo oculto que quedó como puente (M).
+2. **5.5** — mover el botón de tema claro/oscuro (M). **Necesita que Felipe decida dónde va.**
+3. **5.2** — suite end-to-end fija con Playwright (L). No automatizar el pago real de MercadoPago (reCAPTCHA).
+4. **6.2** — notificaciones automáticas (M–L). **Necesita que Felipe defina cuáles avisos quiere.**
+5. **7.4** — no es código: ramas más chicas, una por tema.
+6. **En pausa mientras no se despliegue:** 4.1 Flyway (L), 4.2 claves foráneas (L), 4.7 límite de peticiones en memoria (M) y 4.8. Si Felipe pide una muestra en la web, se reabre 4.8 (hay una recomendación de dónde y cómo en `CONTINUAR.md`, sección 4.2).
+7. **Antes de cualquier producción:** 2.4 (`MP_VALIDAR_FIRMA=true` comprobado con un pago real) y el checklist de la Fase 21 de `backend_implementation_plan.md`.
 
-**Reglas de trabajo vigentes:** una fase por vez y parar a preguntar antes de seguir; confirmar antes de cada commit/push; commits a nombre de Felipe, sin ningún rastro de Claude; no stagear el `.xlsx`; credenciales solo en variables de entorno o en `.env`; verificar en vivo y limpiar los datos de prueba; documentar en `DECISIONES.md` y en este plan en el mismo cambio.
+**Preguntas abiertas / pendientes de Felipe (no asumir):**
+- La cuenta demo `staffvendedor@demo.com` no acepta `Demo1234!` (devuelve 401). Un 401 en el login es "credenciales inválidas" (email inexistente o contraseña distinta; el backend no distingue). En la base de la PC del 16/11 esa cuenta ni existe; en la de la PC anterior lo más probable es que se haya reseteado (el reseteo genera una contraseña al azar), pero no se pudo comprobar. Falta decidir: resetearla en esa base o corregir `GUIA_DEMO.md`.
+- **Rotar las credenciales de sandbox** que pasaron por el chat el 16/11 (MercadoPago, Cloudinary, ngrok, contraseña del comprador de prueba) y borrar el `cargar-variables.ps1` con valores en texto plano.
+- El mail de confirmación cayó en spam de Gmail con la cuenta de prueba: se resuelve con dominio propio y un proveedor transaccional (solo importa si se despliega; ver `DECISIONES.md` 2026-11-12).
 
+**Cómo está la máquina de desarrollo (PC del 16/11):**
+- Windows 10, JDK 17, Maven 3.8.8, Node 24, PostgreSQL 18; sin Python ni Docker. Backend en `localhost:8080` (PowerShell: `cd backend; mvn.cmd spring-boot:run`, con las variables `MP_*` y `CLOUDINARY_*` de usuario cargadas) y Vite en `localhost:5173`. MailHog standalone en `tools/MailHog.exe` (ignorado por Git).
+- **Hay un `backend/.env` con SMTP de Gmail** (ignorado por Git; nunca pegarlo en el chat ni commitearlo): mientras esté, **todo mail que mande la app sale de verdad**, incluidas las ventas del POS. Para probar contra MailHog hay que pisar `SMTP_*` con variables de entorno del proceso, sin editar el `.env` (ver `CONTINUAR.md`, trampas).
+- Los tests del frontend se corren desde PowerShell (`npx vitest run`), no desde Git Bash. Si un build raro falla con "cannot access…" usar `mvn clean test` (con el backend detenido).
+- Datos de prueba en la base local: Organizador demo `organizador.demo@asistiapp.test` con el evento 39 y un Staff QR. No viajan con el repo.
+
+**Reglas de trabajo vigentes:** una fase por vez y parar a preguntar antes de seguir; confirmar antes de cada commit/push; commits a nombre de Felipe (la identidad del repo local), sin ningún rastro de Claude; no stagear archivos sueltos (`arreglos.txt`, `entregable-sprint4/`, el `.xlsx` de la raíz, logs); credenciales solo en variables de entorno o en `.env`; verificar en vivo y limpiar los datos de prueba; documentar en `DECISIONES.md` y en este plan en el mismo cambio.
 ---
 
 ## Etapa 0 — Cerrar lo que está abierto
