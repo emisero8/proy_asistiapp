@@ -30,6 +30,11 @@ export function PagoResultadoPage() {
   const [ordenEntradas, setOrdenEntradas] = useState<EstadoOrdenEntradasResponseDTO | null>(null);
   const [ordenCreditos, setOrdenCreditos] = useState<EstadoOrdenCreditoResponseDTO | null>(null);
   const intentos = useRef(0);
+  // La consulta automática se detiene tras REINTENTOS_MAXIMOS; desde ahí la pantalla lo dice
+  // (antes seguía diciendo "se actualiza sola" aunque ya no consultaba) y ofrece volver a
+  // consultar, que incrementa `consulta` y reinicia el ciclo.
+  const [sinConfirmar, setSinConfirmar] = useState(false);
+  const [consulta, setConsulta] = useState(0);
 
   useEffect(() => {
     if (!ref || (tipo !== "entradas" && tipo !== "creditos")) {
@@ -39,6 +44,9 @@ export function PagoResultadoPage() {
     }
 
     let cancelado = false;
+    let temporizador: ReturnType<typeof setTimeout> | undefined;
+    intentos.current = 0;
+    setSinConfirmar(false);
 
     async function consultar() {
       try {
@@ -63,18 +71,22 @@ export function PagoResultadoPage() {
     }
 
     function reintentarSiHaceFalta(estado: string) {
-      if (estado === "Pendiente" && intentos.current < REINTENTOS_MAXIMOS) {
+      if (estado !== "Pendiente") return;
+      if (intentos.current < REINTENTOS_MAXIMOS) {
         intentos.current += 1;
-        setTimeout(consultar, ESPERA_ENTRE_REINTENTOS_MS);
+        temporizador = setTimeout(consultar, ESPERA_ENTRE_REINTENTOS_MS);
+      } else {
+        setSinConfirmar(true);
       }
     }
 
     consultar();
     return () => {
       cancelado = true;
+      clearTimeout(temporizador);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ref, tipo]);
+  }, [ref, tipo, consulta]);
 
   const orden = tipo === "creditos" ? ordenCreditos : ordenEntradas;
   const estado = orden?.estado ?? null;
@@ -112,13 +124,32 @@ export function PagoResultadoPage() {
 
         {estado && (
           <div className="space-y-5">
-            {estado === "Pendiente" && (
+            {estado === "Pendiente" && !sinConfirmar && (
               <EstadoCard
                 icon={<Clock3 size={24} className="text-amber-500" />}
                 iconBg="bg-amber-500/10 border-amber-500/20"
                 titulo="Estamos confirmando tu pago"
                 texto="Puede tardar unos minutos. Esta pantalla se actualiza sola — no hace falta que la recargues."
               />
+            )}
+
+            {estado === "Pendiente" && sinConfirmar && (
+              <div className="space-y-3">
+                <EstadoCard
+                  icon={<Clock3 size={24} className="text-amber-500" />}
+                  iconBg="bg-amber-500/10 border-amber-500/20"
+                  titulo="Todavía no recibimos la confirmación"
+                  texto={`Si ya pagaste, MercadoPago puede demorar unos minutos más en avisarnos. No vuelvas a pagar: consultá de nuevo en un rato.${
+                    tipo === "entradas" ? " Cuando se confirme, también te llega un mail con tus entradas." : ""
+                  }`}
+                />
+                <button
+                  onClick={() => setConsulta((c) => c + 1)}
+                  className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
+                >
+                  Volver a consultar
+                </button>
+              </div>
             )}
 
             {estado === "Rechazada" && (
