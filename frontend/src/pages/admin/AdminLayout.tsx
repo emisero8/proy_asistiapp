@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router";
+import { NavLink } from "react-router";
 import { AnimatedOutlet } from "../../components/AnimatedOutlet";
 import { LayoutDashboard, Users, Calendar, CircleDollarSign, History, LogOut } from "lucide-react";
 import { NotificationBell } from "../../components/NotificationBell";
@@ -17,7 +17,6 @@ const TABS_SOLO_DESKTOP = [{ to: "/admin/auditoria", label: "Auditoría", Icon: 
 
 export function AdminLayout() {
   const { session, logout } = useAuth();
-  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-52">
@@ -48,20 +47,17 @@ export function AdminLayout() {
           <p className="text-[11px] tracking-widest uppercase mt-1 mb-3 font-semibold">
             <span className="text-foreground/80">Bienvenido </span><span className="text-foreground">Administrador</span>
           </p>
-          <button
-            type="button"
-            onClick={() => navigate("/admin/dashboard")}
-            aria-label="Ver mi perfil"
-            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-muted transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-          >
+          {/* No existe una pantalla de perfil de Administrador: este bloque solo identifica la
+              sesión (antes era un botón "Ver Perfil" que llevaba al dashboard). */}
+          <div className="w-full flex items-center gap-2.5 px-2 py-2">
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-primary-foreground flex-none">
               {session?.nombre?.charAt(0) ?? "A"}
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground truncate leading-tight">{session?.nombre}</p>
-              <p className="text-[10px] text-muted-foreground truncate leading-tight">Ver Perfil</p>
+              <p className="text-[10px] text-muted-foreground truncate leading-tight">Administrador</p>
             </div>
-          </button>
+          </div>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 relative">
