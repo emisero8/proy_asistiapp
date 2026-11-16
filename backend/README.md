@@ -10,6 +10,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
 
 ## Levantar en local
 
+> **Todo lo que figura en este README como valor por defecto es público y solo sirve para desarrollo.** `DB_PASSWORD=1234`, el `JWT_SECRET` de desarrollo y el Admin `admin@asistiapp.com` / `Admin123!` están escritos en el repositorio, así que cualquiera que lo lea los conoce: alcanzan para levantar el sistema en una PC local y nada más. En producción no se usan: con `SPRING_PROFILES_ACTIVE=prod` el backend exige **definir** las variables marcadas ⚠️ (incluida `DB_PASSWORD`), se niega a arrancar con el `JWT_SECRET` público y no crea ningún Admin si no se define `ADMIN_INICIAL_PASSWORD` (el validador comprueba que las variables existan, no que su valor sea fuerte: eso depende de quien despliega). Las credenciales reales (base de datos, MercadoPago, Cloudinary, SMTP) van siempre por variable de entorno o en `backend/.env` (ignorado por Git), nunca en el repo ni en la documentación.
+
 1. Crear la base de datos:
    ```sql
    CREATE DATABASE asistiapp_db;
@@ -31,7 +33,7 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `MP_ACCESS_TOKEN` ⚠️ | vacío — Access Token de MercadoPago (ver sección MercadoPago) |
    | `MP_WEBHOOK_SECRET` ⚠️ | vacío — clave secreta de Webhooks de MercadoPago |
    | `MP_VALIDAR_FIRMA` | `true` — **dejar en `true` en producción** |
-   | `BACKEND_PUBLIC_URL` ⚠️ | `http://localhost:8080` — URL pública HTTPS (ngrok en local) |
+   | `BACKEND_PUBLIC_URL` ⚠️ | `http://localhost:8080` — solo hace falta HTTPS público para recibir el webhook (ngrok en local); para pagar en local no es necesario, ver "Pagos con MercadoPago" |
    | `CLOUDINARY_CLOUD_NAME` ⚠️ | vacío — sin esto, subir una imagen de portada de evento o una foto de perfil falla (el resto de la app funciona igual; en desarrollo el backend avisa en el log al arrancar) |
    | `CLOUDINARY_API_KEY` ⚠️ | vacío |
    | `CLOUDINARY_API_SECRET` ⚠️ | vacío |
@@ -137,17 +139,35 @@ Si el envío falla (MailHog caído, credenciales mal puestas, límite excedido),
 
 El cobro de entradas y de créditos usa MercadoPago Checkout Pro. El detalle del diseño, las decisiones y el estado están en la **Fase 21** de `../backend_implementation_plan.md`.
 
-**Configuración (todo por variable de entorno, nunca en el repo):**
-1. Crear una aplicación en el [panel de desarrolladores de MercadoPago](https://www.mercadopago.com.ar/developers/panel/app) y copiar el **Access Token de las credenciales de prueba** a `MP_ACCESS_TOKEN`.
-2. El pago se confirma por webhook, y MercadoPago necesita una URL pública para avisar. En local, usar ngrok (el plan gratuito da un dominio estático):
+**Configuración mínima (todo por variable de entorno, nunca en el repo). Alcanza para pagar en local, sin túnel:**
+1. Crear una aplicación en el [panel de desarrolladores de MercadoPago](https://www.mercadopago.com.ar/developers/panel/app) y copiar el **Access Token de las credenciales de prueba** a `MP_ACCESS_TOKEN`. Reiniciar el backend (y reabrir la terminal / VS Code si la variable es de usuario de Windows).
+2. Si la base ya existía, aplicar una vez `db/migraciones/2026-10-15-mercadopago-ordenes.sql` (una base nueva no lo necesita).
+3. Tener un **usuario comprador de prueba**: panel de la app → *Cuentas de prueba*, con saldo cargado.
+
+### Cómo probar un pago en local (sin túnel)
+
+1. Con el backend y el frontend corriendo, elegir un evento publicado, ir a **Comprar entradas** y completar el checkout.
+2. Como el sitio corre en `http`, **el checkout de MercadoPago se abre en una pestaña nueva** (`frontend/src/lib/pago.ts`). Si el navegador bloquea la ventana emergente, la app avisa antes de crear la orden: permitirlas para `localhost` y reintentar. La pestaña original queda en `/pago/resultado` esperando.
+3. En MercadoPago, **en una ventana de incógnito**, elegir **"Ingresar con mi cuenta"**, entrar con el usuario comprador de prueba y pagar con **"Dinero disponible"**.
+   - **No pagar como invitado con una tarjeta de prueba** (ni siquiera con titular `APRO`): con credenciales de usuario de prueba MercadoPago lo rechaza con una pantalla de error genérica (`/fatal/`). Está probado en un Chrome real y en Playwright; ver `../DECISIONES.md` (2026-10-15).
+   - Si se automatiza el login con Playwright, MercadoPago muestra un reCAPTCHA después de varios intentos seguidos: hacer este paso a mano.
+4. **En local la pantalla de "pago aprobado" de MercadoPago no tiene botón "Volver al sitio"**, y no es un bug: MercadoPago solo vuelve solo si el frontend es HTTPS público. Cerrar esa pestaña y volver a la original: sigue en `/pago/resultado`, consulta el estado cada 4 s (hasta 10 minutos) y pasa sola a **"¡Pago aprobado!"** con las entradas y su QR.
+5. El mail de confirmación sale por el SMTP configurado (ver "Envío de mails"). En la vista HTML de MailHog el QR no se ve, porque viaja como imagen inline `cid:`; en un cliente real (Gmail) sí. Las entradas se ven igual en la pantalla de resultado.
+
+Si se perdió la pestaña de espera, se entra a mano a `http://localhost:5173/pago/resultado?ref=<externalReference>&tipo=entradas` (o `tipo=creditos`). El `externalReference` queda en el log del backend: `Compra iniciada: ... ref=...` y `Preferencia MP creada: ... externalReference=...`.
+
+**Por qué no hace falta un túnel:** la pantalla de resultado consulta `GET /tickets/orden/{ref}` (o `/creditos/orden/{ref}`) y, mientras la orden sigue `Pendiente`, el backend busca el pago en la API de MercadoPago por `external_reference` y lo confirma si ya está aprobado (como mucho una consulta cada `MP_INTERVALO_RECONCILIACION_SEGUNDOS` por orden). El job de vencimiento (cada 10 minutos) hace la misma reconciliación antes de expirar una orden. Verificado en vivo con el túnel apagado.
+
+### Probar el webhook en sí (opcional, con túnel)
+
+Solo hace falta para ver llegar el aviso de MercadoPago. Si `BACKEND_PUBLIC_URL` no es HTTPS, el backend lo avisa en el log y no manda `notification_url`.
+1. Con ngrok (el plan gratuito da un dominio estático):
    ```
    ngrok config add-authtoken <TU_TOKEN>
    ngrok http --url=<tu-dominio>.ngrok-free.dev 8080
    ```
-3. En el panel de la app → **Webhooks** (modo de prueba): URL `https://<tu-dominio>.ngrok-free.dev/payments/mercadopago/webhook`, evento **Pagos**. Copiar la **Clave secreta** a `MP_WEBHOOK_SECRET`, y setear `BACKEND_PUBLIC_URL=https://<tu-dominio>.ngrok-free.dev`.
-4. Si la base ya existía, aplicar una vez `db/migraciones/2026-10-15-mercadopago-ordenes.sql` (una base nueva no lo necesita).
-
-**Probar una compra:** pagar con un **usuario comprador de prueba** (panel → *Cuentas de prueba*, en ventana de incógnito). "Dinero disponible" o una tarjeta de prueba con titular `APRO` aprueban el pago.
+2. En el panel de la app → **Webhooks** (modo de prueba): URL `https://<tu-dominio>.ngrok-free.dev/payments/mercadopago/webhook`, evento **Pagos**. Copiar la **Clave secreta** a `MP_WEBHOOK_SECRET`, y setear `BACKEND_PUBLIC_URL=https://<tu-dominio>.ngrok-free.dev`. Reiniciar el backend.
+3. El plan gratuito de ngrok no soporta dos túneles a la vez, así que no se puede tunelear también el frontend para tener HTTPS real en local.
 
 **Firma del webhook:** el backend valida `x-signature`. En el sandbox los avisos de pagos reales llegan firmados con una clave que no coincide con la del panel, por lo que en desarrollo local se puede usar `MP_VALIDAR_FIRMA=false` (el pago igual se verifica contra la API de MercadoPago antes de entregar nada). **En producción tiene que estar en `true`.**
 
