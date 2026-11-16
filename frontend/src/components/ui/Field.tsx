@@ -29,9 +29,9 @@ export function Field({ label, hint, error, required, labelHidden, className, ch
   const describedBy = error ? errorId : mostrarAyuda ? hintId : undefined;
 
   return (
-    <FieldContext.Provider value={{ id, describedBy, invalid: Boolean(error), required }}>
+    <FieldContext.Provider value={{ id, labelId: `${id}-label`, describedBy, invalid: Boolean(error), required }}>
       <div className={cn("space-y-1.5", className)}>
-        <label htmlFor={id} className={cn("block text-xs font-medium text-muted-foreground", labelHidden && "sr-only")}>
+        <label id={`${id}-label`} htmlFor={id} className={cn("block text-xs font-medium text-muted-foreground", labelHidden && "sr-only")}>
           {label}
           {required && (
             <span aria-hidden="true" className="text-destructive">
@@ -61,7 +61,7 @@ type Superficie = "card" | "sunken";
 type TamanoControl = "sm" | "md";
 
 const CONTROL =
-  "w-full rounded-xl border border-border-strong text-sm text-foreground placeholder:text-muted-foreground/60 " +
+  "w-full rounded-xl border border-border-strong text-sm text-foreground placeholder:text-muted-foreground " +
   "transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard " +
   "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 " +
   "disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:ring-destructive/25";

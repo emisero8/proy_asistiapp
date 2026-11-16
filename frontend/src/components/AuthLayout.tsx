@@ -13,6 +13,11 @@ import { ThemeToggle } from "./ThemeToggle";
 const MARCA_FONDO = "bg-[#09090b]";
 const MARCA_ACENTO = "text-[#9cadd3]";
 
+/** Palabra destacada en el título del panel de marca (siempre oscuro): usa el acento de la marca. */
+export function MarcaAcento({ children }: { children: ReactNode }) {
+  return <span className={MARCA_ACENTO}>{children}</span>;
+}
+
 export interface AuthBrand {
   title: ReactNode;
   description: string;

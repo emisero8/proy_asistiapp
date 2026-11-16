@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { MailCheck, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { AuthHeader, AuthLayout, type AuthBrand } from "../../components/AuthLayout";
+import { AuthHeader, AuthLayout, type AuthBrand, MarcaAcento } from "../../components/AuthLayout";
 import { Alert, Button, Field, Input, PasswordInput } from "../../components/ui";
 import type { AuthResponseDTO, LoginRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -11,7 +11,7 @@ import { useDocumentTitle } from "../../lib/useDocumentTitle";
 const MARCA: AuthBrand = {
   title: (
     <>
-      Tu evento, <span className="text-[#9cadd3]">sin comisión</span>
+      Tu evento, <MarcaAcento>sin comisión</MarcaAcento>
     </>
   ),
   description: "Publicá, gestioná tu staff y controlá el acceso — todo desde un solo panel.",

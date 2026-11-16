@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { CheckCircle2, Clock, KeyRound, ShieldCheck } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
-import { AuthHeader, AuthLayout, type AuthBrand } from "../../components/AuthLayout";
+import { AuthHeader, AuthLayout, type AuthBrand, MarcaAcento } from "../../components/AuthLayout";
 import { Alert, Button, Field, PasswordInput } from "../../components/ui";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const MARCA: AuthBrand = {
   title: (
     <>
-      Nueva contraseña, <span className="text-[#9cadd3]">nueva etapa</span>
+      Nueva contraseña, <MarcaAcento>nueva etapa</MarcaAcento>
     </>
   ),
   description: "Elegí una contraseña segura para volver a acceder a tu panel de organizador.",

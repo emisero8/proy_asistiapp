@@ -1,10 +1,10 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useContext, useId, useRef, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useDismiss } from "../lib/useDismiss";
 import { MESES, DIAS, toISO, buildGrid } from "../lib/calendar";
 import { formatFecha } from "../lib/format";
 import { cn } from "../lib/cn";
-import { useFieldControl } from "./ui/fieldContext";
+import { FieldContext, useFieldControl } from "./ui/fieldContext";
 
 type Props = {
   value: string;
@@ -29,6 +29,9 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
   // Dentro de un <Field>: toma su id (el label apunta a este botón), la ayuda/el error y aria-invalid.
   const control = useFieldControl<{ id?: string; "aria-describedby"?: string; "aria-invalid"?: boolean }>({ "aria-invalid": error || undefined });
   const valorId = useId();
+  // Nombre = label del Field + valor visible ("Venta desde, Elegí una fecha"): así el texto que se ve
+  // forma parte del nombre accesible (WCAG 2.5.3), y no solo el label.
+  const labelId = useContext(FieldContext)?.labelId;
   const [cursor, setCursor] = useState(() => {
     const base = value ? new Date(`${value}T00:00:00`) : new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);
@@ -70,7 +73,8 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
         type="button"
         id={control.id}
         aria-invalid={control["aria-invalid"]}
-        aria-describedby={[control["aria-describedby"], valorId].filter(Boolean).join(" ")}
+        aria-labelledby={labelId ? `${labelId} ${valorId}` : undefined}
+        aria-describedby={control["aria-describedby"]}
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((o) => !o)}
@@ -79,7 +83,7 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
           "transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard",
           "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25",
           "aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:ring-destructive/25",
-          value ? "text-foreground" : "text-muted-foreground/80",
+          value ? "text-foreground" : "text-muted-foreground",
         )}
       >
         <span id={valorId} className="truncate">{value ? formatFecha(value) : placeholder}</span>
@@ -142,7 +146,7 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
                         !disabled && !enMes
                           ? "text-muted-foreground/30 hover:text-muted-foreground/60"
                           : esElegido
-                            ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                            ? "bg-primary text-primary-foreground"
                             : esHoy
                               ? "border border-primary/50 text-primary"
                               : !disabled

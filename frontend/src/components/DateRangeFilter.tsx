@@ -70,7 +70,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
         onClick={() => setOpen((o) => !o)}
         aria-label="Filtrar por rango de fechas"
         className={`flex-none w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-[1.08] active:scale-[0.94] ${
-          activo ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" : "bg-muted text-muted-foreground hover:text-foreground"
+          activo ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
         }`}
       >
         <CalendarDays size={15} />
@@ -81,7 +81,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
           {/* Cola de la burbuja */}
           <div className="absolute -top-1.5 right-4 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
 
-          <div className="relative bg-card border border-border rounded-2xl shadow-xl shadow-black/40 p-4">
+          <div className="relative bg-card border border-border rounded-2xl shadow-overlay p-4">
             <div className="flex items-center justify-between mb-3">
               <button
                 onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
@@ -104,13 +104,13 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
 
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className={`rounded-xl px-3 py-1.5 border transition-colors duration-300 ${draftDesde ? "border-primary/40 bg-primary/10" : "border-border bg-muted"}`}>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Desde</p>
+                <p className="text-2xs font-bold text-muted-foreground uppercase tracking-wider">Desde</p>
                 <p className={`text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-300 ${draftDesde ? "text-primary" : "text-muted-foreground"}`}>
                   {draftDesde ? formatCorto(draftDesde) : "Elegí un día"}
                 </p>
               </div>
               <div className={`rounded-xl px-3 py-1.5 border transition-colors duration-300 ${draftHasta ? "border-primary/40 bg-primary/10" : "border-border bg-muted"}`}>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Hasta</p>
+                <p className="text-2xs font-bold text-muted-foreground uppercase tracking-wider">Hasta</p>
                 <p className={`text-xs font-bold whitespace-nowrap overflow-hidden text-ellipsis transition-colors duration-300 ${draftHasta ? "text-primary" : "text-muted-foreground"}`}>
                   {draftHasta ? formatCorto(draftHasta) : "Opcional"}
                 </p>
@@ -119,7 +119,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
 
             <div className="grid grid-cols-7 gap-y-1 mb-1">
               {DIAS.map((d, i) => (
-                <div key={i} className="text-center text-[10px] font-bold text-muted-foreground">
+                <div key={i} className="text-center text-2xs font-bold text-muted-foreground">
                   {d}
                 </div>
               ))}
@@ -143,7 +143,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
                         !enMes
                           ? "text-muted-foreground/30 hover:text-muted-foreground/60"
                           : esPunta
-                            ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                            ? "bg-primary text-primary-foreground"
                             : esHoy
                               ? "border border-primary/50 text-primary"
                               : "text-foreground hover:bg-muted"

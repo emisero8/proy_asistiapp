@@ -118,8 +118,8 @@ export function AppShell({ nav, mobileNav, usuario, onLogout }: AppShellProps) {
                   isActive ? "bg-primary/10" : "hover:bg-muted",
                 )
               }
-              aria-label={`Mi perfil — ${usuario.nombre}`}
             >
+              <span className="sr-only">Mi perfil: </span>
               {bloqueUsuario}
             </NavLink>
           ) : (

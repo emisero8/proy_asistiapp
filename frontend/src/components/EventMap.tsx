@@ -6,8 +6,8 @@ import { useDismiss } from "../lib/useDismiss";
 
 // ── Pin SVG personalizado (evita los problemas de rutas de PNG con bundlers) ──
 const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
-  <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24S24 21 24 12C24 5.373 18.627 0 12 0z" fill="#6366f1"/>
-  <circle cx="12" cy="12" r="5" fill="white"/>
+  <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24S24 21 24 12C24 5.373 18.627 0 12 0z" style="fill: var(--accent)"/>
+  <circle cx="12" cy="12" r="5" style="fill: var(--accent-foreground)"/>
 </svg>`;
 
 const PIN_ICON = L.divIcon({
@@ -243,7 +243,7 @@ export function MapPicker({
             autoComplete="off"
             required
             aria-describedby="venue-ayuda"
-            className="h-11 w-full rounded-xl border border-border-strong bg-card pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
+            className="h-11 w-full rounded-xl border border-border-strong bg-card pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
           />
           {buscando && (
             <Loader2
@@ -255,10 +255,10 @@ export function MapPicker({
             <button
               type="button"
               onClick={quitarUbicacion}
-              className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-1.5 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Limpiar dirección"
             >
-              <X size={15} />
+              <X size={15} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -354,34 +354,35 @@ export function MapView({ coords, lugar, alto = "h-52" }: { coords: Coords; luga
 
   return (
     <div>
-      {/* El mapa completo es clickeable y abre Google Maps */}
-      <a
-        href={mapsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={lugar ? `Ver ${lugar} en Google Maps y obtener indicaciones` : "Ver en Google Maps y obtener indicaciones"}
-        className="group block relative"
-      >
-        <div
-          ref={mapEl}
-          className={`w-full ${alto} rounded-xl overflow-hidden border border-border z-0 cursor-pointer`}
-        />
-        {/* Overlay tooltip al hacer hover */}
-        <div className="absolute inset-0 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[400]">
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-semibold shadow-lg">
+      {/* El mapa completo es clickeable con el mouse. Para teclado y lectores de pantalla es
+          decorativo: el mismo destino lo ofrece "Cómo llegar" (antes había dos links iguales). */}
+      <div className="group relative">
+        <div ref={mapEl} className={`w-full ${alto} z-0 overflow-hidden rounded-xl border border-border`} />
+        {/* Capa clickeable encima del mapa (solo mouse: para teclado y lectores está "Cómo llegar").
+            Va por debajo de los controles de Leaflet (z 800), así la atribución sigue accesible. */}
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="absolute inset-0 z-[450] flex items-center justify-center rounded-xl"
+        >
+          <span className="flex items-center gap-1.5 rounded-lg bg-black/70 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-overlay backdrop-blur-sm transition-opacity group-hover:opacity-100">
             <Navigation size={12} />
             Abrir en Google Maps
           </span>
-        </div>
-      </a>
+        </a>
+      </div>
       <a
         href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
       >
-        <Navigation size={13} />
+        <Navigation size={13} aria-hidden="true" />
         Cómo llegar
+        <span className="sr-only">{lugar ? ` a ${lugar}` : ""} (abre Google Maps)</span>
       </a>
     </div>
   );

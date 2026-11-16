@@ -49,8 +49,8 @@ Contraste como texto: entre 5,0:1 y 9,8:1 sobre `background` y `card` en los dos
 
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
-| `success` | `#24683f` | `#6fcf97` | Válido, pagada, activo, crédito acreditado. |
-| `warning` | `#8a5000` | `#f0b44c` | Borrador, pendiente, "ya usada", cerca del límite. |
+| `success` | `#215f3a` | `#6fcf97` | Válido, pagada, activo, crédito acreditado. |
+| `warning` | `#7a4600` | `#f0b44c` | Borrador, pendiente, "ya usada", cerca del límite. |
 | `destructive` | `#772238` | `#e5788a` | Error, cancelar, eliminar, suspendido. |
 | `info` | = `primary` | = `primary` | Avisos informativos (sin agregar un tono nuevo). |
 
@@ -59,7 +59,7 @@ Cada uno tiene su `-foreground` para cuando se usa como **relleno sólido** (`bg
 - **Fondo suave (badges, avisos):** `bg-success/12 text-success` (+ `border-success/25` si lleva borde).
 - **Relleno sólido:** `bg-destructive text-destructive-foreground`. **Nunca `text-white`** sobre un relleno semántico: en modo oscuro los rellenos son pasteles y el texto va oscuro.
 
-> Las clases literales de Tailwind (`text-emerald-400`, `bg-red-400/15`, `text-amber-400`, `text-violet-400`…) **ya no se usan** para estados: no se adaptan al tema y en modo claro daban 1,6–1,9:1 de contraste. Las pantallas que todavía las tienen se migran en las sub-fases 13.4–13.8. **Excepción:** el overlay del Scanner (siempre negro, independiente del tema) puede usar tonos fijos — se define en 13.8.
+> Las clases literales de Tailwind (`text-emerald-400`, `bg-red-400/15`, `text-amber-400`, `text-violet-400`…) **ya no se usan** para estados: no se adaptan al tema y en modo claro daban 1,6–1,9:1 de contraste. Desde 13.9 no queda ninguna en la app. **Excepciones:** el Scanner y el panel de marca de los accesos (siempre oscuros, ver abajo y "Scanner del Staff QR").
 
 ### Superficies y neutros
 
@@ -86,7 +86,7 @@ De la más baja a la más alta — cada nivel tiene que distinguirse del anterio
 
 ### Excepción documentada
 
-El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, recupero) es **siempre oscuro, independiente del tema**: usa hex literal (`#09090b` + acentos `#9cadd3`) a propósito, centralizado en `components/AuthLayout.tsx` (constantes `MARCA_FONDO`/`MARCA_ACENTO`) — no se repite en cada pantalla.
+El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, recupero) es **siempre oscuro, independiente del tema**: usa hex literal (`#09090b` + acentos `#9cadd3`) a propósito, centralizado en `components/AuthLayout.tsx` (constantes `MARCA_FONDO`/`MARCA_ACENTO`); las pantallas destacan una palabra del título con `<MarcaAcento>`, nunca con el hex.
 
 ---
 
@@ -121,7 +121,7 @@ El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, 
 | Precio | `font-bold text-accent` (listado) / `font-extrabold text-foreground` (totales) | |
 | Código | `font-mono tracking-wider` | |
 
-- **No usar `text-[9px]` ni `text-[10px]`** (ilegibles, sobre todo en mayúsculas con tracking). `text-2xs` (11 px) es el mínimo; las pantallas existentes se migran en 13.4–13.8.
+- **No usar `text-[9px]` ni `text-[10px]`** (ilegibles, sobre todo en mayúsculas con tracking). `text-2xs` (11 px) es el mínimo (desde 13.9 no queda ningún `text-[Npx]` en la app).
 - **Pesos con intención:** `extrabold` solo para el título de página y cifras protagonistas; `bold` secciones; `semibold` títulos de tarjeta y botones; el resto `normal`/`medium`. Si todo es `extrabold`, nada resalta.
 - La capa base de `theme.css` ya da a `h1–h4` el tamaño y peso de esta escala (útil para componentes nuevos); las clases explícitas la pisan.
 
@@ -134,7 +134,7 @@ El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, 
 - Separación entre secciones: `space-y-6` (o `gap-6`); dentro de una tarjeta, `space-y-3`/`space-y-4`.
 - Padding de tarjeta: `p-4` (compacta) / `p-5` (estándar).
 - **Responsive real:** toda pantalla define `md:`/`lg:` desde el principio. Layout establecido: sidebar fija de **208 px** (`w-52`) en desktop para Organizador y Admin, barra inferior en mobile; pantallas de detalle/checkout en dos columnas con panel sticky en desktop.
-- **Ancho de contenido:** formularios `max-w-2xl`, paneles con métricas/tablas `max-w-6xl`, listados públicos `max-w-[1400px]`. Entre `md` y `lg` (tablet) el contenido usa el ancho disponible — no se queda en `max-w-md` con el sidebar ya visible (se corrige en 13.6).
+- **Ancho de contenido:** formularios `max-w-2xl`, paneles con métricas/tablas `max-w-6xl`, listados públicos `max-w-[1400px]`. Entre `md` y `lg` (tablet) el contenido usa el ancho disponible — nunca `max-w-md` con el sidebar ya visible.
 - Al pie de un contenedor con barra fija inferior, dejar espacio (`pb-32 lg:pb-0`) para que el contenido no quede tapado.
 
 ### Estructuras de pantalla
@@ -146,7 +146,7 @@ El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, 
 | `PublicHeader` (`components/PublicHeader.tsx`) | `/eventos` y flujo de compra: detalle, checkout, resultado del pago, mi entrada (la Home tiene su propio header, transparente sobre el hero) | Header sticky: "Volver" (atrás si hay historial en la app, si no a `/eventos`), logo, link a Eventos y tema. |
 | `AnimatedOutlet` (`components/AnimatedOutlet.tsx`) | Dentro de cada layout | Transición de página, `Suspense` y `RouteErrorBoundary` por ruta: si una pantalla falla, el shell sigue funcionando. |
 
-- **Nada flota sobre el contenido.** Tema, campanita y "Salir" viven en el header de cada estructura (el toggle flotante transitorio se eliminó en 13.8).
+- **Nada flota sobre el contenido.** Tema, campanita y "Salir" viven en el header de cada estructura
 - **Compra en dos columnas:** en desktop, contenido a la izquierda y panel de compra/resumen sticky a la derecha (`lg:grid-cols-[minmax(0,1fr)_360px]`); en mobile, la misma acción en `StickyActionBar` y el resumen visible arriba del formulario.
 - **Peso del bundle inicial:** los módulos que se cargan siempre (`App.tsx`, `ThemeToggle`, `RouteErrorBoundary`, `AnimatedOutlet`) importan componentes desde su archivo (`./ui/Button`), **no** desde el barrel `components/ui` — el barrel arrastraría todos los componentes a la carga inicial. Las pantallas (lazy) sí usan el barrel.
 - **Errores de render:** `RouteErrorBoundary` evita la pantalla en blanco. Un chunk que no carga (versión nueva desplegada) recarga sola una vez y, si persiste, ofrece "Recargar".
@@ -174,7 +174,7 @@ Las tarjetas **no llevan sombra por defecto**: el borde y el contraste de superf
 | `shadow-overlay` | Menús, popovers, calendario, campanita. |
 | `shadow-modal` | Diálogos. |
 
-**Sin sombras de color** (`shadow-primary/30` y similares, "glow"): se retiran de las pantallas en 13.4–13.8.
+**Sin sombras de color** (`shadow-primary/30` y similares, "glow") ni sombras ad hoc (`shadow-xl shadow-black/40`): solo las tres elevaciones de arriba.
 
 ## Movimiento
 
@@ -282,7 +282,7 @@ En código se usa `<Button variant size loading>` / `<IconButton label>` de `com
 ```
 - **Todo `<label>` va conectado** (`htmlFor` + `id`). Todo campo de datos personales lleva `autoComplete` (`name`, `email`, `current-password`, `new-password`).
 - **Ayuda y error:** con `<Field hint error>`, el error **reemplaza** a la ayuda mientras exista (no se muestran los dos: suelen decir lo mismo). Validar al salir del campo o al enviar, no mientras se escribe; al enviar con errores, llevar el foco al primer campo inválido (ver `organizador/RegisterPage`).
-- **Placeholders:** solo como ejemplo de formato ("maria@ejemplo.com"), nunca en lugar del label. Se muestran al 60 % de `muted-foreground` para que no se confundan con un valor ya cargado.
+- **Placeholders:** solo como ejemplo de formato ("maria@ejemplo.com"), nunca en lugar del label. Van en `muted-foreground` completo (≥ 6:1): en 13.4 se habían bajado al 60 % para que no parecieran un valor cargado, pero así no llegaban a 4,5:1 (lo marcó axe en 13.9). El valor cargado se distingue igual: va en `foreground`, casi negro.
 - **Contraseñas:** `<PasswordInput>` (mostrar/ocultar con `aria-pressed`, alcanzable con teclado).
 - Textarea: mismas clases sin `h-11`, con `py-3 resize-none`.
 - Select: `<select>` **nativo** estilado como input + `appearance-none` + chevron (es lo más usable en mobile).

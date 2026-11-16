@@ -152,7 +152,7 @@ function Dialogo({ pendiente, onCerrar }: { pendiente: Pendiente; onCerrar: () =
         aria-modal="true"
         aria-labelledby={tituloId}
         aria-describedby={opciones.mensaje ? mensajeId : undefined}
-        className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-2xl shadow-black/40 p-5 animate-fade-in-up"
+        className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-modal p-5 animate-fade-in-up"
       >
         <form onSubmit={enviar} noValidate>
           <div className="flex items-start gap-3">

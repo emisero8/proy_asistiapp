@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { BadgeCheck, Gift, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
-import { AuthHeader, AuthLayout, type AuthBrand } from "../../components/AuthLayout";
+import { AuthHeader, AuthLayout, type AuthBrand, MarcaAcento } from "../../components/AuthLayout";
 import { Alert, Button, Checkbox, Field, Input, PasswordInput } from "../../components/ui";
 import type { AuthResponseDTO, MovimientoCreditoResponseDTO, RegisterRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -11,7 +11,7 @@ import { useDocumentTitle } from "../../lib/useDocumentTitle";
 const MARCA: AuthBrand = {
   title: (
     <>
-      Vendé entradas <span className="text-[#9cadd3]">sin comisión</span> y con todo bajo control
+      Vendé entradas <MarcaAcento>sin comisión</MarcaAcento> y con todo bajo control
     </>
   ),
   description: "Publicá tu evento, vendé online o en la puerta y validá cada entrada con QR — todo desde un mismo panel.",

@@ -1,8 +1,8 @@
-import { useId, useRef, useState } from "react";
+import { useContext, useId, useRef, useState } from "react";
 import { Clock } from "lucide-react";
 import { useDismiss } from "../lib/useDismiss";
 import { cn } from "../lib/cn";
-import { useFieldControl } from "./ui/fieldContext";
+import { FieldContext, useFieldControl } from "./ui/fieldContext";
 
 const HORAS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTOS = ["00", "15", "30", "45"];
@@ -24,6 +24,9 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
   // Dentro de un <Field>: toma su id (el label apunta a este botón), la ayuda/el error y aria-invalid.
   const control = useFieldControl<{ id?: string; "aria-describedby"?: string; "aria-invalid"?: boolean }>({});
   const valorId = useId();
+  // Nombre = label del Field + valor visible ("Venta desde, Elegí una fecha"): así el texto que se ve
+  // forma parte del nombre accesible (WCAG 2.5.3), y no solo el label.
+  const labelId = useContext(FieldContext)?.labelId;
   const ref = useRef<HTMLDivElement>(null);
   const [hh, mm] = value ? value.split(":") : ["", ""];
 
@@ -55,7 +58,8 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
         type="button"
         id={control.id}
         aria-invalid={control["aria-invalid"]}
-        aria-describedby={[control["aria-describedby"], valorId].filter(Boolean).join(" ")}
+        aria-labelledby={labelId ? `${labelId} ${valorId}` : undefined}
+        aria-describedby={control["aria-describedby"]}
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((o) => !o)}
@@ -64,7 +68,7 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
           "transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard",
           "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25",
           "aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:ring-destructive/25",
-          value ? "text-foreground" : "text-muted-foreground/80",
+          value ? "text-foreground" : "text-muted-foreground",
         )}
       >
         <span id={valorId} className="truncate">{value ? `${hh}:${mm} hs` : placeholder}</span>

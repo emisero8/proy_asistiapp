@@ -339,7 +339,9 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 
 ---
 
-## Fase 13: Evolución visual profesional del frontend (rama `redesign-frontend`)
+## Fase 13: Evolución visual profesional del frontend (rama `redesign-frontend`) ✅
+
+> **Estado (2026-11-16):** sub-fases 13.0–13.9 terminadas y commiteadas, y los 6 bugs de 13.B resueltos (más 4 arreglos funcionales encontrados en el camino, cada uno en su commit). **Pendiente de la verificación general:** una compra end-to-end real con MercadoPago sandbox (requiere sembrar un evento publicado y el túnel de ngrok; ver CLAUDE.md). La rama no está pusheada ni mergeada a `master`.
 
 **Objetivo:** llevar la UI de "buena base" a producto comercial — consistente, accesible y con feedback en cada interacción — **sin rediseñar desde cero, sin tocar el backend y sin cambiar ningún contrato de API** (`lib/api.ts` y `lib/types.ts` no cambian endpoints, DTOs ni bodies). Sale de una auditoría completa del frontend (2026-11-16) que encontró problemas globales de interacción (botones sin `cursor: pointer`, foco invisible, remontaje de layouts en cada navegación), colores de estado que no cumplen contraste en modo claro, ausencia de componentes compartidos (cada página reinterpreta botón/input/badge/menú) y 6 bugs funcionales de frontend.
 
@@ -503,8 +505,30 @@ Scanner (marco de teléfono conservado en desktop, `h-dvh` en mobile, resultado 
 - **Verificación** (Playwright, build de producción; sesiones de Staff simuladas y todas las respuestas interceptadas en el navegador —crear staff real exige un evento publicado, que después no se puede borrar—; cámara simulada de Chromium): POS y Scanner en **390/820/1440 × claro/oscuro**, venta de 2 entradas → éxito, resultado válido e inválido, anuncio leído ("Entrada inválida. Esta entrada ya fue usada…"), sin scroll horizontal y sin toggle flotante. Únicos errores de consola: los 409 provocados a propósito para el caso "entrada ya usada".
 - Build: CSS 80,9 → **79,6 kB**; JS de carga inicial 294,0 → **292,4 kB** (sale el toggle flotante).
 
-### 13.9 — Cierre
+### 13.9 — Cierre ✅
 Pasada de accesibilidad y contraste en ambos temas, comparación de bundle/CSS contra la línea base, `DESIGN.md` final.
+
+**Resultado:**
+- **Auditoría automática con axe-core** (WCAG 2.0/2.1/2.2 A y AA; `@axe-core/playwright` instalado con `--no-save` y desinstalado al terminar) sobre las **21 rutas** de la app × 390/1440 px × claro/oscuro = 84 análisis, con el build de producción. Primera pasada: 42 nodos con problemas en 3 reglas; **después de los arreglos: 0 violaciones**. Lo que se corrigió:
+  - *Nombre accesible sin el texto visible (WCAG 2.5.3):* el link al perfil del sidebar (`aria-label` "Mi perfil — X" que no incluía "Organizador"), los botones de `DatePicker`/`TimePicker` (se nombraban solo con el label; ahora label + valor: "Venta desde, Elegí una fecha", con el nuevo `labelId` del contexto de `Field`) y el mapa (dos links al mismo destino: el mapa pasa a ser una capa solo para mouse y "Cómo llegar" lleva el nombre completo).
+  - *Contraste:* el badge "Publicado" daba 4,49:1 sobre el fondo crema → `--success` claro `#24683f → #215f3a` (5,06:1) y, por el mismo motivo, `--warning` claro `#8a5000 → #7a4600` (badge 4,36 → 5,00:1). Placeholders y el texto vacío de los pickers ("Elegí una fecha") pasan a `muted-foreground` completo (estaban al 60–80 %: ~4,3:1). *Revierte la decisión de 13.4* de atenuarlos (ver `DECISIONES.md`).
+  - *Tamaño de toque (WCAG 2.5.8):* la "X" para limpiar la dirección medía 15 px → 32 px.
+- **Barrido de lo que `DESIGN.md` prohíbe:** no queda ningún color literal de Tailwind para estados ni `text-[9|10|11px]` en la app (los últimos estaban en el calendario de rango de `/eventos`); el pin del mapa era violeta `#6366f1` (fuera de la paleta) → `--accent`; las tres pantallas de acceso repetían el hex `#9cadd3` → `<MarcaAcento>` de `AuthLayout`; sin "glow" (`shadow-primary/30`) ni sombras ad hoc en los calendarios y diálogos → `shadow-overlay`/`shadow-modal`.
+- **`DESIGN.md` final:** sin referencias a sub-fases pendientes; documenta tablas responsive, feedback de acciones, links con aspecto de botón (`claseBoton`), `danger-subtle`, los roles de color, las dos excepciones de tonos fijos (panel de marca y Scanner) y el nombre accesible de los pickers.
+- **Verificación visual** de lo tocado en el cierre (crear evento, detalle con mapa, calendario de rango; claro/oscuro): 0 errores de consola. Datos: un organizador de prueba creado y eliminado al terminar (la base quedó solo con el admin).
+
+**Comparación contra la línea base** (`rediseno-inicio`, buildeado en un worktree temporal y medido igual):
+
+| | Línea base | Fin de la Fase 13 |
+|---|---|---|
+| Lint | 0 errores / 4 warnings | 0 errores / las mismas 4 warnings |
+| Tests | 13 archivos / 124 | **31 archivos / 209** |
+| CSS principal | 91,2 kB | **77,4 kB** (−15 %) |
+| CSS total (incl. Leaflet) | 106,3 kB | 94,0 kB |
+| JS de carga inicial | 285,6 kB | 292,4 kB (+2,4 %) |
+| `dist/` | 4,5 MB | **2,7 MB** (sin las imágenes duplicadas de `public/`) |
+
+Los +6,8 kB de JS inicial son lo que se decidió poner en la primera carga: el *error boundary* (antes un chunk que no cargaba dejaba la app en blanco), `AnimatedOutlet` y el `Button` compartido; el resto de `components/ui` va en los chunks de cada pantalla.
 
 ### 13.B — Bugs funcionales detectados en la auditoría (commits separados, no mezclados con lo visual)
 1. ✅ **Wizard duplica tandas al reintentar:** `handlePublicar` crea las tandas una por una y después publica; si algo falla a mitad de camino, el reintento vuelve a crear las ya creadas (`WizardPage.tsx`, loop de `POST /eventos/{id}/tandas`). Arreglado en un commit propio al inicio de 13.6: el Wizard recuerda qué tandas ya creó en el borrador (id local → id del backend + lo enviado); al reintentar no las vuelve a crear, actualiza (`PUT`) las que el organizador cambió y borra (`DELETE`) las que sacó de la lista — endpoints que ya usaba `EditEventPage`, sin cambios de contrato.

@@ -2,6 +2,8 @@ import { createContext, useContext } from "react";
 
 export interface FieldContextValue {
   id: string;
+  /** id del <label>: los controles que no son inputs nativos (DatePicker) lo usan en aria-labelledby. */
+  labelId: string;
   describedBy?: string;
   invalid: boolean;
   required?: boolean;
