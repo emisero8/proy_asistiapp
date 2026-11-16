@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate } from "react-router";
 import { Sparkles, Ticket, TrendingUp, ShieldCheck, Pencil, ExternalLink, Ban, Plus, ChevronRight, Search, Wallet, CircleDollarSign, CalendarDays, type LucideIcon } from "lucide-react";
@@ -62,6 +62,10 @@ export function OrganizadorDashboardPage() {
   const [busqueda, setBusqueda] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<"todos" | EstadoEvento>("todos");
 
+  // Si el panel ya cargó una vez, un fallo del refresco de fondo no lo tapa con el error:
+  // se siguen mostrando los últimos datos y el próximo refresco vuelve a intentar.
+  const yaCargoRef = useRef(false);
+
   function cargar() {
     // Dos llamadas en paralelo: la lista (para "Mis eventos") y el resumen calculado en el backend
     Promise.all([
@@ -69,10 +73,15 @@ export function OrganizadorDashboardPage() {
       api.get<ResumenOrganizadorResponseDTO>("/eventos/resumen").catch(() => null),
     ])
       .then(([lista, resumenApi]) => {
+        yaCargoRef.current = true;
+        setError(null);
         setEventos(lista);
         setResumenGeneral(resumenApi);
       })
-      .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar tu panel."));
+      .catch((e: unknown) => {
+        if (yaCargoRef.current) return;
+        setError(e instanceof ApiError ? e.message : "No pudimos cargar tu panel.");
+      });
   }
 
   useEffect(cargar, []);

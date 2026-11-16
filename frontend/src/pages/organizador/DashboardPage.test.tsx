@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -129,5 +129,48 @@ describe("OrganizadorDashboardPage — métricas", () => {
     expect(api.get).not.toHaveBeenCalledWith(expect.stringMatching(/\/eventos\/\d+\/metricas/));
     expect(screen.getByText("8")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
+  });
+});
+
+describe("OrganizadorDashboardPage — refresco de fondo (bug 2)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("un fallo del refresco no tapa el panel ya cargado", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderDashboard();
+    expect(await screen.findByText("Recital de rock")).toBeInTheDocument();
+
+    vi.mocked(api.get).mockClear();
+    vi.mocked(api.get).mockRejectedValue(new Error("Failed to fetch"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+    // El refresco se hizo y falló; se deja asentar la promesa rechazada antes de mirar.
+    expect(api.get).toHaveBeenCalledWith("/eventos");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+
+    expect(screen.getByText("Recital de rock")).toBeInTheDocument();
+    expect(screen.queryByText("No pudimos cargar tu panel.")).not.toBeInTheDocument();
+  });
+
+  it("si la primera carga falla, el refresco siguiente se recupera y saca el error", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(api.get).mockRejectedValue(new Error("Failed to fetch"));
+    renderDashboard();
+    expect(await screen.findByText("No pudimos cargar tu panel.")).toBeInTheDocument();
+
+    vi.mocked(api.get).mockImplementation(async (path: string) => {
+      if (path === "/eventos") return LISTA;
+      if (path === "/eventos/resumen") return RESUMEN;
+      return undefined;
+    });
+    await vi.advanceTimersByTimeAsync(20000);
+
+    expect(await screen.findByText("Recital de rock")).toBeInTheDocument();
+    expect(screen.queryByText("No pudimos cargar tu panel.")).not.toBeInTheDocument();
   });
 });
