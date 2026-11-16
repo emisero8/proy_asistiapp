@@ -437,7 +437,7 @@ Pasada de accesibilidad y contraste en ambos temas, comparación de bundle/CSS c
 1. **Wizard duplica tandas al reintentar:** `handlePublicar` crea las tandas una por una y después publica; si algo falla a mitad de camino, el reintento vuelve a crear las ya creadas (`WizardPage.tsx`, loop de `POST /eventos/{id}/tandas`).
 2. **Dashboard del organizador queda en error para siempre:** un fallo puntual del refresco de 20 s setea `error` y nunca se limpia, ocultando todo el panel (`DashboardPage.tsx`, `cargar()`).
 3. **Resultado del pago deja de consultar en silencio:** tras 8 reintentos (~20 s) frena el polling pero sigue diciendo "se actualiza sola" (`PagoResultadoPage.tsx`).
-4. **Detalle de evento sin tandas:** skeleton infinito (`DetailPage.tsx`, condición `!evento || !sel`).
+4. ✅ **Detalle de evento sin tandas:** skeleton infinito (`DetailPage.tsx`, condición `!evento || !sel`). Arreglado en un commit propio al inicio de 13.4: se muestra que no hay entradas a la venta, con link a otros eventos.
 5. ✅ **Admin, "Ver Perfil" lleva al dashboard** (`AdminLayout.tsx`). Arreglado en un commit propio antes de 13.3: sin pantalla de perfil de Admin, el bloque pasa a ser solo informativo (nombre + rol).
 6. **Wizard, pantalla de éxito con la fecha cruda** (`2026-12-01` en vez de `formatFecha`).
 

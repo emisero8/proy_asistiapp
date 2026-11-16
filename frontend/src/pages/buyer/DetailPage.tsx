@@ -37,6 +37,20 @@ export function DetailPage() {
     );
   }
 
+  // Un evento sin tandas cargadas no tiene nada para vender: antes `!sel` lo dejaba en el
+  // skeleton de carga para siempre.
+  if (evento && evento.tandas.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background p-8 text-center">
+        <p className="text-lg font-extrabold text-foreground">{evento.nombre}</p>
+        <p className="text-sm text-muted-foreground">Este evento todavía no tiene entradas a la venta.</p>
+        <button onClick={() => navigate("/eventos")} className="text-primary text-sm font-semibold">
+          Ver otros eventos
+        </button>
+      </div>
+    );
+  }
+
   if (!evento || !sel) {
     return (
       <div className="min-h-screen bg-background">
