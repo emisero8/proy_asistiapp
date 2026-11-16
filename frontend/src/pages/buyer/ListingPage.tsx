@@ -1,12 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, NavLink } from "react-router";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, NavLink, useNavigate } from "react-router";
 import {
   ArrowRight,
   Calendar,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   LogIn,
+  Menu as MenuIcon,
+  Search,
+  X,
   ShieldCheck,
   Sparkles,
   Ticket,
@@ -17,6 +21,7 @@ import {
   CalendarSearch,
 } from "lucide-react";
 import { EventCard, EventCardSkeleton } from "../../components/EventCard";
+import { DateRangeFilter } from "../../components/DateRangeFilter";
 import { SupportContactLine } from "../../components/SupportContactLine";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { EmptyState, ErrorState, IconButton } from "../../components/ui";
@@ -25,6 +30,25 @@ import { cn } from "../../lib/cn";
 import { fmt, hoyLocal } from "../../lib/format";
 import { comportamientoScroll } from "../../lib/motion";
 import type { EstadisticasPublicasResponseDTO, EventoPublicoListItemDTO, PaqueteCreditoDisponibleDTO } from "../../lib/types";
+
+/** Opciones del selector "Cuándo" del hero. Todas se resuelven a un rango de fechas (desde/hasta). */
+type CuandoKey = "todos" | "hoy" | "semana" | "mes" | "rango";
+
+const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+/** "2026-11-20" → "20 nov". */
+function fechaCorta(iso: string): string {
+  const [, mes, dia] = iso.split("-");
+  return `${Number(dia)} ${MESES_CORTOS[Number(mes) - 1]}`;
+}
+/** Fecha local (hoy + `dias`) como "YYYY-MM-DD". */
+function isoSumar(dias: number): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + dias);
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const dia = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mes}-${dia}`;
+}
 
 /** Con hasta esta cantidad de eventos se muestra una sola grilla (un carrusel de 3 tarjetas se ve vacío). */
 const MAX_SOLO_GRILLA = 4;
@@ -64,6 +88,12 @@ const NAV_LINKS = [
   { label: "Precios", href: "#precios" },
 ];
 
+/** Link de nav con subrayado animado que crece desde la izquierda (como el prototipo). */
+const NAV_LINK_CLS =
+  "group relative inline-flex h-9 items-center px-2 text-sm transition-colors duration-(--duration-fast) " +
+  "after:pointer-events-none after:absolute after:inset-x-2 after:bottom-1.5 after:h-0.5 after:origin-left " +
+  "after:scale-x-0 after:bg-foreground after:transition-transform after:duration-300 hover:after:scale-x-100";
+
 export function ListingPage() {
   const [eventos, setEventos] = useState<EventoPublicoListItemDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +123,6 @@ export function ListingPage() {
 
   const ordenados = useMemo(() => [...(eventos ?? [])].sort((a, b) => a.fechaEvento.localeCompare(b.fechaEvento)), [eventos]);
   const hoyStr = useMemo(() => hoyLocal(), []);
-  const hayShowsHoy = ordenados.some((e) => e.fechaEvento === hoyStr);
 
   // Sin repetir eventos: antes "Destacados" eran los primeros 6 de la misma lista que la grilla
   // de abajo, así que esos 6 aparecían dos veces seguidas.
@@ -104,8 +133,25 @@ export function ListingPage() {
     ev.fechaEvento === hoyStr ? "Hoy" : i === 0 && ev === ordenados[0] ? "Próximo" : undefined;
 
   const nav = useNavCarrusel();
+  const navigate = useNavigate();
+
+  // Buscador del hero: navega a /eventos con los parámetros (rango de fechas), que la pantalla de catálogo lee y aplica.
+  const [heroQuery, setHeroQuery] = useState("");
+  const [heroDesde, setHeroDesde] = useState("");
+  const [heroHasta, setHeroHasta] = useState("");
+  const [heroCuandoKey, setHeroCuandoKey] = useState<CuandoKey>("todos");
+  function buscar(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (heroQuery.trim()) params.set("q", heroQuery.trim());
+    if (heroDesde) params.set("desde", heroDesde);
+    if (heroHasta) params.set("hasta", heroHasta);
+    const qs = params.toString();
+    navigate(qs ? `/eventos?${qs}` : "/eventos");
+  }
 
   const [scrolled, setScrolled] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();
@@ -119,101 +165,223 @@ export function ListingPage() {
       <header
         className={cn(
           "sticky top-0 z-40 border-b transition-[background-color,border-color] duration-(--duration-base)",
-          scrolled ? "border-border bg-background/90 backdrop-blur-md" : "border-transparent bg-transparent",
+          scrolled || menuOpen ? "border-border bg-background/95 backdrop-blur-md" : "border-transparent bg-transparent",
         )}
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 lg:px-8">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-6">
-            <Link to="/" className="flex-none rounded-md text-lg font-extrabold tracking-tight text-foreground">
-              Asistí<span className="text-primary">APP</span>
-            </Link>
-            <nav aria-label="Principal" className="flex items-center gap-1">
-              <NavLink
-                to="/eventos"
-                className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-semibold text-foreground transition-colors duration-(--duration-fast) hover:bg-muted"
+          <div className="flex min-w-0 items-center gap-2 lg:gap-6">
+            <Link
+              to="/"
+              onClick={() => window.scrollTo({ top: 0, behavior: comportamientoScroll() })}
+              aria-label="AsistíAPP — volver arriba"
+              className="group flex flex-none items-center gap-2 rounded-md text-lg font-extrabold tracking-tight text-foreground"
+            >
+              <svg
+                viewBox="0 0 30 20"
+                aria-hidden="true"
+                className="h-5 w-[30px] transition-transform duration-(--duration-base) ease-emphasized group-hover:-rotate-6 group-hover:scale-110 group-active:scale-95"
               >
+                <path
+                  d="M2 1h26a1 1 0 0 1 1 1v5a3 3 0 0 0 0 6v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-5a3 3 0 0 0 0-6V2a1 1 0 0 1 1-1z"
+                  fill="var(--accent)"
+                  stroke="var(--foreground)"
+                  strokeWidth="1.5"
+                />
+                <path d="M20 3v14" stroke="var(--foreground)" strokeWidth="1.5" strokeDasharray="2 2" />
+              </svg>
+              <span>
+                Asistí<span className="text-primary">APP</span>
+              </span>
+            </Link>
+            {/* Nav de escritorio */}
+            <nav aria-label="Principal" className="hidden items-center gap-1 lg:flex">
+              <NavLink to="/eventos" className={cn(NAV_LINK_CLS, "font-semibold text-foreground")}>
                 Eventos
               </NavLink>
               {NAV_LINKS.map((l) => (
-                <a
-                  key={l.label}
-                  href={l.href}
-                  className="hidden h-9 items-center rounded-xl px-3 text-sm text-muted-foreground transition-colors duration-(--duration-fast) hover:bg-muted hover:text-foreground lg:inline-flex"
-                >
+                <a key={l.label} href={l.href} className={cn(NAV_LINK_CLS, "font-medium text-muted-foreground hover:text-foreground")}>
                   {l.label}
                 </a>
               ))}
             </nav>
           </div>
           <div className="flex flex-none items-center gap-1 sm:gap-2">
+            {/* Acciones de escritorio */}
             <Link
               to="/organizador/login"
-              aria-label="Ingresar (organizadores)"
-              className="inline-flex size-9 items-center justify-center rounded-xl text-sm font-semibold text-foreground transition-colors duration-(--duration-fast) hover:bg-muted sm:w-auto sm:px-3"
+              className="hidden h-9 items-center rounded-xl px-3 text-sm font-semibold text-foreground transition-colors duration-(--duration-fast) hover:bg-muted active:scale-95 lg:inline-flex"
             >
-              <LogIn size={16} aria-hidden="true" className="sm:hidden" />
-              <span className="hidden sm:inline">Ingresar</span>
+              Ingresar
             </Link>
             <Link
               to="/organizador/registro"
-              className="inline-flex h-9 items-center rounded-xl bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors duration-(--duration-fast) hover:bg-primary/90 sm:px-4 sm:text-sm"
+              className="hidden h-9 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter,transform] duration-(--duration-fast) hover:brightness-110 active:scale-95 lg:inline-flex"
             >
-              <span className="sm:hidden">Organizador</span>
-              <span className="hidden sm:inline">Soy organizador</span>
+              Soy organizador
             </Link>
             <ThemeToggle />
+            {/* Botón hamburguesa (mobile/tablet) */}
+            <button
+              type="button"
+              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+              aria-expanded={menuOpen}
+              aria-controls="menu-mobile"
+              onClick={() => setMenuOpen((o) => !o)}
+              className="inline-flex size-9 items-center justify-center rounded-xl text-foreground transition-colors duration-(--duration-fast) hover:bg-muted active:scale-95 lg:hidden"
+            >
+              {menuOpen ? <X size={20} aria-hidden="true" /> : <MenuIcon size={20} aria-hidden="true" />}
+            </button>
           </div>
         </div>
+
+        {/* Menú desplegable (mobile/tablet) */}
+        {menuOpen && (
+          <nav id="menu-mobile" aria-label="Principal" className="border-t border-border bg-background lg:hidden">
+            <div className="mx-auto flex max-w-7xl flex-col px-4 py-3">
+              <NavLink
+                to="/eventos"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center justify-between rounded-xl px-3 py-3 text-base font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                Eventos
+                <ArrowRight size={16} aria-hidden="true" className="text-muted-foreground" />
+              </NavLink>
+              {NAV_LINKS.map((l) => (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="rounded-xl px-3 py-3 text-base font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  {l.label}
+                </a>
+              ))}
+              <div className="my-2 border-t border-border" />
+              <Link
+                to="/organizador/login"
+                onClick={() => setMenuOpen(false)}
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-3 text-base font-semibold text-foreground transition-colors hover:bg-muted"
+              >
+                <LogIn size={17} aria-hidden="true" />
+                Ingresar
+              </Link>
+              <Link
+                to="/organizador/registro"
+                onClick={() => setMenuOpen(false)}
+                className="mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-semibold text-primary-foreground shadow-hard-sm transition-[filter] duration-(--duration-fast) hover:brightness-110"
+              >
+                Soy organizador
+                <ArrowRight size={16} aria-hidden="true" />
+              </Link>
+            </div>
+          </nav>
+        )}
       </header>
 
       <main>
-        {/* Hero — el banner de entradas apenas difuminado, con degradé hacia el fondo para que el titular se lea */}
-        <section className="relative -mt-16 flex min-h-[60vh] items-center justify-center overflow-hidden px-4 pt-16">
-          <div className="absolute inset-0" aria-hidden="true">
-            <img src="/ticket2.webp" alt="" className="size-full scale-105 object-cover opacity-70 blur-[2px] dark:opacity-40" />
-            <div className="absolute inset-0 bg-gradient-to-b from-background/40 via-background/70 to-background" />
+        {/* Hero editorial — composición del prototipo: titular a la izquierda con raya + bloque lima,
+            sello rotativo, párrafo y buscador segmentado full-width. Fondo de tickets apenas visible. */}
+        <section className="relative -mt-16 border-b border-border px-4 pt-16 lg:px-8">
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+            <img
+              src="/ticket2.webp"
+              alt=""
+              className="size-full object-cover opacity-[0.12] blur-[1px] [mask-image:linear-gradient(180deg,#000_0%,#000_45%,transparent_92%)] dark:opacity-20"
+            />
           </div>
 
-          <div className="relative mx-auto flex max-w-3xl flex-col items-center py-16 text-center animate-fade-in-up">
-            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/80 px-3 py-1.5 text-2xs font-semibold uppercase tracking-[0.16em] text-foreground backdrop-blur-md">
-              <span aria-hidden="true" className="size-2 rounded-full bg-accent" />
-              {hayShowsHoy ? "Hay shows hoy" : "Entradas 100% digitales"}
-            </span>
-            <h1 className="mb-5 font-display text-4xl font-extrabold uppercase leading-[0.95] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Viví el show
-              <br />
-              <span className="text-secondary">en primera fila</span>
+          <div className="relative mx-auto max-w-7xl py-12 animate-fade-in-up lg:py-20">
+            <h1 className="font-display font-extrabold leading-[0.9] tracking-[-0.035em] text-foreground">
+              <span className="block text-[clamp(2.75rem,10vw,7.5rem)]">Salí a ver algo</span>
+              <span className="mt-1 flex items-center gap-3 text-[clamp(2.75rem,10vw,7.5rem)] lg:gap-6">
+                <span aria-hidden="true" className="h-[0.18em] min-w-8 flex-1 rounded-full bg-foreground" />
+                <span className="box-decoration-clone whitespace-nowrap bg-accent px-2 text-accent-foreground">en vivo.</span>
+              </span>
             </h1>
-            <p className="mb-8 max-w-md text-sm text-muted-foreground lg:text-base">
-              Encontrá los próximos recitales y fiestas, comprá tu entrada digital y entrá con un QR — sin filas, sin papel.
-            </p>
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <a
-                href="#eventos"
-                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-7 text-sm font-semibold text-primary-foreground transition-colors duration-(--duration-fast) hover:bg-primary/90 active:scale-[0.98]"
-              >
-                Ver eventos
-                <ArrowRight size={16} aria-hidden="true" />
-              </a>
-              <Link
-                to="/organizador/registro"
-                className="inline-flex h-12 items-center justify-center rounded-xl border border-border-strong bg-card/80 px-7 text-sm font-semibold text-foreground backdrop-blur-md transition-colors duration-(--duration-fast) hover:bg-card"
-              >
-                Publicá tu evento
-              </Link>
+
+            <div className="mt-8 grid items-end gap-6 lg:mt-10 lg:grid-cols-[1fr_auto]">
+              <p className="max-w-xl text-base text-muted-foreground lg:text-lg">
+                Recitales, partidos y obras de todo el país. <strong className="font-semibold text-foreground">Pagás con MercadoPago</strong> y entrás con el QR que te llega por mail.
+              </p>
+              {/* Sello rotativo */}
+              <div aria-hidden="true" className="relative hidden size-28 flex-none justify-self-end sm:block lg:size-32">
+                <svg viewBox="0 0 100 100" className="size-full animate-seal">
+                  <circle cx="50" cy="50" r="49" fill="var(--accent)" stroke="var(--foreground)" strokeWidth="0.75" />
+                  <defs>
+                    <path id="sello" d="M50,50 m-37,0 a37,37 0 1,1 74,0 a37,37 0 1,1 -74,0" />
+                  </defs>
+                  <text className="fill-[var(--accent-foreground)] font-mono text-[8.4px] font-semibold" style={{ letterSpacing: "1.6px" }}>
+                    <textPath href="#sello">ENTRADA DIGITAL · QR ÚNICO · PAGO SEGURO · </textPath>
+                  </text>
+                </svg>
+                <span className="absolute inset-[29%] grid place-items-center rounded-full bg-primary text-primary-foreground">
+                  <Ticket size={22} aria-hidden="true" />
+                </span>
+              </div>
             </div>
+
+            {/* Buscador segmentado: celda de búsqueda + cuándo + botón, líneas de 1px, sombra dura */}
+            <form
+              onSubmit={buscar}
+              role="search"
+              aria-label="Buscar eventos"
+              className="mt-10 grid w-full grid-cols-1 rounded-2xl border border-border-strong bg-card text-left shadow-hard sm:grid-cols-[1.7fr_1fr_auto]"
+            >
+              <div className="flex flex-col gap-0.5 rounded-t-2xl px-4 py-3 transition-colors duration-(--duration-fast) focus-within:bg-surface-sunken sm:rounded-t-none sm:rounded-l-2xl sm:border-r sm:border-border-strong">
+                <label htmlFor="hero-q" className="font-mono text-2xs uppercase tracking-[0.1em] text-muted-foreground">
+                  Evento o lugar
+                </label>
+                <input
+                  id="hero-q"
+                  type="search"
+                  value={heroQuery}
+                  onChange={(e) => setHeroQuery(e.target.value)}
+                  placeholder="Buscá un recital, fiesta o sede"
+                  className="w-full bg-transparent text-sm font-medium text-foreground outline-none placeholder:text-muted-foreground lg:text-base"
+                />
+              </div>
+              <HeroCuando
+                cuandoKey={heroCuandoKey}
+                desde={heroDesde}
+                hasta={heroHasta}
+                onChange={(k, d, h) => {
+                  setHeroCuandoKey(k);
+                  setHeroDesde(d);
+                  setHeroHasta(h);
+                }}
+              />
+              <button
+                type="submit"
+                className="group/btn flex items-center justify-center gap-2 rounded-b-2xl border-t border-border-strong bg-primary px-7 py-4 font-display text-sm font-bold text-primary-foreground transition-colors duration-(--duration-base) hover:bg-accent hover:text-accent-foreground active:translate-y-0.5 sm:rounded-b-none sm:rounded-r-2xl sm:border-l sm:border-t-0 lg:text-base"
+              >
+                <Search size={17} aria-hidden="true" className="transition-transform duration-(--duration-base) ease-emphasized group-hover/btn:-translate-y-px group-hover/btn:scale-110" />
+                Buscar entradas
+                <ArrowRight size={16} aria-hidden="true" className="w-0 -translate-x-1 opacity-0 transition-all duration-(--duration-base) ease-emphasized group-hover/btn:w-4 group-hover/btn:translate-x-0 group-hover/btn:opacity-100" />
+              </button>
+            </form>
+
+            <Link
+              to="/organizador/registro"
+              className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+            >
+              ¿Organizás eventos? Publicá el tuyo
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
           </div>
         </section>
 
-        {/* Ticker */}
-        <div className="overflow-hidden border-y border-border bg-card/60 py-2.5" aria-hidden="true">
+        {/* Ticker — misma paleta oscura que los tickets */}
+        <div
+          className="overflow-hidden border-y border-border bg-[var(--ticket-bg)] py-2.5 text-[var(--ticket-fg)]"
+          aria-hidden="true"
+        >
           <div className="flex w-max marquee-track">
             {[0, 1].map((copia) => (
               <div key={copia} className="flex flex-none items-center">
                 {TICKER_ITEMS.map((item) => (
                   <span
                     key={item}
-                    className="flex items-center gap-2 whitespace-nowrap px-6 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-foreground"
+                    className="flex items-center gap-2 whitespace-nowrap px-6 font-mono text-2xs font-medium uppercase tracking-[0.16em]"
                   >
                     <span className="text-accent">✦</span>
                     {item}
@@ -267,7 +435,7 @@ export function ListingPage() {
           {error && <ErrorState title="No pudimos cargar los eventos" description={error} onRetry={cargarEventos} />}
 
           {!error && eventos === null && (
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6" aria-busy="true">
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6" aria-busy="true">
               <span className="sr-only">Cargando eventos…</span>
               {[0, 1, 2, 3].map((i) => (
                 <EventCardSkeleton key={i} />
@@ -288,7 +456,7 @@ export function ListingPage() {
           {grilla.length > 0 && (
             <div className={cn(carrusel.length > 0 && "mt-12")}>
               {carrusel.length > 0 && <h3 className="mb-4 text-base font-bold text-foreground">Más eventos</h3>}
-              <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
+              <ul className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
                 {grilla.map((ev, i) => (
                   <li key={ev.id}>
                     <EventCard
@@ -317,20 +485,29 @@ export function ListingPage() {
           )}
         </section>
 
-        {/* Por qué comprar acá */}
-        <section aria-labelledby="ventajas-titulo" className="border-t border-border bg-card/40">
-          <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8 lg:py-16">
-            <h2 id="ventajas-titulo" className="mb-8 text-center font-display text-xl font-extrabold uppercase tracking-tight text-foreground lg:text-2xl">
-              Tu entrada, <span className="text-secondary">sin vueltas</span>
-            </h2>
-            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:gap-6">
-              {FEATURES.map((f) => (
-                <li key={f.title} className="rounded-2xl border border-border bg-card p-5">
-                  <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-secondary/12 text-secondary">
-                    <f.icon size={18} aria-hidden="true" />
-                  </span>
-                  <h3 className="mb-1 text-sm font-semibold text-foreground">{f.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+        {/* Por qué comprar acá — grilla arquitectónica de celdas con líneas de 1px */}
+        <section aria-labelledby="ventajas-titulo" className="border-t border-border">
+          <div className="mx-auto max-w-7xl px-4 py-14 lg:px-8 lg:py-20">
+            <div className="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border-strong pb-5">
+              <h2 id="ventajas-titulo" className="font-display text-3xl font-extrabold tracking-[-0.03em] text-foreground lg:text-4xl">
+                Tu entrada, <span className="text-secondary">sin vueltas</span>
+              </h2>
+              <p className="font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground">Para el que va al show</p>
+            </div>
+            <ul className="grid grid-cols-1 gap-5 sm:grid-cols-3 lg:gap-6">
+              {FEATURES.map((f, i) => (
+                <li
+                  key={f.title}
+                  className="rounded-2xl border border-foreground bg-card p-6 shadow-hard transition-transform duration-(--duration-base) ease-emphasized hover:-translate-y-1 lg:p-7"
+                >
+                  <div className="flex items-start justify-between">
+                    <span className="flex size-12 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
+                      <f.icon size={22} aria-hidden="true" />
+                    </span>
+                    <span className="font-mono text-2xl font-semibold tabular-nums text-border-strong">0{i + 1}</span>
+                  </div>
+                  <h3 className="mt-6 font-display text-lg font-extrabold tracking-tight text-foreground">{f.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
                 </li>
               ))}
             </ul>
@@ -338,60 +515,65 @@ export function ListingPage() {
         </section>
 
         {/* Para organizadores — marketing al pie, debajo del catálogo (que sigue siendo lo primero) */}
-        <section id="para-organizadores" aria-labelledby="org-titulo" className="scroll-mt-16 border-t border-border">
+        <section id="para-organizadores" aria-labelledby="org-titulo" className="scroll-mt-16 border-t border-border bg-surface-sunken">
           <div className="mx-auto max-w-7xl px-4 py-14 lg:px-8 lg:py-20">
-            <div className="mx-auto mb-10 max-w-xl text-center lg:mb-14">
-              <p className="mb-2 text-2xs font-semibold uppercase tracking-[0.16em] text-secondary">Para organizadores</p>
-              <h2 id="org-titulo" className="mb-3 font-display text-2xl font-extrabold uppercase tracking-tight text-foreground lg:text-3xl">
+            <div className="mb-10 max-w-2xl lg:mb-14">
+              <p className="mb-3 font-mono text-2xs font-semibold uppercase tracking-[0.16em] text-secondary">Para organizadores</p>
+              <h2 id="org-titulo" className="mb-3 font-display text-3xl font-extrabold tracking-[-0.03em] text-foreground lg:text-5xl">
                 Vendé entradas, <span className="text-secondary">sin comisión</span>
               </h2>
-              <p className="text-sm text-muted-foreground lg:text-base">
+              <p className="text-base text-muted-foreground lg:text-lg">
                 Publicá tu evento, vendé online o en la puerta y validá cada entrada con QR — todo desde un mismo panel.
               </p>
             </div>
 
             {/* Solo con números reales: un "0 · 0 · 0" en una página de marketing resta confianza. */}
             {stats && stats.eventosPublicados + stats.organizadoresActivos + stats.entradasVendidas > 0 && (
-              <dl className="mx-auto mb-12 grid max-w-2xl grid-cols-3 gap-3 sm:gap-4 lg:mb-16">
+              <dl className="mb-14 grid grid-cols-1 overflow-hidden rounded-2xl border border-foreground shadow-hard sm:grid-cols-3 sm:divide-x sm:divide-border-strong [&>div+div]:border-t [&>div+div]:border-border-strong sm:[&>div+div]:border-t-0 lg:mb-20">
                 {[
                   { icon: Calendar, value: stats.eventosPublicados, label: "Eventos publicados" },
                   { icon: Users, value: stats.organizadoresActivos, label: "Organizadores activos" },
                   { icon: Ticket, value: stats.entradasVendidas, label: "Entradas vendidas" },
                 ].map((s) => (
-                  <div key={s.label} className="rounded-2xl border border-border bg-card p-4 text-center sm:p-5">
-                    <s.icon size={18} aria-hidden="true" className="mx-auto mb-2 text-secondary" />
-                    <dd className="text-xl font-extrabold tabular-nums leading-none text-foreground sm:text-2xl lg:text-3xl">
+                  <div key={s.label} className="bg-card p-7 lg:p-8">
+                    <span className="flex size-10 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+                      <s.icon size={18} aria-hidden="true" />
+                    </span>
+                    <dd className="mt-5 font-display text-5xl font-extrabold tabular-nums leading-none text-foreground lg:text-6xl">
                       {s.value.toLocaleString("es-AR")}
                     </dd>
-                    <dt className="mt-1.5 text-xs leading-tight text-muted-foreground">{s.label}</dt>
+                    <dt className="mt-2.5 font-mono text-2xs uppercase tracking-[0.1em] text-muted-foreground">{s.label}</dt>
                   </div>
                 ))}
               </dl>
             )}
 
-            <ul className="mb-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:mb-20 lg:grid-cols-4">
+            <ul className="mb-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:mb-20 lg:grid-cols-4 lg:gap-6">
               {ORG_FEATURES.map((f) => (
-                <li key={f.title} className="rounded-2xl border border-border bg-card p-5">
-                  <span className="mb-3 flex size-10 items-center justify-center rounded-xl bg-secondary/12 text-secondary">
-                    <f.icon size={18} aria-hidden="true" />
+                <li
+                  key={f.title}
+                  className="rounded-2xl border border-border-strong bg-card p-6 transition-[transform,box-shadow,border-color] duration-(--duration-base) ease-emphasized hover:-translate-y-1 hover:border-foreground hover:[box-shadow:6px_7px_0_0_var(--foreground)] lg:p-7"
+                >
+                  <span className="flex size-12 items-center justify-center rounded-xl bg-secondary text-secondary-foreground">
+                    <f.icon size={21} aria-hidden="true" />
                   </span>
-                  <h3 className="mb-1 text-sm font-semibold text-foreground">{f.title}</h3>
-                  <p className="text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
+                  <h3 className="mt-5 font-display text-base font-extrabold tracking-tight text-foreground">{f.title}</h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{f.desc}</p>
                 </li>
               ))}
             </ul>
 
             <div id="como-funciona" className="mb-14 scroll-mt-20 lg:mb-20">
-              <h3 className="mb-10 text-center text-lg font-bold text-foreground">De cero a venta en minutos</h3>
-              <ol className="relative grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-4">
+              <h3 className="mb-10 font-mono text-2xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">De cero a venta en minutos</h3>
+              <ol className="relative grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
                 <li aria-hidden="true" className="absolute left-[12.5%] right-[12.5%] top-7 hidden h-px bg-border-strong lg:block" />
                 {ORG_STEPS.map((s) => (
-                  <li key={s.num} className="relative flex flex-col items-center text-center">
-                    <span className="relative z-10 mb-4 flex size-14 items-center justify-center rounded-2xl border border-secondary/40 bg-background text-lg font-extrabold text-secondary">
+                  <li key={s.num} className="relative flex flex-col items-start">
+                    <span className="relative z-10 mb-4 flex size-14 items-center justify-center rounded-2xl bg-foreground font-mono text-xl font-bold tabular-nums text-background shadow-hard-sm">
                       {s.num}
                     </span>
-                    <h4 className="mb-1.5 text-sm font-semibold text-foreground">{s.title}</h4>
-                    <p className="max-w-[15rem] text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
+                    <h4 className="mb-1.5 font-display text-base font-bold tracking-tight text-foreground">{s.title}</h4>
+                    <p className="max-w-[16rem] text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
                   </li>
                 ))}
               </ol>
@@ -399,17 +581,23 @@ export function ListingPage() {
 
             {paquetes.length > 0 && (
               <div id="precios" className="scroll-mt-20">
-                <h3 className="mb-2 text-center text-lg font-bold text-foreground">Créditos simples y transparentes</h3>
-                <p className="mb-8 text-center text-sm text-muted-foreground">Cada crédito = un evento publicado. Sin suscripción mensual.</p>
-                <ul className="flex flex-wrap justify-center gap-4">
-                  {paquetes.map((p) => (
-                    <li key={p.id} className="w-full rounded-2xl border border-border bg-card p-6 text-center sm:w-60">
-                      <p className="mb-2 text-2xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">{p.nombre}</p>
-                      <p className="text-3xl font-extrabold tabular-nums text-foreground">
+                <h3 className="mb-2 font-display text-2xl font-extrabold tracking-[-0.02em] text-foreground lg:text-3xl">Créditos simples y transparentes</h3>
+                <p className="mb-8 text-sm text-muted-foreground">Cada crédito = un evento publicado. Sin suscripción mensual.</p>
+                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {paquetes.map((p, i) => (
+                    <li
+                      key={p.id}
+                      className={cn(
+                        "rounded-2xl border bg-card p-6 transition-transform duration-(--duration-fast) hover:-translate-y-0.5",
+                        i === 0 ? "border-foreground shadow-hard" : "border-border-strong",
+                      )}
+                    >
+                      <p className="mb-3 font-mono text-2xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">{p.nombre}</p>
+                      <p className="font-display text-4xl font-extrabold tabular-nums leading-none text-foreground">
                         {p.cantidadCreditos}
-                        <span className="ml-1.5 text-sm font-semibold text-muted-foreground">créditos</span>
+                        <span className="ml-1.5 align-middle text-sm font-semibold text-muted-foreground">créditos</span>
                       </p>
-                      <p className="mt-1 text-lg font-bold tabular-nums text-primary">{fmt(p.precio)}</p>
+                      <p className="mt-2 font-mono text-lg font-semibold tabular-nums text-foreground">{fmt(p.precio)}</p>
                     </li>
                   ))}
                 </ul>
@@ -419,26 +607,26 @@ export function ListingPage() {
         </section>
 
         {/* CTA final para organizadores */}
-        <section aria-labelledby="cta-titulo" className="border-t border-border bg-card/40 px-4 py-20 lg:py-28">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="mb-4 text-2xs font-semibold uppercase tracking-[0.2em] text-secondary">Empezá hoy</p>
-            <h2 id="cta-titulo" className="mb-5 font-display text-3xl font-extrabold uppercase leading-tight text-foreground sm:text-4xl lg:text-5xl">
+        <section aria-labelledby="cta-titulo" className="border-t border-border px-4 py-16 lg:px-8 lg:py-24">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-foreground bg-card p-8 shadow-hard sm:p-10 lg:p-14">
+            <p className="mb-4 font-mono text-2xs font-semibold uppercase tracking-[0.2em] text-secondary">Empezá hoy</p>
+            <h2 id="cta-titulo" className="mb-6 font-display text-4xl font-extrabold leading-[0.95] tracking-[-0.03em] text-foreground sm:text-5xl lg:text-6xl">
               Tu primer evento,
               <br />
-              en minutos.
+              <span className="box-decoration-clone bg-accent px-2 text-accent-foreground">en minutos.</span>
             </h2>
-            <p className="mx-auto mb-9 max-w-md text-sm leading-relaxed text-muted-foreground lg:text-base">
+            <p className="mb-9 max-w-md text-base leading-relaxed text-muted-foreground">
               Creá tu cuenta gratis, recibís créditos de bienvenida y publicás tu primer evento sin pagar nada.
             </p>
             <Link
               to="/organizador/registro"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-8 text-base font-semibold text-primary-foreground transition-colors duration-(--duration-fast) hover:bg-primary/90 active:scale-[0.98]"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-8 font-display text-base font-bold text-primary-foreground shadow-hard-sm transition-[filter,transform] duration-(--duration-fast) hover:brightness-110 active:translate-y-px"
             >
               Crear cuenta gratis
               <ArrowRight size={16} aria-hidden="true" />
             </Link>
             {/* Solo afirmaciones que el producto cumple (antes: "Soporte 24/7", "Cancelá cuando quieras") */}
-            <ul className="mt-8 flex flex-wrap items-center justify-center gap-x-7 gap-y-3">
+            <ul className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-3">
               {["Sin tarjeta de crédito", "Sin suscripción mensual", "Créditos de bienvenida"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5 text-sm text-muted-foreground">
                   <Check size={14} aria-hidden="true" className="flex-none text-success" />
@@ -462,7 +650,7 @@ export function ListingPage() {
               </p>
             </div>
             <nav aria-label="Producto">
-              <p className="mb-4 text-2xs font-semibold uppercase tracking-[0.16em] text-foreground">Producto</p>
+              <p className="mb-4 font-mono text-2xs font-semibold uppercase tracking-[0.16em] text-foreground">Producto</p>
               <ul className="space-y-3 text-sm">
                 <li>
                   <Link to="/eventos" className="text-muted-foreground transition-colors hover:text-foreground">
@@ -505,6 +693,116 @@ export function ListingPage() {
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/**
+ * Selector "Cuándo" del buscador del hero: popover editorial (borde 1px + sombra dura) con
+ * opciones rápidas (Hoy / Esta semana / Este mes) y un rango exacto reusando `DateRangeFilter`.
+ * Todo se resuelve a un rango `desde`/`hasta` que se pasa a `/eventos`.
+ */
+function HeroCuando({
+  cuandoKey,
+  desde,
+  hasta,
+  onChange,
+}: {
+  cuandoKey: CuandoKey;
+  desde: string;
+  hasta: string;
+  onChange: (key: CuandoKey, desde: string, hasta: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: PointerEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const rapidas: { key: CuandoKey; label: string; rango: [string, string] }[] = [
+    { key: "hoy", label: "Hoy", rango: [isoSumar(0), isoSumar(0)] },
+    { key: "semana", label: "Esta semana", rango: [isoSumar(0), isoSumar(6)] },
+    { key: "mes", label: "Este mes", rango: [isoSumar(0), isoSumar(29)] },
+  ];
+
+  const etiqueta =
+    cuandoKey === "rango" && desde
+      ? hasta && hasta !== desde
+        ? `${fechaCorta(desde)} – ${fechaCorta(hasta)}`
+        : fechaCorta(desde)
+      : { todos: "Cualquier fecha", hoy: "Hoy", semana: "Esta semana", mes: "Este mes", rango: "Fechas elegidas" }[cuandoKey];
+
+  return (
+    <div ref={ref} className="relative flex flex-col gap-0.5 border-t border-border-strong px-4 py-3 sm:border-t-0">
+      <span id="hero-cuando-label" className="font-mono text-2xs uppercase tracking-[0.1em] text-muted-foreground">
+        Cuándo
+      </span>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-labelledby="hero-cuando-label"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center justify-between gap-2 text-left text-sm font-medium outline-none lg:text-base"
+      >
+        <span className={cn("truncate", cuandoKey === "todos" ? "text-muted-foreground" : "text-foreground")}>{etiqueta}</span>
+        <ChevronDown size={16} aria-hidden="true" className={cn("flex-none text-muted-foreground transition-transform duration-(--duration-fast)", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Elegir cuándo"
+          className="absolute left-0 top-full z-50 mt-2 w-[clamp(15rem,80vw,18rem)] rounded-2xl border border-border-strong bg-popover p-2 shadow-hard animate-scale-in"
+        >
+          <div className="flex flex-col">
+            {[{ key: "todos" as const, label: "Cualquier fecha", rango: ["", ""] as [string, string] }, ...rapidas].map((o) => {
+              const activo = cuandoKey === o.key;
+              return (
+                <button
+                  key={o.key}
+                  type="button"
+                  aria-pressed={activo}
+                  onClick={() => {
+                    onChange(o.key, o.rango[0], o.rango[1]);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "flex items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors duration-(--duration-fast)",
+                    activo ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
+                  )}
+                >
+                  {o.label}
+                  {activo && <Check size={15} aria-hidden="true" className="flex-none" />}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="my-2 border-t border-border" />
+          <p className="px-3 pb-1.5 font-mono text-2xs uppercase tracking-[0.1em] text-muted-foreground">Fecha o rango exacto</p>
+          <div className="px-2 pb-1">
+            <DateRangeFilter
+              desde={cuandoKey === "rango" ? desde : ""}
+              hasta={cuandoKey === "rango" ? hasta : ""}
+              onChange={(d, h) => (d || h ? onChange("rango", d, h) : onChange("todos", "", ""))}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -565,7 +863,7 @@ function Carrusel({
         className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 hide-scrollbar lg:mx-0 lg:gap-6 lg:px-0"
       >
         {eventos.map((ev, i) => (
-          <li key={ev.id} className="w-[62%] flex-none snap-start sm:w-[38%] lg:w-[calc((100%-4.5rem)/4)]">
+          <li key={ev.id} className="w-[86%] flex-none snap-start sm:w-[60%] lg:w-[calc((100%-1.5rem)/2)]">
             <EventCard evento={ev} etiqueta={etiquetaDe(ev, i)} prioridad={i < 4} />
           </li>
         ))}

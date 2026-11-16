@@ -27,13 +27,13 @@
      tarjetas (blanco cálido) resaltan sin sombras fuertes; --surface-sunken
      es el "hundido" dentro de una tarjeta (encabezado de tabla, input sobre
      card). */
-  --background: #ece4d1;
-  --foreground: #1c1a15;
-  --card: #fffdf8;
-  --card-foreground: #1c1a15;
-  --popover: #fffdf8;
-  --popover-foreground: #1c1a15;
-  --surface-sunken: #f5efe2;
+  --background: #f3f1ec;
+  --foreground: #141311;
+  --card: #ffffff;
+  --card-foreground: #141311;
+  --popover: #ffffff;
+  --popover-foreground: #141311;
+  --surface-sunken: #ebe8e1;
 
   /* Marca — tres roles (ver "Roles de color" en DESIGN.md):
      --primary   azul marino: todo lo que se toca (CTAs, links, nav activa,
@@ -44,20 +44,20 @@
      --accent    terracota: puntual, para llamar la atención ("Hoy", el
                  punto del hero, detalles). Como mucho uno o dos por vista.
      --highlight queda como alias de --secondary por compatibilidad. */
-  --primary: #2b3c64;
-  --primary-foreground: #ffffff;
-  --secondary: #1d6b66;
+  --primary: #141311;
+  --primary-foreground: #f3f1ec;
+  --secondary: #5b54c7;
   --secondary-foreground: #ffffff;
-  --accent: #9c4425;
-  --accent-foreground: #ffffff;
+  --accent: #9fe02a;
+  --accent-foreground: #17210a;
   --highlight: var(--secondary);
   --highlight-foreground: var(--secondary-foreground);
 
   /* Neutros. --muted-foreground pasa de #6b6659 a #5c574b: el anterior
      daba 4,0:1 sobre --muted y ~4,5:1 sobre el fondo, y se usa mucho en
      textos de 10–12 px. */
-  --muted: #e2d7bf;
-  --muted-foreground: #5c574b;
+  --muted: #e7e3d9;
+  --muted-foreground: #56554f;
 
   /* Semánticos */
   --success: #215f3a;
@@ -66,22 +66,22 @@
   --warning-foreground: #ffffff;
   --destructive: #772238;
   --destructive-foreground: #ffffff;
-  --info: #2b3c64;
+  --info: #1746c4;
   --info-foreground: #ffffff;
 
-  /* Bordes */
-  --border: rgba(51, 42, 24, 0.15);
-  --border-strong: rgba(51, 42, 24, 0.3);
+  /* Bordes — líneas crisp de 1px (estética editorial). */
+  --border: rgba(20, 19, 17, 0.18);
+  --border-strong: rgba(20, 19, 17, 0.5);
   --input: transparent;
-  --input-background: #fffdf8;
-  --switch-background: #dccfb2;
-  --ring: #2b3c64;
+  --input-background: #ffffff;
+  --switch-background: #d8d4c8;
+  --ring: #141311;
 
-  /* Gráficos */
-  --chart-1: #2b3c64;
-  --chart-2: #1d6b66;
-  --chart-3: #9c4425;
-  --chart-4: #94a3b8;
+  /* Gráficos (tonos de viz, independientes de los de marca para cumplir contraste). */
+  --chart-1: #141311;
+  --chart-2: #5b54c7;
+  --chart-3: #6f9e1e;
+  --chart-4: #9a978d;
   --chart-5: #772238;
 
   /* Elevación: las tarjetas no llevan sombra por defecto (el borde alcanza);
@@ -106,25 +106,25 @@
    caja del fondo sin depender solo del relleno. */
 .dark {
   color-scheme: dark;
-  --background: #0a0f1e;
-  --foreground: #f8fafc;
-  --card: #161f33;
-  --card-foreground: #f8fafc;
-  --popover: #1c273d;
-  --popover-foreground: #f8fafc;
-  --surface-sunken: #10182a;
+  --background: #0c0c0b;
+  --foreground: #f2f1ec;
+  --card: #171613;
+  --card-foreground: #f2f1ec;
+  --popover: #1d1b17;
+  --popover-foreground: #f2f1ec;
+  --surface-sunken: #121210;
 
-  --primary: #9cadd3;
-  --primary-foreground: #0d1a2b;
-  --secondary: #7cc7bd;
-  --secondary-foreground: #0b2522;
-  --accent: #f29a76;
-  --accent-foreground: #2a0f05;
+  --primary: #f2f1ec;
+  --primary-foreground: #141311;
+  --secondary: #c6c2ff;
+  --secondary-foreground: #1b1830;
+  --accent: #b6f24a;
+  --accent-foreground: #17210a;
   --highlight: var(--secondary);
   --highlight-foreground: var(--secondary-foreground);
 
-  --muted: #253247;
-  --muted-foreground: #9aa8bd;
+  --muted: #24231e;
+  --muted-foreground: #aba99f;
 
   --success: #6fcf97;
   --success-foreground: #0a2416;
@@ -134,20 +134,20 @@
      anterior daba ~2,7:1 como texto sobre las tarjetas oscuras. */
   --destructive: #e5788a;
   --destructive-foreground: #2b0b13;
-  --info: #9cadd3;
-  --info-foreground: #0d1a2b;
+  --info: #7ea6ff;
+  --info-foreground: #0a142e;
 
-  --border: rgba(238, 242, 250, 0.14);
-  --border-strong: rgba(238, 242, 250, 0.26);
+  --border: rgba(242, 241, 236, 0.14);
+  --border-strong: rgba(242, 241, 236, 0.3);
   --input: transparent;
-  --input-background: #253247;
-  --switch-background: #334155;
-  --ring: #9cadd3;
+  --input-background: #24231e;
+  --switch-background: #3a382f;
+  --ring: #f2f1ec;
 
-  --chart-1: #9cadd3;
-  --chart-2: #7cc7bd;
-  --chart-3: #f29a76;
-  --chart-4: #64748b;
+  --chart-1: #f2f1ec;
+  --chart-2: #c6c2ff;
+  --chart-3: #a8e82e;
+  --chart-4: #8f8c82;
   --chart-5: #e5788a;
 
   --elevation-raised: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -198,8 +198,8 @@
   --shadow-modal: var(--elevation-modal);
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Anybody', 'Inter', ui-sans-serif, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-display: 'Archivo', 'Inter', ui-sans-serif, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
 
   /* Escala de radios monotónica. Antes rounded-xl y rounded-2xl valían
      ambos 16 px (calc(var(--radius) + 4px)): ahora controles (inputs,

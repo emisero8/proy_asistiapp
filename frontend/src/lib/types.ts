@@ -139,6 +139,12 @@ export interface EventoPublicoListItemDTO {
   imagenPortadaUrl: string | null;
   urlPublica: string;
   precioDesde: number | null;
+  /** Cantidad de tandas del evento. */
+  cantidadTandas: number;
+  /** Suma del cupo disponible de todas las tandas: 0 ⇒ "Agotado". */
+  cupoDisponibleTotal: number;
+  /** Suma del cupo máximo de todas las tandas (con el disponible deriva "Últimas entradas"). */
+  cupoTotal: number;
 }
 
 export interface EventoPublicoDetalleDTO {

@@ -16,6 +16,9 @@ function evento(i: number): EventoPublicoListItemDTO {
     imagenPortadaUrl: null,
     urlPublica: `evento-${i}`,
     precioDesde: 1000,
+    cantidadTandas: 2,
+    cupoDisponibleTotal: 50,
+    cupoTotal: 100,
   };
 }
 

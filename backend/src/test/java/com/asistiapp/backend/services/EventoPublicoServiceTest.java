@@ -63,6 +63,29 @@ class EventoPublicoServiceTest {
         assertThat(eventoPublicoService.listarPublicados()).hasSize(1);
     }
 
+    private Tanda tanda(Double precio, int cupoMaximo, int cupoDisponible) {
+        Tanda t = new Tanda();
+        t.setNombre("Tanda");
+        t.setPrecio(precio);
+        t.setCupoMaximo(cupoMaximo);
+        t.setCupoDisponible(cupoDisponible);
+        return t;
+    }
+
+    @Test
+    void listarPublicados_calculaPrecioCupoYTandas() {
+        Evento futuro = evento(9L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        futuro.setTandas(List.of(tanda(5000.0, 100, 10), tanda(8000.0, 50, 0)));
+        when(eventoRepository.findByEstado(EstadoEvento.Publicado)).thenReturn(List.of(futuro));
+
+        var item = eventoPublicoService.listarPublicados().get(0);
+
+        assertThat(item.getPrecioDesde()).isEqualTo(5000.0);
+        assertThat(item.getCantidadTandas()).isEqualTo(2);
+        assertThat(item.getCupoDisponibleTotal()).isEqualTo(10);
+        assertThat(item.getCupoTotal()).isEqualTo(150);
+    }
+
     @Test
     void listarPublicados_eventoYaPasado_seExcluye() {
         Evento pasado = evento(2L, LocalDate.now().minusDays(1), LocalTime.of(21, 0));

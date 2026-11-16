@@ -23,4 +23,13 @@ public class EventoPublicoListItemDTO {
 
     /** Precio de la tanda más barata vigente — null si el evento no tiene tandas. */
     private Double precioDesde;
+
+    /** Cantidad de tandas del evento (para la tarjeta del catálogo). */
+    private Integer cantidadTandas;
+
+    /** Suma del cupo disponible de todas las tandas: 0 ⇒ "Agotado" en la tarjeta. */
+    private Integer cupoDisponibleTotal;
+
+    /** Suma del cupo máximo de todas las tandas: con el disponible permite derivar "Últimas entradas". */
+    private Integer cupoTotal;
 }

@@ -543,3 +543,92 @@ Los +6,8 kB de JS inicial son lo que se decidió poner en la primera carga: el *
 - Contrato intacto: un diff filtrado por `api.(get|post|put|patch|delete)` tiene que mostrar las mismas URLs y bodies.
 - Capturas Playwright por ruta tocada: 390 / 820 / 1440 px × claro/oscuro, consola sin errores, recorrido solo con teclado.
 - Flujos end-to-end contra el backend real (compra con MP sandbox, crear/publicar/cancelar, staff, scanner, POS, admin, notificaciones), con datos de prueba sembrados y limpiados.
+
+---
+
+## Fase 14: Rediseño editorial "ticket troquelado" de toda la app (rama `redesign-frontend`)
+
+> **Origen:** pedido del usuario (2026-11-16) de adoptar una estética **editorial minimalista + "ticket físico moderno"** (blanco papel / carbón / verde lima, líneas de 1px, muescas troqueladas, tipografía de impacto + monoespaciada tabular). Se validó primero con un **prototipo de la Landing** (artifact HTML con datos de ejemplo) iterado con el usuario hasta su OK: tickets **todos negros** que se "parten" en la perforación al hover (una sola muesca del lado izquierdo), fondo sutil de `ticket2.webp`, hero con movimiento, buscador segmentado, tarjetas de tamaño fijo. Decisión registrada en `DECISIONES.md` (2026-11-16): aplica a **toda la app** (Comprador, Organizador, Admin, Staff), se sigue en Vite, y lo que el backend no tiene (categoría, ciudad, butacas) no se inventa.
+
+**Regla de ingeniería (no romper nada):** es refactor 100 % visual. No se tocan hooks, estado, props funcionales, rutas, validaciones, cálculo de precios ni integración con backend/pagos. `lib/api.ts` y `lib/types.ts` no cambian endpoints/DTOs/bodies. Los tests (209) y el nombre accesible/los textos que usan no cambian en la misma sub-fase en que se migra un componente.
+
+**Cómo se trabaja:** bloque por bloque en orden de flujo del usuario, cada bloque cerrado con `npm run lint` + `npm test` (desde PowerShell, `C:\` mayúscula) + `npm run build`, y **pausa + aprobación del usuario antes de seguir y antes de commitear**.
+
+### Inventario de vistas (auditoría 2026-11-16)
+
+**Comprador (público, sin auth):**
+- `/` Home/catálogo (`ListingPage` — hero, ticker, destacados/carrusel, grilla, "cómo funciona", footer)
+- `/eventos` catálogo completo con buscador + filtros de fecha + paginación (`AllEventsPage`)
+- `/eventos/:urlPublica` detalle de evento (`DetailPage`)
+- `/checkout` selección de tanda + cantidad + pago (`CheckoutPage`)
+- `/mi-entrada` pase digital con QR (`MiEntradaPage`)
+- `/pago/resultado` resultado del pago MP (`PagoResultadoPage`)
+
+**Accesos:** `/organizador/login` · `/organizador/registro` · `/organizador/recuperar-password` · `/admin/login` · `/staff/login` (comparten `AuthLayout`).
+
+**Organizador (layout `OrganizadorLayout` → `AppShell`):** dashboard · crear evento (`WizardPage`) · detalle (`EventoDetallePage`) · editar (`EditEventPage`, campos en `EventoFormCampos`) · créditos/wallet (`WalletPage`) · staff (`StaffMgmtPage`) · perfil (`PerfilPage`).
+
+**Admin (layout `AdminLayout` → `AppShell`):** dashboard · usuarios · eventos · editar evento (reusa `EditEventPage`) · configuración · auditoría.
+
+**Staff (pantalla única, sin layout):** scanner QR (`ScannerPage`) · POS vendedor (`PosPage`).
+
+**Componentes compartidos a migrar:** `components/ui/` (Button, Card, Badge, Field, Selection, Menu, Alert, States, StatCard, PageHeader, Purchase, Tooltip, Spinner, PasswordInput) · `PublicHeader` · `AppShell` · `AuthLayout` · `EventCard` · `DialogProvider` · `NotificationBell` · `EventoImagen` · `DatePicker`/`TimePicker` · toasts (`sonner`) · skeletons · empty/error states.
+
+### 14.1 — Fundamentos globales ✅ (sin commitear)
+Consolidación del sistema de diseño (paso 1 del pedido), **sin tocar componentes todavía** — solo tokens/fuentes/base, para que toda la app herede la identidad nueva al instante y se refine por bloque.
+- **`theme.css`:** retune de todos los tokens, **preservando el rol semántico de cada uno** (nada de consumidores rotos): `primary` pasa de azul marino a **carbón** `#141311` (papel `#f2f1ec` en oscuro) — sigue siendo "lo interactivo/sólido/precios"; `accent` pasa a **lima** `#9fe02a`; `secondary` a **lavanda profundo** `#5b54c7` (el pastel `#b8b5ff` sería ilegible como texto, y `text-secondary` se usa 16 veces); `info` a **azul eléctrico** `#1746c4` (ya no alias de primary); superficies a papel/casi-negro; bordes más oscuros (1px crisp); charts a tonos de viz propios. Modo oscuro = editorial casi-negro + lima (la "superficie de checkout oscura" del brief, ya es el default de la app).
+- **Fuentes (`fonts.css` + tokens):** `font-display` Anybody → **Archivo**; `font-mono` JetBrains → **IBM Plex Mono** (igual que el prototipo). `font-sans` sigue **Inter** (legibilidad en tablas/formularios).
+- **`globals.css`:** utilidades `.shadow-hard` / `.shadow-hard-sm` / `.shadow-hard-accent` (sombra dura desplazada en `--foreground`/`--accent`), reutilizables por los bloques siguientes. Las muescas/perforación del ticket son específicas de su layout → van en el componente `TicketCard` (bloque Catálogo).
+- **`DESIGN.md`:** actualizadas las secciones Color (Marca, Semánticos, Superficies) y Tipografía con la paleta y familias nuevas.
+- **Verificación:** `npm run build` OK; **209/209 tests** OK (desde PowerShell). Cambio de solo-tokens → ningún test ni tipo se rompe. *Nota:* el panel de marca oscuro de `AuthLayout` (`#09090b` + acento navy `#9cadd3`) queda con su hex viejo hasta el bloque de Accesos. **Falta verificación visual (Playwright) de que la recoloración global se ve bien** — se hace junto con el primer bloque de pantallas.
+
+### 14.2 — Catálogo (Home + `/eventos`) ✅ (sin commitear; va junto con 14.1 en un único commit)
+
+**Gap de backend corregido (no parcheado en el front):** `EventoPublicoListItemDTO` ahora trae `cantidadTandas`, `cupoDisponibleTotal` y `cupoTotal`, calculados en `EventoPublicoService.toListItemDTO` desde las tandas de la entidad (sin SQL nuevo). Test agregado (`listarPublicados_calculaPrecioCupoYTandas`); **6/6 de `EventoPublicoServiceTest`** OK. Con esos datos reales la tarjeta muestra "Agotado" (cupo 0), "Últimas entradas" (<15 % del cupo) o la cantidad de tandas.
+
+**Frontend:**
+- **`EventCard` → ticket troquelado** (`components/EventCard.tsx` + clases `.tkt*` y tokens `--ticket-*` en `globals.css`): talón con la portada real arriba + cuerpo con datos abajo, separados por perforación punteada y **muescas de papel** en los dos extremos; al hover se "corta" por la perforación (talón sube / cuerpo baja, con sombra dura) — sin reflow (transforms). Paleta del ticket oscura en los dos temas (como el Scanner), distinguible por el borde. Badges dinámicos desde el cupo real. Sigue siendo un **link** con el nombre como nombre accesible (tests intactos). Tamaño uniforme (`h-full` + grilla).
+- **Grilla:** pasa a **1 columna en teléfono** (como el prototipo aprobado) → `sm:2 / lg:3 / xl:4`. Antes 2-col en mobile apretaba la tarjeta (el pie precio/CTA se superponía y el badge largo desbordaba).
+- **Hero (Home):** titular Archivo "Salí a ver algo / **en vivo.**" (resaltado en bloque lima, texto oscuro — nunca lima como texto sobre papel), con el fondo `ticket2.webp` que ya estaba. **Buscador segmentado** funcional: `[ Evento o lugar ] · [ Cuándo ] · [ Buscar ]` (dos celdas + botón, líneas de 1px, sombra dura) que navega a `/eventos?q=&fecha=`. *Adaptación:* no se parte en "Qué/Dónde" porque la búsqueda real es un único match sobre nombre **o** lugar; dividirlo daría resultados vacíos. `AllEventsPage` lee esos params (`useSearchParams`) y reusa sus filtros existentes tal cual.
+- **"Mis entradas"** en el nav (Home y `PublicHeader`) → ruta pública `/mi-entrada` ya existente. Ícono de ticket, texto desde `sm`.
+- **Ticker:** misma paleta oscura que los tickets, ✦ lima, mono.
+- **Sin tocar:** carga de datos, carrusel/paginación/filtros, estadísticas, secciones de marketing del organizador, footer, contratos de API.
+
+**Ajustes pedidos por el usuario tras revisar la Home (mismo bloque 14.2):**
+- Se **eliminó el globito** del hero ("Entradas 100% digitales").
+- El **hero se rehízo con la composición del prototipo**: titular a la izquierda "Salí a ver algo / —— **en vivo.**" (raya + bloque lima), sello rotativo (lima, "ENTRADA DIGITAL · QR ÚNICO · PAGO SEGURO" + ícono de ticket), párrafo con MercadoPago y buscador segmentado full-width con sombra dura — textos/rutas reales.
+- Se **sacó "Mis entradas"** del `PublicHeader` y del nav de la Home (no corresponde exponerlo ahí).
+- **Todas las secciones inferiores** (Tu entrada sin vueltas, Para organizadores, stats, features, pasos, precios, CTA, footer) se refactorizaron al lenguaje editorial: **grilla arquitectónica de celdas con líneas de 1px** (sin tarjetas redondeadas sueltas), eyebrows `font-mono`, títulos `Archivo` con tracking ajustado, acentos lavanda (`text-secondary`) y lima en bloque, `.shadow-hard` en stats/precio destacado/CTA. Contenido y lógica intactos (stats y precios siguen condicionados a datos reales).
+
+**2.ª ronda de refinamientos (revisión en navegador del usuario):**
+- **Logo con isotipo** (ticket lima con perforación) + micro-animación al hover (rota/escala) en la Home y en `PublicHeader`; click en el logo de la Home hace **scroll suave arriba** (`window.scrollTo({ behavior })`, respeta reduced-motion).
+- **Microinteracciones táctiles:** `active:` en botones del header, `focus-within` que tiñe la celda de búsqueda, hover que tiñe las celdas de features (+ el ícono pasa a lavanda), micro-elevación en los packs de precio, botones con `brightness`/press.
+- **Selector de fecha funcional** en el buscador del hero (`HeroCuando`): popover editorial (borde 1px + `.shadow-hard`) con opciones rápidas (Hoy / Esta semana / Este mes / Cualquier fecha) **y rango exacto reusando `DateRangeFilter`**. Todo se resuelve a un rango `desde`/`hasta` que viaja a `/eventos?desde=&hasta=`; `AllEventsPage` lo lee (`useSearchParams`) y aplica su filtro de rango existente (muestra el chip "16 nov – 22 nov"). *Fix:* el `overflow-hidden` del form recortaba el popover → se quitó y se redondean las esquinas del botón/celda.
+- **Auditoría de componentes hijos de la Home:** `SupportContactLine`, footer y todas las secciones ya usan solo tokens nuevos (sin azules/gradientes/sombras difusas viejas).
+
+**3.ª ronda (revisión del usuario con la base real/vacía):**
+- **`EmptyState` + `ErrorState` compartidos rediseñados** (eran el "estilo viejo" que aparecía con 0 eventos): tarjeta rectangular con borde 1px + `.shadow-hard`, tile de ícono **lima** (`bg-accent`), título `Archivo`. Afecta a toda la app (consistencia).
+- **Links del nav** (Home + `PublicHeader`): hover con **subrayado animado** que crece desde la izquierda (`after: scale-x-0 → hover:scale-x-100`, `origin-left`), y en `PublicHeader` el activo queda subrayado fijo. Reemplaza el hover de fondo anterior.
+- **Botón "Buscar entradas":** hover a **bloque lima** (`bg-accent` + texto carbón), el ícono de lupa se eleva/escala y aparece una flecha, `active:translate-y-0.5`.
+- Reconfirmado que las 4 secciones inferiores ("Tu entrada sin vueltas", "Para organizadores", "De cero a venta", CTA "Empezá hoy") ya estaban en el lenguaje editorial nuevo en el build (lo "viejo" que se veía era el `EmptyState`, no las secciones).
+
+**4.ª ronda (impacto visual + recorte del popover, con capturas del usuario):**
+- **Recorte del popover de fecha:** la causa era el `overflow-hidden` de la `<section>` del hero (puesto para la imagen de fondo). Se movió el `overflow-hidden` al wrapper interno de la imagen (y se quitó `scale-105`) y el popover pasa a `z-50` → ahora flota por encima del ticker y la sección siguiente sin recortarse (verificado: el "Fecha o rango exacto" queda visible por debajo del hero).
+- **Secciones inferiores rediseñadas con impacto** (seguían planas): tarjetas **separadas con borde fuerte (`border-foreground`) + `.shadow-hard`** y **bloques de ícono rellenos** (lima `bg-accent` en la 1.ª, lavanda `bg-secondary` el resto) con números watermark mono; **stats** en panel con borde fuerte + sombra dura y cifras `Archivo` más grandes; **features del organizador** con hover que eleva y agrega sombra dura; **pasos** con el número en bloque relleno (inversión carbón/papel) + sombra; **CTA "Empezá hoy"** dentro de un **panel focal** (borde fuerte + sombra dura). Más contraste, jerarquía y uso real de lima/lavanda, a la altura del hero.
+
+**Verificación:** `npm run lint` (solo warnings viejos), `npm run build` OK, **209/209 tests** OK, **backend 6/6**. **Playwright** (build en :3000, API interceptada): Home **completa de arriba a abajo** y `/eventos` en **1280/1440 y 390 px × claro/oscuro**, **+ estado vacío (0 eventos)**, **+ popover de fecha abierto** (sin recorte, con paquetes de precio cargados), **0 errores de consola/página**, capturas revisadas. **Interacciones en navegador real:** popover abre y flota sobre las secciones; "Esta semana" → `/eventos?desde=…&hasta=…` filtra bien; logo con scroll suave; botón "Buscar" vira a bloque lima. Corregido en la verificación: pie/badge en 2-col (→ 1-col mobile) y el recorte del popover. **Commit:** 14.1 + 14.2 en un único commit, autor local del repo (**Facundo Riffel**), sin trailer de Claude.
+
+**5.ª ronda (ticket horizontal, hamburguesa, color — capturas del usuario):**
+- **Ticket troquelado ahora horizontal en desktop** (cuerpo a la izquierda, talón/portada a la derecha, perforación vertical con muescas en los extremos del borde derecho) y **vertical en mobile/tablet** (como estaba, así no se rompe). Al cortarse en desktop las dos mitades se **separan en diagonal** (talón `rotate(1.5deg)` / cuerpo `rotate(-0.6deg)` + sombra dura lima). Grillas del catálogo → **1 col mobile / 2 col desktop**; el carrusel muestra 2 por fila en desktop. Todo en `globals.css` (`@media (min-width:1024px)` + `(hover:hover)`), `EventCard` con el talón a ancho fijo en `lg`.
+- **Menú hamburguesa en mobile/tablet** (`<lg`) en la Home: el nav de escritorio (Eventos, Para organizadores, Cómo funciona, Precios, Ingresar, Soy organizador) se colapsa en un botón ☰ que abre un panel editorial; en `lg+` se ve el nav completo como antes. Soluciona el nav apretado en teléfono.
+- **Color consolidado:** los íconos de todas las features/stats pasan a **lavanda** (identidad de apoyo); la **lima** queda reservada para la energía "en vivo" (hero, CTA, badges de eventos, "Ver entradas", sombra del corte en oscuro). Menos mezcla.
+
+**Verificación:** `npm run lint` (solo warnings viejos), `npm run build` OK, **209/209 tests** OK, backend 6/6. **Playwright:** `/eventos` desktop (ticket horizontal + **hover con corte diagonal y sombra lima**), Home **mobile 390 px** (hamburguesa abierta/cerrada, ticket vertical, nav no se rompe), claro/oscuro, **0 errores de consola**, capturas revisadas.
+
+### 14.3 — Detalle de evento ⏳ (próximo bloque)
+### 14.4 — Selección de tanda + checkout + resultado de pago ⏳
+### 14.5 — Mi Entrada (pase digital) ⏳
+### 14.6 — Accesos (logins/registro/recupero) + perfil ⏳
+### 14.7 — Organizador (dashboard, wizard, detalle, editar, wallet, staff) ⏳
+### 14.8 — Admin (dashboard, usuarios, eventos, config, auditoría) ⏳
+### 14.9 — Staff (scanner, POS) + cierre (modales, toasts, skeletons, empty states, verificación AA de la paleta nueva) ⏳

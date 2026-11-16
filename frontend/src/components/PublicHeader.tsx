@@ -46,10 +46,25 @@ export function PublicHeader({ back }: PublicHeaderProps) {
           )}
           <Link
             to="/"
-            className={`rounded-md text-lg font-extrabold tracking-tight text-foreground ${back ? "hidden sm:inline" : ""}`}
+            className={`group items-center gap-2 rounded-md text-lg font-extrabold tracking-tight text-foreground ${back ? "hidden sm:flex" : "flex"}`}
             aria-label="AsistíAPP — inicio"
           >
-            Asistí<span className="text-primary">APP</span>
+            <svg
+              viewBox="0 0 30 20"
+              aria-hidden="true"
+              className="h-5 w-[30px] flex-none transition-transform duration-(--duration-base) ease-emphasized group-hover:-rotate-6 group-hover:scale-110 group-active:scale-95"
+            >
+              <path
+                d="M2 1h26a1 1 0 0 1 1 1v5a3 3 0 0 0 0 6v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-5a3 3 0 0 0 0-6V2a1 1 0 0 1 1-1z"
+                fill="var(--accent)"
+                stroke="var(--foreground)"
+                strokeWidth="1.5"
+              />
+              <path d="M20 3v14" stroke="var(--foreground)" strokeWidth="1.5" strokeDasharray="2 2" />
+            </svg>
+            <span>
+              Asistí<span className="text-primary">APP</span>
+            </span>
           </Link>
         </div>
         <nav aria-label="Secciones" className="flex items-center gap-1">
@@ -57,8 +72,8 @@ export function PublicHeader({ back }: PublicHeaderProps) {
             to="/eventos"
             end
             className={({ isActive }) =>
-              `inline-flex h-9 items-center rounded-xl px-3 text-sm font-semibold transition-colors duration-(--duration-fast) ${
-                isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+              `group relative inline-flex h-9 items-center px-2 text-sm font-semibold transition-colors duration-(--duration-fast) after:pointer-events-none after:absolute after:inset-x-2 after:bottom-1.5 after:h-0.5 after:origin-left after:bg-foreground after:transition-transform after:duration-300 ${
+                isActive ? "text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0 hover:after:scale-x-100"
               }`
             }
           >

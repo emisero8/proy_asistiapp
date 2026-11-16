@@ -24,26 +24,25 @@ Todos los colores son **tokens con valor por modo** (claro en `:root`, oscuro en
 
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
-Tres colores de marca con **roles fijos**: combinan (mismo peso, misma saturación contenida) pero se distinguen por tono — azul (225°), verde azulado (175°) y terracota (15°).
+**Sistema editorial (Fase 14):** blanco papel + carbón + lima, con lavanda como apoyo. El color de marca es el **carbón** (`primary`): todo lo sólido e interactivo es casi-negro sobre papel (o papel sobre casi-negro en oscuro). La **lima** (`accent`) es el único acento vibrante, para atención puntual. El **lavanda** (`secondary`) es identidad de apoyo, nunca interactiva.
 
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
-| `primary` | `#2b3c64` | `#9cadd3` | **Lo que se toca.** CTA principal, links, navegación activa, foco, selección, precios. |
-| `primary-foreground` | `#ffffff` | `#0d1a2b` | Texto/ícono sobre relleno `primary`. |
-| `secondary` | `#1d6b66` | `#7cc7bd` | **Identidad de apoyo, nunca interactiva.** Íconos de secciones, palabras destacadas de un título, eyebrows, "Próximo", 2.ª serie de gráficos, la métrica a mirar primero (`StatCard emphasis="highlight"`). |
-| `secondary-foreground` | `#ffffff` | `#0b2522` | Texto sobre relleno `secondary`. |
-| `accent` | `#9c4425` | `#f29a76` | **Atención puntual.** Badge "Hoy", el punto del hero, detalles chicos. 3.ª serie de gráficos. |
-| `accent-foreground` | `#ffffff` | `#2a0f05` | Texto sobre relleno `accent`. |
+| `primary` | `#141311` (carbón) | `#f2f1ec` (papel) | **Lo que se toca y lo sólido.** CTA, links, nav activa, foco, selección, precios, bloques sólidos. |
+| `primary-foreground` | `#f3f1ec` | `#141311` | Texto/ícono sobre relleno `primary`. |
+| `secondary` | `#5b54c7` (lavanda prof.) | `#c6c2ff` (lavanda) | **Identidad de apoyo, nunca interactiva.** Eyebrows, íconos de sección, palabras destacadas, 2.ª serie de gráficos. El pastel `#b8b5ff` del brief sería ilegible como texto, por eso el claro va más profundo. |
+| `secondary-foreground` | `#ffffff` | `#1b1830` | Texto sobre relleno `secondary`. |
+| `accent` | `#9fe02a` (lima) | `#b6f24a` (lima) | **Atención puntual.** Badge "Hoy"/"Últimas", el ✦ del ticker, detalles. Como mucho uno o dos por vista. |
+| `accent-foreground` | `#17210a` | `#17210a` | Texto sobre relleno `accent`. |
 | `highlight` | = `secondary` | = `secondary` | Alias por compatibilidad (`Badge tone="highlight"`, `StatCard`). |
 
-Contraste como texto: entre 5,0:1 y 9,8:1 sobre `background` y `card` en los dos modos.
-
 **Reglas:**
-- Un botón o link es **siempre** `primary`. `secondary` y `accent` nunca indican que algo se puede tocar.
+- Un botón o link es **siempre** `primary` (carbón). `secondary` y `accent` nunca indican que algo se puede tocar.
 - Ninguno de los tres se usa para estados (para eso están los semánticos), fondos grandes ni degradés.
-- `accent`: **como mucho uno o dos elementos por vista.** Si aparece en todos lados deja de llamar la atención.
+- `accent` (lima): **como mucho uno o dos por vista.** Nunca como **texto sobre papel** (bajo contraste): solo como relleno (`bg-accent` + `text-accent-foreground` oscuro) o como `text-accent` sobre una superficie oscura (el ✦ del ticker).
 - `secondary` en suave: `bg-secondary/12 text-secondary` (tiles de íconos), igual que los semánticos.
-- Badges: `tone="highlight"` (secundario, "Próximo") y `tone="accent"` ("Hoy").
+- Badges: `tone="highlight"` (apoyo) y `tone="accent"` ("Hoy"/"Últimas").
+- **Líneas de 1px:** la estética editorial se apoya en bordes finos crisp (`border`/`border-strong` más oscuros que antes) y en la **sombra dura desplazada** (`.shadow-hard` / `.shadow-hard-accent` en `globals.css`, `5px 5px 0` en `--foreground`/`--accent`) en lugar de sombras difusas para los elementos tipo papel/ticket.
 
 ### Semánticos
 
@@ -52,7 +51,7 @@ Contraste como texto: entre 5,0:1 y 9,8:1 sobre `background` y `card` en los dos
 | `success` | `#215f3a` | `#6fcf97` | Válido, pagada, activo, crédito acreditado. |
 | `warning` | `#7a4600` | `#f0b44c` | Borrador, pendiente, "ya usada", cerca del límite. |
 | `destructive` | `#772238` | `#e5788a` | Error, cancelar, eliminar, suspendido. |
-| `info` | = `primary` | = `primary` | Avisos informativos (sin agregar un tono nuevo). |
+| `info` | `#1746c4` | `#7ea6ff` | Avisos informativos. Azul eléctrico (el acento del brief para checkout/selección); ya no es un alias de `primary` porque `primary` pasó a carbón. |
 
 Cada uno tiene su `-foreground` para cuando se usa como **relleno sólido** (`bg-success text-success-foreground`). Patrones:
 - **Texto/ícono:** `text-success`.
@@ -67,15 +66,15 @@ De la más baja a la más alta — cada nivel tiene que distinguirse del anterio
 
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
-| `surface-sunken` | `#f5efe2` | `#10182a` | "Hundido" **dentro** de una tarjeta: encabezado de tabla, input sobre card, código copiable. |
-| `background` | `#ece4d1` | `#0a0f1e` | Fondo de pantalla. |
-| `card` | `#fffdf8` | `#161f33` | Tarjetas, paneles, inputs sobre el fondo. |
-| `popover` | `#fffdf8` | `#1c273d` | Menús, popovers, calendario. |
-| `muted` | `#e2d7bf` | `#253247` | Chips inactivos, botones neutros, skeletons. |
-| `foreground` | `#1c1a15` | `#f8fafc` | Texto principal. |
-| `muted-foreground` | `#5c574b` | `#9aa8bd` | Texto secundario, labels, placeholders. |
-| `border` | `rgba(51,42,24,.15)` | `rgba(238,242,250,.14)` | Bordes de tarjetas, separadores. |
-| `border-strong` | `rgba(51,42,24,.30)` | `rgba(238,242,250,.26)` | Bordes de inputs, separadores con peso. |
+| `surface-sunken` | `#ebe8e1` | `#121210` | "Hundido" **dentro** de una tarjeta: encabezado de tabla, input sobre card, código copiable. |
+| `background` | `#f3f1ec` (papel) | `#0c0c0b` (casi-negro) | Fondo de pantalla. |
+| `card` | `#ffffff` | `#171613` | Tarjetas, paneles, inputs sobre el fondo. |
+| `popover` | `#ffffff` | `#1d1b17` | Menús, popovers, calendario. |
+| `muted` | `#e7e3d9` | `#24231e` | Chips inactivos, botones neutros, skeletons. |
+| `foreground` | `#141311` | `#f2f1ec` | Texto principal. |
+| `muted-foreground` | `#56554f` | `#aba99f` | Texto secundario, labels, placeholders. |
+| `border` | `rgba(20,19,17,.18)` | `rgba(242,241,236,.14)` | Bordes de tarjetas, separadores. |
+| `border-strong` | `rgba(20,19,17,.50)` | `rgba(242,241,236,.30)` | Bordes de inputs, separadores con peso. |
 | `ring` | = `primary` | = `primary` | Anillo de foco. |
 
 **Regla de contraste de controles:** un input o un chip **sobre `background`** usa `bg-card` + borde (en modo claro `bg-muted` sobre `background` casi no se distingue). Sobre una `card`, el input puede ir en `bg-surface-sunken`.
@@ -103,9 +102,9 @@ El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, 
 
 | Familia | Clase | Uso |
 |---|---|---|
-| **Inter** (400–800) | `font-sans` (default) | Toda la UI. |
-| **Anybody** (700–900) | `font-display` | Solo titulares de marketing en mayúsculas (hero de la Home, encabezados de sección del catálogo). Nunca texto de UI. |
-| **JetBrains Mono** (500–700) | `font-mono` | Códigos de ticket, IDs, datos técnicos. |
+| **Inter** (400–800) | `font-sans` (default) | Toda la UI (tablas, formularios, cuerpo). Legible a tamaños chicos. |
+| **Archivo** (600–900) | `font-display` | Titulares de impacto: hero, nombres de evento, encabezados de sección. Grotesca geométrica con tracking ajustado (`-0.03em`). Reemplaza a Anybody en la Fase 14. |
+| **IBM Plex Mono** (400–600) | `font-mono` | Metadatos "técnicos" de entrada: fechas/horas/precios tabulares, códigos, N.º de ticket, eyebrows. Reemplaza a JetBrains Mono en la Fase 14. |
 
 ### Escala
 

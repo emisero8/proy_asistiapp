@@ -17,6 +17,9 @@ function evento(i: number, nombre = `Evento ${i}`, lugar = "Club Centro"): Event
     imagenPortadaUrl: null,
     urlPublica: `evento-${i}`,
     precioDesde: 1000,
+    cantidadTandas: 2,
+    cupoDisponibleTotal: 50,
+    cupoTotal: 100,
   };
 }
 

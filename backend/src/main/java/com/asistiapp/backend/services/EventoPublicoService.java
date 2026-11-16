@@ -52,10 +52,19 @@ public class EventoPublicoService {
     }
 
     private EventoPublicoListItemDTO toListItemDTO(Evento evento) {
-        Double precioDesde = evento.getTandas().stream()
+        List<Tanda> tandas = evento.getTandas();
+
+        Double precioDesde = tandas.stream()
                 .map(Tanda::getPrecio)
                 .min(Comparator.naturalOrder())
                 .orElse(null);
+
+        int cupoDisponibleTotal = tandas.stream()
+                .mapToInt(t -> t.getCupoDisponible() != null ? t.getCupoDisponible() : 0)
+                .sum();
+        int cupoTotal = tandas.stream()
+                .mapToInt(t -> t.getCupoMaximo() != null ? t.getCupoMaximo() : 0)
+                .sum();
 
         return EventoPublicoListItemDTO.builder()
                 .id(evento.getId())
@@ -66,6 +75,9 @@ public class EventoPublicoService {
                 .imagenPortadaUrl(evento.getImagenPortadaUrl())
                 .urlPublica(evento.getUrlPublica())
                 .precioDesde(precioDesde)
+                .cantidadTandas(tandas.size())
+                .cupoDisponibleTotal(cupoDisponibleTotal)
+                .cupoTotal(cupoTotal)
                 .build();
     }
 

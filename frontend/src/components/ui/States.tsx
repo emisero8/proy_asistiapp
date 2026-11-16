@@ -36,17 +36,17 @@ export function EmptyState({ icon: Icono, title, description, action, variant = 
     <div
       className={cn(
         "flex flex-col items-center px-6 text-center",
-        variant === "card" ? "rounded-2xl border border-dashed border-border-strong bg-card/60 py-12" : "py-10",
+        variant === "card" ? "rounded-2xl border border-border-strong bg-card py-12 shadow-hard" : "py-10",
         className,
       )}
     >
       {Icono && (
-        <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-secondary/12 text-secondary">
+        <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-accent text-accent-foreground">
           <Icono size={20} aria-hidden="true" />
         </div>
       )}
-      <p className="text-sm font-semibold text-foreground">{title}</p>
-      {description && <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">{description}</p>}
+      <p className="font-display text-base font-bold tracking-tight text-foreground">{title}</p>
+      {description && <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
@@ -83,14 +83,14 @@ export function ErrorState({
       role="alert"
       className={cn(
         "flex flex-col items-center px-6 text-center",
-        variant === "card" ? "rounded-2xl border border-border bg-card py-12" : "py-10",
+        variant === "card" ? "rounded-2xl border border-border-strong bg-card py-12 shadow-hard" : "py-10",
         className,
       )}
     >
-      <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-destructive/12 text-destructive">
+      <div className="mb-4 flex size-12 items-center justify-center rounded-xl bg-destructive/12 text-destructive">
         <AlertCircle size={20} aria-hidden="true" />
       </div>
-      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="font-display text-base font-bold tracking-tight text-foreground">{title}</p>
       {description && <p className="mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">{description}</p>}
       {(onRetry || secondaryAction) && (
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2">

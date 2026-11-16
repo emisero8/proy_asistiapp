@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { CalendarSearch, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { EventCard, EventCardSkeleton } from "../../components/EventCard";
 import { PublicHeader } from "../../components/PublicHeader";
@@ -30,12 +31,17 @@ function formatCorto(fechaIso: string): string {
 
 export function AllEventsPage() {
   useDocumentTitle("Todos los eventos");
+  const [searchParams] = useSearchParams();
   const [eventos, setEventos] = useState<EventoPublicoListItemDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-  const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>("todos");
-  const [rangoDesde, setRangoDesde] = useState("");
-  const [rangoHasta, setRangoHasta] = useState("");
+  // Prefill desde el buscador del hero de la Home (/eventos?q=&fecha=), reusando los filtros existentes.
+  const [search, setSearch] = useState(() => searchParams.get("q") ?? "");
+  const [filtroFecha, setFiltroFecha] = useState<FiltroFecha>(() => {
+    const f = searchParams.get("fecha");
+    return f === "hoy" || f === "este-finde" || f === "proximo-finde" ? f : "todos";
+  });
+  const [rangoDesde, setRangoDesde] = useState(() => searchParams.get("desde") ?? "");
+  const [rangoHasta, setRangoHasta] = useState(() => searchParams.get("hasta") ?? "");
   const [pagina, setPagina] = useState(1);
   const resultadosRef = useRef<HTMLDivElement>(null);
   const rangoActivo = rangoDesde !== "" || rangoHasta !== "";
@@ -175,7 +181,7 @@ export function AllEventsPage() {
         {error && <ErrorState title="No pudimos cargar los eventos" description={error} onRetry={cargar} />}
 
         {!error && eventos === null && (
-          <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6" aria-busy="true">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6" aria-busy="true">
             <span className="sr-only">Cargando eventos…</span>
             {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
               <EventCardSkeleton key={i} />
@@ -205,7 +211,7 @@ export function AllEventsPage() {
 
         {!error && visibles.length > 0 && (
           <>
-            <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
+            <ul className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
               {visibles.map((ev, i) => (
                 <li key={ev.id}>
                   <EventCard
