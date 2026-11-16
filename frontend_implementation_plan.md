@@ -352,7 +352,7 @@ Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, q
 - Punto de partida marcado con el tag local `rediseno-inicio` (= `9180cb9`, igual a `master`).
 - **Línea base medida antes de tocar nada:** lint 0 errores / 4 warnings preexistentes (`only-export-components` en `theme.tsx`, `auth.tsx`, `StaffMgmtPage.tsx`, `WizardPage.tsx`); tests 13 archivos / 124 en verde; build OK, CSS 91,16 kB.
 
-### 13.0 — Limpieza verificada ✅ (pendiente de commit)
+### 13.0 — Limpieza verificada ✅ (commit `ed8455e`)
 Borrar lo que no usa nada, después de verificar referencias en código, tests, docs, backend y configs:
 - `pages/buyer/TicketPage.tsx` + ruta `/ticket/:id` (nadie navega ahí desde la Fase 12; los mails del backend apuntan a `/mi-entrada` — `EmailService.java:66`).
 - `pages/PagePlaceholder.tsx` (sin referencias).
@@ -363,7 +363,7 @@ Borrar lo que no usa nada, después de verificar referencias en código, tests, 
 **Resultado:** hecho tal cual. `npm uninstall tw-animate-css` solo tocó esa entrada de `package.json` y sus 11 líneas del lockfile. Lint 0 errores / 4 warnings (los mismos de la línea base); tests 124/124; build OK, CSS 91,16 → 88,97 kB, y `dist/` deja de llevar ~1,8 MB de imágenes sin uso.
 - **Nota de entorno (no es un problema del código):** en Windows, `npm test` desde una ruta con la unidad en minúscula (`c:\…`) hace que Vitest cargue su módulo dos veces y todas las suites fallen con *"Vitest failed to find the current suite"* sin correr ningún test. Desde `C:\…` (mayúscula) corre normal. Si aparece ese error, es esto.
 
-### 13.1 — Fundamentos globales (tokens + base) ✅ (pendiente de commit)
+### 13.1 — Fundamentos globales (tokens + base) ✅ (commit `ca9abd0`)
 - Tokens nuevos en `theme.css` (valor por modo): `--highlight`, `--success`, `--warning`, `--info` (+ `-foreground`), `--surface-sunken`, `--border-strong`, elevaciones (`--shadow-raised/overlay/modal`), movimiento (`--duration-*`, `--ease-standard`), tamaño `text-2xs` (11 px, piso tipográfico).
 - Correcciones de contraste: `--muted-foreground` claro y `--destructive` oscuro.
 - Escala de radios monotónica (hoy `rounded-xl` y `rounded-2xl` valen ambos 16 px).
@@ -381,8 +381,17 @@ Borrar lo que no usa nada, después de verificar referencias en código, tests, 
   - **Confirmado visualmente:** el menú de fila de `/admin/usuarios` queda recortado por el `overflow-x-auto` de la tabla. → 13.7.
   - El anillo de foco del link "¿Olvidaste tu contraseña?" ocupa todo el ancho porque el botón es `w-full`. → 13.3 (variante link de `Button`).
 
-### 13.2 — Componentes compartidos (`components/ui/`)
+### 13.2 — Componentes compartidos (`components/ui/`) ✅
 `Button`, `IconButton`, `Field` (+ `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `RadioCardGroup`), `Badge` + `StatusBadge` (mapa único de estados en `lib/estados.ts`), `Alert`, `Card`, `PageHeader`, `StatCard`, `Skeleton`, `Spinner`, `EmptyState`, `ErrorState`, `Popover` + `useDismiss`, `Menu`, `Tooltip`, `QuantityStepper`, `StickyActionBar`. Migrar DatePicker/DateRangeFilter/TimePicker/EventMap/NotificationBell a `useDismiss`. Tests de los componentes con comportamiento (Menu, Switch, Field).
+
+**Resultado:** hecho, **sin migrar todavía ninguna pantalla** (eso es 13.3–13.8), salvo la lógica de cierre de los 5 componentes de abajo.
+- **`lib/`:** `cn.ts` (unir clases; sin tailwind-merge a propósito: los componentes reciben `className` solo para layout, los colores/tamaños van por `variant`/`size`/`tone`), `useDismiss.ts` (click/touch afuera con `pointerdown` + Escape), `useFloatingPosition.ts` (panel flotante con `position: fixed` en un portal: se da vuelta si no entra y nunca se sale del viewport), `estados.ts` (tono de cada estado de evento/usuario/entrada/transacción/paquete y de cada rol, más `ETIQUETA_ROL`: "Staff QR" en vez de `Staff_QR`).
+- **`components/ui/`** (exporta todo desde `index.ts`): `Button` (5 variantes × 3 tamaños, `loading` con spinner + `aria-busy`, `type="button"` por defecto), `IconButton` (`label` obligatorio, tooltip por defecto), `Tooltip` (mouse con demora / foco de teclado / Escape, no en touch), `Field` + `Input`/`Textarea`/`Select` (label, ayuda y error conectados por contexto: `htmlFor`, `aria-describedby`, `aria-invalid`, `required`), `Checkbox` (nativo), `Switch` (`role="switch"`), `RadioCardGroup` (radio group real: un Tab, flechas, saltea deshabilitadas), `Badge`/`StatusBadge`, `Alert`, `Card`/`CardHeader`, `PageHeader` (único `<h1>`), `StatCard`, `Skeleton`/`EmptyState`/`ErrorState`, `Spinner`, `Menu` (patrón de menú WAI-ARIA, en portal), `QuantityStepper`, `StickyActionBar`. "Popover" quedó resuelto como los dos hooks de `lib/` en vez de un componente propio: cada caso (menú, tooltip, calendario) tiene un contenido distinto y un componente genérico no simplificaba nada.
+- **Migrados a `useDismiss`:** `DatePicker`, `DateRangeFilter`, `TimePicker`, `EventMap` (las sugerencias de dirección ahora también cierran con Escape) y `NotificationBell` (además: `aria-expanded`/`aria-controls`, Escape cierra **y devuelve el foco** a la campanita, y el nombre accesible incluye las no leídas: "Notificaciones (3 sin leer)").
+- **Catálogo `/dev/ui`** (`pages/dev/UiCatalogPage.tsx`): todos los componentes en una pantalla, para revisarlos en claro/oscuro y mobile/desktop sin datos del backend. **Solo existe en desarrollo**: en el build, `import.meta.env.DEV` es `false` y la ruta y su chunk no se generan (verificado: 0 archivos y 0 referencias en `dist/`).
+- **Tests nuevos:** 26 en 4 archivos (`Menu`, `Field`, `Selection`, `Button`): teclado y foco del menú, asociación accesible de los campos, navegación del radio group, switch, checkbox nativo, `type="button"` por defecto, `loading` sin doble envío, tooltip con teclado, topes del stepper.
+- **Verificación:** lint 0 errores / las mismas 4 warnings; **150/150 tests** (124 previos + 26); build OK. Playwright sobre `/dev/ui` en 390 y 1440 px × claro/oscuro, sin errores de consola: el menú de la **última fila de una tabla con `overflow-x-auto` queda completo y dentro del viewport** en las 4 combinaciones (el problema confirmado en `/admin/usuarios`), con el foco en el primer ítem; tooltip con teclado, radio group con flechas y `aria-busy` del botón en carga, OK. Regresión del `DateRangeFilter` de `/eventos`: abre, cierra con Escape y con click afuera. Capturas revisadas a mano en ambos temas.
+- **Nota:** el CSS del build pasa de 90,1 a 99,4 kB porque Tailwind ya genera las clases de los componentes nuevos (que las pantallas empiezan a usar en 13.3). Se vuelve a medir en 13.9, cuando se retiren las clases viejas de las pantallas.
 
 ### 13.3 — Shell y autenticación
 `AppShell` único para Organizador y Admin (sidebar de 208 px, barra superior en mobile con campana/tema/salir, Auditoría accesible en mobile); el tema, la campana y "Salir" dejan de flotar sobre el contenido (fuera los parches `pr-16`/`pt-14`); `AuthLayout` compartido por los logins de Organizador/Staff/Admin y el reset de contraseña; *error boundary* de rutas con "Recargar" (hoy un chunk lazy que no carga deja la app en blanco — detectado en la verificación de 13.1).

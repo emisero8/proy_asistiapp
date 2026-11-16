@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Navigation, MapPin, Loader2, X } from "lucide-react";
+import { useDismiss } from "../lib/useDismiss";
 
 // ── Pin SVG personalizado (evita los problemas de rutas de PNG con bundlers) ──
 const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
@@ -104,16 +105,8 @@ export function MapPicker({
     setInputText(venueValue);
   }, [venueValue]);
 
-  // Cerrar dropdown al hacer click fuera
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setAbierto(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  // Cerrar las sugerencias de dirección al tocar afuera o con Escape
+  useDismiss(abierto, () => setAbierto(false), [containerRef]);
 
   // init mapa una sola vez
   useEffect(() => {

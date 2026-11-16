@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Bell, Megaphone } from "lucide-react";
+import { useDismiss } from "../lib/useDismiss";
 import { api, ApiError } from "../lib/api";
 import type { NotificacionResponseDTO } from "../lib/types";
 
@@ -18,6 +19,8 @@ export function NotificationBell() {
   const [cantidadNoLeidas, setCantidadNoLeidas] = useState(0);
   const [notificaciones, setNotificaciones] = useState<NotificacionResponseDTO[] | null>(null);
   const contenedorRef = useRef<HTMLDivElement>(null);
+  const botonRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
 
   function cargarCantidad() {
     api
@@ -32,14 +35,17 @@ export function NotificationBell() {
     return () => clearInterval(interval);
   }, []);
 
+  // Click afuera cierra; Escape cierra y devuelve el foco a la campanita.
+  useDismiss(abierto, () => setAbierto(false), [contenedorRef], { escape: false });
   useEffect(() => {
-    function handleClickFuera(e: MouseEvent) {
-      if (contenedorRef.current && !contenedorRef.current.contains(e.target as Node)) {
-        setAbierto(false);
-      }
+    if (!abierto) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setAbierto(false);
+      botonRef.current?.focus();
     }
-    if (abierto) document.addEventListener("mousedown", handleClickFuera);
-    return () => document.removeEventListener("mousedown", handleClickFuera);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [abierto]);
 
   function toggle() {
@@ -79,9 +85,12 @@ export function NotificationBell() {
   return (
     <div ref={contenedorRef} className="relative">
       <button
+        ref={botonRef}
         onClick={toggle}
         title="Notificaciones"
-        aria-label="Notificaciones"
+        aria-label={cantidadNoLeidas > 0 ? `Notificaciones (${cantidadNoLeidas} sin leer)` : "Notificaciones"}
+        aria-expanded={abierto}
+        aria-controls={abierto ? panelId : undefined}
         className="relative h-9 w-9 rounded-full bg-card border border-border shadow-lg shadow-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
       >
         <Bell size={15} />
@@ -93,7 +102,7 @@ export function NotificationBell() {
       </button>
 
       {abierto && (
-        <div className="absolute top-11 right-0 w-80 max-w-[calc(100vw-1.5rem)] max-h-[70vh] overflow-y-auto bg-card border border-border rounded-2xl shadow-xl shadow-black/20 z-50">
+        <div id={panelId} role="region" aria-label="Notificaciones" className="absolute top-11 right-0 w-80 max-w-[calc(100vw-1.5rem)] max-h-[70vh] overflow-y-auto bg-card border border-border rounded-2xl shadow-xl shadow-black/20 z-50">
           <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <p className="text-sm font-bold text-foreground">Notificaciones</p>
             {cantidadNoLeidas > 0 && (

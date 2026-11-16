@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useDismiss } from "../lib/useDismiss";
 import { MESES, DIAS, toISO, buildGrid } from "../lib/calendar";
 
 const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
@@ -34,21 +35,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
     setCursor(new Date(base.getFullYear(), base.getMonth(), 1));
   }, [open, desde, hasta]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, [open]);
+  useDismiss(open, () => setOpen(false), [ref]);
 
   function pickDay(iso: string) {
     if (!draftDesde || (draftDesde && draftHasta)) {

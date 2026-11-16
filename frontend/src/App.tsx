@@ -38,6 +38,12 @@ const AdminEventsPage = lazy(() => import("./pages/admin/EventsPage").then((m) =
 const AdminConfigPage = lazy(() => import("./pages/admin/ConfigPage").then((m) => ({ default: m.AdminConfigPage })));
 const AdminAuditoriaPage = lazy(() => import("./pages/admin/AuditoriaPage").then((m) => ({ default: m.AdminAuditoriaPage })));
 
+// Catálogo del sistema de diseño: solo en desarrollo. Con import.meta.env.DEV = false en el
+// build, el ternario se resuelve en `null` y el import dinámico (y su chunk) desaparecen.
+const UiCatalogPage = import.meta.env.DEV
+  ? lazy(() => import("./pages/dev/UiCatalogPage").then((m) => ({ default: m.UiCatalogPage })))
+  : null;
+
 /** Vuelve arriba en cada cambio de ruta (antes lo hacía el wrapper animado global). */
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -71,6 +77,7 @@ function AppRoutes() {
         <Route path="/organizador/registro" element={<OrganizadorRegisterPage />} />
         <Route path="/organizador/recuperar-password" element={<OrganizadorResetPasswordPage />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />
+        {UiCatalogPage && <Route path="/dev/ui" element={<UiCatalogPage />} />}
 
         {/* Staff (QR y Vendedor) — pantallas de una sola tarea, sin layout compartido */}
         <Route path="/staff/login" element={<StaffLoginPage />} />

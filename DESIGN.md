@@ -197,7 +197,15 @@ Resueltos en la capa base de `theme.css` — **no se repiten clase por clase**:
 
 ## Component Patterns
 
-> En la sub-fase 13.2 estos patrones pasan a ser componentes en `src/components/ui/` (`Button`, `Field`, `Badge`, `Menu`, …) y las pantallas los usan en vez de copiar clases. Hasta entonces, estas son las recetas de referencia. **No inventar variantes nuevas.**
+> **Estos patrones ya son componentes** en `src/components/ui/` (Fase 13.2) — en código nuevo se importan de ahí, no se copian clases:
+>
+> ```tsx
+> import { Button, IconButton, Field, Input, Select, Textarea, Checkbox, Switch, RadioCardGroup,
+>   Badge, StatusBadge, Alert, Card, CardHeader, PageHeader, StatCard, Skeleton, EmptyState,
+>   ErrorState, Spinner, Menu, Tooltip, QuantityStepper, StickyActionBar } from "../../components/ui";
+> ```
+>
+> **Catálogo vivo:** con `npm run dev`, abrir `/dev/ui` — todos los componentes en una pantalla, para revisarlos en claro/oscuro y en mobile/desktop (solo existe en desarrollo, no se incluye en el build). Las recetas de abajo documentan qué hace cada uno por dentro. Las pantallas existentes se migran en las sub-fases 13.3–13.8. **No inventar variantes nuevas**: si falta una, se agrega al componente.
 
 ### Botones
 
@@ -270,16 +278,21 @@ Tamaños: `h-9 px-3 text-xs` (chico, filas/tablas) · `h-11 px-5 text-sm` (está
   Publicado
 </span>
 ```
-Tono por significado (un solo mapa, `lib/estados.ts` en 13.2):
+Con `<StatusBadge tipo="evento" estado={ev.estado} />` el tono sale de un solo mapa (`lib/estados.ts`); TypeScript obliga a darle tono a cualquier estado nuevo:
 
 | Estado | Tono |
 |---|---|
-| Publicado · Activo · Aprobada · Pagada · Válida | `success` |
-| Borrador · Pendiente · Usada | `warning` |
-| Cancelado · Suspendido · Rechazada · Reembolsada | `destructive` |
-| Expirada · Inactivo | neutro (`bg-muted text-muted-foreground`) |
-| Roles de usuario | intensidades de `primary` / neutro (`ROLE_COLORS` en `admin/UsersPage.tsx`) |
-| Destacado / Próximo | `bg-highlight text-highlight-foreground` |
+| Evento Publicado · Usuario Activo · Transacción Aprobada · Paquete Activo | `success` |
+| Entrada **Usada** (desde el Organizador: alguien ya ingresó, es un resultado positivo) | `success` |
+| Entrada **Pagada** (vigente, todavía no ingresó) | `primary` (suave) |
+| Evento Borrador · Transacción Pendiente | `warning` |
+| Evento Cancelado · Usuario Suspendido · Transacción Rechazada | `danger` |
+| Transacción Reembolsada (informativo: el dinero volvió) | `info` |
+| Transacción Expirada · Usuario Inactivo · Paquete Deshabilitado | `neutral` |
+| Roles (`TONO_ROL` + `ETIQUETA_ROL`: "Staff QR", no `Staff_QR`) | Administrador `primary-strong` · Organizador `primary` · Staff QR `neutral-strong` · Staff Vendedor `neutral` |
+| Destacado / Próximo | `<Badge tone="highlight">` |
+
+Para el comprador, "ya utilizada" en su propia entrada no es un badge sino un aviso `warning` (`MiEntradaPage`).
 
 ### Tarjeta de métrica
 
@@ -298,7 +311,7 @@ La métrica protagonista de un panel puede ir en `bg-primary/[0.08] border-prima
 
 - Disparador: botón de ícono con `aria-label="Acciones de <nombre>"`, `aria-haspopup="menu"`, `aria-expanded`.
 - Panel: `bg-popover border border-border rounded-xl shadow-overlay animate-scale-in min-w-[180px] py-1`; ítems `role="menuitem"`, `h-9 px-3 text-sm rounded-lg mx-1 hover:bg-muted`; ítem destructivo al final, separado, `text-destructive hover:bg-destructive/10`.
-- Cierra con Escape, clic afuera y al elegir; se navega con flechas. **No debe recortarse** dentro de contenedores con `overflow` (posicionado fuera del flujo de la tabla) — se implementa en 13.2 y se aplica en 13.7.
+- Cierra con Escape, clic afuera y al elegir; se navega con flechas. **No debe recortarse** dentro de contenedores con `overflow` (posicionado fuera del flujo de la tabla) — `<Menu label="Acciones de …" items={[…]} />` ya lo resuelve (portal + `position: fixed`); se aplica en las tablas de Admin en 13.7.
 
 ### Diálogos (confirm / alert / prompt)
 

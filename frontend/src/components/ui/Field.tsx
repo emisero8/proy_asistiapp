@@ -1,0 +1,131 @@
+import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { AlertCircle, ChevronDown } from "lucide-react";
+import { cn } from "../../lib/cn";
+import { FieldContext, useFieldControl } from "./fieldContext";
+
+interface FieldProps {
+  label: ReactNode;
+  /** Texto de ayuda permanente debajo del control. */
+  hint?: ReactNode;
+  /** Error de validación: pinta el control en rojo y lo anuncia (`aria-invalid` + `aria-describedby`). */
+  error?: ReactNode;
+  required?: boolean;
+  /** Oculta el label visualmente (sigue disponible para lectores de pantalla). */
+  labelHidden?: boolean;
+  className?: string;
+  children: ReactNode;
+}
+
+/**
+ * Campo de formulario: label + control + ayuda + error, **ya conectados entre sí** (el label
+ * apunta al control, y la ayuda y el error quedan asociados con `aria-describedby`). El control
+ * de adentro (`Input`, `Textarea`, `Select`) toma el `id` del contexto, no hace falta pasarlo.
+ */
+export function Field({ label, hint, error, required, labelHidden, className, children }: FieldProps) {
+  const id = useId();
+  const hintId = `${id}-ayuda`;
+  const errorId = `${id}-error`;
+  const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
+
+  return (
+    <FieldContext.Provider value={{ id, describedBy, invalid: Boolean(error), required }}>
+      <div className={cn("space-y-1.5", className)}>
+        <label htmlFor={id} className={cn("block text-xs font-medium text-muted-foreground", labelHidden && "sr-only")}>
+          {label}
+          {required && (
+            <span aria-hidden="true" className="text-destructive">
+              {" "}
+              *
+            </span>
+          )}
+        </label>
+        {children}
+        {hint && (
+          <p id={hintId} className="text-xs text-muted-foreground">
+            {hint}
+          </p>
+        )}
+        {error && (
+          <p id={errorId} className="flex items-start gap-1.5 text-xs font-medium text-destructive">
+            <AlertCircle size={13} className="mt-px flex-none" aria-hidden="true" />
+            <span>{error}</span>
+          </p>
+        )}
+      </div>
+    </FieldContext.Provider>
+  );
+}
+
+type Superficie = "card" | "sunken";
+type TamanoControl = "sm" | "md";
+
+const CONTROL =
+  "w-full rounded-xl border border-border-strong text-sm text-foreground placeholder:text-muted-foreground " +
+  "transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard " +
+  "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 " +
+  "disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:ring-destructive/25";
+
+const SUPERFICIES: Record<Superficie, string> = { card: "bg-card", sunken: "bg-surface-sunken" };
+const ALTOS: Record<TamanoControl, string> = { sm: "h-9", md: "h-11" };
+
+export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
+  /** `card` sobre el fondo de la pantalla (default); `sunken` dentro de una tarjeta. */
+  surface?: Superficie;
+  size?: TamanoControl;
+  /** Ícono decorativo a la izquierda (ej. lupa de un buscador). */
+  leadingIcon?: ReactNode;
+  ref?: Ref<HTMLInputElement>;
+}
+
+export function Input({ surface = "card", size = "md", leadingIcon, className, ref, ...rest }: InputProps) {
+  const props = useFieldControl(rest);
+  const input = (
+    <input
+      ref={ref}
+      className={cn(CONTROL, SUPERFICIES[surface], ALTOS[size], leadingIcon ? "pl-10 pr-4" : "px-4", !leadingIcon && className)}
+      {...props}
+    />
+  );
+  if (!leadingIcon) return input;
+  return (
+    <div className={cn("relative", className)}>
+      <span aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground">
+        {leadingIcon}
+      </span>
+      {input}
+    </div>
+  );
+}
+
+export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  surface?: Superficie;
+  ref?: Ref<HTMLTextAreaElement>;
+}
+
+export function Textarea({ surface = "card", rows = 3, className, ref, ...rest }: TextareaProps) {
+  const props = useFieldControl(rest);
+  return <textarea ref={ref} rows={rows} className={cn(CONTROL, SUPERFICIES[surface], "px-4 py-3 resize-none leading-relaxed", className)} {...props} />;
+}
+
+export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "size"> {
+  surface?: Superficie;
+  size?: TamanoControl;
+  ref?: Ref<HTMLSelectElement>;
+}
+
+/** `<select>` nativo (lo más usable en mobile: abre el selector del sistema) con el estilo de los inputs. */
+export function Select({ surface = "card", size = "md", className, children, ref, ...rest }: SelectProps) {
+  const props = useFieldControl(rest);
+  return (
+    <div className={cn("relative", className)}>
+      <select ref={ref} className={cn(CONTROL, SUPERFICIES[surface], ALTOS[size], "appearance-none pl-4 pr-10")} {...props}>
+        {children}
+      </select>
+      <ChevronDown
+        size={16}
+        aria-hidden="true"
+        className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+      />
+    </div>
+  );
+}

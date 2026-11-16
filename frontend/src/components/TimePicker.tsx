@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Clock } from "lucide-react";
+import { useDismiss } from "../lib/useDismiss";
 
 const HORAS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTOS = ["00", "15", "30", "45"];
@@ -21,21 +22,7 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
   const ref = useRef<HTMLDivElement>(null);
   const [hh, mm] = value ? value.split(":") : ["", ""];
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, [open]);
+  useDismiss(open, () => setOpen(false), [ref]);
 
   function elegirHora(nuevaHh: string) {
     onChange(`${nuevaHh}:${mm || "00"}`);
