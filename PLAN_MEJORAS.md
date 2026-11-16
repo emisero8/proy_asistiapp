@@ -17,7 +17,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 | Etapa | Qué resuelve | Ítems | Cuándo |
 |---|---|---|---|
-| 0 | Cerrar lo que está abierto | 4 | Ya |
+| 0 | Cerrar lo que está abierto | 2 | Ya (completa; 0.3 y 0.4 salieron del plan) |
 | 1 | Lo mínimo para mostrar la app | 4 | Antes de la demo |
 | 2 | Seguridad | 5 | Antes de cualquier despliegue |
 | 3 | Bugs y comportamiento incorrecto | 9 | Cuando haya tiempo |
@@ -28,21 +28,18 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 ---
 
-## Estado actual — por dónde vamos (cierre del 2026-11-12)
+## Estado actual — por dónde vamos (actualizado el 2026-11-16)
 
-**Hecho (todo commiteado y pusheado a `feature-mercadopago`):** Etapa 1 completa, Etapa 2 completa salvo 2.4 (se cierra en producción), **Etapa 3 completa (3.1–3.9)** y de la Etapa 4: **4.3, 4.4, 4.5 y 4.6**. Además, en la sesión del 12/11 salieron cosas que no estaban en el plan: SMTP configurable por variables de entorno (Gmail sin editar `application.yml`), lectura de un `backend/.env` opcional, el QR del mail de confirmación como imagen inline `cid:` (Gmail bloqueaba la `data:` URI) y la versión en texto plano del mismo mail. Suite del backend: **334 tests, 0 fallos**.
+**Hecho (todo commiteado y pusheado a `feature-mercadopago`):** Etapa 0 completa (0.3 y 0.4 salieron del plan), Etapa 1 completa, Etapa 2 completa salvo 2.4 (se cierra en producción), **Etapa 3 completa (3.1–3.9)** y de la Etapa 4: **4.3, 4.4, 4.5 y 4.6**. El 16/11 se cerraron además los ítems chicos **5.6, 6.1, 6.3, 7.1, 7.2 y 7.3**. Además, en la sesión del 12/11 salieron cosas que no estaban en el plan: SMTP configurable por variables de entorno (Gmail sin editar `application.yml`), lectura de un `backend/.env` opcional, el QR del mail de confirmación como imagen inline `cid:` (Gmail bloqueaba la `data:` URI) y la versión en texto plano del mismo mail. Suite del backend: **334 tests, 0 fallos**.
 
 **Falta, en el orden que recomiendo:**
-1. **4.8 — decidir si y dónde se despliega.** Es la decisión que ordena el resto: define cómo se maneja la base (4.1, 4.2), si hay más de una instancia (4.7) y qué dominio/proveedor de mail se usa (SPF/DKIM/DMARC; ver `DECISIONES.md` 2026-11-12, mail en spam). Conviene tenerla antes que lo demás de la Etapa 4.
-2. **4.1 Flyway** (L) y **4.2 claves foráneas** (L): recién después de 4.8. Pasar `ddl-auto` a `validate` en producción depende de 4.1.
-3. **4.7 límite de peticiones en memoria** (M): solo importa si corre más de una instancia.
-4. Etapas 5, 6 y 7 según el tiempo; empezar por los ítems S (5.6, 6.1, 6.3, 7.1–7.3).
-5. **0.3** (qué hacer con el `.xlsx`) y **0.4** (abrir el PR `feature-mercadopago` → `master`, desde la web; hay que armar título y descripción): pendientes de decisión de Felipe.
+1. **4.8 — decidido el 2026-11-16: por ahora no se despliega, se sigue en local** (ver `DECISIONES.md`). Por eso **4.1 Flyway** (L), **4.2 claves foráneas** (L) y **4.7 límite de peticiones en memoria** (M) quedan **en pausa**: solo importan si se despliega (pasar `ddl-auto` a `validate` en producción depende de 4.1; 4.7 solo con más de una instancia). Si se vuelve a querer una muestra en la web, se reabre 4.8.
+2. Etapas 5 y 6 según el tiempo. **Ya no queda ningún ítem S**: lo que falta es M o L (5.1, 5.3, 5.4, 5.5, 5.2, 6.2 y 6.4; 6.4 espera una respuesta de Felipe, ver abajo). El 7.4 no es código, es una forma de trabajar.
 
 **Preguntas abiertas (no asumir):**
 - **6.4:** la venta manual del POS **no manda ningún mail** al comprador (confirmado el 12/11: el único mail de entrada sale de la compra online, en `PagoWebhookService`). ¿Debe mandarlo?
 - El mail de confirmación cayó en spam de Gmail con la cuenta de prueba: ver el hallazgo en `DECISIONES.md` (se resuelve con dominio propio, 4.8).
-- La cuenta demo `staffvendedor@demo.com` no acepta `Demo1234!` (devuelve 401), aunque la documentación la da como válida: averiguar si hay que resetearla o corregir la doc.
+- La cuenta demo `staffvendedor@demo.com` no acepta `Demo1234!` (devuelve 401), aunque la documentación la da como válida. Aclarado el 16/11: un 401 en el login es "credenciales inválidas" (email inexistente o contraseña distinta, el backend no distingue). En la base de esta PC esa cuenta ni existe; en la de la PC anterior lo más probable es que se haya reseteado (el reseteo genera una contraseña al azar), pero no se pudo comprobar desde acá. Falta decidir: resetearla en esa base o corregir `GUIA_DEMO.md`.
 - El evento 17 de desarrollo se borró por accidente durante una prueba de 3.1; se puede volver a sembrar si hace falta.
 
 **Cómo está la máquina de desarrollo (para retomar):**
@@ -61,8 +58,8 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 |---|---|---|---|
 | 0.1 | Commitear y pushear el pago en pestaña nueva (Fase 13 del plan de frontend). Está terminado y probado, sin commitear. | S | ✅ commit `4f341e9`, pusheado |
 | 0.2 | Hacer un pago real con el usuario comprador de prueba de MercadoPago. El paso a "aprobado" se verificó simulando la respuesta del backend, no con un pago de verdad. | S | ✅ 2026-11-12: pago real de $1.500 con el comprador de prueba; la pestaña original pasó sola a "¡Pago aprobado!" con la entrada |
-| 0.3 | Decidir qué hacer con `AsistíAPP - Planificación Scrum (1).xlsx` de la raíz (sin versionar). Ya hay una copia en `docs/`; si es la misma, borrarlo. | S | ⏳ |
-| 0.4 | Abrir el PR de `feature-mercadopago` a `master`. La rama ya acumula notificaciones, soporte, POS, calendarios y favicon. | S | ⏳ |
+
+> Los ítems 0.3 (qué hacer con el `.xlsx` de la raíz) y 0.4 (abrir el PR `feature-mercadopago` → `master`) **se sacaron de este plan el 2026-11-16**: los resuelve Felipe por fuera. La numeración queda con ese salto a propósito.
 
 ## Etapa 1 — Lo mínimo para mostrar la app
 
@@ -105,14 +102,14 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 | # | Qué | Tamaño | Estado |
 |---|---|---|---|
-| 4.1 | **Migraciones con Flyway** en lugar de `ddl-auto: update`, que no aplica cambios de restricciones. Reemplaza los scripts sueltos de `backend/db/migraciones/` y hace innecesario el ítem 1.3 a futuro. | L | ⏳ |
-| 4.2 | **Claves foráneas reales.** Varias relaciones son un `Long` suelto, y al borrar un usuario hay que limpiar tabla por tabla a mano (`notificaciones`, `movimientos_credito`, `transacciones_credito`, `tokens_recuperacion`). Conviene hacerlo después de 4.1. | L | ⏳ |
+| 4.1 | **Migraciones con Flyway** en lugar de `ddl-auto: update`, que no aplica cambios de restricciones. Reemplaza los scripts sueltos de `backend/db/migraciones/` y hace innecesario el ítem 1.3 a futuro. | L | ⏸ en pausa (sin despliegue) |
+| 4.2 | **Claves foráneas reales.** Varias relaciones son un `Long` suelto, y al borrar un usuario hay que limpiar tabla por tabla a mano (`notificaciones`, `movimientos_credito`, `transacciones_credito`, `tokens_recuperacion`). Conviene hacerlo después de 4.1. | L | ⏸ en pausa (sin despliegue) |
 | 4.3 | **Perfiles `dev` y `prod` separados.** Hoy todo vive en un solo `application.yml` con valores por defecto de desarrollo. | M | ✅ |
 | 4.4 | **Apagar `show-sql: true`** fuera de desarrollo. | S | ✅ |
 | 4.5 | **Credenciales de Cloudinary.** Sin ellas no anda la subida de imágenes. Ya documentado en `DECISIONES.md` (deuda). | S | ✅ |
 | 4.6 | **Verificar el mail de reembolso contra MailHog.** Solo tiene tests unitarios. Ya documentado en `backend_implementation_plan.md` (21.6). | S | ✅ |
-| 4.7 | **Límite de peticiones en memoria.** **(a confirmar)** Se reinicia con el backend y no sirve con más de una instancia. Solo importa si se despliega. | M | ⏳ |
-| 4.8 | **Decidir si se despliega.** Con HTTPS real, MercadoPago vuelve solo al sitio y la pestaña nueva se desactiva sola. El resto del checklist ya está en `backend_implementation_plan.md` ("Checklist de pase a producción"). | L | ⏳ |
+| 4.7 | **Límite de peticiones en memoria.** **(a confirmar)** Se reinicia con el backend y no sirve con más de una instancia. Solo importa si se despliega. | M | ⏸ en pausa (sin despliegue) |
+| 4.8 | **(Decidido el 2026-11-16: por ahora no se despliega, ver `DECISIONES.md`; 4.1, 4.2 y 4.7 quedan en pausa.)** **Decidir si se despliega.** Con HTTPS real, MercadoPago vuelve solo al sitio y la pestaña nueva se desactiva sola. El resto del checklist ya está en `backend_implementation_plan.md` ("Checklist de pase a producción"). | L | ⏸ decidido: no se despliega por ahora |
 
 ## Etapa 5 — Calidad de código y tests
 
