@@ -5,6 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
+import { Menu } from "../../components/ui";
 
 const ROLE_COLORS: Record<RolUsuario, string> = {
   Administrador: "bg-primary text-primary-foreground",
@@ -22,7 +23,6 @@ export function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"todos" | RolUsuario>("todos");
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
   function load() {
@@ -43,7 +43,6 @@ export function AdminUsersPage() {
 
   async function toggleStatus(u: UsuarioResponseDTO) {
     setBusyId(u.id);
-    setOpenMenu(null);
     try {
       const path = u.estado === "Activo" ? `/admin/usuarios/${u.id}/suspender` : `/admin/usuarios/${u.id}/activar`;
       const updated = await api.patch<UsuarioResponseDTO>(path);
@@ -59,7 +58,6 @@ export function AdminUsersPage() {
   }
 
   async function resetPassword(u: UsuarioResponseDTO) {
-    setOpenMenu(null);
     const nueva = await prompt({
       titulo: "Cambiar contraseña",
       mensaje: `Nueva contraseña para ${u.nombre} (${u.email}).`,
@@ -84,7 +82,6 @@ export function AdminUsersPage() {
   }
 
   async function deleteUser(u: UsuarioResponseDTO) {
-    setOpenMenu(null);
     const ok = await confirm({
       titulo: "Eliminar usuario",
       mensaje: `¿Eliminar a ${u.nombre} (${u.email}) definitivamente? Esta acción no se puede deshacer.`,
@@ -107,10 +104,7 @@ export function AdminUsersPage() {
   }
 
   return (
-    <div
-      className="min-h-screen bg-background"
-      onClick={() => setOpenMenu(null)}
-    >
+    <div className="min-h-screen bg-background">
       <div className="px-4 lg:px-8 pt-8 pb-5 border-b border-border">
         <h1 className="text-xl font-extrabold text-foreground">Gestión de Usuarios</h1>
         <p className="text-xs text-muted-foreground mt-0.5">{users?.length ?? 0} usuarios en el sistema</p>
@@ -185,52 +179,18 @@ export function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="relative" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        disabled={busyId === u.id}
-                        onClick={() => {
-                          setOpenMenu(openMenu === u.id ? null : u.id);
-                        }}
-                        className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        ···
-                      </button>
-                      {openMenu === u.id && (
-                        <div className="absolute right-0 top-9 z-50 bg-card border border-border origin-top-right animate-scale-in rounded-xl shadow-xl shadow-black/40 overflow-hidden min-w-[170px]">
-                          <button
-                            onClick={() => toggleStatus(u)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"
-                          >
-                            {u.estado === "Activo" ? (
-                              <>
-                                <CircleX size={13} className="text-red-400" />
-                                Suspender
-                              </>
-                            ) : (
-                              <>
-                                <Check size={13} className="text-emerald-400" />
-                                Activar
-                              </>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => resetPassword(u)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"
-                          >
-                            <KeyRound size={13} className="text-primary" />
-                            Cambiar contraseña
-                          </button>
-                          <div className="border-t border-border" />
-                          <button
-                            onClick={() => deleteUser(u)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
-                          >
-                            <Trash2 size={13} />
-                            Eliminar
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    {/* Menú en portal: antes vivía dentro del overflow-x-auto de la tabla y se recortaba. */}
+                    <Menu
+                      label={`Acciones de ${u.nombre}`}
+                      disabled={busyId === u.id}
+                      items={[
+                        u.estado === "Activo"
+                          ? { label: "Suspender", icon: CircleX, onSelect: () => toggleStatus(u) }
+                          : { label: "Activar", icon: Check, onSelect: () => toggleStatus(u) },
+                        { label: "Cambiar contraseña", icon: KeyRound, onSelect: () => resetPassword(u) },
+                        { label: "Eliminar", icon: Trash2, tone: "danger", separatorBefore: true, onSelect: () => deleteUser(u) },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}

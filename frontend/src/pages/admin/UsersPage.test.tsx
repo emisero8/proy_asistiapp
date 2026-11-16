@@ -67,8 +67,8 @@ describe("AdminUsersPage", () => {
     await screen.findByText("Marta Suspendible");
 
     const fila = screen.getByText("Marta Suspendible").closest("tr")!;
-    await user.click(within(fila).getByRole("button", { name: "···" }));
-    await user.click(screen.getByRole("button", { name: /suspender/i }));
+    await user.click(within(fila).getByRole("button", { name: "Acciones de Marta Suspendible" }));
+    await user.click(screen.getByRole("menuitem", { name: /suspender/i }));
 
     expect(api.patch).toHaveBeenCalledWith("/admin/usuarios/7/suspender");
     await waitFor(() => expect(within(fila).getByText("Suspendido")).toBeInTheDocument());
@@ -85,8 +85,8 @@ describe("AdminUsersPage", () => {
     const fila = screen.getByText("Marta Suspendible").closest("tr")!;
 
     // 1) Cancelar: no se borra nada.
-    await user.click(within(fila).getByRole("button", { name: "···" }));
-    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    await user.click(within(fila).getByRole("button", { name: "Acciones de Marta Suspendible" }));
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
     let dialogo = await screen.findByRole("alertdialog");
     expect(within(dialogo).getByText(/definitivamente/)).toBeInTheDocument();
     await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
@@ -94,8 +94,8 @@ describe("AdminUsersPage", () => {
     expect(api.delete).not.toHaveBeenCalled();
 
     // 2) Confirmar: se borra y se muestra el toast.
-    await user.click(within(fila).getByRole("button", { name: "···" }));
-    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+    await user.click(within(fila).getByRole("button", { name: "Acciones de Marta Suspendible" }));
+    await user.click(screen.getByRole("menuitem", { name: "Eliminar" }));
     dialogo = await screen.findByRole("alertdialog");
     await user.click(within(dialogo).getByRole("button", { name: "Eliminar" }));
     await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/admin/usuarios/7"));
@@ -111,8 +111,8 @@ describe("AdminUsersPage", () => {
     await screen.findByText("Marta Suspendible");
     const fila = screen.getByText("Marta Suspendible").closest("tr")!;
 
-    await user.click(within(fila).getByRole("button", { name: "···" }));
-    await user.click(screen.getByRole("button", { name: "Cambiar contraseña" }));
+    await user.click(within(fila).getByRole("button", { name: "Acciones de Marta Suspendible" }));
+    await user.click(screen.getByRole("menuitem", { name: "Cambiar contraseña" }));
     const dialogo = await screen.findByRole("dialog");
     const input = within(dialogo).getByLabelText("Nueva contraseña");
 

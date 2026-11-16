@@ -8,6 +8,7 @@ import { formatFecha } from "../../lib/format";
 import type { EventoResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
+import { Menu } from "../../components/ui";
 
 export function AdminEventsPage() {
   useDocumentTitle("Eventos · Admin");
@@ -16,7 +17,6 @@ export function AdminEventsPage() {
   const [eventos, setEventos] = useState<EventoResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -33,7 +33,6 @@ export function AdminEventsPage() {
   }
 
   async function cancelarEvento(e: EventoResponseDTO) {
-    setOpenMenu(null);
     setBusyId(e.id);
     try {
       const updated = await api.patch<EventoResponseDTO>(`/admin/eventos/${e.id}/cancelar`);
@@ -49,7 +48,6 @@ export function AdminEventsPage() {
   }
 
   async function eliminarEvento(e: EventoResponseDTO) {
-    setOpenMenu(null);
     const ok = await confirm({
       titulo: "Eliminar evento",
       mensaje: `¿Eliminar "${e.nombre}" definitivamente? Esta acción no se puede deshacer.`,
@@ -78,7 +76,7 @@ export function AdminEventsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background" onClick={() => setOpenMenu(null)}>
+    <div className="min-h-screen bg-background">
       <div className="px-4 lg:px-8 pt-8 pb-5 border-b border-border">
         <h1 className="text-xl font-extrabold text-foreground">Gestión Global de Eventos</h1>
         <p className="text-xs text-muted-foreground mt-0.5">{eventos?.length ?? 0} eventos en la plataforma</p>
@@ -135,44 +133,24 @@ export function AdminEventsPage() {
                     <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${ESTADO_COLORS[e.estado]}`}>{e.estado}</span>
                   </td>
                   <td className="px-4 py-3.5">
-                    <div className="relative" onClick={(ev) => ev.stopPropagation()}>
-                      <button
-                        disabled={busyId === e.id}
-                        onClick={() => setOpenMenu(openMenu === e.id ? null : e.id)}
-                        className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        ···
-                      </button>
-                      {openMenu === e.id && (
-                        <div className="absolute right-0 top-9 z-50 bg-card border border-border origin-top-right animate-scale-in rounded-xl shadow-xl shadow-black/40 overflow-hidden min-w-[170px]">
-                          <button
-                            onClick={() => navigate(`/admin/eventos/${e.id}/editar`)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"
-                          >
-                            <Pencil size={13} className="text-primary" />
-                            Editar
-                          </button>
-                          <div className="border-t border-border" />
-                          {e.estado !== "Cancelado" && (
-                            <button
-                              onClick={() => cancelarEvento(e)}
-                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
-                            >
-                              <CircleX size={13} />
-                              Cancelar Evento
-                            </button>
-                          )}
-                          <div className="border-t border-border" />
-                          <button
-                            onClick={() => eliminarEvento(e)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
-                          >
-                            <Trash2 size={13} />
-                            Eliminar
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                    {/* Menú en portal: antes vivía dentro del overflow-x-auto de la tabla y se recortaba. */}
+                    <Menu
+                      label={`Acciones de ${e.nombre}`}
+                      disabled={busyId === e.id}
+                      items={[
+                        { label: "Editar", icon: Pencil, onSelect: () => navigate(`/admin/eventos/${e.id}/editar`) },
+                        ...(e.estado !== "Cancelado"
+                          ? [{ label: "Cancelar evento", icon: CircleX, tone: "danger" as const, separatorBefore: true, onSelect: () => cancelarEvento(e) }]
+                          : []),
+                        {
+                          label: "Eliminar",
+                          icon: Trash2,
+                          tone: "danger" as const,
+                          separatorBefore: e.estado === "Cancelado",
+                          onSelect: () => eliminarEvento(e),
+                        },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}
