@@ -34,6 +34,9 @@ function tieneToggleEnSuHeader(pathname: string): boolean {
     pathname.startsWith("/admin") ||
     pathname === "/staff/login" ||
     pathname === "/staff/scanner" ||
+    // Home y catálogo (13.5): header propio / PublicHeader
+    pathname === "/" ||
+    pathname === "/eventos" ||
     // Flujo de compra (13.4): PublicHeader
     pathname.startsWith("/eventos/") ||
     pathname === "/checkout" ||

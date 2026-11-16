@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router";
+import { Link, NavLink, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
@@ -53,12 +53,17 @@ export function PublicHeader({ back }: PublicHeaderProps) {
           </Link>
         </div>
         <nav aria-label="Secciones" className="flex items-center gap-1">
-          <Link
+          <NavLink
             to="/eventos"
-            className="inline-flex h-9 items-center rounded-xl px-3 text-sm font-semibold text-foreground transition-colors duration-(--duration-fast) hover:bg-muted"
+            end
+            className={({ isActive }) =>
+              `inline-flex h-9 items-center rounded-xl px-3 text-sm font-semibold transition-colors duration-(--duration-fast) ${
+                isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+              }`
+            }
           >
             Eventos
-          </Link>
+          </NavLink>
           <ThemeToggle />
         </nav>
       </div>

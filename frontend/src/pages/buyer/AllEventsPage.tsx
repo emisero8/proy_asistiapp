@@ -1,25 +1,35 @@
-import { useEffect, useMemo, useState } from "react";
-import { EventoImagen } from "../../components/EventoImagen";
-import { useNavigate } from "react-router";
-import { ChevronLeft, ChevronRight, Search, MapPin, Calendar, X } from "lucide-react";
-import { api, ApiError } from "../../lib/api";
-import { fmt, formatFecha, hoyLocal } from "../../lib/format";
-import { FILTROS_FECHA, fechaEnRango, rangoFinDeSemana, type FiltroFecha } from "../../lib/eventFilters";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarSearch, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
+import { EventCard, EventCardSkeleton } from "../../components/EventCard";
+import { PublicHeader } from "../../components/PublicHeader";
 import { DateRangeFilter } from "../../components/DateRangeFilter";
+import { Button, EmptyState, ErrorState, IconButton, Input } from "../../components/ui";
+import { api, ApiError } from "../../lib/api";
+import { cn } from "../../lib/cn";
+import { hoyLocal } from "../../lib/format";
+import { comportamientoScroll } from "../../lib/motion";
+import { FILTROS_FECHA, fechaEnRango, rangoFinDeSemana, type FiltroFecha } from "../../lib/eventFilters";
 import type { EventoPublicoListItemDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const POR_PAGINA = 16;
+const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+/** "12 eventos" o, con filtros activos, "3 eventos encontrados". */
+function textoContador(cantidad: number, conFiltros: boolean): string {
+  const plural = cantidad !== 1;
+  const base = `${cantidad} ${plural ? "eventos" : "evento"}`;
+  if (!conFiltros) return base;
+  return `${base} ${plural ? "encontrados" : "encontrado"}`;
+}
 
 function formatCorto(fechaIso: string): string {
   const [, mes, dia] = fechaIso.split("-");
-  const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
   return `${Number(dia)} ${MESES_CORTOS[Number(mes) - 1]}`;
 }
 
 export function AllEventsPage() {
   useDocumentTitle("Todos los eventos");
-  const navigate = useNavigate();
   const [eventos, setEventos] = useState<EventoPublicoListItemDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -27,26 +37,28 @@ export function AllEventsPage() {
   const [rangoDesde, setRangoDesde] = useState("");
   const [rangoHasta, setRangoHasta] = useState("");
   const [pagina, setPagina] = useState(1);
+  const resultadosRef = useRef<HTMLDivElement>(null);
   const rangoActivo = rangoDesde !== "" || rangoHasta !== "";
+  const hayFiltros = search.trim() !== "" || filtroFecha !== "todos" || rangoActivo;
 
-  useEffect(() => {
+  const cargar = useCallback(() => {
+    setError(null);
+    setEventos(null);
     api
       .get<EventoPublicoListItemDTO[]>("/public/eventos", { skipAuth: true })
       .then(setEventos)
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar los eventos."));
   }, []);
 
-  const hoyStr = useMemo(() => hoyLocal(), []);
+  useEffect(cargar, [cargar]);
 
-  const ordenados = useMemo(
-    () => [...(eventos ?? [])].sort((a, b) => a.fechaEvento.localeCompare(b.fechaEvento)),
-    [eventos],
-  );
+  const hoyStr = useMemo(() => hoyLocal(), []);
+  const ordenados = useMemo(() => [...(eventos ?? [])].sort((a, b) => a.fechaEvento.localeCompare(b.fechaEvento)), [eventos]);
 
   const filtrados = useMemo(() => {
+    const q = search.trim().toLowerCase();
     return ordenados.filter((e) => {
-      const q = search.toLowerCase();
-      const matchesSearch = e.nombre.toLowerCase().includes(q) || e.lugar.toLowerCase().includes(q);
+      const matchesSearch = !q || e.nombre.toLowerCase().includes(q) || e.lugar.toLowerCase().includes(q);
       const matchesFecha = rangoActivo
         ? (rangoDesde === "" || e.fechaEvento >= rangoDesde) && (rangoHasta === "" || e.fechaEvento <= rangoHasta)
         : filtroFecha === "todos"
@@ -66,55 +78,66 @@ export function AllEventsPage() {
 
   function irAPagina(n: number) {
     setPagina(n);
-    document.getElementById("all-events-top")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    resultadosRef.current?.scrollIntoView({ behavior: comportamientoScroll(), block: "start" });
+  }
+
+  function limpiarFiltros() {
+    setSearch("");
+    setFiltroFecha("todos");
+    setRangoDesde("");
+    setRangoHasta("");
+    setPagina(1);
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div id="all-events-top" className="px-4 lg:px-8 pt-5 pb-4 border-b border-border">
-        <div className="max-w-[1400px] mx-auto">
-          <button
-            onClick={() => navigate("/")}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-3"
-          >
-            <ChevronLeft size={15} />
-            Volver al inicio
-          </button>
-          <h1 className="font-display uppercase text-xl lg:text-2xl font-extrabold text-foreground tracking-tight mb-4">
+    <div className="min-h-dvh bg-background">
+      <PublicHeader />
+
+      <div className="border-b border-border">
+        <div className="mx-auto max-w-7xl px-4 pb-5 pt-6 lg:px-8 lg:pt-8">
+          <h1 className="mb-5 font-display text-2xl font-extrabold uppercase tracking-tight text-foreground lg:text-3xl">
             Todos los eventos
           </h1>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative sm:max-w-sm sm:flex-1">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPagina(1);
-                }}
-                placeholder="Eventos, lugares..."
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-muted text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-2 overflow-x-auto hide-scrollbar">
-                {FILTROS_FECHA.map((f) => (
-                  <button
-                    key={f.id}
-                    onClick={() => {
-                      setFiltroFecha(f.id);
-                      setRangoDesde("");
-                      setRangoHasta("");
-                      setPagina(1);
-                    }}
-                    className={`flex-none px-3.5 py-1.5 rounded-full text-sm font-bold transition-all duration-200 hover:scale-[1.05] active:scale-[0.95] ${
-                      !rangoActivo && filtroFecha === f.id ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" : "bg-muted text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <Input
+              type="search"
+              aria-label="Buscar por nombre del evento o lugar"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPagina(1);
+              }}
+              placeholder="Buscar por evento o lugar…"
+              leadingIcon={<Search size={16} />}
+              className="lg:max-w-sm lg:flex-1"
+            />
+            <div className="flex min-w-0 items-center gap-2">
+              <div role="group" aria-label="Filtrar por fecha" className="flex min-w-0 gap-2 overflow-x-auto hide-scrollbar">
+                {FILTROS_FECHA.map((f) => {
+                  const activo = !rangoActivo && filtroFecha === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      aria-pressed={activo}
+                      onClick={() => {
+                        setFiltroFecha(f.id);
+                        setRangoDesde("");
+                        setRangoHasta("");
+                        setPagina(1);
+                      }}
+                      className={cn(
+                        "h-9 flex-none rounded-full px-4 text-sm font-semibold transition-colors duration-(--duration-fast)",
+                        activo
+                          ? "bg-primary text-primary-foreground"
+                          : "border border-border bg-card text-muted-foreground hover:border-border-strong hover:text-foreground",
+                      )}
+                    >
+                      {f.label}
+                    </button>
+                  );
+                })}
               </div>
               <DateRangeFilter
                 desde={rangoDesde}
@@ -126,19 +149,20 @@ export function AllEventsPage() {
                 }}
               />
               {rangoActivo && (
-                <span className="flex-none inline-flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-bold animate-scale-in">
+                <span className="inline-flex h-9 flex-none items-center gap-1 rounded-full bg-primary/10 pl-3.5 pr-1 text-sm font-semibold text-primary animate-scale-in">
                   {formatCorto(rangoDesde)}
                   {rangoHasta && rangoHasta !== rangoDesde ? ` – ${formatCorto(rangoHasta)}` : ""}
                   <button
+                    type="button"
+                    aria-label="Quitar el filtro de fechas"
+                    className="flex size-7 items-center justify-center rounded-full transition-colors duration-(--duration-fast) hover:bg-primary/15"
                     onClick={() => {
                       setRangoDesde("");
                       setRangoHasta("");
                       setPagina(1);
                     }}
-                    aria-label="Quitar filtro de fechas"
-                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-primary/20 hover:scale-110 active:scale-90 transition-all duration-150"
                   >
-                    <X size={11} />
+                    <X size={14} aria-hidden="true" />
                   </button>
                 </span>
               )}
@@ -147,106 +171,89 @@ export function AllEventsPage() {
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-6">
-        {error && (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">
-            {error}
-          </div>
-        )}
+      <div ref={resultadosRef} className="mx-auto max-w-7xl scroll-mt-16 px-4 py-6 lg:px-8 lg:py-8">
+        {error && <ErrorState title="No pudimos cargar los eventos" description={error} onRetry={cargar} />}
 
         {!error && eventos === null && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6" aria-busy="true">
+            <span className="sr-only">Cargando eventos…</span>
             {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <div key={i} className="aspect-[3/4] rounded-2xl bg-card border border-border animate-pulse" />
+              <EventCardSkeleton key={i} />
             ))}
           </div>
         )}
 
+        {/* Contador anunciado al filtrar. Con 0 resultados no se muestra: lo dice el estado vacío. */}
+        <p className="mb-5 text-sm text-muted-foreground empty:hidden" aria-live="polite">
+          {!error && eventos !== null && filtrados.length > 0 ? textoContador(filtrados.length, hayFiltros) : ""}
+        </p>
+
         {!error && eventos !== null && filtrados.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-4xl mb-3">🎭</p>
-            <p className="text-sm text-muted-foreground">No hay eventos para tu búsqueda.</p>
-          </div>
+          <EmptyState
+            icon={CalendarSearch}
+            title={hayFiltros ? "No encontramos eventos con esos filtros" : "Todavía no hay eventos publicados"}
+            description={hayFiltros ? "Probá con otra búsqueda u otra fecha." : "Volvé pronto: acá vas a encontrar los próximos recitales y fiestas."}
+            action={
+              hayFiltros ? (
+                <Button variant="secondary" onClick={limpiarFiltros}>
+                  Limpiar filtros
+                </Button>
+              ) : undefined
+            }
+          />
         )}
 
         {!error && visibles.length > 0 && (
           <>
-            <p className="text-xs text-muted-foreground mb-4">
-              {filtrados.length} evento{filtrados.length !== 1 ? "s" : ""} encontrado{filtrados.length !== 1 ? "s" : ""}
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-5">
+            <ul className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4 lg:gap-x-6">
               {visibles.map((ev, i) => (
-                <button
-                  key={ev.id}
-                  onClick={() => navigate(`/eventos/${ev.urlPublica}`)}
-                  style={{ animationDelay: `${Math.min(i, 10) * 40}ms` }}
-                  className="group text-left focus:outline-none animate-fade-in-up"
-                >
-                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-lg shadow-transparent group-hover:shadow-primary/25 group-hover:-translate-y-1 transition-all duration-300">
-                    <EventoImagen
-                      src={ev.imagenPortadaUrl}
-                      alt={ev.nombre}
-                      loading={i < 4 ? "eager" : "lazy"}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      iconSize={22}
-                    />
-                    {ev.precioDesde !== null && (
-                      <span className="absolute top-2.5 right-2.5 bg-background/85 backdrop-blur-sm text-accent text-[11px] font-bold px-2.5 py-1 rounded-full">
-                        Desde {fmt(ev.precioDesde)}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-2.5">
-                    <h3 className="text-foreground font-semibold text-sm leading-snug line-clamp-2">{ev.nombre}</h3>
-                    <p className="text-muted-foreground text-xs mt-1 flex items-center gap-1">
-                      <Calendar size={11} />
-                      {formatFecha(ev.fechaEvento)}
-                    </p>
-                    <p className="text-muted-foreground text-xs mt-0.5 flex items-center gap-1">
-                      <MapPin size={11} />
-                      <span className="truncate">{ev.lugar}</span>
-                    </p>
-                  </div>
-                </button>
+                <li key={ev.id}>
+                  <EventCard
+                    evento={ev}
+                    etiqueta={ev.fechaEvento === hoyStr ? "Hoy" : undefined}
+                    prioridad={i < 4}
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}
+                  />
+                </li>
               ))}
-            </div>
+            </ul>
 
             {totalPaginas > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8">
-                <button
-                  onClick={() => irAPagina(paginaActual - 1)}
+              <nav aria-label="Paginación" className="mt-10 flex items-center justify-center gap-2">
+                <IconButton
+                  label="Página anterior"
+                  icon={<ChevronLeft size={16} />}
+                  variant="secondary"
                   disabled={paginaActual === 1}
-                  className="w-9 h-9 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-primary/40 hover:text-primary transition-all disabled:opacity-30 disabled:pointer-events-none"
-                  aria-label="Página anterior"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-
-                <div className="flex items-center gap-1">
+                  onClick={() => irAPagina(paginaActual - 1)}
+                />
+                <ul className="flex items-center gap-1">
                   {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => irAPagina(n)}
-                      className={`min-w-9 h-9 px-2 rounded-xl text-sm font-semibold transition-all ${
-                        n === paginaActual
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {n}
-                    </button>
+                    <li key={n}>
+                      <button
+                        type="button"
+                        aria-current={n === paginaActual ? "page" : undefined}
+                        aria-label={`Página ${n}`}
+                        onClick={() => irAPagina(n)}
+                        className={cn(
+                          "h-9 min-w-9 rounded-xl px-2 text-sm font-semibold tabular-nums transition-colors duration-(--duration-fast)",
+                          n === paginaActual ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        {n}
+                      </button>
+                    </li>
                   ))}
-                </div>
-
-                <button
-                  onClick={() => irAPagina(paginaActual + 1)}
+                </ul>
+                <IconButton
+                  label="Página siguiente"
+                  icon={<ChevronRight size={16} />}
+                  variant="secondary"
                   disabled={paginaActual === totalPaginas}
-                  className="w-9 h-9 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:border-primary/40 hover:text-primary transition-all disabled:opacity-30 disabled:pointer-events-none"
-                  aria-label="Página siguiente"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+                  onClick={() => irAPagina(paginaActual + 1)}
+                />
+              </nav>
             )}
           </>
         )}
