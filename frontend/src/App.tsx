@@ -10,7 +10,6 @@ const ListingPage = lazy(() => import("./pages/buyer/ListingPage").then((m) => (
 const AllEventsPage = lazy(() => import("./pages/buyer/AllEventsPage").then((m) => ({ default: m.AllEventsPage })));
 const DetailPage = lazy(() => import("./pages/buyer/DetailPage").then((m) => ({ default: m.DetailPage })));
 const CheckoutPage = lazy(() => import("./pages/buyer/CheckoutPage").then((m) => ({ default: m.CheckoutPage })));
-const TicketPage = lazy(() => import("./pages/buyer/TicketPage").then((m) => ({ default: m.TicketPage })));
 const MiEntradaPage = lazy(() => import("./pages/buyer/MiEntradaPage").then((m) => ({ default: m.MiEntradaPage })));
 const PagoResultadoPage = lazy(() => import("./pages/buyer/PagoResultadoPage").then((m) => ({ default: m.PagoResultadoPage })));
 
@@ -85,7 +84,6 @@ function AnimatedRoutes() {
         <Route path="/eventos" element={<AllEventsPage />} />
         <Route path="/eventos/:urlPublica" element={<DetailPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/ticket/:id" element={<TicketPage />} />
         <Route path="/mi-entrada" element={<MiEntradaPage />} />
         <Route path="/pago/resultado" element={<PagoResultadoPage />} />
 
