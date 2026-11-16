@@ -59,8 +59,8 @@ const ORG_STEPS = [
 ];
 
 const NAV_LINKS = [
-  { label: "Cómo funciona", href: "#como-funciona" },
   { label: "Para organizadores", href: "#para-organizadores" },
+  { label: "Cómo funciona", href: "#como-funciona" },
   { label: "Precios", href: "#precios" },
 ];
 
