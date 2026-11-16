@@ -4,10 +4,12 @@ import com.asistiapp.backend.models.dtos.entrada.*;
 import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.security.SecurityUtils;
+import com.asistiapp.backend.services.EmailService;
 import com.asistiapp.backend.services.PagoWebhookService;
 import com.asistiapp.backend.services.VentaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +31,7 @@ import java.util.List;
  * Endpoints para Organizador (reportes):
  *   GET  /tickets/evento/{eventoId}    → Listar entradas de un evento
  */
+@Slf4j
 @RestController
 @RequestMapping("/tickets")
 @RequiredArgsConstructor
@@ -37,6 +40,7 @@ public class VentaController {
     private final VentaService ventaService;
     private final SecurityUtils securityUtils;
     private final PagoWebhookService pagoWebhookService;
+    private final EmailService emailService;
 
     // ─────────────────────────────────────────────
     // FLUJO ONLINE (CU-017)
@@ -77,6 +81,7 @@ public class VentaController {
     /**
      * Venta manual de una o más entradas — exclusivo para Staff_Vendedor.
      * Genera un QR por entrada y las marca como Pagadas de forma inmediata; es todo o nada.
+     * Después de confirmada la venta, el comprador recibe un solo mail con todas sus entradas.
      */
     @PostMapping("/venta-manual")
     @PreAuthorize("hasRole('Staff_Vendedor')")
@@ -84,7 +89,27 @@ public class VentaController {
             @Valid @RequestBody VentaManualRequestDTO dto) {
         StaffVendedor staff = securityUtils.getStaffVendedorAutenticado();
         List<EntradaResponseDTO> entradas = ventaService.realizarVentaManual(dto, staff.getId());
+        enviarMailDeVentaManual(dto, entradas);
         return ResponseEntity.status(HttpStatus.CREATED).body(entradas);
+    }
+
+    /**
+     * El mail sale acá, ya con la venta confirmada (igual que en PagoWebhookService). Si algo falla al
+     * encolarlo se loguea y se sigue: devolver un error con la venta ya guardada haría que el vendedor
+     * la reintente y se duplique.
+     */
+    private void enviarMailDeVentaManual(VentaManualRequestDTO dto, List<EntradaResponseDTO> entradas) {
+        try {
+            EntradaResponseDTO primera = entradas.get(0);
+            emailService.enviarConfirmacionCompra(
+                    dto.getEmailComprador(),
+                    dto.getNombreComprador(),
+                    primera.getNombreEvento(),
+                    primera.getNombreTanda(),
+                    entradas.stream().map(EntradaResponseDTO::getCodigoQr).toList());
+        } catch (RuntimeException e) {
+            log.error("La venta manual se confirmó pero no se pudo mandar el mail a {}: {}", dto.getEmailComprador(), e.getMessage());
+        }
     }
 
     /**

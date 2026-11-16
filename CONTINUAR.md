@@ -21,17 +21,16 @@ Se trabaja ítem por ítem sobre `PLAN_MEJORAS.md` (8 etapas). **Hecho y pushead
 - **Etapas 1, 2 y 3 completas** (2.4 queda para producción: `MP_VALIDAR_FIRMA=true`). Etapa 3: borrado de eventos con compras en curso, manejo global de errores 4xx (405/415/400 en vez de 500), el organizador puede borrar sus borradores, regla de "evento finalizado" unificada, zona horaria fija, venta manual con `cantidad`, espera de pago sin chocar con el límite de peticiones.
 - **Etapa 4: 4.3, 4.4, 4.5, 4.6.** Perfil `prod` (`application-prod.yml` + `ConfiguracionProdValidator`): 12 variables obligatorias, sin SQL en el log, log INFO/WARN, errores sin mensajes internos. Cloudinary exigido en prod. El mail de reembolso se prueba por SMTP real con GreenMail.
 - **Fuera del plan, hecho el 12/11:** SMTP configurable por variables de entorno (Gmail sin editar `application.yml`); el backend lee un `backend/.env` opcional; el QR del mail de confirmación viaja como imagen inline `cid:` (Gmail bloqueaba la `data:` URI y lo mostraba roto); el mail de confirmación lleva versión en texto plano.
-- **16/11:** los ítems chicos **5.6, 6.1, 6.3, 7.1, 7.2 y 7.3** (limpieza de órdenes huérfanas, Auditoría en la barra de mobile del Admin, aviso de que el enlace de la entrada es la entrada, y la documentación de `CLAUDE.md`/`backend/README.md`). Los ítems 0.3 y 0.4 salieron del plan: los resuelve Felipe por fuera.
-- Suite del backend: **334 tests, 0 fallos** (`cd backend && mvn clean test`).
+- **16/11:** los ítems **5.4, 5.6, 6.1, 6.3, 6.4, 7.1, 7.2 y 7.3**: tests de `ListingPage` y `PosPage`, limpieza de órdenes huérfanas, Auditoría en la barra de mobile del Admin, aviso de que el enlace de la entrada es la entrada, el mail al comprador desde el POS, y la documentación de `CLAUDE.md`/`backend/README.md`. Los ítems 0.3 y 0.4 salieron del plan: los resuelve Felipe por fuera.
+- Suite del backend: **337 tests, 0 fallos** (`cd backend && mvn clean test`).
 
 **Falta, en el orden recomendado:**
 
 1. **4.8 — decidido el 16/11: por ahora no se despliega nada, se sigue en local** (`DECISIONES.md`). Por eso **4.1 Flyway**, **4.2 claves foráneas** y **4.7** (límite de peticiones en memoria) quedan **en pausa**: solo importan si se despliega. Si Felipe pide una muestra en la web, se reabre 4.8.
-2. Etapas 5 y 6: ya no queda ningún ítem chico, todo es M o L (5.1, 5.3, 5.5, 5.2, 6.2, 6.4); el 5.4 se cerró el 16/11.
+2. Etapas 5 y 6: ya no queda ningún ítem chico, todo es M o L (5.1, 5.3, 5.5, 5.2, 6.2); el 5.4 y el 6.4 se cerraron el 16/11.
 
 **Preguntas abiertas (no asumir, preguntar):**
 
-- ¿La **venta manual del POS** debe mandar mail al comprador? Hoy **no manda ninguno** (el único mail de entrada sale de la compra online, en `PagoWebhookService`). Ítem 6.4.
 - El mail de confirmación cayó en **spam** de Gmail con la cuenta de prueba. Se resuelve con dominio propio + SPF/DKIM/DMARC vía un proveedor transaccional (tema de 4.8). Ver `DECISIONES.md` 2026-11-12.
 - La cuenta demo `staffvendedor@demo.com` no aceptaba la contraseña de la documentación (401): resetearla o corregir la doc.
 
