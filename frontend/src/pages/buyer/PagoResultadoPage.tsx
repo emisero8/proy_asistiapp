@@ -268,6 +268,9 @@ export function PagoResultadoPage() {
                     </>
                   )}
                 </button>
+                <p className="text-xs text-muted-foreground text-center -mt-1">
+                  Ojo: este enlace es tu entrada. Quien lo tenga puede ver y usar el QR, así que compartilo solo con quien vaya a ir al evento.
+                </p>
                 <div className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden">
                   {ordenEntradas.entradas.map((entrada, i) => (
                     <button

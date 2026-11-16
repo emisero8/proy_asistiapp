@@ -224,6 +224,9 @@ export function StaffPosPage() {
                 </div>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground">
+              El enlace de cada entrada es la entrada: quien lo tenga puede ingresar al evento. Compartilo solo con el comprador.
+            </p>
             <div className="flex flex-col sm:flex-row gap-3">
               {entradas.length > 1 && (
                 <button
