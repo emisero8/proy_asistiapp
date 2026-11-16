@@ -1,0 +1,3670 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "AsistíAPP API",
+    "description": "API REST del sistema de venta de entradas y control de acceso AsistíAPP. La mayoría de los endpoints de organizador/staff/admin requieren un JWT (header Authorization: Bearer <token>) obtenido en POST /auth/login. Los endpoints bajo /public/** y la compra online (/tickets/comprar-online, /payments/mercadopago/webhook, este último autenticado por firma) son de acceso libre, ya que el Comprador nunca inicia sesión.",
+    "contact": {
+      "name": "AsistíAPP"
+    },
+    "version": "v1"
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/organizador/perfil": {
+      "get": {
+        "tags": [
+          "perfil-controller"
+        ],
+        "operationId": "obtenerPerfil",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "perfil-controller"
+        ],
+        "operationId": "actualizarPerfil",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerfilRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizador/perfil/password": {
+      "put": {
+        "tags": [
+          "perfil-controller"
+        ],
+        "operationId": "cambiarPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarPasswordRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/eventos/{id}": {
+      "get": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "obtenerEvento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "actualizarEvento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventoRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "eliminarBorrador",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/eventos/{eventoId}/tandas/{id}": {
+      "get": {
+        "tags": [
+          "tanda-controller"
+        ],
+        "operationId": "obtenerTanda",
+        "parameters": [
+          {
+            "name": "eventoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TandaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "tanda-controller"
+        ],
+        "operationId": "actualizarTanda",
+        "parameters": [
+          {
+            "name": "eventoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TandaRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TandaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "tanda-controller"
+        ],
+        "operationId": "eliminarTanda",
+        "parameters": [
+          {
+            "name": "eventoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/admin/paquetes-credito/{id}": {
+      "put": {
+        "tags": [
+          "admin-paquete-credito-controller"
+        ],
+        "operationId": "actualizar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaqueteCreditoRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaqueteCreditoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/eventos/{id}": {
+      "get": {
+        "tags": [
+          "admin-evento-controller"
+        ],
+        "operationId": "obtenerEvento_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "admin-evento-controller"
+        ],
+        "operationId": "editarEvento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventoRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin-evento-controller"
+        ],
+        "operationId": "eliminarEvento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/admin/eventos/{id}/tandas/{idTanda}": {
+      "put": {
+        "tags": [
+          "admin-evento-controller"
+        ],
+        "operationId": "actualizarTanda_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "idTanda",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TandaRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TandaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "admin-evento-controller"
+        ],
+        "operationId": "eliminarTanda_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "idTanda",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/admin/configuraciones/{clave}": {
+      "put": {
+        "tags": [
+          "admin-configuracion-controller"
+        ],
+        "operationId": "actualizar_1",
+        "parameters": [
+          {
+            "name": "clave",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarConfiguracionRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfiguracionSistemaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/venta-manual": {
+      "post": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "ventaManual",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VentaManualRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EntradaResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/validate": {
+      "post": {
+        "tags": [
+          "staff-qr-controller"
+        ],
+        "operationId": "validarQR",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ValidacionQRRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidacionQRResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/comprar-online": {
+      "post": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "iniciarCompraOnline",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompraOnlineRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IniciarCompraResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments/mercadopago/webhook": {
+      "post": {
+        "tags": [
+          "mercado-pago-webhook-controller"
+        ],
+        "operationId": "recibirNotificacion",
+        "parameters": [
+          {
+            "name": "x-signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-request-id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "data.id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "topic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JsonNode"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/organizador/staff/{id}/resetear-password": {
+      "post": {
+        "tags": [
+          "gestion-staff-controller"
+        ],
+        "operationId": "resetearPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizador/staff/vendedor": {
+      "post": {
+        "tags": [
+          "gestion-staff-controller"
+        ],
+        "operationId": "crearStaffVendedor",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearStaffVendedorRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizador/staff/qr": {
+      "post": {
+        "tags": [
+          "gestion-staff-controller"
+        ],
+        "operationId": "crearStaffQR",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearStaffQRRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizador/perfil/foto": {
+      "post": {
+        "tags": [
+          "perfil-controller"
+        ],
+        "operationId": "subirFoto",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "archivo"
+                ],
+                "type": "object",
+                "properties": {
+                  "archivo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImagenSubidaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos": {
+      "get": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "listarMisEventos",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventoResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "crearEvento",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventoRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{eventoId}/tandas": {
+      "get": {
+        "tags": [
+          "tanda-controller"
+        ],
+        "operationId": "listarTandas",
+        "parameters": [
+          {
+            "name": "eventoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TandaResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "tanda-controller"
+        ],
+        "operationId": "crearTanda",
+        "parameters": [
+          {
+            "name": "eventoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TandaRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TandaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/imagenes": {
+      "post": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "subirImagen",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "required": [
+                  "archivo"
+                ],
+                "type": "object",
+                "properties": {
+                  "archivo": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImagenSubidaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/creditos/comprar": {
+      "post": {
+        "tags": [
+          "credito-controller"
+        ],
+        "operationId": "comprar",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IniciarCompraCreditoRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IniciarCompraCreditoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/restablecer-password": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "restablecerPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestablecerPasswordRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/recuperar-password": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "recuperarPassword",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitarRecuperacionRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "auth-controller"
+        ],
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/paquetes-credito": {
+      "get": {
+        "tags": [
+          "admin-paquete-credito-controller"
+        ],
+        "operationId": "listarTodos",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaqueteCreditoResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "admin-paquete-credito-controller"
+        ],
+        "operationId": "crear",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaqueteCreditoRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaqueteCreditoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/notificaciones": {
+      "post": {
+        "tags": [
+          "admin-notificacion-controller"
+        ],
+        "operationId": "crearAnuncio",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearAnuncioRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnuncioEnviadoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/eventos/{id}/tandas": {
+      "post": {
+        "tags": [
+          "admin-evento-controller"
+        ],
+        "operationId": "crearTanda_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TandaRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TandaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizador/staff/{id}/reactivar": {
+      "patch": {
+        "tags": [
+          "gestion-staff-controller"
+        ],
+        "operationId": "reactivarStaff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizador/staff/{id}/desactivar": {
+      "patch": {
+        "tags": [
+          "gestion-staff-controller"
+        ],
+        "operationId": "desactivarStaff",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notificaciones/{id}/leer": {
+      "patch": {
+        "tags": [
+          "notificacion-controller"
+        ],
+        "operationId": "marcarLeida",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/notificaciones/leer-todas": {
+      "patch": {
+        "tags": [
+          "notificacion-controller"
+        ],
+        "operationId": "marcarTodasLeidas",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/eventos/{id}/publicar": {
+      "patch": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "publicarEvento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{id}/cancelar": {
+      "patch": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "cancelarEvento",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/usuarios/{id}/suspender": {
+      "patch": {
+        "tags": [
+          "admin-usuario-controller"
+        ],
+        "operationId": "suspenderUsuario",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/usuarios/{id}/password": {
+      "patch": {
+        "tags": [
+          "admin-usuario-controller"
+        ],
+        "operationId": "cambiarPassword_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarPasswordRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/admin/usuarios/{id}/activar": {
+      "patch": {
+        "tags": [
+          "admin-usuario-controller"
+        ],
+        "operationId": "activarUsuario",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/paquetes-credito/{id}/habilitar": {
+      "patch": {
+        "tags": [
+          "admin-paquete-credito-controller"
+        ],
+        "operationId": "habilitar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaqueteCreditoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/paquetes-credito/{id}/deshabilitar": {
+      "patch": {
+        "tags": [
+          "admin-paquete-credito-controller"
+        ],
+        "operationId": "deshabilitar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaqueteCreditoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/eventos/{id}/cancelar": {
+      "patch": {
+        "tags": [
+          "admin-evento-controller"
+        ],
+        "operationId": "cancelarEvento_1",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/{id}/qr-image": {
+      "get": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "obtenerImagenQr",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "codigoQr",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/validate/{codigo}": {
+      "get": {
+        "tags": [
+          "staff-qr-controller"
+        ],
+        "operationId": "consultarEstadoQR",
+        "parameters": [
+          {
+            "name": "codigo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidacionQRResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/orden/{externalReference}": {
+      "get": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "obtenerEstadoOrden",
+        "parameters": [
+          {
+            "name": "externalReference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoOrdenEntradasResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/evento/{eventoId}": {
+      "get": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "listarEntradasPorEvento",
+        "parameters": [
+          {
+            "name": "eventoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EntradaResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/disponibilidad-comprador": {
+      "get": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "consultarDisponibilidadComprador",
+        "parameters": [
+          {
+            "name": "idEvento",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisponibilidadCompradorResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/by-codigo": {
+      "get": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "obtenerEntradaPorCodigo",
+        "parameters": [
+          {
+            "name": "codigoQr",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntradaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/soporte": {
+      "get": {
+        "tags": [
+          "soporte-controller"
+        ],
+        "operationId": "obtenerContacto",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/SoporteResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/paquetes-credito": {
+      "get": {
+        "tags": [
+          "info-publica-controller"
+        ],
+        "operationId": "listarPaquetesCredito",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaqueteCreditoDisponibleDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/eventos": {
+      "get": {
+        "tags": [
+          "evento-publico-controller"
+        ],
+        "operationId": "listarPublicados",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventoPublicoListItemDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/eventos/{urlPublica}": {
+      "get": {
+        "tags": [
+          "evento-publico-controller"
+        ],
+        "operationId": "obtenerDetalle",
+        "parameters": [
+          {
+            "name": "urlPublica",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoPublicoDetalleDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/public/estadisticas": {
+      "get": {
+        "tags": [
+          "info-publica-controller"
+        ],
+        "operationId": "obtenerEstadisticas",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadisticasPublicasResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/organizador/staff": {
+      "get": {
+        "tags": [
+          "gestion-staff-controller"
+        ],
+        "operationId": "listarMiStaff",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StaffResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notificaciones": {
+      "get": {
+        "tags": [
+          "notificacion-controller"
+        ],
+        "operationId": "listar",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificacionResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notificaciones/no-leidas/cantidad": {
+      "get": {
+        "tags": [
+          "notificacion-controller"
+        ],
+        "operationId": "contarNoLeidas",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer",
+                    "format": "int64"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/{id}/metricas": {
+      "get": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "obtenerMetricas",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventoMetricasResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/vendedor": {
+      "get": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "listarEventosParaVendedor",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventoResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/eventos/resumen": {
+      "get": {
+        "tags": [
+          "evento-controller"
+        ],
+        "operationId": "obtenerResumen",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumenOrganizadorResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/creditos/resumen": {
+      "get": {
+        "tags": [
+          "credito-controller"
+        ],
+        "operationId": "resumen",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditosResumenResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/creditos/paquetes": {
+      "get": {
+        "tags": [
+          "credito-controller"
+        ],
+        "operationId": "paquetesDisponibles",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PaqueteCreditoDisponibleDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/creditos/orden/{externalReference}": {
+      "get": {
+        "tags": [
+          "credito-controller"
+        ],
+        "operationId": "obtenerEstadoOrden_1",
+        "parameters": [
+          {
+            "name": "externalReference",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoOrdenCreditoResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/creditos/historial": {
+      "get": {
+        "tags": [
+          "credito-controller"
+        ],
+        "operationId": "historial",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MovimientoCreditoResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/creditos/compras": {
+      "get": {
+        "tags": [
+          "credito-controller"
+        ],
+        "operationId": "compras",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CompraCreditoResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/usuarios": {
+      "get": {
+        "tags": [
+          "admin-usuario-controller"
+        ],
+        "operationId": "listarUsuarios",
+        "parameters": [
+          {
+            "name": "rol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Administrador",
+                "Organizador",
+                "Staff_QR",
+                "Staff_Vendedor"
+              ]
+            }
+          },
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Activo",
+                "Suspendido",
+                "Inactivo"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UsuarioResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/metricas": {
+      "get": {
+        "tags": [
+          "admin-metricas-controller"
+        ],
+        "operationId": "obtenerMetricasGlobales",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminMetricasResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/eventos": {
+      "get": {
+        "tags": [
+          "admin-evento-controller"
+        ],
+        "operationId": "listarTodos_1",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventoResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/configuraciones": {
+      "get": {
+        "tags": [
+          "admin-configuracion-controller"
+        ],
+        "operationId": "listarTodas",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ConfiguracionSistemaResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/auditoria": {
+      "get": {
+        "tags": [
+          "admin-auditoria-controller"
+        ],
+        "operationId": "listarTodos_2",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LogAuditoriaResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/usuarios/{id}": {
+      "delete": {
+        "tags": [
+          "admin-usuario-controller"
+        ],
+        "operationId": "eliminarUsuario",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PerfilRequestDTO": {
+        "required": [
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "maxLength": 150,
+            "minLength": 0,
+            "type": "string"
+          },
+          "fotoPerfilUrl": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
+      "PerfilResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "fotoPerfilUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "CambiarPasswordRequestDTO": {
+        "required": [
+          "passwordActual",
+          "passwordNueva"
+        ],
+        "type": "object",
+        "properties": {
+          "passwordActual": {
+            "type": "string"
+          },
+          "passwordNueva": {
+            "maxLength": 100,
+            "minLength": 8,
+            "type": "string"
+          }
+        }
+      },
+      "EventoRequestDTO": {
+        "required": [
+          "fechaEvento",
+          "horaEvento",
+          "lugar",
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "descripcion": {
+            "maxLength": 5000,
+            "minLength": 0,
+            "type": "string"
+          },
+          "fechaEvento": {
+            "type": "string",
+            "format": "date"
+          },
+          "horaEvento": {
+            "type": "string",
+            "format": "time",
+            "example": "21:00:00"
+          },
+          "lugar": {
+            "maxLength": 300,
+            "minLength": 0,
+            "type": "string"
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double"
+          },
+          "imagenPortadaUrl": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
+      "EventoResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "idOrganizador": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "fechaEvento": {
+            "type": "string",
+            "format": "date"
+          },
+          "horaEvento": {
+            "type": "string",
+            "format": "time",
+            "example": "21:00:00"
+          },
+          "lugar": {
+            "type": "string"
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double"
+          },
+          "imagenPortadaUrl": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Borrador",
+              "Publicado",
+              "Cancelado"
+            ]
+          },
+          "urlPublica": {
+            "type": "string"
+          },
+          "fechaCreacion": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaPublicacion": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaCancelacion": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finalizado": {
+            "type": "boolean"
+          },
+          "tandas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TandaResponseDTO"
+            }
+          }
+        }
+      },
+      "TandaResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "idEvento": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "precio": {
+            "type": "number",
+            "format": "double"
+          },
+          "cupoMaximo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cupoDisponible": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fechaInicioVigencia": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaFinVigencia": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TandaRequestDTO": {
+        "required": [
+          "cupoMaximo",
+          "nombre",
+          "precio"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "maxLength": 150,
+            "minLength": 0,
+            "type": "string"
+          },
+          "precio": {
+            "minimum": 0,
+            "exclusiveMinimum": false,
+            "type": "number",
+            "format": "double"
+          },
+          "cupoMaximo": {
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          },
+          "fechaInicioVigencia": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaFinVigencia": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PaqueteCreditoRequestDTO": {
+        "required": [
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "maxLength": 100,
+            "minLength": 0,
+            "type": "string"
+          },
+          "cantidadCreditos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "precio": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "PaqueteCreditoResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "cantidadCreditos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "precio": {
+            "type": "number",
+            "format": "double"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Activo",
+              "Deshabilitado"
+            ]
+          }
+        }
+      },
+      "ActualizarConfiguracionRequestDTO": {
+        "required": [
+          "valor"
+        ],
+        "type": "object",
+        "properties": {
+          "valor": {
+            "maxLength": 500,
+            "minLength": 0,
+            "type": "string"
+          },
+          "descripcion": {
+            "maxLength": 300,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
+      "ConfiguracionSistemaResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "clave": {
+            "type": "string"
+          },
+          "valor": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "fechaActualizacion": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idAdministrador": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "VentaManualRequestDTO": {
+        "required": [
+          "cantidad",
+          "emailComprador",
+          "idTanda",
+          "nombreComprador"
+        ],
+        "type": "object",
+        "properties": {
+          "idTanda": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cantidad": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombreComprador": {
+            "type": "string"
+          },
+          "emailComprador": {
+            "type": "string"
+          }
+        }
+      },
+      "EntradaResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "idTanda": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "idEvento": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombreEvento": {
+            "type": "string"
+          },
+          "nombreTanda": {
+            "type": "string"
+          },
+          "precioTanda": {
+            "type": "number",
+            "format": "double"
+          },
+          "codigoQr": {
+            "type": "string"
+          },
+          "nombreComprador": {
+            "type": "string"
+          },
+          "emailComprador": {
+            "type": "string"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Pagada",
+              "Usada"
+            ]
+          },
+          "canalVenta": {
+            "type": "string",
+            "enum": [
+              "Online",
+              "Manual"
+            ]
+          },
+          "fechaCompra": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fechaUso": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ValidacionQRRequestDTO": {
+        "required": [
+          "codigoQr"
+        ],
+        "type": "object",
+        "properties": {
+          "codigoQr": {
+            "type": "string"
+          }
+        }
+      },
+      "ValidacionQRResponseDTO": {
+        "type": "object",
+        "properties": {
+          "valido": {
+            "type": "boolean"
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "idEntrada": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombreComprador": {
+            "type": "string"
+          },
+          "emailComprador": {
+            "type": "string"
+          },
+          "nombreEvento": {
+            "type": "string"
+          },
+          "nombreTanda": {
+            "type": "string"
+          },
+          "estadoAnterior": {
+            "type": "string",
+            "enum": [
+              "Pagada",
+              "Usada"
+            ]
+          },
+          "fechaUso": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CompraOnlineRequestDTO": {
+        "required": [
+          "cantidad",
+          "emailComprador",
+          "idTanda",
+          "nombreComprador"
+        ],
+        "type": "object",
+        "properties": {
+          "idTanda": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cantidad": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombreComprador": {
+            "type": "string"
+          },
+          "emailComprador": {
+            "type": "string"
+          }
+        }
+      },
+      "IniciarCompraResponseDTO": {
+        "type": "object",
+        "properties": {
+          "ordenId": {
+            "type": "string"
+          },
+          "urlPago": {
+            "type": "string"
+          },
+          "mensaje": {
+            "type": "string"
+          }
+        }
+      },
+      "JsonNode": {
+        "type": "object"
+      },
+      "CrearStaffVendedorRequestDTO": {
+        "required": [
+          "email",
+          "idEvento",
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "idEvento": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "StaffResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "rol": {
+            "type": "string",
+            "enum": [
+              "Administrador",
+              "Organizador",
+              "Staff_QR",
+              "Staff_Vendedor"
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Activo",
+              "Suspendido",
+              "Inactivo"
+            ]
+          },
+          "idEvento": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CrearStaffQRRequestDTO": {
+        "required": [
+          "email",
+          "idEvento",
+          "nombre"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "idEvento": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ImagenSubidaResponseDTO": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          }
+        }
+      },
+      "IniciarCompraCreditoRequestDTO": {
+        "required": [
+          "idPaquete"
+        ],
+        "type": "object",
+        "properties": {
+          "idPaquete": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "IniciarCompraCreditoResponseDTO": {
+        "type": "object",
+        "properties": {
+          "ordenId": {
+            "type": "string"
+          },
+          "urlPago": {
+            "type": "string"
+          },
+          "mensaje": {
+            "type": "string"
+          }
+        }
+      },
+      "RestablecerPasswordRequestDTO": {
+        "required": [
+          "nuevaPassword",
+          "token"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "nuevaPassword": {
+            "maxLength": 2147483647,
+            "minLength": 8,
+            "type": "string"
+          }
+        }
+      },
+      "RegisterRequestDTO": {
+        "required": [
+          "email",
+          "nombre",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "nombre": {
+            "maxLength": 150,
+            "minLength": 0,
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 2147483647,
+            "minLength": 8,
+            "type": "string"
+          }
+        }
+      },
+      "AuthResponseDTO": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "tipo": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "fotoPerfilUrl": {
+            "type": "string"
+          },
+          "rol": {
+            "type": "string",
+            "enum": [
+              "Administrador",
+              "Organizador",
+              "Staff_QR",
+              "Staff_Vendedor"
+            ]
+          }
+        }
+      },
+      "SolicitarRecuperacionRequestDTO": {
+        "required": [
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          }
+        }
+      },
+      "LoginRequestDTO": {
+        "required": [
+          "email",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "CrearAnuncioRequestDTO": {
+        "required": [
+          "mensaje",
+          "titulo"
+        ],
+        "type": "object",
+        "properties": {
+          "titulo": {
+            "maxLength": 150,
+            "minLength": 0,
+            "type": "string"
+          },
+          "mensaje": {
+            "maxLength": 1000,
+            "minLength": 0,
+            "type": "string"
+          }
+        }
+      },
+      "AnuncioEnviadoResponseDTO": {
+        "type": "object",
+        "properties": {
+          "enviadas": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "UsuarioResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "rol": {
+            "type": "string",
+            "enum": [
+              "Administrador",
+              "Organizador",
+              "Staff_QR",
+              "Staff_Vendedor"
+            ]
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Activo",
+              "Suspendido",
+              "Inactivo"
+            ]
+          },
+          "fechaCreacion": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "EstadoOrdenEntradasResponseDTO": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Pendiente",
+              "Aprobada",
+              "Rechazada",
+              "Expirada",
+              "Reembolsada"
+            ]
+          },
+          "cantidad": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombreEvento": {
+            "type": "string"
+          },
+          "nombreTanda": {
+            "type": "string"
+          },
+          "entradas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntradaResponseDTO"
+            }
+          }
+        }
+      },
+      "DisponibilidadCompradorResponseDTO": {
+        "type": "object",
+        "properties": {
+          "limite": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "yaCompradas": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "disponible": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SoporteResponseDTO": {
+        "type": "object",
+        "properties": {
+          "emailSoporte": {
+            "type": "string"
+          },
+          "whatsappSoporte": {
+            "type": "string"
+          }
+        }
+      },
+      "PaqueteCreditoDisponibleDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "cantidadCreditos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "precio": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "EventoPublicoListItemDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "fechaEvento": {
+            "type": "string",
+            "format": "date"
+          },
+          "horaEvento": {
+            "type": "string",
+            "format": "time",
+            "example": "21:00:00"
+          },
+          "lugar": {
+            "type": "string"
+          },
+          "imagenPortadaUrl": {
+            "type": "string"
+          },
+          "urlPublica": {
+            "type": "string"
+          },
+          "precioDesde": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "EventoPublicoDetalleDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "fechaEvento": {
+            "type": "string",
+            "format": "date"
+          },
+          "horaEvento": {
+            "type": "string",
+            "format": "time",
+            "example": "21:00:00"
+          },
+          "lugar": {
+            "type": "string"
+          },
+          "latitud": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitud": {
+            "type": "number",
+            "format": "double"
+          },
+          "imagenPortadaUrl": {
+            "type": "string"
+          },
+          "urlPublica": {
+            "type": "string"
+          },
+          "tandas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TandaResponseDTO"
+            }
+          },
+          "maxEntradasPorCompra": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EstadisticasPublicasResponseDTO": {
+        "type": "object",
+        "properties": {
+          "organizadoresActivos": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entradasVendidas": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "eventosPublicados": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "NotificacionResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "origen": {
+            "type": "string",
+            "enum": [
+              "Admin",
+              "Sistema"
+            ]
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "mensaje": {
+            "type": "string"
+          },
+          "leida": {
+            "type": "boolean"
+          },
+          "fechaCreacion": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tipoEntidadRelacionada": {
+            "type": "string"
+          },
+          "idEntidadRelacionada": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "EventoMetricasResponseDTO": {
+        "type": "object",
+        "properties": {
+          "idEvento": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombreEvento": {
+            "type": "string"
+          },
+          "entradasVendidas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "entradasValidadas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ingresosTotales": {
+            "type": "number",
+            "format": "double"
+          },
+          "cupoTotal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cupoDisponible": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tandas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TandaMetricasDTO"
+            }
+          }
+        }
+      },
+      "TandaMetricasDTO": {
+        "type": "object",
+        "properties": {
+          "idTanda": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "cupoMaximo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cupoDisponible": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vendidas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ingresos": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "ProximoEvento": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "fechaEvento": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "ResumenOrganizadorResponseDTO": {
+        "type": "object",
+        "properties": {
+          "eventosPublicados": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "eventosBorrador": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "entradasVendidas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "entradasValidadas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ingresosTotales": {
+            "type": "number",
+            "format": "double"
+          },
+          "creditosConsumidos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "saldoCreditos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "proximoEvento": {
+            "$ref": "#/components/schemas/ProximoEvento"
+          }
+        }
+      },
+      "CreditosResumenResponseDTO": {
+        "type": "object",
+        "properties": {
+          "saldo": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "costoPublicacion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "disponibleParaEntradas": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "EstadoOrdenCreditoResponseDTO": {
+        "type": "object",
+        "properties": {
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Pendiente",
+              "Aprobada",
+              "Rechazada",
+              "Expirada",
+              "Reembolsada"
+            ]
+          },
+          "cantidadCreditos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "monto": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "MovimientoCreditoResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "tipoMovimiento": {
+            "type": "string",
+            "enum": [
+              "Bienvenida",
+              "Recarga",
+              "Consumo_Publicacion",
+              "Consumo_Tanda",
+              "Devolucion_Tanda"
+            ]
+          },
+          "monto": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "saldoResultante": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "fechaMovimiento": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "idTransaccionCredito": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "idEvento": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "CompraCreditoResponseDTO": {
+        "type": "object",
+        "properties": {
+          "externalReference": {
+            "type": "string"
+          },
+          "nombrePaquete": {
+            "type": "string"
+          },
+          "cantidadCreditos": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "monto": {
+            "type": "number",
+            "format": "double"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Pendiente",
+              "Aprobada",
+              "Rechazada",
+              "Expirada",
+              "Reembolsada"
+            ]
+          },
+          "fechaTransaccion": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AdminMetricasResponseDTO": {
+        "type": "object",
+        "properties": {
+          "eventosActivos": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "eventosTotales": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entradasVendidas": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "ingresosTotales": {
+            "type": "number",
+            "format": "double"
+          },
+          "organizadoresActivos": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "LogAuditoriaResponseDTO": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "idAdmin": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "accion": {
+            "type": "string"
+          },
+          "entidadAfectada": {
+            "type": "string"
+          },
+          "idEntidadAfectada": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "detalle": {
+            "type": "string"
+          },
+          "fechaHora": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "name": "bearerAuth",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

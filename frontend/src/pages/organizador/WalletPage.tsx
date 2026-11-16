@@ -8,6 +8,7 @@ import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/
 import type {
   CompraCreditoResponseDTO,
   EstadoTransaccion,
+  IniciarCompraCreditoRequestDTO,
   IniciarCompraCreditoResponseDTO,
   MovimientoCreditoResponseDTO,
   PaqueteCreditoDisponibleDTO,
@@ -65,7 +66,7 @@ export function OrganizadorWalletPage() {
       // El pago se confirma por el webhook de MercadoPago (o la reconciliación), no acá.
       // En local se paga en otra pestaña y esta espera en /pago/resultado (ver lib/pago.ts).
       const { orden, enPestanaNueva } = await iniciarPago(() =>
-        api.post<IniciarCompraCreditoResponseDTO>("/creditos/comprar", { idPaquete }),
+        api.post<IniciarCompraCreditoResponseDTO>("/creditos/comprar", { idPaquete } satisfies IniciarCompraCreditoRequestDTO),
       );
       if (enPestanaNueva) {
         navigate(rutaResultadoPago(orden.ordenId, "creditos"), { state: { urlPago: orden.urlPago } });

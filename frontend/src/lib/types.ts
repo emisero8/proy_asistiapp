@@ -1,7 +1,11 @@
 // Espejo de los DTOs reales del backend (ver `backend/src/main/java/.../models/dtos`
-// y `backend/src/main/java/.../models/enums`). Fuente de verdad: Swagger en
-// http://localhost:8080/v3/api-docs con el backend corriendo. Mantener sincronizado
-// a mano — no hay generación automática de tipos desde el OpenAPI todavía.
+// y `backend/src/main/java/.../models/enums`). Fuente de verdad: el OpenAPI del backend.
+//
+// Se escribe a mano a propósito: el backend no declara qué campos de respuesta son obligatorios ni cuáles
+// pueden ser null, así que los tipos generados (`api-schema.d.ts`) salen con TODO opcional, y acá sí se sabe.
+// Lo que evita que se desfase es `types.contract.ts`, que compara este archivo con el contrato generado y
+// hace fallar `tsc -b` si el backend cambia (ver `npm run types:api`). Al agregar un DTO nuevo acá, sumarlo
+// también a ese archivo (un test avisa si se olvida).
 
 export type RolUsuario = "Administrador" | "Organizador" | "Staff_QR" | "Staff_Vendedor";
 export type EstadoUsuario = "Activo" | "Suspendido" | "Inactivo";
@@ -70,6 +74,15 @@ export interface RegisterRequestDTO {
   nombre: string;
   email: string;
   password: string;
+}
+
+export interface SolicitarRecuperacionRequestDTO {
+  email: string;
+}
+
+export interface RestablecerPasswordRequestDTO {
+  token: string;
+  nuevaPassword: string;
 }
 
 // ── Eventos / Tandas ──────────────────────────────────
@@ -194,6 +207,8 @@ export interface EstadoOrdenCreditoResponseDTO {
 
 export interface CompraOnlineRequestDTO {
   idTanda: number;
+  /** 1 a 20: una sola orden y un solo pago de MercadoPago por compra, aunque sean varias entradas. */
+  cantidad: number;
   nombreComprador: string;
   emailComprador: string;
 }
@@ -264,6 +279,10 @@ export interface EstadisticasPublicasResponseDTO {
 export interface SoporteResponseDTO {
   emailSoporte: string | null;
   whatsappSoporte: string | null;
+}
+
+export interface IniciarCompraCreditoRequestDTO {
+  idPaquete: number;
 }
 
 export interface IniciarCompraCreditoResponseDTO {

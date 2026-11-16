@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { Eye, EyeOff, ShieldCheck, AlertCircle, CheckCircle2 } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { AuthBackground } from "../../components/AuthBackground";
+import type { RestablecerPasswordRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 export function OrganizadorResetPasswordPage() {
@@ -38,7 +39,7 @@ export function OrganizadorResetPasswordPage() {
     try {
       await api.post(
         "/auth/restablecer-password",
-        { token, nuevaPassword: pass },
+        { token, nuevaPassword: pass } satisfies RestablecerPasswordRequestDTO,
         { skipAuth: true },
       );
       setSuccess(true);

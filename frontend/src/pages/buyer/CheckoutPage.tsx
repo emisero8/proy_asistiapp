@@ -5,7 +5,12 @@ import { ChevronLeft } from "lucide-react";
 import { api } from "../../lib/api";
 import { fmt } from "../../lib/format";
 import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/pago";
-import type { EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
+import type {
+  CompraOnlineRequestDTO,
+  EventoPublicoDetalleDTO,
+  IniciarCompraResponseDTO,
+  TandaResponseDTO,
+} from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface CheckoutState {
@@ -56,7 +61,12 @@ export function CheckoutPage() {
       const { orden, enPestanaNueva } = await iniciarPago(() =>
         api.post<IniciarCompraResponseDTO>(
           "/tickets/comprar-online",
-          { idTanda: tanda.id, cantidad: qty, nombreComprador: name, emailComprador: email },
+          {
+            idTanda: tanda.id,
+            cantidad: qty,
+            nombreComprador: name,
+            emailComprador: email,
+          } satisfies CompraOnlineRequestDTO,
           { skipAuth: true },
         ),
       );

@@ -19,6 +19,7 @@ Para cualquier tarea relacionada con la base de datos, creación de endpoints, l
 - **Reglas de Negocio:** Respeta estrictamente los casos de uso definidos (ej. publicar un evento consume créditos, la validación de QR marca la entrada como usada).
 - **Transacciones (ACID):** Usa `@Transactional` en los servicios que modifican datos para evitar sobreventa de entradas (controlando rigurosamente el `cupo_disponible` en la entidad `TANDA`).
 - **Patrones de Código:** Usa siempre DTOs para las peticiones/respuestas (no expongas entidades JPA) e implementa manejo de errores global estructurado con `@ControllerAdvice`.
+- **Contrato con el frontend:** si cambiás un endpoint o un DTO, `OpenApiContratoTest` falla hasta que se regenere la copia del contrato del frontend: con el backend corriendo, `cd frontend && npm run types:api`, luego `npx tsc -b` y actualizar `frontend/src/lib/types.ts` donde marque (detalle en `frontend/README.md`, "Contrato con el backend").
 
 ## 🛡️ AUDITORÍA DE SEGURIDAD
 Si se solicita una revisión de seguridad de código, **DEBES leer el archivo `SECURITY.md`** y auditar estrictamente el fragmento de código proporcionado buscando vulnerabilidades (SQLi, XSS, CSRF, IDOR), sin modificar ni requerir la lectura del resto del proyecto.

@@ -194,3 +194,5 @@ Los orígenes permitidos salen de `CORS_ALLOWED_ORIGINS` (coma-separado). Si el 
 mvn test
 ```
 Corren contra H2 en memoria (perfil `test`, ver `application-test.yml`) — no necesitan PostgreSQL. CI configurado en `.github/workflows/backend-tests.yml`.
+
+`OpenApiContratoTest` compara el contrato que publica la API (`/v3/api-docs`) con la copia que guarda el frontend (`../frontend/openapi.json`, de la que genera sus tipos). **Si cambiás un endpoint o un DTO y falla**, es lo esperado: con el backend corriendo, `cd frontend && npm run types:api`, después `npx tsc -b` para ver qué tipos del frontend actualizar, y commitear todo junto.

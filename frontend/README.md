@@ -29,10 +29,29 @@ SPA de AsistíAPP. React 19 + TypeScript + Vite + Tailwind CSS v4 + react-router
 - `src/pages/{buyer,organizador,staff,admin}/` — una carpeta por rol/flujo.
 - `src/lib/api.ts` — cliente HTTP: adjunta el JWT, parsea errores con el contrato de `GlobalExceptionHandler`, y desloguea automáticamente si el backend rechaza la sesión (ver comentario en el archivo).
 - `src/lib/auth.tsx` — contexto de sesión (`useAuth`) y guard de rutas por rol (`RequireRole`).
-- `src/lib/types.ts` — espejo a mano de los DTOs del backend (fuente de verdad: Swagger en `/v3/api-docs` con el backend corriendo).
+- `src/lib/types.ts` — espejo a mano de los DTOs del backend, con la nulabilidad real de cada campo. Se verifica contra el contrato del backend (ver "Contrato con el backend" más abajo).
+- `src/lib/types.contract.ts`, `src/lib/api-schema.d.ts` y `openapi.json` — la guardia de desfasajes de `types.ts`; los dos últimos son generados, no se editan a mano.
 - `figma-reference/` — export crudo del mockup original de Figma Make. Solo material de consulta de diseño — **nunca se edita ni se shipea**.
 
 Las páginas de cada rol están separadas por rutas y cargadas con `React.lazy()` (ver `src/App.tsx`) — las que traen dependencias pesadas (`recharts` en el dashboard del Organizador, `html5-qrcode` en el scanner de Staff) quedan en su propio chunk, que solo se descarga al entrar a esa pantalla.
+
+## Contrato con el backend (tipos de la API)
+
+`types.ts` se escribe a mano a propósito: el backend no declara qué campos de respuesta son obligatorios ni cuáles pueden ser `null`, así que los tipos generados salen con **todo opcional** y reemplazarlos obligaría a tratar como posiblemente ausente cada campo que siempre viene. Lo que evita que `types.ts` se desfase es esto:
+
+- `openapi.json` es una copia versionada del contrato del backend (`GET /v3/api-docs`) y `src/lib/api-schema.d.ts` son los tipos generados de esa copia.
+- `src/lib/types.contract.ts` compara cada DTO de `types.ts` con su versión generada: mismos campos (también en objetos y listas anidados) y mismo tipo base (los enums, con exactamente los mismos valores). **No compara** si un campo es opcional o acepta `null`, porque eso es justo lo que el backend no dice. Si algo no coincide, `npx tsc -b` falla en la línea de ese DTO.
+- Los cuerpos de las peticiones se arman con `satisfies <Tipo>RequestDTO`, así que el compilador también los compara con el backend.
+- `src/lib/types.contract.test.ts` avisa si se agrega un DTO a `types.ts` y se olvida de sumarlo a `types.contract.ts`.
+- En el backend, `OpenApiContratoTest` falla si el contrato cambia y `openapi.json` no se actualizó, así que la guardia no depende de que alguien se acuerde de regenerar.
+
+**Cuando cambia un endpoint o un DTO del backend:**
+
+1. Con el backend corriendo: `npm run types:api` (regenera `openapi.json` y `api-schema.d.ts`; otra URL: `API_URL=https://... npm run types:api`).
+2. `npx tsc -b`: los errores señalan qué DTO de `types.ts` hay que actualizar, y dónde se usa.
+3. Commitear `openapi.json`, `api-schema.d.ts` y `types.ts` juntos.
+
+El generador (`openapi-typescript`, a una versión fija) se ejecuta con `npx` y **no es una dependencia del proyecto**: exige TypeScript 5 y el proyecto usa 6, y el CI solo verifica los archivos ya generados. Necesita red la primera vez.
 
 ## Tests
 
