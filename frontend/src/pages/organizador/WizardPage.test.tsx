@@ -324,6 +324,21 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Publicar evento" })).toBeEnabled());
   });
 
+  it("la pantalla de éxito muestra la fecha formateada, no la cruda del input (bug 6)", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockResolvedValueOnce(resumenDe(500)).mockResolvedValueOnce([movimiento(4, 1)]);
+    vi.mocked(api.patch).mockResolvedValueOnce({});
+    const { container } = renderWizard();
+    await avanzarAlPaso2(container, user);
+    await completarTanda(user);
+    vi.mocked(api.post).mockResolvedValueOnce({ id: 501 });
+
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    await screen.findByText("¡Evento publicado!");
+    expect(screen.queryByText(/2099-12-31/)).not.toBeInTheDocument();
+    expect(screen.getByText(/31 dic 2099/)).toBeInTheDocument();
+  });
 });
 
 describe("OrganizadorWizardPage — reintento de publicación (bug 1)", () => {

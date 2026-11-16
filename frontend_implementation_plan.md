@@ -462,12 +462,12 @@ Scanner (marco de teléfono conservado en desktop, `h-dvh` en mobile, resultado 
 Pasada de accesibilidad y contraste en ambos temas, comparación de bundle/CSS contra la línea base, `DESIGN.md` final.
 
 ### 13.B — Bugs funcionales detectados en la auditoría (commits separados, no mezclados con lo visual)
-1. **Wizard duplica tandas al reintentar:** `handlePublicar` crea las tandas una por una y después publica; si algo falla a mitad de camino, el reintento vuelve a crear las ya creadas (`WizardPage.tsx`, loop de `POST /eventos/{id}/tandas`).
-2. **Dashboard del organizador queda en error para siempre:** un fallo puntual del refresco de 20 s setea `error` y nunca se limpia, ocultando todo el panel (`DashboardPage.tsx`, `cargar()`).
+1. ✅ **Wizard duplica tandas al reintentar:** `handlePublicar` crea las tandas una por una y después publica; si algo falla a mitad de camino, el reintento vuelve a crear las ya creadas (`WizardPage.tsx`, loop de `POST /eventos/{id}/tandas`). Arreglado en un commit propio al inicio de 13.6: el Wizard recuerda qué tandas ya creó en el borrador (id local → id del backend + lo enviado); al reintentar no las vuelve a crear, actualiza (`PUT`) las que el organizador cambió y borra (`DELETE`) las que sacó de la lista — endpoints que ya usaba `EditEventPage`, sin cambios de contrato.
+2. ✅ **Dashboard del organizador queda en error para siempre:** un fallo puntual del refresco de 20 s setea `error` y nunca se limpia, ocultando todo el panel (`DashboardPage.tsx`, `cargar()`). Arreglado en un commit propio al inicio de 13.6: una carga exitosa limpia el error, y si el panel ya había cargado, un fallo del refresco de fondo no lo tapa (sigue con los últimos datos; el próximo refresco reintenta).
 3. ✅ **Resultado del pago deja de consultar en silencio:** tras 8 reintentos (~20 s) frena el polling pero sigue diciendo "se actualiza sola" (`PagoResultadoPage.tsx`). Arreglado en un commit propio en 13.4: estado "Todavía no recibimos la confirmación" (no volver a pagar; el mail se menciona solo para entradas, que es lo que el backend envía) + botón "Volver a consultar" que reinicia la consulta; el temporizador pendiente se limpia al desmontar.
 4. ✅ **Detalle de evento sin tandas:** skeleton infinito (`DetailPage.tsx`, condición `!evento || !sel`). Arreglado en un commit propio al inicio de 13.4: se muestra que no hay entradas a la venta, con link a otros eventos.
 5. ✅ **Admin, "Ver Perfil" lleva al dashboard** (`AdminLayout.tsx`). Arreglado en un commit propio antes de 13.3: sin pantalla de perfil de Admin, el bloque pasa a ser solo informativo (nombre + rol).
-6. **Wizard, pantalla de éxito con la fecha cruda** (`2026-12-01` en vez de `formatFecha`).
+6. ✅ **Wizard, pantalla de éxito con la fecha cruda** (`2026-12-01` en vez de `formatFecha`). Arreglado en un commit propio al inicio de 13.6 (`formatFecha`).
 
 ### Verificación de toda la fase
 - Por sub-fase: `npm run lint`, `npm test`, `npm run build`; los nombres accesibles y textos que usan los tests no cambian en la misma sub-fase que se migra un componente.

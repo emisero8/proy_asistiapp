@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Check, ChevronLeft, ChevronRight, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
-import { hoyLocal } from "../../lib/format";
+import { formatFecha, hoyLocal } from "../../lib/format";
 import { DatePicker } from "../../components/DatePicker";
 import { TimePicker } from "../../components/TimePicker";
 import { MapPicker, type Coords } from "../../components/EventMap";
@@ -182,7 +182,7 @@ export function OrganizadorWizardPage() {
         <h2 className="text-2xl font-extrabold text-foreground mb-2">{title}</h2>
         <p className="text-sm text-muted-foreground mb-1">{venue}</p>
         <p className="text-sm text-muted-foreground mb-6">
-          {date} {time && `· ${time} hs`}
+          {formatFecha(date)} {time && `· ${time} hs`}
         </p>
         {movimiento && (
           <div className="bg-card border border-border rounded-2xl p-4 w-full max-w-sm mb-6 space-y-2">
