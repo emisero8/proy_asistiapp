@@ -4,7 +4,6 @@ import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
 import { ThemeProvider, useTheme } from "./lib/theme";
 import { DialogProvider } from "./components/DialogProvider";
-import { FloatingThemeToggle } from "./components/ThemeToggle";
 import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
 import { EntradaSeccion } from "./components/EntradaSeccion";
 import { AnimatedOutlet, RouteFallback } from "./components/AnimatedOutlet";
@@ -172,7 +171,6 @@ function AppShell() {
       <DialogProvider>
         <BrowserRouter>
           <ScrollToTop />
-          <FloatingThemeToggle />
           {/* Fallback y error boundary de primera carga de una sección (todavía no hay layout
               montado, ej. el chunk de OrganizadorLayout); dentro de un layout ya montado,
               actúan los de <AnimatedOutlet>. */}

@@ -25,6 +25,7 @@ import {
   Textarea,
   Tooltip,
 } from "../../components/ui";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { ETIQUETA_ROL, TONO_ROL } from "../../lib/estados";
 import type { RolUsuario } from "../../lib/types";
 
@@ -50,6 +51,7 @@ export function UiCatalogPage() {
         back={{ label: "Volver al inicio", to: "/" }}
         actions={
           <>
+            <ThemeToggle variant="secondary" />
             <Button variant="secondary" leftIcon={<Pencil size={15} />}>
               Editar
             </Button>

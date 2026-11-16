@@ -489,8 +489,19 @@ Tablas de Usuarios/Eventos con `Menu` accesible y vista en tarjetas en mobile; C
 - **Verificación** (Playwright, build de producción, backend real con el admin de desarrollo): las 5 pantallas con el backend real y con datos interceptados en **390/820/1440 × claro/oscuro**; **0 errores de consola** y **ningún scroll horizontal** en ninguna vista (medido en 390, 820 y 1440); el menú de acciones queda dentro del viewport; precio inválido avisa; 3 switches con nombre. Ninguna mutación se envió al backend (se bloquearon en el navegador). Corregido en la verificación: el editor de precio quedaba apretado en la columna (pasa a una fila propia con "Guardar"/"Cancelar" con texto); "Ver toda la auditoría" partía el título en mobile; un "—" suelto en registros sin detalle.
 - Build: CSS 82,5 → **80,9 kB**; JS de carga inicial sin cambios (294,0 kB). Lint: 0 errores, las mismas 4 warnings.
 
-### 13.8 — Staff
+### 13.8 — Staff ✅
 Scanner (marco de teléfono conservado en desktop, `h-dvh` en mobile, resultado anunciado con `aria-live`, máxima legibilidad y velocidad en la validación); POS con los componentes compartidos.
+
+**Antes de empezar** (commit propio `38c37d3`): el POS arrancaba con la primera tanda aunque estuviera agotada (botón gris sin explicación), mismo problema que el bug 4 del detalle público. Ahora elige la primera con cupo. Test que falla sin el arreglo.
+
+**Resultado:**
+- **Scanner:** conserva el marco de teléfono en desktop; en mobile `h-dvh` y áreas seguras. El resultado se **anuncia** (`role="status"`, `aria-live="assertive"`) y se cierra tocando o con Enter/Espacio/Escape (antes un `div` con `onClick`, sin teclado). Más legible a distancia: ícono de 52 px, nombre en `text-3xl`, evento y tanda; **barra de cuenta regresiva** hasta volver a escanear. Código manual en un `<form>` con label (Enter valida; antes solo con el botón), foco al abrirlo, `aria-expanded`. Botones de 44 px. Textos de 9–11 px a `text-2xs`/`text-xs` y blanco con opacidad ≥ 55 % (antes 25–40 %, ilegible). Tonos fijos documentados como excepción en `DESIGN.md`.
+- **POS:** header propio con vendidas, toggle de tema y salir; evento con `Field`/`Select`; tanda con `RadioCardGroup` (agotadas deshabilitadas y anunciadas); `QuantityStepper`; titular y mail con `Field`; resumen en panel sticky (desktop) y `StickyActionBar` (mobile); el botón dice "Generar entradas" en plural. Éxito: tarjetas con `dl`, QR siempre sobre blanco, "Nueva venta" como acción principal. Errores con `Alert`/`ErrorState`, vacío con `EmptyState`.
+- **Texto corregido:** el campo decía "Email (recibe la entrada)", pero la venta manual **no envía mail** (verificado en `VentaService.realizarVentaManual`). Ahora dice para qué se usa y que hay que pasarle el enlace al comprador. La pregunta de si debería enviarlo queda en `DECISIONES.md` (es backend).
+- **`FloatingThemeToggle` eliminado:** el POS era la última pantalla sin toggle en su header. `/dev/ui` (solo dev) suma el suyo.
+- **Tests:** 209/209 (3 nuevos: `ScannerPage.test.tsx` con la cámara simulada —validación manual con Enter, anuncio, contador, Escape— y la tanda inicial del POS).
+- **Verificación** (Playwright, build de producción; sesiones de Staff simuladas y todas las respuestas interceptadas en el navegador —crear staff real exige un evento publicado, que después no se puede borrar—; cámara simulada de Chromium): POS y Scanner en **390/820/1440 × claro/oscuro**, venta de 2 entradas → éxito, resultado válido e inválido, anuncio leído ("Entrada inválida. Esta entrada ya fue usada…"), sin scroll horizontal y sin toggle flotante. Únicos errores de consola: los 409 provocados a propósito para el caso "entrada ya usada".
+- Build: CSS 80,9 → **79,6 kB**; JS de carga inicial 294,0 → **292,4 kB** (sale el toggle flotante).
 
 ### 13.9 — Cierre
 Pasada de accesibilidad y contraste en ambos temas, comparación de bundle/CSS contra la línea base, `DESIGN.md` final.

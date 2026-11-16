@@ -146,7 +146,7 @@ El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, 
 | `PublicHeader` (`components/PublicHeader.tsx`) | `/eventos` y flujo de compra: detalle, checkout, resultado del pago, mi entrada (la Home tiene su propio header, transparente sobre el hero) | Header sticky: "Volver" (atrás si hay historial en la app, si no a `/eventos`), logo, link a Eventos y tema. |
 | `AnimatedOutlet` (`components/AnimatedOutlet.tsx`) | Dentro de cada layout | Transición de página, `Suspense` y `RouteErrorBoundary` por ruta: si una pantalla falla, el shell sigue funcionando. |
 
-- **Nada flota sobre el contenido.** Tema, campanita y "Salir" viven en el header de cada estructura. El toggle flotante global (`FloatingThemeToggle`) es **transitorio**: solo queda en el POS (13.8) y se elimina al migrarlo.
+- **Nada flota sobre el contenido.** Tema, campanita y "Salir" viven en el header de cada estructura (el toggle flotante transitorio se eliminó en 13.8).
 - **Compra en dos columnas:** en desktop, contenido a la izquierda y panel de compra/resumen sticky a la derecha (`lg:grid-cols-[minmax(0,1fr)_360px]`); en mobile, la misma acción en `StickyActionBar` y el resumen visible arriba del formulario.
 - **Peso del bundle inicial:** los módulos que se cargan siempre (`App.tsx`, `ThemeToggle`, `RouteErrorBoundary`, `AnimatedOutlet`) importan componentes desde su archivo (`./ui/Button`), **no** desde el barrel `components/ui` — el barrel arrastraría todos los componentes a la carga inicial. Las pantallas (lazy) sí usan el barrel.
 - **Errores de render:** `RouteErrorBoundary` evita la pantalla en blanco. Un chunk que no carga (versión nueva desplegada) recarga sola una vez y, si persiste, ofrece "Recargar".
@@ -400,7 +400,10 @@ Contenido duplicado dos veces en el componente; `.marquee-track` lo desplaza exa
 
 ### Scanner del Staff QR
 
-Overlay de cámara siempre negro (no depende del tema). **En desktop conserva el marco de teléfono** (decisión 2026-11-16); en mobile ocupa toda la pantalla. Prioridad: velocidad y claridad del resultado (válido/inválido legible a distancia, en menos de un segundo). Se rediseña en 13.8.
+Pantalla **siempre negra** (no depende del tema). **En desktop conserva el marco de teléfono** (decisión 2026-11-16); en mobile ocupa toda la pantalla (`h-dvh`, áreas seguras del iPhone). Prioridad: velocidad y claridad del resultado.
+- Es la otra excepción a "solo tokens": usa blanco con opacidad (`text-white/60` mínimo para texto) y verde/rojo fijos (`emerald-300/400/950`, `red-300/400/950`), porque los tokens cambian con el tema y esta pantalla no.
+- Resultado: pantalla completa verde o roja, ícono de 52 px, nombre en `text-3xl`, tanda y motivo; **barra de cuenta regresiva** (keyframe `vaciar`) hasta volver a escanear (3,5 s válido / 4 s inválido). Se cierra tocando o con Enter/Espacio/Escape.
+- Accesibilidad: el resultado se anuncia en una región `role="status" aria-live="assertive"` (el overlay visual es `aria-hidden`); código manual en un `<form>` con label (Enter valida); botones de 44 px.
 
 ---
 

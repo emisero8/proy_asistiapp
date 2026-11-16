@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { ChevronDown, Copy, LogOut, Minus, Plus, QrCode, RotateCcw, Share2 } from "lucide-react";
+import { CalendarX, CheckCircle2, Copy, LogOut, QrCode, RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError, API_BASE_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { ThemeToggle } from "../../components/ThemeToggle";
+import { Alert, Button, Card, EmptyState, ErrorState, Field, IconButton, Input, QuantityStepper, RadioCardGroup, Select, Skeleton, StickyActionBar } from "../../components/ui";
 import { fmt } from "../../lib/format";
 import type {
   DisponibilidadCompradorResponseDTO,
@@ -129,90 +131,130 @@ export function StaffPosPage() {
     setQty(1);
   }
 
+  const header = <PosHeader nombre={session?.nombre} vendidas={soldToday} onLogout={logout} />;
+
   if (loadError) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background p-8 text-center">
-        <p className="text-sm text-destructive">{loadError}</p>
-        <button onClick={logout} className="text-primary text-sm font-semibold">
-          Cerrar sesión
-        </button>
+      <div className="min-h-dvh bg-background">
+        {header}
+        <div className="mx-auto max-w-xl px-4 py-10">
+          <ErrorState
+            title="No pudimos cargar tus eventos"
+            description={loadError}
+            secondaryAction={
+              <Button variant="secondary" onClick={logout}>
+                Cerrar sesión
+              </Button>
+            }
+          />
+        </div>
       </div>
     );
   }
 
   if (!eventos) {
-    return <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground text-sm">Cargando…</div>;
+    return (
+      <div className="min-h-dvh bg-background">
+        {header}
+        <div className="mx-auto max-w-6xl space-y-4 px-4 py-6 lg:px-8" aria-busy="true">
+          <span className="sr-only">Cargando…</span>
+          <Skeleton className="h-11 max-w-md" />
+          <div className="grid gap-2 lg:grid-cols-2">
+            <Skeleton className="h-16" />
+            <Skeleton className="h-16" />
+          </div>
+          <Skeleton className="h-40" />
+        </div>
+      </div>
+    );
   }
 
   if (eventos.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background p-8 text-center">
-        <p className="text-sm text-muted-foreground">Tu organizador todavía no tiene eventos publicados para vender.</p>
-        <button onClick={logout} className="text-primary text-sm font-semibold">
-          Cerrar sesión
-        </button>
+      <div className="min-h-dvh bg-background">
+        {header}
+        <div className="mx-auto max-w-xl px-4 py-10">
+          <EmptyState
+            icon={CalendarX}
+            title="No hay eventos para vender"
+            description="Tu organizador todavía no tiene eventos publicados para vender."
+            action={
+              <Button variant="secondary" onClick={logout}>
+                Cerrar sesión
+              </Button>
+            }
+          />
+        </div>
       </div>
     );
   }
 
   if (entradas.length > 0 && evento && tanda) {
+    const plural = entradas.length > 1;
     return (
-      <div className="min-h-screen bg-background">
-        <div className="max-w-4xl mx-auto flex flex-col min-h-screen">
-          <div className="flex-none px-4 lg:px-0 pt-14 lg:pt-10 pb-4 border-b border-border">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center">
-                <QrCode size={16} className="text-green-400" />
-              </div>
-              <div>
-                <h2 className="text-base lg:text-lg font-extrabold text-foreground">¡Entrada{entradas.length > 1 ? "s" : ""} generada{entradas.length > 1 ? "s" : ""}!</h2>
-                <p className="text-xs text-muted-foreground">
-                  {entradas.length} entrada{entradas.length > 1 ? "s" : ""} · {tanda.nombre}
-                </p>
-              </div>
+      <div className="min-h-dvh bg-background">
+        {header}
+        <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 lg:px-8 lg:py-8">
+          <div className="flex items-center gap-3" role="status">
+            <span aria-hidden="true" className="flex size-11 flex-none items-center justify-center rounded-full bg-success/12 text-success">
+              <CheckCircle2 size={22} />
+            </span>
+            <div>
+              <h1 className="text-lg font-extrabold text-foreground lg:text-xl">
+                {plural ? `¡${entradas.length} entradas generadas!` : "¡Entrada generada!"}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {evento.nombre} · {tanda.nombre} · Pasale al comprador el enlace o que escanee el QR.
+              </p>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 lg:px-0 py-4 lg:py-6 space-y-4">
-            {sellError && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{sellError}</div>}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {entradas.map((entrada, i) => (
-                <div key={entrada.id} className="bg-card border border-border rounded-2xl overflow-hidden">
-                  <div className="px-4 py-4 border-b border-border space-y-2.5">
+          {sellError && <Alert tone="danger">{sellError}</Alert>}
+
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {entradas.map((entrada, i) => (
+              <li key={entrada.id}>
+                <Card padding="none" className="overflow-hidden">
+                  <dl className="space-y-2 border-b border-border p-4 text-sm">
                     {[
-                      ["Evento", evento.nombre],
-                      ["Tanda", entrada.nombreTanda],
                       ["Titular", entrada.nombreComprador || "Sin nombre"],
+                      ["Tanda", entrada.nombreTanda],
                       ["Entrada", `${i + 1} de ${entradas.length}`],
-                      ["Total", fmt(entrada.precioTanda)],
+                      ["Precio", fmt(entrada.precioTanda)],
                     ].map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">{label}</span>
-                        <span className="text-xs font-semibold text-foreground text-right max-w-[55%] truncate">{value}</span>
+                      <div key={label} className="flex items-center justify-between gap-3">
+                        <dt className="text-muted-foreground">{label}</dt>
+                        <dd className="truncate text-right font-semibold text-foreground">{value}</dd>
                       </div>
                     ))}
-                  </div>
-                  <div className="px-4 py-5 flex flex-col items-center">
-                    <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-4">QR de acceso</p>
-                    <div className="bg-white p-3 rounded-2xl shadow-xl shadow-black/30">
+                  </dl>
+                  <div className="flex flex-col items-center p-4">
+                    {/* El QR siempre sobre blanco (en los dos temas) para que se lea bien. */}
+                    <div className="rounded-2xl bg-white p-3 shadow-raised">
                       <img
                         src={`${API_BASE_URL}/tickets/${entrada.id}/qr-image?codigoQr=${encodeURIComponent(entrada.codigoQr)}`}
                         alt={`QR de la entrada ${entrada.codigoQr}`}
-                        width={160}
-                        height={160}
+                        width={168}
+                        height={168}
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-3 font-mono tracking-wider">{entrada.codigoQr}</p>
-                    <div className="w-full flex gap-2 mt-4">
-                      <button
+                    <p className="mt-3 font-mono text-sm tracking-wider text-foreground">{entrada.codigoQr}</p>
+                    <div className="mt-4 flex w-full gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        block
+                        leftIcon={<Copy size={15} />}
                         onClick={() => copiarAlPortapapeles(linkEntrada(entrada.codigoQr), "Enlace copiado")}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-muted text-foreground text-xs font-semibold hover:bg-muted/70 transition-colors"
                       >
-                        <Copy size={13} />
                         Copiar enlace
-                      </button>
+                      </Button>
                       {typeof navigator.share === "function" && (
-                        <button
+                        <IconButton
+                          label="Compartir entrada"
+                          icon={<Share2 size={15} />}
+                          variant="secondary"
+                          size="sm"
                           onClick={() =>
                             navigator
                               .share({
@@ -222,40 +264,29 @@ export function StaffPosPage() {
                               })
                               .catch(() => {})
                           }
-                          aria-label="Compartir entrada"
-                          className="w-10 flex-none flex items-center justify-center rounded-xl bg-muted text-foreground hover:bg-muted/70 transition-colors"
-                        >
-                          <Share2 size={14} />
-                        </button>
+                        />
                       )}
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              {entradas.length > 1 && (
-                <button
-                  onClick={() =>
-                    copiarAlPortapapeles(
-                      entradas.map((e) => linkEntrada(e.codigoQr)).join("\n"),
-                      `${entradas.length} enlaces copiados`,
-                    )
-                  }
-                  className="w-full sm:w-auto sm:px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors flex items-center justify-center gap-2"
-                >
-                  <Copy size={15} />
-                  Copiar los {entradas.length} enlaces
-                </button>
-              )}
-              <button
-                onClick={handleReset}
-                className="w-full sm:w-auto sm:px-8 py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors flex items-center justify-center gap-2"
+                </Card>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button size="lg" leftIcon={<RotateCcw size={17} />} onClick={handleReset}>
+              Nueva venta
+            </Button>
+            {plural && (
+              <Button
+                variant="secondary"
+                size="lg"
+                leftIcon={<Copy size={17} />}
+                onClick={() => copiarAlPortapapeles(entradas.map((e) => linkEntrada(e.codigoQr)).join("\n"), `${entradas.length} enlaces copiados`)}
               >
-                <RotateCcw size={15} />
-                Nueva venta
-              </button>
-            </div>
+                Copiar los {entradas.length} enlaces
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -270,104 +301,68 @@ export function StaffPosPage() {
     qty <= cupoMaximoVenta &&
     buyerName.trim().length > 1 &&
     buyerEmail.includes("@");
+  const resumen = `${qty} × ${tanda?.nombre ?? "—"}`;
+  const botonGenerar = (
+    <Button block size="lg" leftIcon={<QrCode size={18} />} disabled={!valid} loading={selling} loadingText="Generando…" onClick={handleGenerate}>
+      Generar entrada{qty > 1 ? "s" : ""}
+    </Button>
+  );
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="px-4 lg:px-8 pt-14 lg:pt-8 pb-3 border-b border-border bg-background sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div>
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Punto de Venta</p>
-            <h2 className="text-base lg:text-lg font-extrabold text-foreground">{session?.nombre}</h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-[10px] text-muted-foreground">Vendidas hoy</p>
-              <p className="text-sm font-extrabold text-primary">{soldToday}</p>
-            </div>
-            <button onClick={logout} aria-label="Cerrar sesión" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-              <LogOut size={14} />
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-dvh bg-background">
+      {header}
 
-      <div className="max-w-6xl mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
-        <div className="lg:flex-1 lg:min-w-0 px-4 lg:px-0 py-4 lg:py-0 space-y-4 pb-40 lg:pb-0">
-          {eventos.length > 1 && (
-            <div>
-              <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-2">Evento</p>
-              <div className="relative">
-                <select
-                  value={evento?.id ?? ""}
-                  onChange={(e) => {
-                    const next = eventos.find((ev) => ev.id === Number(e.target.value));
-                    if (next) selectEvento(next);
-                  }}
-                  className="w-full appearance-none px-4 py-3 pr-10 bg-card border border-border rounded-xl text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                >
-                  {eventos.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {e.nombre}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+      <div className="mx-auto max-w-6xl px-4 py-6 pb-44 lg:flex lg:items-start lg:gap-8 lg:px-8 lg:py-8 lg:pb-8">
+        <div className="min-w-0 flex-1 space-y-6">
+          {eventos.length > 1 ? (
+            <Field label="Evento" hint={evento?.lugar}>
+              <Select
+                value={evento?.id ?? ""}
+                onChange={(e) => {
+                  const next = eventos.find((ev) => ev.id === Number(e.target.value));
+                  if (next) selectEvento(next);
+                }}
+              >
+                {eventos.map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.nombre}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : (
+            evento && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Evento</p>
+                <p className="text-base font-bold text-foreground">{evento.nombre}</p>
+                <p className="text-xs text-muted-foreground">{evento.lugar}</p>
               </div>
-              {evento && <p className="text-[11px] text-muted-foreground mt-1.5 px-1">{evento.lugar}</p>}
-            </div>
+            )
           )}
 
-          {eventos.length === 1 && evento && (
-            <div>
-              <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-1">Evento</p>
-              <p className="text-sm font-semibold text-foreground">{evento.nombre}</p>
-              <p className="text-[11px] text-muted-foreground">{evento.lugar}</p>
-            </div>
+          {evento && (
+            <RadioCardGroup<number>
+              label="Tanda"
+              value={tanda?.id ?? null}
+              onChange={(id) => setTanda(evento.tandas.find((t) => t.id === id) ?? null)}
+              columns={2}
+              options={evento.tandas.map((t) => ({
+                value: t.id,
+                label: t.nombre,
+                description: t.cupoDisponible === 0 ? "Agotada" : `${t.cupoDisponible} disponibles`,
+                aside: <span className="text-sm font-bold tabular-nums text-foreground">{fmt(t.precio)}</span>,
+                disabled: t.cupoDisponible === 0,
+              }))}
+            />
           )}
 
           <div>
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-2">Tanda</p>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-              {evento?.tandas.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => setTanda(t)}
-                  disabled={t.cupoDisponible === 0}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all disabled:opacity-40 disabled:cursor-not-allowed ${tanda?.id === t.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3.5 h-3.5 rounded-full border-2 flex-none ${tanda?.id === t.id ? "border-primary bg-primary" : "border-muted-foreground"}`} />
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{t.nombre}</p>
-                      <p className="text-[10px] text-muted-foreground">{t.cupoDisponible === 0 ? "Agotada" : `${t.cupoDisponible} disp.`}</p>
-                    </div>
-                  </div>
-                  <span className="text-sm font-bold text-primary">{fmt(t.precio)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="lg:max-w-xs">
-            <div className="flex items-center justify-between bg-card rounded-xl px-4 py-3.5 border border-border">
+            <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-card px-4 py-3 sm:max-w-sm">
               <span className="text-sm font-semibold text-foreground">Cantidad</span>
-              <div className="flex items-center gap-4">
-                <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Quitar una entrada" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center hover:bg-muted/70 transition-colors">
-                  <Minus size={13} />
-                </button>
-                <span className="text-lg font-bold text-foreground w-4 text-center">{qty}</span>
-                <button
-                  onClick={() => setQty((q) => Math.min(cupoMaximoVenta, q + 1))}
-                  disabled={qty >= cupoMaximoVenta}
-                  aria-label="Agregar una entrada"
-                  className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground hover:bg-primary/80 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Plus size={13} />
-                </button>
-              </div>
+              <QuantityStepper value={qty} onChange={setQty} max={Math.max(1, cupoMaximoVenta)} />
             </div>
             {disponibilidad && (
-              <p className="text-[11px] text-muted-foreground mt-1.5 px-1">
+              <p className="mt-1.5 text-xs text-muted-foreground">
                 {disponibilidad.yaCompradas > 0
                   ? `Este comprador ya tiene ${disponibilidad.yaCompradas} — podés vender hasta ${disponibilidad.disponible} más (tope: ${disponibilidad.limite}).`
                   : `Máximo ${disponibilidad.limite} entradas por persona para este evento.`}
@@ -375,76 +370,64 @@ export function StaffPosPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
-            <div>
-              <label className="text-[10px] text-muted-foreground tracking-widest uppercase block mb-2">Titular</label>
-              <input
-                value={buyerName}
-                onChange={(e) => setBuyerName(e.target.value)}
-                placeholder="Nombre del comprador..."
-                className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground tracking-widest uppercase block mb-2">Email (recibe la entrada)</label>
-              <input
-                type="email"
-                value={buyerEmail}
-                onChange={(e) => setBuyerEmail(e.target.value)}
-                placeholder="comprador@ejemplo.com"
-                className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
-            </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Field label="Titular" required>
+              <Input value={buyerName} onChange={(e) => setBuyerName(e.target.value)} placeholder="Nombre del comprador" autoComplete="off" />
+            </Field>
+            <Field label="Email del comprador" required hint="Se usa para el tope de entradas por persona. La entrada no se envía por mail: pasale el enlace.">
+              <Input type="email" inputMode="email" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} placeholder="comprador@ejemplo.com" autoComplete="off" />
+            </Field>
           </div>
 
-          {sellError && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{sellError}</div>}
+          {sellError && <Alert tone="danger">{sellError}</Alert>}
         </div>
 
-        {/* Resumen + generar — sticky en desktop */}
-        <div className="hidden lg:block lg:w-80 lg:flex-none lg:sticky lg:top-28">
-          <div className="bg-card rounded-2xl p-4 border border-border">
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Resumen</p>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                {qty} × {tanda?.nombre ?? "—"}
-              </span>
-              <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
+        {/* Resumen + generar: panel sticky en desktop, barra fija en mobile/tablet. */}
+        <aside aria-label="Resumen de la venta" className="hidden w-80 flex-none lg:sticky lg:top-24 lg:block">
+          <Card className="space-y-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Resumen</p>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-muted-foreground">{resumen}</span>
+              <span className="text-xl font-extrabold tabular-nums text-foreground">{fmt(total)}</span>
             </div>
-            <button
-              disabled={!valid || selling}
-              onClick={handleGenerate}
-              className={`mt-4 w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
-                valid && !selling ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
-              }`}
-            >
-              <QrCode size={18} />
-              {selling ? "Generando..." : "Generar entrada"}
-            </button>
-          </div>
-        </div>
+            {botonGenerar}
+          </Card>
+        </aside>
       </div>
 
-      {/* Resumen + generar fijos — mobile */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-muted-foreground">
-              {qty} × {tanda?.nombre ?? "—"}
-            </span>
-            <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
-          </div>
-          <button
-            disabled={!valid || selling}
-            onClick={handleGenerate}
-            className={`w-full py-4 rounded-2xl font-bold text-base transition-all flex items-center justify-center gap-2 ${
-              valid && !selling ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
-            }`}
-          >
-            <QrCode size={18} />
-            {selling ? "Generando..." : "Generar entrada"}
-          </button>
-        </div>
-      </div>
+      <StickyActionBar summary={resumen} amount={fmt(total)}>
+        {botonGenerar}
+      </StickyActionBar>
     </div>
+  );
+}
+
+interface PosHeaderProps {
+  nombre?: string;
+  vendidas: number;
+  onLogout: () => void;
+}
+
+/** Header del POS: vendedor, vendidas en esta sesión, tema y salir (antes el tema flotaba encima). */
+function PosHeader({ nombre, vendidas, onLogout }: PosHeaderProps) {
+  return (
+    <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 lg:px-8">
+        <div className="min-w-0">
+          <p className="text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Punto de venta</p>
+          <p className="truncate text-sm font-bold text-foreground">{nombre}</p>
+        </div>
+        <div className="flex flex-none items-center gap-2">
+          <div className="mr-1 text-right">
+            <p className="text-2xs text-muted-foreground">Vendidas</p>
+            <p className="text-sm font-extrabold tabular-nums text-primary" aria-live="polite">
+              {vendidas}
+            </p>
+          </div>
+          <ThemeToggle />
+          <IconButton label="Cerrar sesión" icon={<LogOut size={16} />} round onClick={onLogout} />
+        </div>
+      </div>
+    </header>
   );
 }

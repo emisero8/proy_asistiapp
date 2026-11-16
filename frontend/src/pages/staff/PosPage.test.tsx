@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StaffPosPage } from "./PosPage";
 import { api } from "../../lib/api";
+import { ThemeProvider } from "../../lib/theme";
 import type { EventoResponseDTO } from "../../lib/types";
 
 vi.mock("../../lib/api", async (importOriginal) => {
@@ -30,9 +31,15 @@ describe("StaffPosPage", () => {
     vi.mocked(api.get).mockImplementation(async (path: string) =>
       path === "/eventos/vendedor" ? [EVENTO] : { limite: 6, yaCompradas: 0, disponible: 6 },
     );
-    render(<StaffPosPage />);
+    render(
+      <ThemeProvider>
+        <StaffPosPage />
+      </ThemeProvider>,
+    );
 
     expect((await screen.findAllByText("1 × General")).length).toBeGreaterThan(0);
     expect(screen.queryByText("1 × Anticipada")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /General/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /Anticipada/ })).toBeDisabled();
   });
 });

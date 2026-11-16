@@ -38,6 +38,12 @@
   0%, 100% { transform: translateX(0); }
   50%      { transform: translateX(4px); }
 }
+/* Barra de cuenta regresiva (resultado del Scanner): se vacía en la duración que se le pase
+   con `animation-duration` inline. */
+@keyframes vaciar {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
 
 /* Entrada de contenido (hero, grillas con stagger, panel de diálogos). */
 .animate-fade-in-up {
