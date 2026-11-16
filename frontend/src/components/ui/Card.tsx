@@ -6,7 +6,7 @@ type Padding = "none" | "sm" | "md";
 const PADDINGS: Record<Padding, string> = { none: "", sm: "p-4", md: "p-5" };
 
 interface CardProps extends HTMLAttributes<HTMLElement> {
-  as?: "div" | "section" | "article";
+  as?: "div" | "section" | "article" | "form";
   padding?: Padding;
 }
 

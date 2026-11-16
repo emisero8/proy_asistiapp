@@ -100,7 +100,7 @@ export function ImagenPortadaField({
 
   const mensajes = (
     <>
-      <p className="text-[11px] text-muted-foreground mt-1.5">JPG, PNG o WEBP de hasta {TAMANO_MAXIMO_MB} MB.</p>
+      <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG o WEBP de hasta {TAMANO_MAXIMO_MB} MB.</p>
       {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
     </>
   );

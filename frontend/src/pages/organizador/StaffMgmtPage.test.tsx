@@ -125,7 +125,7 @@ describe("OrganizadorStaffMgmtPage — resetear contraseña", () => {
     renderPage();
     await screen.findByText("Martín Gómez");
 
-    await user.click(screen.getByTitle("Resetear contraseña"));
+    await user.click(screen.getByRole("button", { name: /^Resetear contraseña/ }));
     const dialogo = await screen.findByRole("dialog", { name: "Generar contraseña nueva" });
     expect(within(dialogo).getByText(/La anterior deja de funcionar/)).toBeInTheDocument();
     await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
@@ -141,7 +141,7 @@ describe("OrganizadorStaffMgmtPage — resetear contraseña", () => {
     renderPage();
     await screen.findByText("Martín Gómez");
 
-    await user.click(screen.getByTitle("Resetear contraseña"));
+    await user.click(screen.getByRole("button", { name: /^Resetear contraseña/ }));
     await user.click(within(await screen.findByRole("dialog", { name: "Generar contraseña nueva" })).getByRole("button", { name: "Generar" }));
 
     const alerta = await screen.findByRole("dialog", { name: "Contraseña temporal" });
@@ -166,7 +166,7 @@ describe("OrganizadorStaffMgmtPage — resetear contraseña", () => {
     renderPage();
     await screen.findByText("Martín Gómez");
 
-    await user.click(screen.getByTitle("Resetear contraseña"));
+    await user.click(screen.getByRole("button", { name: /^Resetear contraseña/ }));
     await user.click(within(await screen.findByRole("dialog", { name: "Generar contraseña nueva" })).getByRole("button", { name: "Generar" }));
 
     expect(await screen.findAllByText("Ese staff no te pertenece")).not.toHaveLength(0);

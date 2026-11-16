@@ -247,7 +247,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
     const crear = screen.getByRole("button", { name: "Crear tanda" });
     expect(crear).toBeDisabled(); // vacía
 
-    const tarjeta = screen.getByText("Nueva tanda").closest("div.space-y-3") as HTMLElement;
+    const tarjeta = screen.getByText("Nueva tanda").closest("article") as HTMLElement;
     const [nombre, precio, cupo] = within(tarjeta).getAllByRole("textbox");
     await user.type(nombre, "VIP");
     await user.type(precio, "9000");

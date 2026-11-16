@@ -174,3 +174,33 @@ describe("OrganizadorDashboardPage — refresco de fondo (bug 2)", () => {
     expect(screen.queryByText("No pudimos cargar tu panel.")).not.toBeInTheDocument();
   });
 });
+
+describe("OrganizadorDashboardPage — error de carga", () => {
+  it("muestra el error con 'Reintentar', que vuelve a pedir el panel", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockRejectedValue(new Error("Failed to fetch"));
+    renderDashboard();
+    expect(await screen.findByText("No pudimos cargar tu panel.")).toBeInTheDocument();
+
+    vi.mocked(api.get).mockImplementation(async (path: string) => {
+      if (path === "/eventos") return LISTA;
+      if (path === "/eventos/resumen") return RESUMEN;
+      return undefined;
+    });
+    await user.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(await screen.findByText("Recital de rock")).toBeInTheDocument();
+  });
+
+  it("cada evento tiene su menú de acciones accesible por nombre", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    await screen.findByText("Recital de rock");
+
+    await user.click(screen.getByRole("button", { name: "Acciones de Recital de rock" }));
+
+    expect(screen.getByRole("menuitem", { name: "Ver página pública" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Editar" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Cancelar evento" })).toBeInTheDocument();
+  });
+});

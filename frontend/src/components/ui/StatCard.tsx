@@ -27,9 +27,9 @@ export function StatCard({ label, value, icon: Icono, hint, emphasis = "none", c
   const e = ENFASIS[emphasis];
   return (
     <div className={cn("min-w-0 rounded-2xl border p-4", e.caja, className)}>
-      <p className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        {Icono && <Icono size={13} aria-hidden="true" className="flex-none" />}
-        <span className="truncate">{label}</span>
+      <p className="flex items-start gap-1.5 text-2xs font-semibold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
+        {Icono && <Icono size={13} aria-hidden="true" className="mt-px flex-none" />}
+        <span className="line-clamp-2">{label}</span>
       </p>
       <p className={cn("mt-2 truncate text-xl font-extrabold tabular-nums leading-none lg:text-2xl", e.valor)}>{value}</p>
       {hint && <p className="mt-1.5 truncate text-xs text-muted-foreground">{hint}</p>}

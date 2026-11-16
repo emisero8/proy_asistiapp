@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Clock } from "lucide-react";
 import { useDismiss } from "../lib/useDismiss";
+import { cn } from "../lib/cn";
+import { useFieldControl } from "./ui/fieldContext";
 
 const HORAS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 const MINUTOS = ["00", "15", "30", "45"];
@@ -19,6 +21,9 @@ type Props = {
  */
 export function TimePicker({ value, onChange, placeholder = "Elegí un horario" }: Props) {
   const [open, setOpen] = useState(false);
+  // Dentro de un <Field>: toma su id (el label apunta a este botón), la ayuda/el error y aria-invalid.
+  const control = useFieldControl<{ id?: string; "aria-describedby"?: string; "aria-invalid"?: boolean }>({});
+  const valorId = useId();
   const ref = useRef<HTMLDivElement>(null);
   const [hh, mm] = value ? value.split(":") : ["", ""];
 
@@ -48,22 +53,31 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
 
       <button
         type="button"
+        id={control.id}
+        aria-invalid={control["aria-invalid"]}
+        aria-describedby={[control["aria-describedby"], valorId].filter(Boolean).join(" ")}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => setOpen((o) => !o)}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-3 bg-card border border-border rounded-xl text-sm text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 ${
-          value ? "text-foreground" : "text-muted-foreground"
-        }`}
+        className={cn(
+          "flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-border-strong bg-card px-3.5 text-left text-sm",
+          "transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard",
+          "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25",
+          "aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:ring-destructive/25",
+          value ? "text-foreground" : "text-muted-foreground/80",
+        )}
       >
-        <span className="truncate">{value ? `${hh}:${mm} hs` : placeholder}</span>
-        <Clock size={15} className="flex-none text-muted-foreground" />
+        <span id={valorId} className="truncate">{value ? `${hh}:${mm} hs` : placeholder}</span>
+        <Clock size={15} aria-hidden="true" className="flex-none text-muted-foreground" />
       </button>
 
       {open && (
         <div className="absolute left-0 top-full mt-2 z-50 w-[200px] animate-fade-in-up origin-top-left">
           <div className="absolute -top-1.5 left-5 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
-          <div className="relative bg-card border border-border rounded-2xl shadow-xl shadow-black/40 p-3">
+          <div className="relative bg-card border border-border rounded-2xl shadow-overlay p-3">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1.5">Hora</p>
+                <p className="text-2xs font-bold text-muted-foreground uppercase tracking-wider text-center mb-1.5">Hora</p>
                 <div className="h-40 overflow-y-auto space-y-0.5 pr-1">
                   {HORAS.map((h) => (
                     <button
@@ -80,7 +94,7 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
                 </div>
               </div>
               <div>
-                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center mb-1.5">Min</p>
+                <p className="text-2xs font-bold text-muted-foreground uppercase tracking-wider text-center mb-1.5">Min</p>
                 <div className="space-y-0.5 pr-1">
                   {MINUTOS.map((m) => (
                     <button

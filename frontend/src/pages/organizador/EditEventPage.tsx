@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ChevronLeft, Plus, Trash2, AlertCircle, CheckCircle2, Save } from "lucide-react";
+import { Plus, Save } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { fmt, hoyLocal } from "../../lib/format";
-import { DatePicker } from "../../components/DatePicker";
-import { TimePicker } from "../../components/TimePicker";
-import { MapPicker, type Coords } from "../../components/EventMap";
-import { ImagenPortadaField } from "../../components/ImagenPortadaField";
+import type { Coords } from "../../components/EventMap";
+import { Alert, Button, Card, ErrorState, PageHeader, Skeleton, StatusBadge } from "../../components/ui";
+import { DatosEventoCampos, TandaCard } from "./EventoFormCampos";
 import { validarTandaContraEvento } from "./WizardPage";
 import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -246,255 +245,165 @@ export function OrganizadorEditEventPage() {
     ]);
   }
 
+  const volverLabel = esAdmin ? "Volver a eventos" : "Volver al panel";
+
   if (error && !evento) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-8">
-        <p className="text-sm text-destructive text-center">{error}</p>
+      <div className="mx-auto max-w-3xl px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+        <ErrorState
+          title="No pudimos cargar el evento"
+          description={error}
+          secondaryAction={
+            <Button variant="secondary" onClick={() => navigate(volverA)}>
+              {volverLabel}
+            </Button>
+          }
+        />
       </div>
     );
   }
 
   if (!evento) {
     return (
-      <div className="max-w-md lg:max-w-3xl mx-auto px-4 lg:px-8 pt-8 space-y-4 animate-pulse">
-        <div className="h-8 bg-muted rounded w-1/2" />
-        <div className="h-40 bg-card border border-border rounded-2xl" />
-        <div className="h-40 bg-card border border-border rounded-2xl" />
+      <div className="mx-auto max-w-3xl space-y-5 px-4 py-6 md:px-6 lg:px-8 lg:py-8" aria-busy="true">
+        <span className="sr-only">Cargando el evento…</span>
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-9 w-1/2" />
+        <Skeleton className="h-80 rounded-2xl" />
+        <Skeleton className="h-56 rounded-2xl" />
       </div>
     );
   }
 
-  const inputBase =
-    "w-full px-4 py-3 bg-card border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all";
-
   return (
-    <div className="max-w-md lg:max-w-3xl mx-auto px-4 lg:px-8 pt-6 pb-28 md:pb-12">
-      <button
-        onClick={() => navigate(volverA)}
-        className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors"
-      >
-        <ChevronLeft size={15} />
-        {esAdmin ? "Volver a eventos" : "Volver al dashboard"}
-      </button>
+    <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+      <PageHeader
+        back={{ label: volverLabel, onClick: () => navigate(volverA) }}
+        eyebrow={<StatusBadge tipo="evento" estado={evento.estado} />}
+        title="Editar evento"
+        description={evento.nombre}
+      />
 
-      <div className="flex items-center gap-3 mb-1">
-        <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Editar evento</h2>
-        <span
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-            publicado
-              ? "bg-green-400/15 text-green-400"
-              : evento.estado === "Borrador"
-                ? "bg-muted text-muted-foreground"
-                : "bg-red-400/15 text-red-400"
-          }`}
-        >
-          {evento.estado}
-        </span>
-      </div>
-      <p className="text-xs text-muted-foreground mb-5">{evento.nombre}</p>
-
-      {bloqueado && (
-        <div className="rounded-xl border border-border bg-card text-sm text-muted-foreground p-4 flex gap-2">
-          <AlertCircle size={15} className="flex-none mt-0.5" />
-          Este evento está cancelado. No se puede editar.
-        </div>
-      )}
+      {bloqueado && <Alert tone="info">Este evento está cancelado. No se puede editar.</Alert>}
 
       {publicado && !bloqueado && (
-        <div className="rounded-xl border border-primary/25 bg-primary/10 text-xs text-foreground p-3.5 flex gap-2 mb-4">
-          <AlertCircle size={14} className="flex-none mt-0.5 text-primary" />
-          Este evento está publicado y en venta. Los cambios impactan de inmediato a los compradores. No podés
-          reducir el cupo de una tanda por debajo de lo ya vendido ni dejar el evento sin tandas.
-        </div>
+        <Alert tone="warning" title="Este evento está publicado y en venta.">
+          Los cambios impactan de inmediato a los compradores. No podés reducir el cupo de una tanda por debajo de lo ya vendido ni dejar el
+          evento sin tandas.
+        </Alert>
       )}
 
-      {error && (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4 flex gap-2 mb-4">
-          <AlertCircle size={15} className="flex-none mt-0.5" />
-          {error}
-        </div>
-      )}
-      {okMsg && (
-        <div className="rounded-xl border border-green-400/30 bg-green-400/10 text-green-400 text-sm p-4 flex gap-2 mb-4">
-          <CheckCircle2 size={15} className="flex-none mt-0.5" />
-          {okMsg}
-        </div>
-      )}
+      {/* Resultado de la última acción: anunciado (role="status"/"alert" dentro de Alert). */}
+      {error && <Alert tone="danger">{error}</Alert>}
+      {okMsg && <Alert tone="success">{okMsg}</Alert>}
 
       {!bloqueado && (
         <>
-          {/* ── Datos básicos ── */}
-          <div className="bg-card/40 border border-border rounded-2xl p-4 lg:p-5 space-y-4 mb-5">
-            <p className="text-xs font-bold text-foreground uppercase tracking-wider">Datos del evento</p>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Nombre *</label>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} className={`${inputBase} border-border`} />
+          <Card as="section" padding="none" aria-labelledby="datos-titulo" className="space-y-5 p-4 md:p-6">
+            <h2 id="datos-titulo" className="text-base font-bold text-foreground">
+              Datos del evento
+            </h2>
+            <DatosEventoCampos
+              nombre={title}
+              onNombre={setTitle}
+              descripcion={desc}
+              onDescripcion={setDesc}
+              fecha={date}
+              onFecha={setDate}
+              hora={time}
+              onHora={setTime}
+              lugar={venue}
+              onLugar={setVenue}
+              coords={coords}
+              onCoords={setCoords}
+              imagen={img}
+              onImagen={setImg}
+              hoy={hoyStr}
+              fechaEnPasado={fechaEnPasado}
+            />
+            <div className="flex justify-end border-t border-border pt-4">
+              <Button leftIcon={<Save size={16} />} disabled={!datosValidos} loading={savingData} loadingText="Guardando…" onClick={guardarDatos}>
+                Guardar datos
+              </Button>
             </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Descripción</label>
-              <textarea
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                rows={3}
-                className={`${inputBase} border-border resize-none`}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Fecha *</label>
-                <DatePicker value={date} onChange={setDate} min={hoyStr} error={fechaEnPasado} />
-                {fechaEnPasado && <p className="text-[11px] text-red-400 mt-1">La fecha no puede estar en el pasado.</p>}
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Hora *</label>
-                <TimePicker value={time} onChange={setTime} />
-              </div>
-            </div>
-            <div>
-              <MapPicker
-                venueValue={venue}
-                onVenueChange={setVenue}
-                value={coords}
-                onChange={setCoords}
-              />
-            </div>
-            <div>
-              <ImagenPortadaField value={img} onChange={setImg} />
-            </div>
-            <button
-              disabled={!datosValidos || savingData}
-              onClick={guardarDatos}
-              className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                datosValidos && !savingData
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              }`}
-            >
-              <Save size={15} />
-              {savingData ? "Guardando..." : "Guardar datos"}
-            </button>
-          </div>
+          </Card>
 
-          {/* ── Tandas ── */}
-          <p className="text-xs font-bold text-foreground uppercase tracking-wider mb-3">Tandas</p>
-          <div className="space-y-3">
+          <section aria-labelledby="tandas-titulo" className="space-y-4">
+            <div>
+              <h2 id="tandas-titulo" className="text-base font-bold text-foreground">
+                Tandas
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">Cada tanda se guarda por separado.</p>
+            </div>
+
             {tandas.map((t, i) => {
               const vendidas = t.id !== null ? vendidasDe(t) : 0;
+              const ocupada = busyTanda !== null;
+              const incompleta = !t.nombre || !t.precio || !t.cupoMaximo;
+              const sinCreditos = excedeCreditos(t) && resumen;
               return (
-                <div
+                <TandaCard
                   key={t.id ?? `nueva-${i}`}
-                  className={`bg-card border rounded-2xl p-4 space-y-3 ${tandaErrors[i] ? "border-red-500/50" : "border-border"}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-bold text-foreground uppercase tracking-wider">
-                      {t.id === null ? "Nueva tanda" : t.nombre || `Tanda ${i + 1}`}
-                    </p>
-                    <button
-                      onClick={() => eliminarTanda(i)}
-                      disabled={busyTanda !== null}
-                      aria-label={`Eliminar la tanda ${t.nombre || i + 1}`}
-                      className="text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Nombre *</label>
-                    <input
-                      value={t.nombre}
-                      onChange={(e) => updateTanda(i, "nombre", e.target.value)}
-                      className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Precio *</label>
-                      <input
-                        value={t.precio}
-                        inputMode="numeric"
-                        onChange={(e) => updateTanda(i, "precio", e.target.value)}
-                        className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                      />
+                  titulo={t.id === null ? "Nueva tanda" : t.nombre || `Tanda ${i + 1}`}
+                  valores={t}
+                  onCambio={(campo, valor) => updateTanda(i, campo, valor)}
+                  fechaEvento={date}
+                  error={tandaErrors[i] ?? (sinCreditos ? `Necesitás ${entradasNuevasDe(t)} crédito(s) y tenés ${resumen.disponibleParaEntradas} disponible(s) para entradas.` : null)}
+                  onEliminar={() => eliminarTanda(i)}
+                  etiquetaEliminar={`Eliminar la tanda ${t.nombre || i + 1}`}
+                  eliminarDeshabilitado={ocupada}
+                  detalle={t.id !== null ? `${vendidas} vendidas · ${t.cupoDisponible} disponibles · el cupo no puede bajar de ${vendidas}` : undefined}
+                  pie={
+                    <div className="flex justify-end">
+                      <Button
+                        variant={t.id === null ? "primary" : "secondary"}
+                        size="sm"
+                        leftIcon={<Save size={15} />}
+                        disabled={(ocupada && busyTanda !== (t.id ?? "nueva")) || incompleta || Boolean(tandaErrors[i]) || excedeCreditos(t)}
+                        loading={busyTanda === (t.id ?? "nueva")}
+                        onClick={() => guardarTanda(i)}
+                      >
+                        {t.id === null ? "Crear tanda" : "Guardar tanda"}
+                      </Button>
                     </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Cupo máximo *</label>
-                      <input
-                        value={t.cupoMaximo}
-                        inputMode="numeric"
-                        onChange={(e) => updateTanda(i, "cupoMaximo", e.target.value)}
-                        className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Venta desde</label>
-                      <DatePicker value={t.desde} onChange={(v) => updateTanda(i, "desde", v)} max={date || undefined} allowClear />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Venta hasta</label>
-                      <DatePicker value={t.hasta} onChange={(v) => updateTanda(i, "hasta", v)} max={date || undefined} allowClear />
-                    </div>
-                  </div>
-                  {t.id !== null && (
-                    <p className="text-[10px] text-muted-foreground">
-                      {vendidas} vendidas · {t.cupoDisponible} disponibles · el cupo no puede bajar de {vendidas}
-                    </p>
-                  )}
-                  {tandaErrors[i] && (
-                    <p className="text-[11px] text-red-400 flex items-start gap-1">
-                      <AlertCircle size={12} className="flex-none mt-0.5" />
-                      {tandaErrors[i]}
-                    </p>
-                  )}
-                  {excedeCreditos(t) && resumen && (
-                    <p className="text-[11px] text-destructive mb-2">
-                      Necesitás {entradasNuevasDe(t)} crédito(s) y tenés {resumen.disponibleParaEntradas} disponible(s) para entradas.
-                    </p>
-                  )}
-                  <button
-                    disabled={busyTanda !== null || !t.nombre || !t.precio || !t.cupoMaximo || !!tandaErrors[i] || excedeCreditos(t)}
-                    onClick={() => guardarTanda(i)}
-                    className={`w-full py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all ${
-                      busyTanda === null && t.nombre && t.precio && t.cupoMaximo && !tandaErrors[i]
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-muted text-muted-foreground cursor-not-allowed"
-                    }`}
-                  >
-                    <Save size={13} />
-                    {t.id === null ? "Crear tanda" : "Guardar tanda"}
-                  </button>
-                </div>
+                  }
+                />
               );
             })}
+
             <button
+              type="button"
               onClick={addTanda}
-              className="w-full py-3 rounded-2xl border border-dashed border-border text-muted-foreground text-sm flex items-center justify-center gap-2 hover:border-primary/50 hover:text-foreground transition-all"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border-strong text-sm font-semibold text-muted-foreground transition-colors duration-(--duration-fast) hover:border-primary/50 hover:bg-card hover:text-foreground"
             >
-              <Plus size={15} />
+              <Plus size={16} aria-hidden="true" />
               Agregar tanda
             </button>
-          </div>
+          </section>
 
           {evento.estado === "Borrador" && !esAdmin && (
-            <p className="text-[11px] text-muted-foreground mt-4">
+            <p className="text-xs text-muted-foreground">
               Este evento todavía está en borrador. El organizador lo publica desde su panel (consume créditos según la configuración).
             </p>
           )}
         </>
       )}
 
-      {/* resumen de precios visible siempre */}
+      {/* Resumen de precios: visible siempre (también en un evento cancelado). */}
       {evento.tandas.length > 0 && (
-        <div className="mt-6 bg-card border border-border rounded-2xl p-4">
-          <p className="text-xs font-bold text-foreground mb-2">Precios actuales</p>
-          {evento.tandas.map((t) => (
-            <div key={t.id} className="flex items-center justify-between text-xs py-1">
-              <span className="text-muted-foreground">{t.nombre}</span>
-              <span className="text-foreground font-semibold">{fmt(t.precio)}</span>
-            </div>
-          ))}
-        </div>
+        <Card as="section" padding="sm" aria-labelledby="precios-titulo">
+          <h2 id="precios-titulo" className="mb-2 text-sm font-bold text-foreground">
+            Precios actuales
+          </h2>
+          <dl className="divide-y divide-border">
+            {evento.tandas.map((t) => (
+              <div key={t.id} className="flex items-center justify-between py-2 text-sm">
+                <dt className="text-muted-foreground">{t.nombre}</dt>
+                <dd className="font-semibold tabular-nums text-foreground">{fmt(t.precio)}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
       )}
     </div>
   );

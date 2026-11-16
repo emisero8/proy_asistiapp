@@ -120,9 +120,12 @@ export function MapPicker({
 
     mapRef.current = map;
     if (value) ponerMarcador(value.lat, value.lng);
-    setTimeout(() => map.invalidateSize(), 100);
+    // Recalcula el tamaño cuando el contenedor ya tiene su layout. Se cancela al desmontar:
+    // si el mapa se removía antes de los 100 ms, Leaflet fallaba ("_leaflet_pos" de undefined).
+    const timer = setTimeout(() => map.invalidateSize({ animate: false }), 100);
 
     return () => {
+      clearTimeout(timer);
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
@@ -218,8 +221,12 @@ export function MapPicker({
     <div className="space-y-2">
       {/* ── Input con autocompletado ── */}
       <div ref={containerRef} className="relative">
-        <label className="text-xs text-muted-foreground block mb-1.5">
-          Lugar / dirección *
+        <label htmlFor="venue-autocomplete" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+          Lugar / dirección
+          <span aria-hidden="true" className="text-destructive">
+            {" "}
+            *
+          </span>
         </label>
         <div className="relative flex items-center">
           <MapPin
@@ -234,7 +241,9 @@ export function MapPicker({
             onFocus={() => sugerencias.length > 0 && setAbierto(true)}
             placeholder="Ej: Pavón 123, Santa Fe"
             autoComplete="off"
-            className="w-full pl-9 pr-9 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            required
+            aria-describedby="venue-ayuda"
+            className="h-11 w-full rounded-xl border border-border-strong bg-card pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground/60 transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
           />
           {buscando && (
             <Loader2
@@ -258,7 +267,7 @@ export function MapPicker({
         {abierto && sugerencias.length > 0 && (
           <ul
             role="listbox"
-            className="absolute z-[9999] top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+            className="absolute left-0 right-0 top-full z-[9999] mt-1 overflow-hidden rounded-xl border border-border bg-popover shadow-overlay"
           >
             {sugerencias.map((s) => (
               <li
@@ -271,7 +280,7 @@ export function MapPicker({
                 }}
                 className="flex items-start gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted transition-colors border-b border-border last:border-0"
               >
-                <MapPin size={13} className="mt-0.5 shrink-0 text-primary" />
+                <MapPin size={13} aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground" />
                 <span className="line-clamp-2 text-foreground leading-snug">{s.nombre}</span>
               </li>
             ))}
@@ -296,7 +305,7 @@ export function MapPicker({
         )}
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
+      <p id="venue-ayuda" className="text-xs text-muted-foreground">
         {value
           ? "✓ Ubicación marcada. Podés arrastrar el pin para ajustar el punto exacto."
           : "Escribí la dirección para ver sugerencias o tocá el mapa para marcar el lugar."}
@@ -332,8 +341,11 @@ export function MapView({ coords, lugar, alto = "h-52" }: { coords: Coords; luga
     }).addTo(map);
     L.marker([coords.lat, coords.lng], { icon: PIN_ICON }).addTo(map);
     mapRef.current = map;
-    setTimeout(() => map.invalidateSize(), 100);
+    // Recalcula el tamaño cuando el contenedor ya tiene su layout. Se cancela al desmontar:
+    // si el mapa se removía antes de los 100 ms, Leaflet fallaba ("_leaflet_pos" de undefined).
+    const timer = setTimeout(() => map.invalidateSize({ animate: false }), 100);
     return () => {
+      clearTimeout(timer);
       map.remove();
       mapRef.current = null;
     };

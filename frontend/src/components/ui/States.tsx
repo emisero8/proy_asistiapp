@@ -41,7 +41,7 @@ export function EmptyState({ icon: Icono, title, description, action, variant = 
       )}
     >
       {Icono && (
-        <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-secondary/12 text-secondary">
           <Icono size={20} aria-hidden="true" />
         </div>
       )}

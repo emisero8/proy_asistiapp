@@ -5,6 +5,7 @@
  *   import { Button, Field, Input, StatusBadge } from "../../components/ui";
  */
 export { Button, IconButton, type ButtonProps, type ButtonSize, type ButtonVariant, type IconButtonProps } from "./Button";
+export { claseBoton } from "./buttonStyles";
 export { Spinner } from "./Spinner";
 export { Tooltip } from "./Tooltip";
 export { Field, Input, Textarea, Select, type InputProps, type SelectProps, type TextareaProps } from "./Field";

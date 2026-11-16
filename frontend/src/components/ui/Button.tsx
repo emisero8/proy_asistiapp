@@ -2,31 +2,9 @@ import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
 import { cn } from "../../lib/cn";
 import { Spinner } from "./Spinner";
 import { Tooltip } from "./Tooltip";
+import { BASE_BOTON, TAMANOS_BOTON, TAMANOS_LINK, VARIANTES_BOTON, type ButtonSize, type ButtonVariant } from "./buttonStyles";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "link";
-export type ButtonSize = "sm" | "md" | "lg";
-
-const BASE =
-  "inline-flex items-center justify-center gap-2 rounded-xl font-semibold whitespace-nowrap select-none " +
-  "transition-[background-color,border-color,color,box-shadow,transform] duration-(--duration-fast) ease-standard " +
-  "disabled:opacity-50";
-
-const VARIANTES: Record<ButtonVariant, string> = {
-  primary: "bg-primary text-primary-foreground enabled:hover:bg-primary/90 enabled:active:scale-[0.98]",
-  secondary: "bg-card text-foreground border border-border-strong enabled:hover:bg-muted",
-  ghost: "text-foreground enabled:hover:bg-muted",
-  danger: "bg-destructive text-destructive-foreground enabled:hover:bg-destructive/90",
-  link: "text-primary underline-offset-4 enabled:hover:underline rounded-md",
-};
-
-const TAMANOS: Record<ButtonSize, string> = {
-  sm: "h-9 px-3 text-xs",
-  md: "h-11 px-5 text-sm",
-  lg: "h-12 px-6 text-base",
-};
-
-/** El link no tiene alto ni padding de botón: se alinea con el texto que lo rodea. */
-const TAMANOS_LINK: Record<ButtonSize, string> = { sm: "text-xs", md: "text-sm", lg: "text-base" };
+export type { ButtonSize, ButtonVariant };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -68,9 +46,9 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(
-        BASE,
-        VARIANTES[variant],
-        variant === "link" ? TAMANOS_LINK[size] : TAMANOS[size],
+        BASE_BOTON,
+        VARIANTES_BOTON[variant],
+        variant === "link" ? TAMANOS_LINK[size] : TAMANOS_BOTON[size],
         block && "w-full",
         className,
       )}

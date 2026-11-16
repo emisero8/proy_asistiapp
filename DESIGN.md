@@ -261,6 +261,11 @@ Resueltos en la capa base de `theme.css` — **no se repiten clase por clase**:
 ```
 Tamaños: `h-9 px-3 text-xs` (chico, filas/tablas) · `h-11 px-5 text-sm` (estándar) · `h-12 px-6 text-base` (CTA de pantalla, ancho completo en mobile).
 
+En código se usa `<Button variant size loading>` / `<IconButton label>` de `components/ui` (las recetas de arriba son lo que generan). Además:
+- **`variant="danger-subtle"`**: acción destructiva secundaria dentro de una lista ("Dar de baja"): texto `destructive`, sin relleno. El relleno `danger` queda para confirmar.
+- **Link que se ve como botón:** `<Link className={claseBoton("secondary", "sm")}>` (`ui/buttonStyles.ts`). Lo que navega es un link (se abre en otra pestaña); no un `<Button onClick={navigate}>`.
+- **No pisar el color de una variante con `className`**: sin tailwind-merge, la clase de la variante puede ganar. Si hace falta otro color, es otra variante.
+
 ### Inputs
 
 ```tsx
@@ -281,7 +286,8 @@ Tamaños: `h-9 px-3 text-xs` (chico, filas/tablas) · `h-11 px-5 text-sm` (está
 - **Contraseñas:** `<PasswordInput>` (mostrar/ocultar con `aria-pressed`, alcanzable con teclado).
 - Textarea: mismas clases sin `h-11`, con `py-3 resize-none`.
 - Select: `<select>` **nativo** estilado como input + `appearance-none` + chevron (es lo más usable en mobile).
-- Fechas/horas: `DatePicker` / `TimePicker` / `DateRangeFilter` (componentes propios, ya existen).
+- Fechas/horas: `DatePicker` / `TimePicker` / `DateRangeFilter` (componentes propios). Dentro de un `<Field>` toman su `id`, la ayuda/error y `aria-invalid`, igual que `Input`: `<Field label="Fecha" error={…}><DatePicker … /></Field>`.
+- Formularios de evento: `DatosEventoCampos` y `TandaCard` (`pages/organizador/EventoFormCampos.tsx`), compartidos por Crear y Editar.
 
 ### Selección
 
