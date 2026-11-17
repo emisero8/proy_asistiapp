@@ -52,6 +52,7 @@ public class EventoPublicoService {
 
     private EventoPublicoListItemDTO toListItemDTO(Evento evento) {
         Double precioDesde = evento.getTandas().stream()
+                .filter(t -> !t.isSoloEmision())
                 .map(Tanda::getPrecio)
                 .min(Comparator.naturalOrder())
                 .orElse(null);
@@ -69,7 +70,9 @@ public class EventoPublicoService {
     }
 
     private EventoPublicoDetalleDTO toDetalleDTO(Evento evento) {
+        // Las tandas de cortesía son internas del Organizador: el público no las ve.
         List<TandaResponseDTO> tandas = evento.getTandas().stream()
+                .filter(t -> !t.isSoloEmision())
                 .map(t -> TandaResponseDTO.builder()
                         .id(t.getId())
                         .idEvento(evento.getId())

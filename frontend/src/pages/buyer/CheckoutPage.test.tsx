@@ -13,6 +13,7 @@ const TANDA: TandaResponseDTO = {
   precio: 1500,
   cupoMaximo: 50,
   cupoDisponible: 50,
+  soloEmision: false,
   fechaInicioVigencia: null,
   fechaFinVigencia: null,
 };

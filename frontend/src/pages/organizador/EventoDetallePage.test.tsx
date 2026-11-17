@@ -175,7 +175,7 @@ describe("OrganizadorEventoDetallePage — render", () => {
   });
 
   it("la columna Precio de las tandas muestra el precio de la tanda, no ingresos ÷ vendidas (las cortesías no cobran)", async () => {
-    const tanda = { id: 11, idEvento: 5, nombre: "Anticipada", precio: 5000, cupoMaximo: 50, cupoDisponible: 46, fechaInicioVigencia: null, fechaFinVigencia: null };
+    const tanda = { id: 11, idEvento: 5, nombre: "Anticipada", precio: 5000, cupoMaximo: 50, cupoDisponible: 46, soloEmision: false, fechaInicioVigencia: null, fechaFinVigencia: null };
     const conTanda: EventoResponseDTO = { ...EVENTO, tandas: [tanda] };
     // 4 salieron de la tanda, 2 son cortesías: ingresos 10.000, y 10.000 ÷ 4 = 2.500 sería un precio falso.
     const metricas: EventoMetricasResponseDTO = {

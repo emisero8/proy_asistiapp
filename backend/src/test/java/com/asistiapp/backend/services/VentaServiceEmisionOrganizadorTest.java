@@ -130,6 +130,15 @@ class VentaServiceEmisionOrganizadorTest {
     }
 
     @Test
+    void emitir_desdeUnaTandaDeSoloEmision_funciona() {
+        tanda.setSoloEmision(true);
+        tandaConLock();
+        cupoDescontable(2);
+
+        assertThat(ventaService.emitirEntradasOrganizador(pedido(2, TipoEmision.Cortesia), ID_ORGANIZADOR)).hasSize(2);
+    }
+
+    @Test
     void emitir_pagoExterno_guardaEseTipo() {
         tandaConLock();
         cupoDescontable(1);

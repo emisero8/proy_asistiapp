@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -281,6 +281,56 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
     expect(screen.getByText("Excedés el límite en 151 entradas")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
+  });
+
+  it("una tanda de cortesía no lleva precio: queda en 0 y deshabilitado", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    renderWizard();
+    await avanzarAlPaso2(user);
+
+    await user.click(screen.getByLabelText(/Tanda de cortesía/));
+
+    const precio = screen.getByPlaceholderText("12000");
+    expect(precio).toBeDisabled();
+    expect(precio).toHaveValue("0");
+    await user.click(screen.getByLabelText(/Tanda de cortesía/));
+    expect(screen.getByPlaceholderText("12000")).toBeEnabled();
+    expect(screen.getByPlaceholderText("12000")).toHaveValue("");
+  });
+
+  it("con todas las tandas de cortesía no deja publicar: falta una de venta", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await user.click(screen.getByLabelText(/Tanda de cortesía/));
+    await user.type(screen.getByPlaceholderText("Anticipada 1"), " Prensa");
+    await user.type(screen.getByPlaceholderText("200"), "5");
+
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
+    expect(screen.getByText(/al menos una tanda de venta/)).toBeInTheDocument();
+  });
+
+  it("publica una tanda de venta y una de cortesía: la de cortesía va con soloEmision y precio 0", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockResolvedValueOnce(resumenDe(500)).mockResolvedValueOnce([movimiento(4, 1)]);
+    vi.mocked(api.patch).mockResolvedValueOnce({});
+    vi.mocked(api.post).mockResolvedValue({});
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user, "General", "5000", "100");
+    await user.click(screen.getByRole("button", { name: "Agregar tanda" }));
+    const tarjeta2 = screen.getByText("Tanda 2").closest("div.space-y-3") as HTMLElement;
+    await user.click(within(tarjeta2).getByLabelText(/Tanda de cortesía/));
+    await user.type(within(tarjeta2).getByPlaceholderText("Anticipada 1"), "Prensa");
+    await user.type(within(tarjeta2).getByPlaceholderText("200"), "10");
+
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    expect(await screen.findByText("¡Evento publicado!")).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith("/eventos/77/tandas", expect.objectContaining({ nombre: "Prensa", precio: 0, cupoMaximo: 10, soloEmision: true }));
+    expect(api.post).toHaveBeenCalledWith("/eventos/77/tandas", expect.not.objectContaining({ soloEmision: true }));
   });
 
   it("agregar y eliminar tandas: solo se puede eliminar si queda más de una", async () => {

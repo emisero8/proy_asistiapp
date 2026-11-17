@@ -149,7 +149,8 @@ export function EmitirEntradasPanel({ evento, onEmitidas }: Props) {
           >
             {tandas.map((t) => (
               <option key={t.id} value={t.id} disabled={t.cupoDisponible <= 0}>
-                {t.cupoDisponible > 0 ? `${t.nombre} — quedan ${t.cupoDisponible}` : `${t.nombre} — agotada`}
+                {`${t.nombre}${t.soloEmision ? " (cortesía)" : ""}`}
+                {t.cupoDisponible > 0 ? ` — quedan ${t.cupoDisponible}` : " — agotada"}
               </option>
             ))}
           </select>

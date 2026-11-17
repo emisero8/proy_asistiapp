@@ -13,7 +13,7 @@ vi.mock("../../lib/api", async (importOriginal) => {
 afterEach(() => vi.mocked(api.post).mockReset());
 
 function tanda(id: number, nombre: string, cupoDisponible: number): TandaResponseDTO {
-  return { id, idEvento: 5, nombre, precio: 5000, cupoMaximo: 50, cupoDisponible, fechaInicioVigencia: null, fechaFinVigencia: null };
+  return { id, idEvento: 5, nombre, precio: 5000, cupoMaximo: 50, cupoDisponible, soloEmision: false, fechaInicioVigencia: null, fechaFinVigencia: null };
 }
 
 function evento(extra: Partial<EventoResponseDTO> = {}): EventoResponseDTO {
@@ -77,6 +77,16 @@ describe("EmitirEntradasPanel", () => {
     const select = screen.getByLabelText("Tanda");
     expect(within(select).getByRole("option", { name: /Anticipada.*quedan 8/ })).toBeEnabled();
     expect(within(select).getByRole("option", { name: /VIP.*agotada/ })).toBeDisabled();
+  });
+
+  it("marca las tandas de cortesía en el selector", async () => {
+    const prensa = { ...tanda(13, "Prensa", 5), soloEmision: true, precio: 0 };
+    render(<EmitirEntradasPanel evento={evento({ tandas: [tanda(11, "Anticipada", 8), prensa] })} onEmitidas={() => {}} />);
+    await abrir();
+
+    const select = screen.getByLabelText("Tanda");
+    expect(within(select).getByRole("option", { name: /Prensa \(cortesía\) — quedan 5/ })).toBeInTheDocument();
+    expect(within(select).getByRole("option", { name: /^Anticipada — quedan 8/ })).toBeInTheDocument();
   });
 
   it("emite una cortesía con los datos del formulario y avisa el resultado", async () => {

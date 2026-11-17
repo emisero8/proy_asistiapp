@@ -589,6 +589,10 @@ public class VentaService {
      *  - El cupo_disponible debe alcanzar para la cantidad pedida.
      */
     private void validarTandaDisponible(Tanda tanda, int cantidad) {
+        if (tanda.isSoloEmision()) {
+            throw new BusinessRuleException(
+                    "La tanda \"" + tanda.getNombre() + "\" no se vende: es de cortesía y solo la emite el organizador.");
+        }
         validarEventoVendible(tanda);
         LocalDateTime ahora = LocalDateTime.now();
         if (tanda.getFechaInicioVigencia() != null && ahora.isBefore(tanda.getFechaInicioVigencia())) {

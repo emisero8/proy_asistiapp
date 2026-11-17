@@ -30,6 +30,7 @@ function tanda(id: number, nombre: string, extra: Partial<TandaResponseDTO> = {}
     precio: 1000,
     cupoMaximo: 50,
     cupoDisponible: 50,
+    soloEmision: false,
     fechaInicioVigencia: null,
     fechaFinVigencia: null,
     ...extra,

@@ -40,6 +40,7 @@ const TANDA: TandaResponseDTO = {
   precio: 5000,
   cupoMaximo: 10,
   cupoDisponible: 7, // → 3 vendidas
+  soloEmision: false,
   fechaInicioVigencia: null,
   fechaFinVigencia: null,
 };
@@ -253,6 +254,49 @@ describe("OrganizadorEditEventPage — tandas", () => {
       fechaFinVigencia: undefined,
     });
     expect(screen.getByDisplayValue("6500")).toBeInTheDocument();
+  });
+
+  it("una tanda con entradas vendidas no puede pasar a ser de cortesía", async () => {
+    const user = userEvent.setup();
+    responderGets(EVENTO);
+    renderPage();
+    await cargado();
+
+    const marca = screen.getByLabelText(/Tanda de cortesía/);
+    expect(marca).toBeDisabled();
+    await user.click(marca);
+    expect(marca).not.toBeChecked();
+  });
+
+  it("una tanda de cortesía guardada se muestra marcada, con precio 0 bloqueado", async () => {
+    const cortesia = { ...TANDA, id: 12, nombre: "Prensa", precio: 0, cupoMaximo: 5, cupoDisponible: 5, soloEmision: true };
+    responderGets({ ...EVENTO, tandas: [TANDA, cortesia] });
+    renderPage();
+    await cargado();
+
+    const marcas = screen.getAllByLabelText(/Tanda de cortesía/);
+    expect(marcas[1]).toBeChecked();
+    expect(marcas[1]).toBeEnabled(); // sin entradas emitidas todavía, se puede volver a una de venta
+    expect(screen.getByDisplayValue("Prensa").closest("div.space-y-3")!.querySelector("input[value='0']")).toBeDisabled();
+  });
+
+  it("crea una tanda de cortesía nueva con POST: precio 0 y soloEmision", async () => {
+    const user = userEvent.setup();
+    responderGets(EVENTO, EVENTO);
+    vi.mocked(api.post).mockResolvedValueOnce({});
+    renderPage();
+    await cargado();
+
+    await user.click(screen.getByRole("button", { name: "Agregar tanda" }));
+    const tarjeta = screen.getByText("Nueva tanda").closest("div.space-y-3") as HTMLElement;
+    await user.click(within(tarjeta).getByLabelText(/Tanda de cortesía/));
+    const [nombre, , cupo] = within(tarjeta).getAllByRole("textbox");
+    await user.type(nombre, "Invitados");
+    await user.type(cupo, "8");
+    await user.click(screen.getByRole("button", { name: "Crear tanda" }));
+
+    expect(await screen.findByText("Tanda guardada.")).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith("/eventos/5/tandas", expect.objectContaining({ nombre: "Invitados", precio: 0, cupoMaximo: 8, soloEmision: true }));
   });
 
   it("agrega una tanda nueva y la crea con POST", async () => {

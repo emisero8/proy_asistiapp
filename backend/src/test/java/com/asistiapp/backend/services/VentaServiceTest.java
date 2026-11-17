@@ -558,6 +558,31 @@ class VentaServiceTest {
     }
 
     @Test
+    void realizarVentaManual_tandaDeSoloEmision_noSeVende() {
+        vendedorDeLaTanda();
+        tanda.setSoloEmision(true);
+
+        assertThatThrownBy(() -> ventaService.realizarVentaManual(ventaManualDto(), 1L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("no se vende");
+
+        verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void iniciarCompraOnline_tandaDeSoloEmision_noSeVende() {
+        tanda.setSoloEmision(true);
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+
+        assertThatThrownBy(() -> ventaService.iniciarCompraOnline(compraDto(tanda.getId())))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("no se vende");
+
+        verifyNoInteractions(transaccionPagoRepository);
+    }
+
+    @Test
     void realizarVentaManual_pasandoElTopeDelVendedor_noGeneraNinguna() {
         vendedorDeLaTanda().setTopeEntradas(10);
         when(entradaRepository.countByIdStaffVendedor(1L)).thenReturn(8L);

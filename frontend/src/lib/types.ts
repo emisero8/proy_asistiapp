@@ -103,6 +103,8 @@ export interface TandaResponseDTO {
   precio: number;
   cupoMaximo: number;
   cupoDisponible: number;
+  /** Tanda de cortesía (8.10): solo el Organizador emite entradas de ella; no se vende ni se muestra al público. */
+  soloEmision: boolean;
   fechaInicioVigencia: string | null;
   fechaFinVigencia: string | null;
 }
@@ -111,6 +113,7 @@ export interface TandaRequestDTO {
   nombre: string;
   precio: number;
   cupoMaximo: number;
+  soloEmision?: boolean | null;
   fechaInicioVigencia?: string | null;
   fechaFinVigencia?: string | null;
 }

@@ -1212,6 +1212,7 @@ export interface components {
             cupoMaximo?: number;
             /** Format: int32 */
             cupoDisponible?: number;
+            soloEmision?: boolean;
             /** Format: date-time */
             fechaInicioVigencia?: string;
             /** Format: date-time */
@@ -1223,6 +1224,7 @@ export interface components {
             precio: number;
             /** Format: int32 */
             cupoMaximo: number;
+            soloEmision?: boolean;
             /** Format: date-time */
             fechaInicioVigencia?: string;
             /** Format: date-time */

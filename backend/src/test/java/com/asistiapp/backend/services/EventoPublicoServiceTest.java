@@ -106,6 +106,37 @@ class EventoPublicoServiceTest {
         assertThat(eventoPublicoService.obtenerPorUrlPublica("evento-6").getMaxEntradasPorCompra()).isEqualTo(3);
     }
 
+    private com.asistiapp.backend.models.entities.Tanda tanda(Long id, String nombre, double precio, boolean soloEmision) {
+        var t = new com.asistiapp.backend.models.entities.Tanda();
+        t.setId(id);
+        t.setNombre(nombre);
+        t.setPrecio(precio);
+        t.setCupoMaximo(10);
+        t.setCupoDisponible(10);
+        t.setSoloEmision(soloEmision);
+        return t;
+    }
+
+    @Test
+    void obtenerPorUrlPublica_noMuestraLasTandasDeSoloEmision() {
+        Evento ev = evento(7L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        ev.setTandas(List.of(tanda(1L, "General", 1500, false), tanda(2L, "Prensa", 0, true)));
+        when(eventoRepository.findByUrlPublica("evento-7")).thenReturn(Optional.of(ev));
+
+        var detalle = eventoPublicoService.obtenerPorUrlPublica("evento-7");
+
+        assertThat(detalle.getTandas()).extracting(t -> t.getNombre()).containsExactly("General");
+    }
+
+    @Test
+    void listarPublicados_elPrecioDesdeIgnoraLasTandasDeSoloEmision() {
+        Evento ev = evento(8L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        ev.setTandas(List.of(tanda(1L, "General", 1500, false), tanda(2L, "Prensa", 0, true)));
+        when(eventoRepository.findByEstado(EstadoEvento.Publicado)).thenReturn(List.of(ev));
+
+        assertThat(eventoPublicoService.listarPublicados().get(0).getPrecioDesde()).isEqualTo(1500.0);
+    }
+
     @Test
     void obtenerPorUrlPublica_eventoCancelado_lanzaResourceNotFoundException() {
         Evento cancelado = evento(5L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));

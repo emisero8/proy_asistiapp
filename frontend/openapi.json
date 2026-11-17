@@ -2691,6 +2691,9 @@
             "type": "integer",
             "format": "int32"
           },
+          "soloEmision": {
+            "type": "boolean"
+          },
           "fechaInicioVigencia": {
             "type": "string",
             "format": "date-time"
@@ -2724,6 +2727,9 @@
             "minimum": 1,
             "type": "integer",
             "format": "int32"
+          },
+          "soloEmision": {
+            "type": "boolean"
           },
           "fechaInicioVigencia": {
             "type": "string",

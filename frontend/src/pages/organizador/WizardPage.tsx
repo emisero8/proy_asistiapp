@@ -17,6 +17,8 @@ interface WizardTanda {
   cupoMaximo: string;
   desde: string;
   hasta: string;
+  /** Tanda de cortesía (8.10): no se vende, solo la emite el Organizador; el precio queda en 0. */
+  soloEmision: boolean;
 }
 
 /**
@@ -70,12 +72,15 @@ export function OrganizadorWizardPage() {
   const [venue, setVenue] = useState("");
   const [coords, setCoords] = useState<Coords | null>(null);
   const [img, setImg] = useState("");
-  const [tandas, setTandas] = useState<WizardTanda[]>([{ id: 1, nombre: "Anticipada", precio: "", cupoMaximo: "", desde: "", hasta: "" }]);
+  const [tandas, setTandas] = useState<WizardTanda[]>([{ id: 1, nombre: "Anticipada", precio: "", cupoMaximo: "", desde: "", hasta: "", soloEmision: false }]);
 
-  const addTanda = () => setTandas((t) => [...t, { id: Date.now(), nombre: "", precio: "", cupoMaximo: "", desde: "", hasta: "" }]);
+  const addTanda = () => setTandas((t) => [...t, { id: Date.now(), nombre: "", precio: "", cupoMaximo: "", desde: "", hasta: "", soloEmision: false }]);
   const removeTanda = (id: number) => setTandas((t) => t.filter((x) => x.id !== id));
-  const updateTanda = (id: number, field: keyof WizardTanda, val: string) =>
+  const updateTanda = (id: number, field: Exclude<keyof WizardTanda, "soloEmision">, val: string) =>
     setTandas((t) => t.map((x) => (x.id === id ? { ...x, [field]: val } : x)));
+  // Una tanda de cortesía no tiene precio: queda en 0 y se vuelve a pedir si se desmarca.
+  const toggleCortesia = (id: number, marcada: boolean) =>
+    setTandas((t) => t.map((x) => (x.id === id ? { ...x, soloEmision: marcada, precio: marcada ? "0" : "" } : x)));
 
   const hoyStr = hoyLocal();
   const fechaEnPasado = date !== "" && date < hoyStr;
@@ -88,8 +93,10 @@ export function OrganizadorWizardPage() {
   const disponibleEntradas = resumen?.disponibleParaEntradas ?? null;
   const totalEntradas = tandas.reduce((suma, t) => suma + (Number(t.cupoMaximo) || 0), 0);
   const excedeCreditos = disponibleEntradas !== null && totalEntradas > disponibleEntradas;
+  const haytandaDeVenta = tandas.some((t) => !t.soloEmision);
   const step2Valid =
     tandas.every((t) => t.nombre && t.precio && t.cupoMaximo) &&
+    haytandaDeVenta &&
     tandaErrors.every((e) => e === null) &&
     !sinCreditos &&
     !excedeCreditos;
@@ -131,8 +138,9 @@ export function OrganizadorWizardPage() {
         const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
         const dto: TandaRequestDTO = {
           nombre: t.nombre,
-          precio: Number(t.precio),
+          precio: t.soloEmision ? 0 : Number(t.precio),
           cupoMaximo: Number(t.cupoMaximo),
+          ...(t.soloEmision ? { soloEmision: true } : {}),
           fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
           fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
         };
@@ -368,11 +376,24 @@ export function OrganizadorWizardPage() {
                     className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
                 </div>
+                <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={t.soloEmision}
+                    onChange={(e) => toggleCortesia(t.id, e.target.checked)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <span>
+                    <span className="font-semibold text-foreground">Tanda de cortesía</span> — no se vende ni se muestra al público; solo vos
+                    emitís entradas de ella (prensa, invitados). Sin precio.
+                  </span>
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Precio *</label>
                     <input
                       value={t.precio}
+                      disabled={t.soloEmision}
                       onChange={(e) => updateTanda(t.id, "precio", e.target.value)}
                       placeholder="12000"
                       inputMode="numeric"
@@ -411,6 +432,9 @@ export function OrganizadorWizardPage() {
                 )}
               </div>
             ))}
+            {!haytandaDeVenta && (
+              <p className="text-xs text-destructive">Necesitás al menos una tanda de venta: las de cortesía no se venden.</p>
+            )}
             <button
               onClick={addTanda}
               className="w-full py-3 rounded-2xl border border-dashed border-border text-muted-foreground text-sm flex items-center justify-center gap-2 hover:border-primary/50 hover:text-foreground transition-all"

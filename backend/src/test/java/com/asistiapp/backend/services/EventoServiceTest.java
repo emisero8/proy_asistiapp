@@ -254,6 +254,19 @@ class EventoServiceTest {
     }
 
     @Test
+    void publicarEvento_conSoloTandasDeCortesia_lanzaBusinessRuleException() {
+        agregarTandaAlEvento();
+        evento.getTandas().get(0).setSoloEmision(true);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("tanda de venta");
+
+        verifyNoInteractions(creditoLedgerService, organizadorRepository);
+    }
+
+    @Test
     void publicarEvento_eventoYaPublicado_lanzaBusinessRuleException() {
         evento.setEstado(EstadoEvento.Publicado);
         when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
@@ -464,6 +477,39 @@ class EventoServiceTest {
                 .thenReturn(List.of(evento));
 
         assertThat(eventoService.listarEventosPublicadosDeOrganizador(ID_ORGANIZADOR)).isEmpty();
+    }
+
+    @Test
+    void elEventoDelOrganizadorTrae_porTanda_siEsDeSoloEmision() {
+        agregarTandaAlEvento();
+        evento.getTandas().get(0).setSoloEmision(true);
+
+        assertThat(eventoService.toResponseDTO(evento).getTandas().get(0).isSoloEmision()).isTrue();
+    }
+
+    @Test
+    void elVendedorNoVeLasTandasDeSoloEmision() {
+        // 8.10: son internas del Organizador; el POS no las ofrece y el vendedor no se entera de ellas.
+        evento.setEstado(EstadoEvento.Publicado);
+        agregarTandaAlEvento();
+        Tanda cortesia = new Tanda();
+        cortesia.setId(11L);
+        cortesia.setEvento(evento);
+        cortesia.setNombre("Prensa");
+        cortesia.setPrecio(0.0);
+        cortesia.setCupoMaximo(5);
+        cortesia.setCupoDisponible(5);
+        cortesia.setSoloEmision(true);
+        evento.getTandas().add(cortesia);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(eventoRepository.findByIdOrganizadorAndEstado(ID_ORGANIZADOR, EstadoEvento.Publicado))
+                .thenReturn(List.of(evento));
+
+        var asignado = eventoService.listarEventoPublicadoDeVendedor(evento.getId(), ID_ORGANIZADOR);
+        var delOrganizador = eventoService.listarEventosPublicadosDeOrganizador(ID_ORGANIZADOR);
+
+        assertThat(asignado.get(0).getTandas()).extracting(t -> t.getNombre()).containsExactly("General");
+        assertThat(delOrganizador.get(0).getTandas()).extracting(t -> t.getNombre()).containsExactly("General");
     }
 
     @Test
