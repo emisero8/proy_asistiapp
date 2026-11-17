@@ -9,6 +9,7 @@ import com.mercadopago.client.preference.PreferenceClient;
 import com.mercadopago.client.preference.PreferenceItemRequest;
 import com.mercadopago.client.preference.PreferencePayerRequest;
 import com.mercadopago.client.preference.PreferenceRequest;
+import com.mercadopago.core.MPRequestOptions;
 import com.mercadopago.exceptions.MPApiException;
 import com.mercadopago.exceptions.MPException;
 import com.mercadopago.net.MPSearchRequest;
@@ -62,8 +63,25 @@ public class MercadoPagoService {
 
     public record PreferenciaCreada(String preferenceId, String initPoint) {}
 
+    /** Cobra con la cuenta de la plataforma (compra de créditos). */
     public PreferenciaCreada crearPreferencia(OrdenACobrar orden) {
-        if (config.getAccessToken() == null || config.getAccessToken().isBlank()) {
+        return crearPreferencia(orden, null);
+    }
+
+    /**
+     * Opciones de la llamada con el token de la cuenta que cobra: el del Organizador (8.5) o, si es null,
+     * el de la plataforma. El SDK guarda un token global; con esto cada llamada usa el suyo.
+     */
+    private MPRequestOptions opciones(String accessToken) {
+        return accessToken == null ? null : MPRequestOptions.builder().accessToken(accessToken).build();
+    }
+
+    /**
+     * @param accessToken token de la cuenta de Mercado Pago que cobra (el del Organizador, para las entradas);
+     *                    null = la cuenta de la plataforma, para la compra de créditos
+     */
+    public PreferenciaCreada crearPreferencia(OrdenACobrar orden, String accessToken) {
+        if (accessToken == null && (config.getAccessToken() == null || config.getAccessToken().isBlank())) {
             throw new PasarelaPagoException("El cobro con MercadoPago no está configurado");
         }
 
@@ -101,18 +119,24 @@ public class MercadoPagoService {
             request.autoReturn("approved");
         }
         if (config.getBackendPublicUrl().startsWith("https://")) {
-            request.notificationUrl(config.getBackendPublicUrl() + RUTA_WEBHOOK);
+            request.notificationUrl(config.getBackendPublicUrl() + RUTA_WEBHOOK + "?ref=" + orden.externalReference());
         } else {
             log.warn("BACKEND_PUBLIC_URL no es HTTPS ({}): MercadoPago no podrá notificar el pago", config.getBackendPublicUrl());
         }
 
         try {
-            Preference preferencia = preferenceClient.create(request.build());
+            Preference preferencia = accessToken == null
+                    ? preferenceClient.create(request.build())
+                    : preferenceClient.create(request.build(), opciones(accessToken));
             log.info("Preferencia MP creada: id={}, externalReference={}", preferencia.getId(), orden.externalReference());
-            // Con credenciales de un usuario de prueba, MercadoPago solo completa el pago en
-            // sandbox_init_point — el init_point "de producción" devuelve error de acceso.
-            // Con credenciales reales, sandbox_init_point viene vacío y se usa init_point.
-            String urlCheckout = (preferencia.getSandboxInitPoint() != null && !preferencia.getSandboxInitPoint().isBlank())
+            // Cuenta de la plataforma con credenciales de prueba: MercadoPago solo completa el pago en
+            // sandbox_init_point (el init_point "de producción" devuelve error de acceso); con credenciales
+            // reales ese campo viene vacío. Cuenta de un Organizador (OAuth, aplicación de producción):
+            // MercadoPago devuelve las dos URLs pero la de sandbox no puede cobrar dinero real, así que
+            // se usa siempre la normal.
+            boolean cuentaDelOrganizador = accessToken != null;
+            String urlCheckout = (!cuentaDelOrganizador
+                    && preferencia.getSandboxInitPoint() != null && !preferencia.getSandboxInitPoint().isBlank())
                     ? preferencia.getSandboxInitPoint()
                     : preferencia.getInitPoint();
             return new PreferenciaCreada(preferencia.getId(), urlCheckout);
@@ -133,8 +157,15 @@ public class MercadoPagoService {
      * @throws PasarelaPagoException ante cualquier otro fallo, para que el webhook devuelva 5xx y MP reintente
      */
     public Optional<Payment> obtenerPago(Long paymentId) {
+        return obtenerPago(paymentId, null);
+    }
+
+    /** @param accessToken token de la cuenta a la que se cobró el pago (null = la de la plataforma) */
+    public Optional<Payment> obtenerPago(Long paymentId, String accessToken) {
         try {
-            return Optional.of(paymentClient.get(paymentId));
+            return Optional.of(accessToken == null
+                    ? paymentClient.get(paymentId)
+                    : paymentClient.get(paymentId, opciones(accessToken)));
         } catch (MPApiException e) {
             if (e.getStatusCode() == 404) {
                 log.warn("MercadoPago no tiene el pago {}", paymentId);
@@ -157,6 +188,11 @@ public class MercadoPagoService {
      *         orden simplemente sigue `Pendiente`, no es un error que haya que propagar.
      */
     public List<Payment> buscarPagosPorReferencia(String externalReference) {
+        return buscarPagosPorReferencia(externalReference, null);
+    }
+
+    /** @param accessToken token de la cuenta a la que se cobró (null = la de la plataforma) */
+    public List<Payment> buscarPagosPorReferencia(String externalReference, String accessToken) {
         try {
             // limit/offset no son opcionales en la práctica: sin ellos el SDK intenta construir
             // la query string con un valor null y tira NullPointerException.
@@ -165,7 +201,9 @@ public class MercadoPagoService {
                     .limit(10)
                     .offset(0)
                     .build();
-            return paymentClient.search(request).getResults();
+            return (accessToken == null
+                    ? paymentClient.search(request)
+                    : paymentClient.search(request, opciones(accessToken))).getResults();
         } catch (MPApiException e) {
             log.error("MercadoPago rechazó la búsqueda de pagos para la orden {} ({}): {}",
                     externalReference, e.getStatusCode(), e.getApiResponse().getContent());
@@ -178,8 +216,17 @@ public class MercadoPagoService {
 
     /** Devuelve el pago completo al comprador (cuando se cobró algo que no se puede entregar). */
     public void reembolsar(Long paymentId) {
+        reembolsar(paymentId, null);
+    }
+
+    /** @param accessToken token de la cuenta que recibió el cobro, de donde sale el reembolso (null = la de la plataforma) */
+    public void reembolsar(Long paymentId, String accessToken) {
         try {
-            paymentRefundClient.refund(paymentId);
+            if (accessToken == null) {
+                paymentRefundClient.refund(paymentId);
+            } else {
+                paymentRefundClient.refund(paymentId, opciones(accessToken));
+            }
             log.info("Pago MP {} reembolsado", paymentId);
         } catch (MPApiException e) {
             log.error("MercadoPago rechazó el reembolso del pago {} ({}): {}", paymentId, e.getStatusCode(), e.getApiResponse().getContent());
@@ -187,6 +234,30 @@ public class MercadoPagoService {
         } catch (MPException e) {
             log.error("Error de comunicación con MercadoPago al reembolsar el pago {}", paymentId, e);
             throw new PasarelaPagoException("No pudimos comunicarnos con MercadoPago");
+        }
+    }
+
+    /**
+     * Devuelve parte de un pago (una entrada de una orden de varias) desde la cuenta que lo cobró.
+     * Mercado Pago rechaza el reembolso si el monto supera lo que queda sin devolver del pago.
+     *
+     * @param accessToken token de la cuenta del Organizador: de ahí sale el dinero
+     * @throws PasarelaPagoException si Mercado Pago no lo acepta (por ejemplo, saldo insuficiente) o no responde
+     */
+    public void reembolsarParcial(Long paymentId, BigDecimal monto, String accessToken) {
+        try {
+            if (accessToken == null) {
+                paymentRefundClient.refund(paymentId, monto);
+            } else {
+                paymentRefundClient.refund(paymentId, monto, opciones(accessToken));
+            }
+            log.info("Pago MP {} reembolsado parcialmente: {}", paymentId, monto);
+        } catch (MPApiException e) {
+            log.error("MercadoPago rechazó el reembolso parcial del pago {} ({}): {}", paymentId, e.getStatusCode(), e.getApiResponse().getContent());
+            throw new PasarelaPagoException("Mercado Pago no pudo devolver el dinero (por ejemplo, por saldo insuficiente en tu cuenta)");
+        } catch (MPException e) {
+            log.error("Error de comunicación con MercadoPago al reembolsar parcialmente el pago {}", paymentId, e);
+            throw new PasarelaPagoException("No pudimos comunicarnos con Mercado Pago");
         }
     }
 

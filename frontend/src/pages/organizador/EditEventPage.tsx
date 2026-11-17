@@ -21,6 +21,8 @@ interface EditTanda {
   cupoDisponible: number | null;
   desde: string;
   hasta: string;
+  /** Tanda de cortesía (8.10): no se vende, solo la emite el Organizador; precio 0. */
+  soloEmision: boolean;
 }
 
 function toTandaFecha(iso: string | null): string {
@@ -36,6 +38,7 @@ function tandaFromResponse(t: TandaResponseDTO): EditTanda {
     cupoDisponible: t.cupoDisponible,
     desde: toTandaFecha(t.fechaInicioVigencia),
     hasta: toTandaFecha(t.fechaFinVigencia),
+    soloEmision: t.soloEmision,
   };
 }
 
@@ -104,8 +107,13 @@ export function OrganizadorEditEventPage() {
   const fechaEnPasado = date !== "" && date < hoyStr;
   const datosValidos = title.trim() && date && time && venue.trim() && !fechaEnPasado;
 
-  function updateTanda(idx: number, field: keyof EditTanda, val: string) {
+  function updateTanda(idx: number, field: Exclude<keyof EditTanda, "soloEmision" | "id" | "cupoDisponible">, val: string) {
     setTandas((ts) => ts.map((t, i) => (i === idx ? { ...t, [field]: val } : t)));
+  }
+
+  // Una tanda de cortesía no tiene precio: queda en 0 y se vuelve a pedir si se desmarca.
+  function toggleCortesia(idx: number, marcada: boolean) {
+    setTandas((ts) => ts.map((t, i) => (i === idx ? { ...t, soloEmision: marcada, precio: marcada ? "0" : "" } : t)));
   }
 
   /**
@@ -173,8 +181,9 @@ export function OrganizadorEditEventPage() {
     const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
     return {
       nombre: t.nombre.trim(),
-      precio: Number(t.precio),
+      precio: t.soloEmision ? 0 : Number(t.precio),
       cupoMaximo: Number(t.cupoMaximo),
+      ...(t.soloEmision ? { soloEmision: true } : {}),
       fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
       fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
     };
@@ -242,7 +251,7 @@ export function OrganizadorEditEventPage() {
   function addTanda() {
     setTandas((ts) => [
       ...ts,
-      { id: null, nombre: "", precio: "", cupoMaximo: "", cupoDisponible: null, desde: "", hasta: "" },
+      { id: null, nombre: "", precio: "", cupoMaximo: "", cupoDisponible: null, desde: "", hasta: "", soloEmision: false },
     ]);
   }
 
@@ -406,11 +415,26 @@ export function OrganizadorEditEventPage() {
                       className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                     />
                   </div>
+                  <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={t.soloEmision}
+                      disabled={vendidas > 0}
+                      onChange={(e) => toggleCortesia(i, e.target.checked)}
+                      className="mt-0.5 accent-primary"
+                    />
+                    <span>
+                      <span className="font-semibold text-foreground">Tanda de cortesía</span> — no se vende ni se muestra al público; solo vos emitís
+                      entradas de ella. Sin precio.
+                      {vendidas > 0 && " No se puede cambiar: ya tiene entradas emitidas o vendidas."}
+                    </span>
+                  </label>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1">Precio *</label>
                       <input
                         value={t.precio}
+                        disabled={t.soloEmision}
                         inputMode="numeric"
                         onChange={(e) => updateTanda(i, "precio", e.target.value)}
                         className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"

@@ -6,6 +6,8 @@ import com.asistiapp.backend.models.dtos.perfil.CambiarPasswordRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilResponseDTO;
 import com.asistiapp.backend.models.entities.Usuario;
+import com.asistiapp.backend.models.entities.Organizador;
+import com.asistiapp.backend.repositories.OrganizadorRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +27,8 @@ public class PerfilService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final ImagenService imagenService;
+    private final OrganizadorRepository organizadorRepository;
+    private final LimiteCompradorService limiteCompradorService;
 
     @Transactional(readOnly = true)
     public PerfilResponseDTO obtenerPerfil(Long idUsuario) {
@@ -52,6 +56,41 @@ public class PerfilService {
         return response;
     }
 
+    /** El Organizador fija cuántas entradas puede tener una misma persona para sus eventos; null vuelve al de la plataforma. */
+    @Transactional
+    public PerfilResponseDTO cambiarTopeComprador(Long idUsuario, Integer tope) {
+        if (tope != null && (tope < 1 || tope > 100)) {
+            throw new BusinessRuleException("El tope de entradas por comprador tiene que estar entre 1 y 100");
+        }
+        Organizador organizador = organizadorRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        organizador.setMaxEntradasPorComprador(tope);
+        organizadorRepository.save(organizador);
+        return toResponseDTO(organizador);
+    }
+
+    /**
+     * El Organizador carga a dónde deriva el botón de arrepentimiento (8.8). El WhatsApp se guarda solo con
+     * dígitos (código de país incluido) para armar el link wa.me; vacío en ambos borra el contacto.
+     */
+    @Transactional
+    public PerfilResponseDTO cambiarContacto(Long idUsuario, String whatsapp, String email) {
+        String wa = whatsapp == null ? "" : whatsapp.replaceAll("[\\s+()\\-.]", "");
+        if (!wa.isEmpty() && !wa.matches("\\d{8,15}")) {
+            throw new BusinessRuleException("El WhatsApp tiene que ser un número con código de país (entre 8 y 15 dígitos)");
+        }
+        String mail = email == null ? "" : email.trim().toLowerCase();
+        if (!mail.isEmpty() && !mail.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")) {
+            throw new BusinessRuleException("El email de contacto no es válido");
+        }
+        Organizador organizador = organizadorRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        organizador.setContactoWhatsapp(wa.isEmpty() ? null : wa);
+        organizador.setContactoEmail(mail.isEmpty() ? null : mail);
+        organizadorRepository.save(organizador);
+        return toResponseDTO(organizador);
+    }
+
     @Transactional
     public void cambiarPassword(Long idUsuario, CambiarPasswordRequestDTO dto) {
         Usuario usuario = getUsuarioOrThrow(idUsuario);
@@ -77,11 +116,16 @@ public class PerfilService {
     }
 
     private PerfilResponseDTO toResponseDTO(Usuario usuario) {
+        Organizador org = organizadorRepository.findById(usuario.getId()).orElse(null);
         return PerfilResponseDTO.builder()
                 .id(usuario.getId())
                 .nombre(usuario.getNombre())
                 .email(usuario.getEmail())
                 .fotoPerfilUrl(usuario.getFotoPerfilUrl())
+                .maxEntradasPorComprador(org == null ? null : org.getMaxEntradasPorComprador())
+                .contactoWhatsapp(org == null ? null : org.getContactoWhatsapp())
+                .contactoEmail(org == null ? null : org.getContactoEmail())
+                .maxEntradasPorCompradorPlataforma(limiteCompradorService.limiteGlobal())
                 .build();
     }
 }

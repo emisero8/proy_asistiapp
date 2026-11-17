@@ -47,6 +47,8 @@ class EventoServiceTest {
     @Mock
     private OrganizadorRepository organizadorRepository;
     @Mock
+    private CuentaCobroService cuentaCobroService;
+    @Mock
     private EntradaRepository entradaRepository;
     @Mock
     private CreditoLedgerService creditoLedgerService;
@@ -76,6 +78,8 @@ class EventoServiceTest {
         organizador = new Organizador();
         organizador.setId(ID_ORGANIZADOR);
         organizador.setSaldoCreditos(3);
+        organizador.setContactoEmail("contacto@demo.com");
+        lenient().when(cuentaCobroService.puedeCobrar(ID_ORGANIZADOR)).thenReturn(true);
     }
 
     // ─────────────────────────────────────────────
@@ -254,6 +258,19 @@ class EventoServiceTest {
     }
 
     @Test
+    void publicarEvento_conSoloTandasDeCortesia_lanzaBusinessRuleException() {
+        agregarTandaAlEvento();
+        evento.getTandas().get(0).setSoloEmision(true);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("tanda de venta");
+
+        verifyNoInteractions(creditoLedgerService, organizadorRepository);
+    }
+
+    @Test
     void publicarEvento_eventoYaPublicado_lanzaBusinessRuleException() {
         evento.setEstado(EstadoEvento.Publicado);
         when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
@@ -261,6 +278,41 @@ class EventoServiceTest {
         assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Borrador");
+    }
+
+    @Test
+    void publicarEvento_sinCuentaDeMercadoPagoVinculada_lanzaBusinessRuleExceptionYNoCambiaEstado() {
+        // 8.5: las entradas se cobran en la cuenta del Organizador; sin ella no se publica.
+        agregarTandaAlEvento();
+        when(cuentaCobroService.puedeCobrar(ID_ORGANIZADOR)).thenReturn(false);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(organizadorRepository.findById(ID_ORGANIZADOR)).thenReturn(Optional.of(organizador));
+
+        assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Mercado Pago");
+
+        assertThat(evento.getEstado()).isEqualTo(EstadoEvento.Borrador);
+        verifyNoInteractions(creditoLedgerService);
+        verify(eventoRepository, never()).save(any());
+    }
+
+    @Test
+    void publicarEvento_sinContactoDeArrepentimiento_lanzaBusinessRuleExceptionYNoCambiaEstado() {
+        // 8.8: el botón de arrepentimiento necesita a dónde derivar; sin contacto no se publica.
+        agregarTandaAlEvento();
+        organizador.setContactoEmail(null);
+        organizador.setContactoWhatsapp(null);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(organizadorRepository.findById(ID_ORGANIZADOR)).thenReturn(Optional.of(organizador));
+
+        assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("contacto");
+
+        assertThat(evento.getEstado()).isEqualTo(EstadoEvento.Borrador);
+        verifyNoInteractions(creditoLedgerService);
+        verify(eventoRepository, never()).save(any());
     }
 
     @Test
@@ -467,6 +519,39 @@ class EventoServiceTest {
     }
 
     @Test
+    void elEventoDelOrganizadorTrae_porTanda_siEsDeSoloEmision() {
+        agregarTandaAlEvento();
+        evento.getTandas().get(0).setSoloEmision(true);
+
+        assertThat(eventoService.toResponseDTO(evento).getTandas().get(0).isSoloEmision()).isTrue();
+    }
+
+    @Test
+    void elVendedorNoVeLasTandasDeSoloEmision() {
+        // 8.10: son internas del Organizador; el POS no las ofrece y el vendedor no se entera de ellas.
+        evento.setEstado(EstadoEvento.Publicado);
+        agregarTandaAlEvento();
+        Tanda cortesia = new Tanda();
+        cortesia.setId(11L);
+        cortesia.setEvento(evento);
+        cortesia.setNombre("Prensa");
+        cortesia.setPrecio(0.0);
+        cortesia.setCupoMaximo(5);
+        cortesia.setCupoDisponible(5);
+        cortesia.setSoloEmision(true);
+        evento.getTandas().add(cortesia);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(eventoRepository.findByIdOrganizadorAndEstado(ID_ORGANIZADOR, EstadoEvento.Publicado))
+                .thenReturn(List.of(evento));
+
+        var asignado = eventoService.listarEventoPublicadoDeVendedor(evento.getId(), ID_ORGANIZADOR);
+        var delOrganizador = eventoService.listarEventosPublicadosDeOrganizador(ID_ORGANIZADOR);
+
+        assertThat(asignado.get(0).getTandas()).extracting(t -> t.getNombre()).containsExactly("General");
+        assertThat(delOrganizador.get(0).getTandas()).extracting(t -> t.getNombre()).containsExactly("General");
+    }
+
+    @Test
     void listarEventosPublicadosDeOrganizador_incluyeLosFuturos() {
         evento.setEstado(EstadoEvento.Publicado);
         when(eventoRepository.findByIdOrganizadorAndEstado(ID_ORGANIZADOR, EstadoEvento.Publicado))
@@ -490,5 +575,64 @@ class EventoServiceTest {
         when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
 
         assertThat(eventoService.listarEventoPublicadoDeVendedor(evento.getId(), ID_ORGANIZADOR)).hasSize(1);
+    }
+
+    // ─────────────────────────────────────────────
+    // eliminarBorrador
+    // ─────────────────────────────────────────────
+
+    @Test
+    void eliminarBorrador_devuelveLosCreditosDeSusTandasYLoBorra() {
+        agregarTandaAlEvento(); // 50 entradas sin vender, ya consumidas al crear la tanda
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(organizadorRepository.findById(ID_ORGANIZADOR)).thenReturn(Optional.of(organizador));
+
+        eventoService.eliminarBorrador(evento.getId(), ID_ORGANIZADOR);
+
+        verify(creditoLedgerService).registrarDevolucionTanda(organizador, 50, evento.getId());
+        verify(eventoRepository).delete(evento);
+    }
+
+    @Test
+    void eliminarBorrador_sinTandas_loBorraSinTocarCreditos() {
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        eventoService.eliminarBorrador(evento.getId(), ID_ORGANIZADOR);
+
+        verifyNoInteractions(creditoLedgerService);
+        verify(eventoRepository).delete(evento);
+    }
+
+    @Test
+    void eliminarBorrador_publicadoOCancelado_noSeBorra() {
+        for (EstadoEvento estado : new EstadoEvento[]{EstadoEvento.Publicado, EstadoEvento.Cancelado}) {
+            evento.setEstado(estado);
+            when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+            assertThatThrownBy(() -> eventoService.eliminarBorrador(evento.getId(), ID_ORGANIZADOR))
+                    .isInstanceOf(BusinessRuleException.class);
+        }
+        verify(eventoRepository, never()).delete(any());
+        verifyNoInteractions(creditoLedgerService);
+    }
+
+    @Test
+    void eliminarBorrador_deOtroOrganizador_lanzaForbiddenActionException() {
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> eventoService.eliminarBorrador(evento.getId(), ID_OTRO_ORGANIZADOR))
+                .isInstanceOf(ForbiddenActionException.class);
+
+        verify(eventoRepository, never()).delete(any());
+    }
+
+    @Test
+    void eliminarBorrador_borraLaPortadaSiEsNuestra() {
+        evento.setImagenPortadaUrl("https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/portada.png");
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        eventoService.eliminarBorrador(evento.getId(), ID_ORGANIZADOR);
+
+        verify(imagenService).eliminarSiEsNuestra("https://res.cloudinary.com/x/image/upload/v1/asistiapp/eventos/portada.png");
     }
 }

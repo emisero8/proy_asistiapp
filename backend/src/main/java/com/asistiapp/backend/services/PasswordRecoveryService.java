@@ -21,7 +21,7 @@ import java.util.UUID;
  *
  * `solicitarRecuperacion` nunca revela si un email existe o no en el sistema
  * — responde igual en ambos casos — para no filtrar qué cuentas están
- * registradas (ver SECURITY.md).
+ * registradas (ver docs/tecnica/SECURITY.md).
  */
 @Slf4j
 @Service

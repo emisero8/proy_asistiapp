@@ -138,6 +138,9 @@ public class SecurityConfig {
                         // Webhook de MercadoPago: lo invoca el proveedor de pagos, no un usuario logueado.
                         // La autenticidad se valida con la firma x-signature en el controller.
                         .requestMatchers(HttpMethod.POST, "/payments/mercadopago/webhook").permitAll()
+                        // Retorno del OAuth de Mercado Pago (8.4): lo abre el navegador sin JWT; el `state` de un solo uso
+                        // identifica al Organizador.
+                        .requestMatchers(HttpMethod.GET, "/mercadopago/oauth/callback").permitAll()
                         // Documentación interactiva de la API (Swagger UI + spec OpenAPI)
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         // Todo lo demás requiere autenticación

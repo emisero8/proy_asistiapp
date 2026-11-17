@@ -84,7 +84,7 @@ public class CreditoController {
      * la orden sea suya.
      *
      * Si la orden sigue `Pendiente`, reconcilia contra MercadoPago antes de responder —
-     * no depende solo de que el webhook haya llegado (ver DECISIONES.md).
+     * no depende solo de que el webhook haya llegado (ver docs/proyecto/DECISIONES.md).
      */
     @GetMapping("/orden/{externalReference}")
     @PreAuthorize("hasRole('Organizador')")
@@ -92,7 +92,7 @@ public class CreditoController {
             @PathVariable String externalReference) {
         Organizador organizador = securityUtils.getOrganizadorAutenticado();
         if (creditoService.estadoActual(externalReference).filter(e -> e == EstadoTransaccion.Pendiente).isPresent()) {
-            pagoWebhookService.reconciliar(externalReference);
+            pagoWebhookService.reconciliarSiCorresponde(externalReference);
         }
         return ResponseEntity.ok(creditoService.obtenerEstadoOrden(externalReference, organizador.getId()));
     }

@@ -1,10 +1,11 @@
+import { TerminosPage } from "./pages/legal/TerminosPage";
+import { PrivacidadPage } from "./pages/legal/PrivacidadPage";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
 import { ThemeProvider, useTheme } from "./lib/theme";
 import { DialogProvider } from "./components/DialogProvider";
-import { ThemeToggle } from "./components/ThemeToggle";
 
 const ListingPage = lazy(() => import("./pages/buyer/ListingPage").then((m) => ({ default: m.ListingPage })));
 const AllEventsPage = lazy(() => import("./pages/buyer/AllEventsPage").then((m) => ({ default: m.AllEventsPage })));
@@ -87,6 +88,8 @@ function AnimatedRoutes() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/ticket/:id" element={<TicketPage />} />
         <Route path="/mi-entrada" element={<MiEntradaPage />} />
+        <Route path="/terminos" element={<TerminosPage />} />
+        <Route path="/privacidad" element={<PrivacidadPage />} />
         <Route path="/pago/resultado" element={<PagoResultadoPage />} />
 
         {/* Organizador */}
@@ -177,7 +180,6 @@ function AppShell() {
       />
       <DialogProvider>
         <BrowserRouter>
-          <ThemeToggle />
           <Suspense fallback={<RouteFallback />}>
             <AnimatedRoutes />
           </Suspense>

@@ -28,12 +28,31 @@ import java.util.Optional;
 public class PagoWebhookService {
 
     private final MercadoPagoService mercadoPagoService;
+    private final CuentaCobroService cuentaCobroService;
     private final VentaService ventaService;
     private final CreditoService creditoService;
     private final EmailService emailService;
+    private final ThrottleReconciliacion throttleReconciliacion;
 
     public void procesarNotificacionPago(Long paymentId) {
-        Optional<Payment> consulta = mercadoPagoService.obtenerPago(paymentId);
+        procesarNotificacionPago(paymentId, null, null);
+    }
+
+    /**
+     * El aviso solo trae el id del pago, pero el pago de una entrada está en la cuenta del Organizador y se
+     * consulta con SU token. Para saber cuál, el aviso trae (1) la referencia de la orden, que agregamos a la
+     * URL de notificación al crear la preferencia, y (2) el vendedor que cobró (`user_id`). Si ninguna sirve
+     * (compra de créditos, que se cobra con la cuenta de la plataforma) se usa el token de la plataforma.
+     * Después de leer el pago, el token definitivo sale de la referencia que trae el propio pago.
+     */
+    public void procesarNotificacionPago(Long paymentId, String referenciaDelAviso, Long vendedorMpDelAviso) {
+        String token = referenciaDelAviso != null && !referenciaDelAviso.isBlank()
+                ? cuentaCobroService.tokenParaOrden(referenciaDelAviso)
+                : null;
+        if (token == null) {
+            token = cuentaCobroService.tokenParaVendedor(vendedorMpDelAviso);
+        }
+        Optional<Payment> consulta = mercadoPagoService.obtenerPago(paymentId, token);
         if (consulta.isEmpty()) {
             return; // el pago no existe en MP: nada que hacer (y no tiene sentido que MP reintente)
         }
@@ -48,9 +67,22 @@ public class PagoWebhookService {
      * misma idempotencia, mismos reembolsos automáticos si ya no se puede entregar.
      */
     public void reconciliar(String externalReference) {
-        List<Payment> pagos = mercadoPagoService.buscarPagosPorReferencia(externalReference);
+        List<Payment> pagos = mercadoPagoService.buscarPagosPorReferencia(
+                externalReference, cuentaCobroService.tokenParaOrden(externalReference));
         for (Payment pago : pagos) {
             procesarPago(pago.getId(), pago);
+        }
+    }
+
+    /**
+     * Reconciliación disparada por el comprador al mirar el estado de su orden: igual que
+     * {@link #reconciliar}, pero consulta a MercadoPago como mucho una vez por intervalo por orden
+     * (ver ThrottleReconciliacion). Las demás veces no hace nada y el estado se responde desde la base.
+     * El job de vencimiento usa {@link #reconciliar} directo: él no puede saltearse la consulta.
+     */
+    public void reconciliarSiCorresponde(String externalReference) {
+        if (throttleReconciliacion.permitir(externalReference)) {
+            reconciliar(externalReference);
         }
     }
 
@@ -99,12 +131,12 @@ public class PagoWebhookService {
                     confirmacion.codigosQr());
             case SIN_DISPONIBILIDAD -> {
                 log.warn("Pago MP {} aprobado pero la orden {} ya no se puede entregar: se reembolsa", paymentId, referencia);
-                mercadoPagoService.reembolsar(paymentId);
+                mercadoPagoService.reembolsar(paymentId, cuentaCobroService.tokenParaOrden(referencia));
                 avisarReembolsoEntradas(ventaService.marcarOrdenReembolsada(referencia, paymentId));
             }
             case DUPLICADO -> {
                 log.warn("Pago MP {} duplicado para la orden {} (ya resuelta): se reembolsa", paymentId, referencia);
-                mercadoPagoService.reembolsar(paymentId);
+                mercadoPagoService.reembolsar(paymentId, cuentaCobroService.tokenParaOrden(referencia));
             }
             case MONTO_INVALIDO -> log.error(
                     "Pago MP {} no coincide en monto/moneda con la orden {}: NO se entrega nada, revisar a mano", paymentId, referencia);
@@ -119,12 +151,12 @@ public class PagoWebhookService {
         switch (resultado) {
             case SIN_DISPONIBILIDAD -> {
                 log.warn("Pago MP {} aprobado pero la orden de créditos {} no se puede acreditar: se reembolsa", paymentId, referencia);
-                mercadoPagoService.reembolsar(paymentId);
+                mercadoPagoService.reembolsar(paymentId, cuentaCobroService.tokenParaOrden(referencia));
                 avisarReembolsoCreditos(creditoService.marcarOrdenReembolsada(referencia, paymentId));
             }
             case DUPLICADO -> {
                 log.warn("Pago MP {} duplicado para la orden de créditos {} (ya resuelta): se reembolsa", paymentId, referencia);
-                mercadoPagoService.reembolsar(paymentId);
+                mercadoPagoService.reembolsar(paymentId, cuentaCobroService.tokenParaOrden(referencia));
             }
             case MONTO_INVALIDO -> log.error(
                     "Pago MP {} no coincide en monto/moneda con la orden de créditos {}: NO se acredita nada, revisar a mano",

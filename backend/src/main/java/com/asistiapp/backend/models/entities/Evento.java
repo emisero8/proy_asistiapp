@@ -90,4 +90,16 @@ public class Evento {
             this.estado = EstadoEvento.Borrador;
         }
     }
+
+    /**
+     * Única definición de "el evento ya finalizó": llegó (o pasó) su fecha y hora de inicio.
+     * La usan la venta de entradas, los listados y el alta de staff; el frontend no la recalcula,
+     * la recibe en EventoResponseDTO.finalizado. Un evento sin fecha u hora todavía no finalizó.
+     */
+    public boolean yaFinalizo() {
+        if (fechaEvento == null || horaEvento == null) {
+            return false;
+        }
+        return !LocalDateTime.of(fechaEvento, horaEvento).isAfter(LocalDateTime.now());
+    }
 }

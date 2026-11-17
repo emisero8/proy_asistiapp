@@ -1,11 +1,19 @@
+import { AceptaTerminos } from "../../components/AceptaTerminos";
 import { useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
 import { useLocation, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
-import { api, ApiError } from "../../lib/api";
+import { api } from "../../lib/api";
 import { fmt } from "../../lib/format";
-import type { EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
+import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/pago";
+import type {
+  CompraOnlineRequestDTO,
+  EventoPublicoDetalleDTO,
+  IniciarCompraResponseDTO,
+  TandaResponseDTO,
+} from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 interface CheckoutState {
   evento: EventoPublicoDetalleDTO;
@@ -21,6 +29,8 @@ export function CheckoutPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmarEmail, setConfirmarEmail] = useState("");
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +47,9 @@ export function CheckoutPage() {
 
   const { evento, tanda, qty } = state;
   const total = tanda.precio * qty;
-  const valid = name.trim().length > 1 && email.length > 4 && email.includes("@");
+  const emailsNoCoinciden = confirmarEmail.length > 0 && email !== confirmarEmail;
+  const valid =
+    name.trim().length > 1 && email.length > 4 && email.includes("@") && email === confirmarEmail && aceptaTerminos;
 
   async function handleConfirm() {
     setLoading(true);
@@ -46,16 +58,27 @@ export function CheckoutPage() {
       // Una sola orden para las "qty" entradas: el backend genera una Entrada (con
       // su propio QR) por cada unidad al confirmarse el pago, pero la cobra en una
       // sola preferencia de MercadoPago.
-      const orden = await api.post<IniciarCompraResponseDTO>(
-        "/tickets/comprar-online",
-        { idTanda: tanda.id, cantidad: qty, nombreComprador: name, emailComprador: email },
-        { skipAuth: true },
+      // El pago se confirma por el webhook de MercadoPago (o la reconciliación), no acá.
+      // Con HTTPS MercadoPago vuelve solo a /pago/resultado; en local se paga en otra
+      // pestaña y esta se queda esperando ahí (ver lib/pago.ts).
+      const { orden, enPestanaNueva } = await iniciarPago(() =>
+        api.post<IniciarCompraResponseDTO>(
+          "/tickets/comprar-online",
+          {
+            idTanda: tanda.id,
+            cantidad: qty,
+            nombreComprador: name,
+            emailComprador: email,
+            aceptaTerminos,
+          } satisfies CompraOnlineRequestDTO,
+          { skipAuth: true },
+        ),
       );
-      // Redirección real a Checkout Pro — el pago se confirma por el webhook de
-      // MercadoPago, no acá. MercadoPago vuelve a /pago/resultado cuando termina.
-      window.location.href = orden.urlPago;
+      if (enPestanaNueva) {
+        navigate(rutaResultadoPago(orden.ordenId, "entradas"), { state: { urlPago: orden.urlPago } });
+      }
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos iniciar el pago. Intentá de nuevo.");
+      setError(mensajeDeErrorDePago(e, "No pudimos iniciar el pago. Intentá de nuevo."));
       setLoading(false);
     }
   }
@@ -64,13 +87,16 @@ export function CheckoutPage() {
     <div className="min-h-screen bg-background">
       <div className="px-4 lg:px-8 pt-6 pb-3 border-b border-border bg-background sticky top-0 z-10">
         <div className="max-w-[1800px] mx-auto">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors"
-          >
-            <ChevronLeft size={15} />
-            Volver
-          </button>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground transition-colors"
+            >
+              <ChevronLeft size={15} />
+              Volver
+            </button>
+            <ThemeToggle />
+          </div>
           <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Finalizar compra</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Sin registro. Solo tu nombre y email.</p>
         </div>
@@ -109,12 +135,31 @@ export function CheckoutPage() {
                   <span className="text-green-400 font-bold">✓</span> Recibís la entrada en este email.
                 </p>
               </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1.5">Confirmar email</label>
+                <input
+                  type="email"
+                  value={confirmarEmail}
+                  onChange={(e) => setConfirmarEmail(e.target.value)}
+                  placeholder="Repetí tu email"
+                  className={`w-full px-4 py-3 bg-card border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
+                    emailsNoCoinciden
+                      ? "border-destructive focus:ring-destructive/50"
+                      : "border-border focus:ring-primary/50"
+                  }`}
+                />
+                {emailsNoCoinciden && (
+                  <p className="text-xs text-destructive mt-1.5">Los emails no coinciden.</p>
+                )}
+              </div>
               {/* submit oculto: habilita enviar con Enter; el botón visible está en el panel lateral */}
               <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>
                 Confirmar
               </button>
             </form>
           </div>
+
+          <AceptaTerminos aceptado={aceptaTerminos} onCambio={setAceptaTerminos} />
 
           <div>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Método de pago</p>

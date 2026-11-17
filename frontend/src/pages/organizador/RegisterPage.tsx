@@ -5,6 +5,8 @@ import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import type { AuthResponseDTO, MovimientoCreditoResponseDTO, RegisterRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { AceptaTerminos } from "../../components/AceptaTerminos";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 const PITCH_STATS = [
   { value: "0%", label: "comisión al organizador" },
@@ -44,7 +46,7 @@ export function OrganizadorRegisterPage() {
     try {
       const session = await api.post<AuthResponseDTO>(
         "/auth/register",
-        { nombre: name, email, password: pass } satisfies RegisterRequestDTO,
+        { nombre: name, email, password: pass, aceptaTerminos: agreed } satisfies RegisterRequestDTO,
         { skipAuth: true },
       );
       login(session);
@@ -90,6 +92,7 @@ export function OrganizadorRegisterPage() {
 
   return (
     <div className="min-h-screen bg-background lg:flex lg:items-center lg:justify-center lg:py-10">
+      <ThemeToggle variante="esquina" />
       <div className="w-full lg:max-w-5xl lg:mx-auto lg:grid lg:grid-cols-2 lg:gap-12 lg:items-center lg:px-8">
         {/* Pitch — solo desktop, para no alargar el flujo corto de mobile */}
         <div className="hidden lg:block">
@@ -226,19 +229,7 @@ export function OrganizadorRegisterPage() {
             )}
           </div>
 
-          <button type="button" onClick={() => setAgreed((a) => !a)} className="flex items-start gap-3 w-full text-left">
-            <div
-              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-none mt-0.5 transition-all ${
-                agreed ? "bg-primary border-primary" : "border-border"
-              }`}
-            >
-              {agreed && <Check size={12} className="text-primary-foreground" />}
-            </div>
-            <span className="text-xs text-muted-foreground leading-relaxed">
-              Acepto los <span className="text-primary underline">Términos y Condiciones</span> y la{" "}
-              <span className="text-primary underline">Política de Privacidad</span> de AsistíAPP.
-            </span>
-          </button>
+          <AceptaTerminos aceptado={agreed} onCambio={setAgreed} />
 
           {error && <p className="text-xs text-destructive">{error}</p>}
         </div>

@@ -12,6 +12,7 @@ import type {
   VentaManualRequestDTO,
 } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 /** Link público (sin login) donde el comprador ve su entrada y el QR — para que el vendedor se lo pueda mandar. */
 function linkEntrada(codigoQr: string) {
@@ -26,6 +27,9 @@ async function copiarAlPortapapeles(texto: string, mensajeOk: string) {
     toast.error("No pudimos copiar el enlace. Copialo a mano.");
   }
 }
+
+/** Mismo tope que VentaManualRequestDTO.cantidad en el backend (@Max(20)). */
+const MAX_ENTRADAS_POR_VENTA = 20;
 
 export function StaffPosPage() {
   useDocumentTitle("Punto de venta");
@@ -84,32 +88,25 @@ export function StaffPosPage() {
     return () => clearTimeout(handle);
   }, [evento, buyerEmail]);
 
-  const cupoMaximoVenta = Math.min(tanda?.cupoDisponible ?? 1, disponibilidad?.disponible ?? Infinity);
+  const cupoMaximoVenta = Math.min(MAX_ENTRADAS_POR_VENTA, tanda?.cupoDisponible ?? 1, disponibilidad?.disponible ?? Infinity);
 
   async function handleGenerate() {
     if (!tanda) return;
     setSelling(true);
     setSellError(null);
 
-    // El backend genera una Entrada por llamada — igual que en la compra online,
-    // "vender qty entradas" son qty llamadas secuenciales a venta-manual.
-    const nuevas: EntradaResponseDTO[] = [];
+    // Una sola llamada: el backend genera las qty entradas en una operación atómica (todas o ninguna),
+    // así una falla a mitad de camino no deja la venta partida.
     try {
-      for (let i = 0; i < qty; i++) {
-        const entrada = await api.post<EntradaResponseDTO>("/tickets/venta-manual", {
-          idTanda: tanda.id,
-          nombreComprador: buyerName,
-          emailComprador: buyerEmail,
-        } satisfies VentaManualRequestDTO);
-        nuevas.push(entrada);
-      }
+      const nuevas = await api.post<EntradaResponseDTO[]>("/tickets/venta-manual", {
+        idTanda: tanda.id,
+        cantidad: qty,
+        nombreComprador: buyerName,
+        emailComprador: buyerEmail,
+      } satisfies VentaManualRequestDTO);
       setEntradas(nuevas);
       setSoldToday((c) => c + nuevas.length);
     } catch (e: unknown) {
-      if (nuevas.length > 0) {
-        setEntradas(nuevas);
-        setSoldToday((c) => c + nuevas.length);
-      }
       setSellError(e instanceof ApiError ? e.message : "No pudimos registrar la venta. Intentá de nuevo.");
     } finally {
       setSelling(false);
@@ -154,7 +151,7 @@ export function StaffPosPage() {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-4xl mx-auto flex flex-col min-h-screen">
-          <div className="flex-none px-4 lg:px-0 pt-14 lg:pt-10 pb-4 border-b border-border">
+          <div className="flex-none px-4 lg:px-0 pt-4 lg:pt-10 pb-4 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center">
                 <QrCode size={16} className="text-green-400" />
@@ -165,6 +162,7 @@ export function StaffPosPage() {
                   {entradas.length} entrada{entradas.length > 1 ? "s" : ""} · {tanda.nombre}
                 </p>
               </div>
+              <ThemeToggle className="ml-auto" />
             </div>
           </div>
 
@@ -228,6 +226,9 @@ export function StaffPosPage() {
                 </div>
               ))}
             </div>
+            <p className="text-xs text-muted-foreground">
+              El enlace de cada entrada es la entrada: quien lo tenga puede ingresar al evento. Compartilo solo con el comprador.
+            </p>
             <div className="flex flex-col sm:flex-row gap-3">
               {entradas.length > 1 && (
                 <button
@@ -268,7 +269,7 @@ export function StaffPosPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="px-4 lg:px-8 pt-14 lg:pt-8 pb-3 border-b border-border bg-background sticky top-0 z-10">
+      <div className="px-4 lg:px-8 pt-4 lg:pt-8 pb-3 border-b border-border bg-background sticky top-0 z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Punto de Venta</p>
@@ -279,6 +280,7 @@ export function StaffPosPage() {
               <p className="text-[10px] text-muted-foreground">Vendidas hoy</p>
               <p className="text-sm font-extrabold text-primary">{soldToday}</p>
             </div>
+            <ThemeToggle />
             <button onClick={logout} aria-label="Cerrar sesión" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
               <LogOut size={14} />
             </button>

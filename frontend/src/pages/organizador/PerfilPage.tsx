@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Save, KeyRound, AlertCircle } from "lucide-react";
+import { Save, KeyRound, AlertCircle, Users, MessageCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
-import type { CambiarPasswordRequestDTO, PerfilRequestDTO, PerfilResponseDTO } from "../../lib/types";
+import { CuentaMercadoPagoCard } from "./CuentaMercadoPagoCard";
+import type { CambiarPasswordRequestDTO, ContactoRequestDTO, PerfilRequestDTO, PerfilResponseDTO, TopeCompradorRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const INPUT =
@@ -25,6 +26,15 @@ export function OrganizadorPerfilPage() {
   const [guardandoPerfil, setGuardandoPerfil] = useState(false);
   const [errorPerfil, setErrorPerfil] = useState<string | null>(null);
 
+  const [tope, setTope] = useState("");
+  const [guardandoTope, setGuardandoTope] = useState(false);
+  const [errorTope, setErrorTope] = useState<string | null>(null);
+
+  const [contactoWa, setContactoWa] = useState("");
+  const [contactoMail, setContactoMail] = useState("");
+  const [guardandoContacto, setGuardandoContacto] = useState(false);
+  const [errorContacto, setErrorContacto] = useState<string | null>(null);
+
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
@@ -38,6 +48,9 @@ export function OrganizadorPerfilPage() {
         setPerfil(p);
         setNombre(p.nombre);
         setFoto(p.fotoPerfilUrl ?? "");
+        setTope(p.maxEntradasPorComprador == null ? "" : String(p.maxEntradasPorComprador));
+        setContactoWa(p.contactoWhatsapp ?? "");
+        setContactoMail(p.contactoEmail ?? "");
       })
       .catch((e: unknown) => setLoadError(e instanceof ApiError ? e.message : "No pudimos cargar tu perfil."));
   }, []);
@@ -65,6 +78,50 @@ export function OrganizadorPerfilPage() {
       setErrorPerfil(err instanceof ApiError ? err.message : "No pudimos guardar el perfil.");
     } finally {
       setGuardandoPerfil(false);
+    }
+  }
+
+  async function guardarContacto(e: FormEvent) {
+    e.preventDefault();
+    setErrorContacto(null);
+    const dto: ContactoRequestDTO = {
+      contactoWhatsapp: contactoWa.trim() === "" ? null : contactoWa.trim(),
+      contactoEmail: contactoMail.trim() === "" ? null : contactoMail.trim(),
+    };
+    setGuardandoContacto(true);
+    try {
+      const actualizado = await api.put<PerfilResponseDTO>("/organizador/perfil/contacto", dto);
+      setPerfil(actualizado);
+      setContactoWa(actualizado.contactoWhatsapp ?? "");
+      setContactoMail(actualizado.contactoEmail ?? "");
+      toast.success("Contacto guardado");
+    } catch (err) {
+      setErrorContacto(err instanceof ApiError ? err.message : "No pudimos guardar el contacto.");
+    } finally {
+      setGuardandoContacto(false);
+    }
+  }
+
+  async function guardarTope(e: FormEvent) {
+    e.preventDefault();
+    setErrorTope(null);
+    // Vacío = volver al tope de la plataforma.
+    const valor = tope.trim() === "" ? null : Number(tope);
+    if (valor !== null && (!Number.isInteger(valor) || valor < 1 || valor > 100)) {
+      setErrorTope("El tope tiene que ser un número entero entre 1 y 100.");
+      return;
+    }
+    const dto: TopeCompradorRequestDTO = { maxEntradasPorComprador: valor };
+    setGuardandoTope(true);
+    try {
+      const actualizado = await api.put<PerfilResponseDTO>("/organizador/perfil/tope-comprador", dto);
+      setPerfil(actualizado);
+      setTope(actualizado.maxEntradasPorComprador == null ? "" : String(actualizado.maxEntradasPorComprador));
+      toast.success("Tope guardado");
+    } catch (err: unknown) {
+      setErrorTope(err instanceof ApiError ? err.message : "No pudimos guardar el tope.");
+    } finally {
+      setGuardandoTope(false);
     }
   }
 
@@ -128,6 +185,80 @@ export function OrganizadorPerfilPage() {
 
             <button type="submit" disabled={guardandoPerfil} className={BOTON}>
               <Save size={15} /> {guardandoPerfil ? "Guardando…" : "Guardar cambios"}
+            </button>
+          </form>
+
+          <CuentaMercadoPagoCard />
+
+          <form onSubmit={guardarTope} noValidate className="rounded-3xl bg-card border border-border p-5 space-y-5">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Users size={15} className="text-primary" /> Entradas por persona
+            </h3>
+            <div>
+              <label htmlFor="tope-comprador" className={LABEL}>Máximo de entradas por persona</label>
+              <input
+                id="tope-comprador"
+                type="number"
+                min={1}
+                max={100}
+                value={tope}
+                onChange={(e) => setTope(e.target.value)}
+                placeholder={String(perfil.maxEntradasPorCompradorPlataforma)}
+                className={INPUT}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1.5">
+                Cuántas entradas puede tener una misma persona (mismo email) para cada uno de tus eventos. Vale para la compra online y para
+                las ventas del staff. Si lo dejás vacío, rige el de la plataforma.
+              </p>
+              <p className="text-[11px] font-semibold text-foreground mt-1.5">
+                {perfil.maxEntradasPorComprador == null
+                  ? `Hoy rige el de la plataforma: ${perfil.maxEntradasPorCompradorPlataforma}.`
+                  : `Tu tope es de ${perfil.maxEntradasPorComprador} entradas por persona.`}
+              </p>
+            </div>
+
+            {errorTope && <p className="text-xs text-destructive">{errorTope}</p>}
+
+            <button type="submit" disabled={guardandoTope} className={BOTON}>
+              <Save size={15} /> {guardandoTope ? "Guardando…" : "Guardar tope"}
+            </button>
+          </form>
+
+          <form onSubmit={guardarContacto} noValidate className="rounded-3xl bg-card border border-border p-5 space-y-5">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <MessageCircle size={15} className="text-primary" /> Contacto para el arrepentimiento
+            </h3>
+            <p className="text-[11px] text-muted-foreground">
+              Quien quiera arrepentirse de una compra es derivado a este contacto: el pedido lo resolvés vos. Hace falta cargar al menos
+              uno para publicar un evento.
+            </p>
+            <div>
+              <label htmlFor="contacto-wa" className={LABEL}>WhatsApp de contacto</label>
+              <input
+                id="contacto-wa"
+                type="tel"
+                value={contactoWa}
+                onChange={(e) => setContactoWa(e.target.value)}
+                placeholder="+54 9 11 5555-1234"
+                className={INPUT}
+              />
+            </div>
+            <div>
+              <label htmlFor="contacto-mail" className={LABEL}>Email de contacto</label>
+              <input
+                id="contacto-mail"
+                type="email"
+                value={contactoMail}
+                onChange={(e) => setContactoMail(e.target.value)}
+                placeholder="contacto@tuevento.com"
+                className={INPUT}
+              />
+            </div>
+
+            {errorContacto && <p className="text-xs text-destructive">{errorContacto}</p>}
+
+            <button type="submit" disabled={guardandoContacto} className={BOTON}>
+              <Save size={15} /> {guardandoContacto ? "Guardando…" : "Guardar contacto"}
             </button>
           </form>
 

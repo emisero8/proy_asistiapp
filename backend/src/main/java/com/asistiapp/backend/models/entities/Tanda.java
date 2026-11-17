@@ -57,6 +57,14 @@ public class Tanda {
     @Column(name = "fecha_fin_vigencia")
     private LocalDateTime fechaFinVigencia;
 
+    /**
+     * Tanda de cortesía (8.10): solo el Organizador emite entradas de ella ("Prensa", "Invitados").
+     * No se muestra al público ni se vende online ni en el POS, y no tiene precio. Su cupo consume
+     * créditos como el de cualquier tanda.
+     */
+    @Column(name = "solo_emision", nullable = false, columnDefinition = "boolean not null default false")
+    private boolean soloEmision = false;
+
     /** Entradas vendidas en esta tanda. */
     @OneToMany(mappedBy = "tanda", cascade = CascadeType.ALL)
     private List<Entrada> entradas = new ArrayList<>();

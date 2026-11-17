@@ -1,0 +1,354 @@
+# Plan de Implementación Frontend — AsistíAPP
+
+> **Qué es este documento:** el registro, fase por fase, de cómo se convirtió el mockup original en la aplicación real y por qué (decisiones, adaptaciones, errores corregidos). **Todas las fases están completadas**; sirve para entender el origen de una pantalla o de una decisión, no como lista de tareas pendientes. Para el estado actual del frontend ver `frontend/README.md` y [`DESIGN.md`](DESIGN.md); para lo posterior a estas fases, `docs/proyecto/PLAN_MEJORAS.md`. Las menciones a `figma-reference/` (el mockup original) son históricas: esa carpeta ya no está en el repo (queda en el historial de git).
+
+Este plan detalla cómo llevar el mockup funcional de Figma Make (`figma-reference/`) — hoy 100% desconectado, con datos mock estáticos — a una aplicación real (`frontend/`) integrada contra el backend documentado en `docs/tecnica/API.md`. Sigue la misma lógica que `docs/tecnica/backend_implementation_plan.md`: fases numeradas, marcadas ✅ a medida que se completan.
+
+> **Punto de partida (auditoría del código real, no del mockup en abstracto):** `figma-reference/src/app/App.tsx` (2308 líneas, el export crudo de Figma Make) no tiene ninguna llamada de red — cero `fetch`, cero estados de loading/error, cero router (la navegación es un switch de strings en memoria: `mode`/`buyerScreen`/`orgScreen`/etc.). Hay **tres mecanismos de login distintos y los tres son falsos**: Organizador y Admin aceptan cualquier click sin validar nada; Staff compara contraseñas en texto plano contra un array hardcodeado en el bundle del cliente. Ningún dato mock tiene forma de ID/relación real (`organizer` en `AdminEvent` es un nombre de texto suelto, no un `idOrganizador`). Nada de esto es criticable del mockup — está bien para lo que es, una demo de UI — pero significa que las Fases 1-2 de abajo son requisito antes de poder "conectar" cualquier pantalla, no un detalle menor.
+
+## Decisiones ya tomadas
+
+1. **Desarrollo aparte, Figma Make solo como referencia.** El export crudo de Figma Make vive en `figma-reference/` (nunca se shippea) — sirve para copiar estilos/patrones/inventario de pantallas. `frontend/` es un proyecto Vite + React + TypeScript nuevo y limpio, sin el scaffolding de vistas de prueba/selector de modo que traía el harness de Figma Make.
+2. **Monorepo:** frontend y backend viven en el mismo repo de GitHub (`proy_asistiapp`). La raíz de git se movió de `backend/` a `AsistiApp/` (historial del backend preservado con prefijo `backend/`, reescrito y force-pusheado una única vez para consolidar).
+3. **Responsive real (mobile + desktop), no solo mobile.** `docs/tecnica/DESIGN.md` solo especificaba layout desktop para el panel de Admin — Comprador/Organizador/Staff eran mobile-only (pensado para el "phone frame" de la demo de Figma Make). Como esto ya es una app real que se abre en cualquier navegador, todas las pantallas llevan breakpoints `lg:`/`md:` de Tailwind, manteniendo la paleta de colores intacta. Aplicado retroactivamente a las Fases 1-3 (comprador + organizador) antes de seguir con las Fases 4-5, para no tener que rehacerlo después. Cambios estructurales: `OrganizadorLayout` pasa de bottom tab bar (mobile) a sidebar fija de 208px (desktop, `md:`, mismo ancho que ya define `docs/tecnica/DESIGN.md` para Admin); Detail/Checkout del comprador pasan a dos columnas con panel de compra sticky en vez de barra fija inferior; Listado usa grilla de hasta 4 columnas en vez de lista vertical; Login de Organizador usa panel split-screen (marca a la izquierda, form a la derecha) en `lg:`.
+
+## Fase 1: Arquitectura Base (routing, cliente API, sesión) ✅
+**Objetivo:** Construir la infraestructura que hoy no existe y de la que dependen literalmente todas las fases siguientes.
+
+1. **Router real:** reemplazar la navegación por string-state (`mode`, `buyerScreen`, `orgScreen`, `AdminShell.screen`, `StaffShell.screen`) por rutas reales con `react-router` — ya está en `package.json` como dependencia sin usar. Rutas mínimas: `/`, `/eventos/:urlPublica`, `/checkout`, `/ticket/:id` (buyer); `/organizador/*`; `/staff/*`; `/admin/*`.
+2. **Cliente API (`src/lib/api.ts`):** wrapper de `fetch` con base URL desde `VITE_API_BASE_URL` (env), adjunta el JWT del storage en `Authorization`, parsea errores con el contrato ya documentado en `backend/README.md` (`{status, error, path, timestamp}`).
+3. **Sesión/auth real:** un mecanismo único de almacenamiento de JWT (localStorage) + contexto/hook por rol (Organizador/Staff/Admin) que reemplace los tres booleanos falsos actuales (`orgLoggedIn`, el `screen` de `AdminShell`, el `account` de `StaffShell`).
+4. **Tipos/DTOs (`src/lib/types.ts` o por dominio):** interfaces TypeScript espejo de los DTOs reales del backend (`EventoResponseDTO`, `EntradaResponseDTO`, `UsuarioResponseDTO`, etc. — swagger en `/v3/api-docs` como fuente de verdad).
+5. **`.env.example`** con `VITE_API_BASE_URL=http://localhost:8080`.
+
+## Fase 2: Flujo Comprador (público, sin auth) — CU-015/016/017 ✅
+**Objetivo:** Primer flujo end-to-end conectado — el más simple porque no toca ninguno de los tres sistemas de auth falsos, ideal para probar el cliente API y el patrón de loading/error que se va a repetir en todas las fases siguientes.
+
+1. `ListingScreen` → `GET /public/eventos`.
+2. `DetailScreen` → `GET /public/eventos/{urlPublica}`.
+3. `CheckoutScreen` → `POST /tickets/comprar-online` + `POST /tickets/webhook/pago` (simula MercadoPago igual que ya lo hace el backend).
+4. `SuccessScreen` → mostrar el `codigoQr` real y la imagen (`GET /tickets/{id}/qr-image`) en vez del `QRCodeSVG seed="AST-HX7K2M"` hardcodeado.
+5. Loading states + manejo de error (acá se define el patrón — reusar en todas las fases siguientes).
+
+**Adaptaciones respecto al mockup (decisiones tomadas al conectar la API real):**
+- Se sacó el "phone frame" (marco de celular con notch simulado) — tenía sentido para la demo dentro de Figma Make, no para una app real que corre en el navegador del usuario. Las páginas ahora son mobile-first responsive normales.
+- El mockup permitía elegir cantidad de entradas en un solo submit; el backend genera **una Entrada (con su propio QR) por llamada**, no soporta "comprar 3" en una sola operación. Se resolvió haciendo `qty` llamadas secuenciales a `comprar-online` + `webhook/pago`, mostrando un QR por entrada en la pantalla de ticket — además es más correcto: cada entrada debe poder escanearse individualmente en la puerta (CU-018).
+- El selector de método de pago (MercadoPago/Transferencia/Tarjeta/WhatsApp) del mockup no tiene respaldo real — `CompraOnlineRequestDTO` no tiene campo `metodoPago`, el backend solo simula MercadoPago. Se simplificó a mostrar MercadoPago como único método.
+- Verificado end-to-end con Playwright contra un backend real (Postgres local + evento de prueba sembrado vía API): listado → detalle → checkout → ticket con QR real, sin errores de consola.
+
+## Fase 3: Flujo Organizador — CU-001/002/010 a 014, gestión de staff CU-005/006 ✅
+**Objetivo:** El flujo con más superficie: login real, dashboard con métricas, wizard de creación/publicación, billetera de créditos, gestión de staff propio.
+
+1. `OrgLoginScreen`/`OrgRegisterScreen` → `POST /auth/login`, `POST /auth/register`, guardar JWT.
+2. `DashboardScreen` → `GET /eventos/{id}/metricas` (reemplaza el `BarChart`/métricas 100% hardcodeadas).
+3. `WizardScreen` → `POST /eventos`, `PATCH /eventos/{id}/publicar` (el descuento de créditos "–5 créditos" hoy es un string fijo, tiene que salir de la respuesta real).
+4. `WalletScreen` → `GET /creditos/historial`, `POST /creditos/comprar` + `POST /creditos/webhook/pago` (el botón "Pagar con MercadoPago" hoy no tiene `onClick`).
+5. `StaffMgmtScreen` → endpoints de `GestionStaffController`.
+
+**Gap de backend encontrado y corregido:** no existía ningún endpoint para que el Organizador viera el catálogo de paquetes de crédito — solo había uno para Admin (`/admin/paquetes-credito`). Sin esto la Billetera no podía mostrar qué comprar. Se agregó `GET /creditos/paquetes` (`CreditoService.listarPaquetesDisponibles()`, `PaqueteCreditoDisponibleDTO`), reutilizando `PaqueteCreditoRepository.findByEstado` que ya existía pero nunca se llamaba desde ningún lado.
+
+**Adaptaciones respecto al mockup:**
+- Se agregó una `OrganizadorLayout` con la bottom tab bar (Dashboard/Crear/Créditos/Staff) que describe `docs/tecnica/DESIGN.md`, usando rutas anidadas de `react-router` en vez del switch de pantallas del mockup.
+- El registro del mockup pedía "Nombre de la organización" — `RegisterRequestDTO` no tiene ese campo, se sacó del formulario.
+- Los créditos de bienvenida (mockup: "+10" fijo) y el costo de publicar (mockup: "–5 créditos" fijo) ahora salen de la respuesta real del backend (`MovimientoCredito.saldoResultante`/`monto`), no de texto hardcodeado — en la práctica resultaron ser 5 y 1 respectivamente, distinto de lo que asumía el mockup.
+- El wizard de creación de evento crea el `Evento` (Borrador) al pasar del paso 1 al 2, y recién crea las `Tanda` + publica al confirmar en el paso 2 — si falla la publicación (ej. saldo insuficiente), el evento queda en Borrador con sus tandas ya creadas, listo para reintentar.
+- Gestión de Staff no tiene botón de eliminar: el backend no expone ningún endpoint para dar de baja un miembro de staff, solo alta y listado.
+- Bug real encontrado y corregido: el mockup anidaba un `<button>` ("Pagar con MercadoPago") dentro de otro `<button>` (la tarjeta del paquete) — HTML inválido, React lo marcaba como error de hidratación. Se cambió el contenedor externo a un `<div role="button">`.
+- Verificado end-to-end con Playwright: registro → dashboard vacío → wizard (2 pasos) → publicar → dashboard con métricas reales → wallet (compra de créditos real, saldo actualizado) → alta de Staff QR — sin errores de consola.
+
+## Fase 4: Flujo Staff — CU-018/019 ✅
+**Objetivo:** Login real de Staff (hoy es el único con "validación", pero contraseñas en texto plano en el bundle del cliente — hay que sacarlo de ahí) y validación de QR real.
+
+1. `StaffLoginScreen` → `POST /auth/login` (roles Staff_QR/Staff_Vendedor).
+2. `ScannerScreen` → reemplazar el coin-flip (`Math.random() > 0.3`) y los overlays con datos random por `POST /tickets/validate` real. Acá también entra la **cámara real de QR** (`html5-qrcode` o similar) — hoy no hay ninguna librería de lectura de cámara, los botones "Simular válido/inválido" son placeholders explícitos.
+3. `StaffVendedorScreen` (POS) → `POST /tickets/venta-manual` (reemplaza el ticket ID fake generado client-side).
+
+**Gaps de backend encontrados y corregidos:**
+- No existía forma de que un Staff_Vendedor supiera para qué evento(s) de su organizador podía vender — `/eventos` es exclusivo Organizador. Se agregó `GET /eventos/vendedor` (`EventoController`, override del `@PreAuthorize` de la clase a `Staff_Vendedor`), reutilizando `EventoService.listarEventosPublicadosDeOrganizador()` sobre el `findByIdOrganizadorAndEstado` que ya existía.
+- **IDOR real:** `VentaService.realizarVentaManual()` nunca verificaba que la tanda vendida perteneciera a un evento del organizador del Staff_Vendedor autenticado — cualquier Staff_Vendedor podía vender entradas de **cualquier organizador** con solo conocer/adivinar un `idTanda` ajeno (ni el ID de tanda es difícil de adivinar, son secuenciales). Se agregó la verificación de ownership (`tanda.evento.idOrganizador == staffVendedor.idOrganizador`, 403 `ForbiddenActionException` si no coincide) antes de tocar el cupo. Confirmado con un organizador y tanda de prueba aparte: el intento cruzado devuelve 403 con mensaje claro.
+
+**Adaptaciones respecto al mockup:**
+- `ScannerScreen` real no muestra "aforo total" (el mockup lo hardcodeaba en 400) porque no hay ningún endpoint que exponga esa cifra al rol Staff_QR (los `/eventos/*/metricas` son exclusivos Organizador) — se simplificó a mostrar solo los contadores de Válidos/Inválidos de la sesión actual del staff (se resetean al re-loguearse), que sí surgen 100% de las respuestas reales de `/tickets/validate`.
+- Cámara real con `html5-qrcode` (`Html5Qrcode.start`, `facingMode: "environment"`) en vez del coin-flip; se mantiene el input de código manual como fallback, llamando al mismo endpoint. El botón de linterna usa `applyVideoConstraints({ advanced: [{ torch }] })` con fallback silencioso si el dispositivo/navegador no lo soporta.
+- **Bug real encontrado y corregido en la propia integración:** `Html5Qrcode.stop()` tira una excepción síncrona ("Cannot stop, scanner is not running or paused") si se llama antes de que `start()` termine de negociar la cámara — pasa de verdad si el componente se desmonta rápido (ej. React StrictMode en dev, o navegación apurada). Se resolvió trackeando el estado real (`getState()`) en el cleanup del efecto y, si `start()` resuelve después de desmontado, deteniendo la cámara recién en ese momento.
+- `StaffVendedorScreen` (POS) del mockup no pedía email del comprador — `VentaManualRequestDTO` lo exige (es a donde se manda la entrada), así que se agregó el campo. El método de pago (efectivo/transferencia/POS) del mockup no tiene respaldo real (`VentaManualRequestDTO` no lo contempla) y se sacó, igual que se hizo con el selector de método de pago del comprador en la Fase 2.
+- "Vendidas hoy" es un contador de sesión (no persiste ni viene del backend, se resetea al re-loguearse) — no hay endpoint de reporte diario por vendedor.
+- ~~Igual que en Fase 2/3, "vender qty entradas" son qty llamadas secuenciales a `venta-manual`.~~ **Actualizado (PLAN_MEJORAS 3.6, 2026-11-12):** `venta-manual` recibe `cantidad` (1..20) y devuelve una **lista** de entradas, cada una con su propio QR, generadas en una sola operación atómica (todas o ninguna). El POS hace una sola llamada.
+- El QR se muestra con `GET /tickets/{id}/qr-image?codigoQr=...` (mismo patrón que Fase 2) — el Staff_Vendedor no es Organizador, así que la única vía de autorización que le aplica es el `codigoQr` exacto, que ya tiene en la respuesta de `venta-manual`.
+- Se agregó layout desktop propio al POS (dos columnas con resumen sticky, igual patrón que el checkout del comprador) — el mockup original y el primer borrador de esta fase solo contemplaban mobile. El Scanner se dejó como "cámara centrada" en una tarjeta con bordes redondeados en desktop en vez de forzar una grilla, coherente con el carácter full-bleed/inmersivo que ya describía `docs/tecnica/DESIGN.md` para esta pantalla.
+- Verificado end-to-end con Playwright contra un backend real (Postgres local, organizador + evento publicado + Staff_QR + Staff_Vendedor sembrados vía API y limpiados después): login Vendedor → POS → venta manual → QR real → logout → login Staff_QR → Scanner → validación manual del QR recién generado (✅ válida, con nombre real del comprador) → segunda validación del mismo QR correctamente rechazada (ya usada) → sin errores de consola, verificado contra el build de producción (`vite preview`) en 1440px y 390px.
+
+## Fase 5: Flujo Admin — CU-021 a CU-028 ✅
+**Objetivo:** Backoffice completo — hoy `AdminLoginScreen` acepta cualquier click, cero validación.
+
+1. `AdminLoginScreen` → `POST /auth/login` (rol Administrador).
+2. `AdminUsers` → `AdminUsuarioController` (listar/suspender/reasignar rol/eliminar).
+3. `AdminEvents` → `AdminEventoController` (listar/editar/cancelar/eliminar).
+4. `AdminConfig` → `AdminConfiguracionController` (paquetes de crédito, config global) + `AdminMetricasService` para `AdminDashboard`.
+
+**Sin gaps de backend esta vez** — los 6 controllers de Admin (`AdminUsuarioController`, `AdminEventoController`, `AdminConfiguracionController`, `AdminPaqueteCreditoController`, `AdminMetricasController`) ya cubrían uno a uno cada acción que necesitaba el mockup; no hizo falta agregar ni corregir nada del lado del backend.
+
+**Adaptaciones respecto al mockup:**
+- Se agregó `AdminLayout` (sidebar 208px en desktop / bottom tab bar en mobile), igual patrón que `OrganizadorLayout` — el mockup de Admin era desktop-only (`docs/tecnica/DESIGN.md` solo definía ese panel para desktop), pero la regla de responsive real ya establecida en fases anteriores aplica igual acá.
+- **Gestión de Usuarios:** el mockup simplificaba a 3 roles con un botón que los rotaba en ciclo (`organizador → staff → admin`). El sistema real tiene 4 roles (`Administrador`, `Organizador`, `Staff_QR`, `Staff_Vendedor`) — se reemplazó por un submenú que deja elegir el rol destino explícitamente, más correcto que un ciclo que no puede representar los 4 estados con una sola dirección.
+- **Gestión de Eventos:** el mockup mostraba "Organizador" como texto suelto (nombre de fantasía); `EventoResponseDTO` solo trae `idOrganizador` (no hace join con el nombre), así que la tabla muestra `#id` en esa columna. "Editar" en el mockup no tenía `onClick` (placeholder explícito) — acá se implementó completo con un modal (nombre, descripción, fecha, hora, lugar, URL de portada) contra `PUT /admin/eventos/{id}`, que el Admin puede usar sobre un evento en cualquier estado (a diferencia del Organizador, que solo puede editar en Borrador).
+- **Configuración Global:** de los 4 campos que mostraba el mockup, solo 2 están conectados a lógica de negocio real (`creditos_bienvenida` que lee `AuthService`, `creditos_por_publicacion` que lee `EventoService` al publicar) — son los únicos que quedaron en la pantalla. "Máximo de eventos activos por organizador" y "Email de soporte visible" no tienen ningún lugar del backend que los lea ni los aplique, así que no se incluyeron (agregar un input que no hace nada sería peor que no tenerlo).
+- **Dashboard:** el bloque "Actividad reciente" del mockup era 100% hardcodeado y no hay ningún endpoint de feed de actividad en el alcance de esta fase (existe `GET /admin/auditoria`, pero devuelve logs de auditoría técnicos, no un feed pensado para mostrarse así — queda para una fase de pulido si se decide usarlo). Se sacó y se dejó el dashboard con las 4 métricas reales (`GET /admin/metricas`) y los 3 accesos directos.
+- Acciones destructivas (eliminar usuario, eliminar evento) piden confirmación con `window.confirm` — no hay ningún componente de modal de confirmación establecido en el proyecto todavía, así que se usó el patrón nativo más simple en vez de construir uno nuevo para esto solo.
+- Verificado end-to-end con Playwright contra un backend real y el build de producción, en mobile (390px) y desktop (1440px): login → dashboard con métricas reales → usuarios (buscar, suspender, reactivar) → eventos (editar, cancelar) → config (crear paquete de crédito, guardar config global) — sin errores de consola. Datos de prueba sembrados vía API/SQL y eliminados después.
+
+## Fase 6: Pulido Transversal ✅
+**Objetivo:** Elevar el nivel de UX ahora que todo está conectado — hoy no hay ni un loading spinner ni un toast en toda la app, pese a que `skeleton.tsx` y `sonner.tsx` (shadcn) ya están instalados sin usar.
+
+1. Loading states con `skeleton.tsx` en las pantallas que más tardan (dashboard, listados admin).
+2. Notificaciones con `sonner.tsx` para confirmaciones/errores (reemplaza el patrón actual de mutar estado local silenciosamente).
+3. Sacar la barra de navegación dev-only (selector de modo/pantalla, líneas ~2184-2224) — es scaffolding del harness de Figma Make, no debe llegar a producción.
+4. Botones sin `onClick` que hoy no hacen nada: "Descargar entrada" (buyer), "Imprimir/Descargar" (POS), "Nuevo" pack (admin config), "Editar" evento (admin events).
+5. Manejo de sesión expirada (401) → logout automático + redirect a login, consistente entre los 3 roles.
+
+**Este plan se escribió pensando en el mockup de Figma Make; para cuando llegó esta fase, `frontend/` ya era un proyecto Vite propio sin `shadcn/skeleton.tsx` ni `sonner.tsx` instalados (esos existen solo en `figma-reference/`, que nunca se toca). Se releyó cada punto contra el código real antes de tocar nada:**
+
+- **Punto 1 (skeletons):** no había ningún `skeleton.tsx` de shadcn — el patrón real ya establecido en todo el proyecto desde las Fases 2-3 es bloques `animate-pulse` inline (`ListingPage`, `OrganizadorDashboardPage`, `WalletPage`, etc. ya lo usaban). Las únicas pantallas que no lo seguían eran las 3 de Admin nuevas (Fase 5), que mostraban texto plano "Cargando…" — se reemplazaron por el mismo patrón `animate-pulse` para que quede consistente en toda la app.
+- **Punto 2 (toasts):** se instaló `sonner` (librería real, no el componente shadcn) con un `<Toaster />` global en `App.tsx`, con los colores de `docs/tecnica/DESIGN.md`. Se agregaron confirmaciones donde hoy no había ninguna señal de éxito: alta de staff (Organizador), y en Admin — suspender/activar/reasignar rol/eliminar usuario, editar/cancelar/eliminar evento, crear/activar/desactivar paquete y editar su precio. El guardado de "Configuración Global" ya tenía su propio indicador visual (botón que pasa a "¡Cambios guardados!") — se dejó como está y solo se le sumó `toast.error` en el catch, que antes fallaba en silencio salvo por el banner ya existente.
+- **Punto 3 (barra dev-only):** no aplica — ese scaffolding vive únicamente en `figma-reference/src/app/App.tsx`, que por decisión ya tomada en la Fase 1 nunca se edita ni se shipea. `frontend/` nunca tuvo ese código.
+- **Punto 4 (botones sin `onClick`):** ya resuelto en fases anteriores sin que quedara anotado acá — "Imprimir/Descargar" del POS se sacó directamente al conectar la Fase 4 (no tiene respaldo real), "Descargar entrada" del comprador nunca se portó al frontend real, y "Nuevo" pack / "Editar" evento de Admin se implementaron completos en la Fase 5. Verificado con `grep` que no queda ningún botón sin `onClick` en `frontend/src/pages`.
+- **Punto 5 (sesión expirada):** implementado en `lib/api.ts`, con un hallazgo real en el camino — el backend no tiene un `AuthenticationEntryPoint` propio, así que un JWT rechazado (vencido o inválido) nunca llega al `GlobalExceptionHandler`: Spring Security corta antes con un 401/403 **sin body JSON**. Un 403 legítimo de la app (rol correcto pero sin permiso, ej. Organizador pegándole a un endpoint de Admin) sí trae el JSON de siempre. La detección se hizo por la ausencia de body, no por el código de estado solo — así no se confunde un "no tenés permiso" real con una sesión vencida. Al detectarse, limpia la sesión de `localStorage` y redirige al login del rol que tenía (`/organizador/login`, `/staff/login` o `/admin/login`). No aplica a un 401 de `/auth/login` con contraseña incorrecta porque esa request nunca lleva token adjunto.
+- Verificado end-to-end con Playwright contra un backend real y el build de producción, en mobile y desktop: alta de staff con toast de confirmación → login Admin → suspender usuario con toast → forzar un JWT inválido en `localStorage` → cualquier acción siguiente redirige automáticamente a `/admin/login` con la sesión local ya limpia — sin errores de consola.
+
+## Fase 7: Tests (opcional, no bloqueante) ✅
+Mismo criterio que la Fase 17 del backend — tests de componentes/integración si el tiempo lo permite, no bloquea nada de lo anterior.
+
+Se instaló Vitest + React Testing Library + jsdom (`npm test`). Siguiendo el mismo criterio que la Fase 17 del backend (probar un representante de cada patrón de acceso, no cada endpoint/pantalla una por una), se cubrieron los dos puntos con más superficie de bug real en vez de las ~25 páginas una por una:
+
+- **`lib/api.ts`** (10 tests): adjunta/omite el JWT según corresponda, parsea `ApiError` con el contrato de `GlobalExceptionHandler`, y en particular la detección de sesión vencida que se implementó en la Fase 6 — un 403/401 "legítimo" (con body JSON) no debe desloguear, uno "sin body" (JWT rechazado por Spring Security) sí. Es la lógica más sutil y con más potencial de romperse en un refactor futuro sin que se note a simple vista.
+- **`lib/auth.tsx`** (8 tests): `RequireRole` redirige correctamente según sesión/rol (incluyendo el caso de múltiples roles permitidos, ej. Staff_QR/Staff_Vendedor), y `AuthProvider` persiste/limpia la sesión en `localStorage`.
+- **`StaffLoginPage`** (5 tests) y **`AdminUsersPage`** (4 tests) como representantes de los dos patrones que se repiten en el resto de las pantallas: login → `POST /auth/login` → redirect por rol; y listado con skeleton de carga → mutación → toast de confirmación.
+
+No se armó una suite de tests end-to-end versionada — la verificación e2e con Playwright contra un backend real que se vino hacienda al cerrar cada fase anterior cubre ese nivel, y mantenerla como suite corriendo en CI hubiera implicado levantar Postgres + backend + frontend en el pipeline, un costo que no se justificaba para una fase opcional.
+
+Se agregó `.github/workflows/frontend-tests.yml` (typecheck + lint + tests + build en cada push/PR), mismo patrón que `backend-tests.yml` ya existente. Se actualizó `frontend/README.md` (hasta ahora el boilerplate default de Vite, nunca se había tocado) con instrucciones reales de setup, estructura del proyecto y cómo correr los tests — mismo estilo que `backend/README.md`.
+
+## Fase 8: Pulido post-completitud ✅
+Con las 7 fases anteriores cerradas, este bloque cubre trabajo posterior sin numeración de fase propia: rediseño visual inspirado en qrTicket.app (manteniendo la identidad violeta propia, nunca copiando su paleta) sobre el flujo del Comprador (Listing/Detail/Checkout/Ticket), los 3 logins (Organizador/Staff/Admin) y acentos sutiles en los paneles de Organizador y Admin (glow de sidebar, miniaturas de póster en dashboard/tabla de eventos); más el cierre de dos gaps funcionales menores que habían quedado documentados como pendientes en las Fases 3 y 5.
+
+**Gap 1 — Gestión de Staff no tenía forma de dar de baja a un miembro** (documentado en Fase 3): se agregó `PATCH /organizador/staff/{id}/desactivar` y `/reactivar` (`GestionStaffController`/`GestionStaffService`), reutilizando el enum `EstadoUsuario` ya existente (`Activo`/`Inactivo`) en vez de agregar una columna nueva — mismo patrón que `AdminUsuarioService.suspenderUsuario`/`activarUsuario`. Se optó por soft-deactivate en vez de hard delete: `Entrada.idStaffVendedor`/`idStaffQrValidador` no son FKs JPA reales, pero borrar la fila igual dejaría huérfana la trazabilidad de quién vendió/validó una entrada — mismo criterio que ya usa `AdminUsuarioService.eliminarUsuario` al bloquear el borrado de un Organizador con recursos a cargo. Se verificó ownership (IDOR) antes de tocar el estado: directo por `idOrganizador` en `StaffVendedor`, vía el evento asignado en `StaffQR` (no tiene `idOrganizador` propio) — mismo patrón que la corrección de IDOR de `VentaService.realizarVentaManual` de la Fase 4. `StaffMgmtPage.tsx` ahora muestra "Dar de baja"/"Reactivar" por miembro, con toast de confirmación.
+
+**Gap 2 — Dashboard de Admin sin "Actividad reciente"** (documentado en Fase 5, con la nota de que `GET /admin/auditoria` devuelve logs técnicos sin nombres resueltos): se conectó igual, con una capa de traducción en el frontend (`ACCION_LABELS` en `AdminDashboardPage.tsx`) que mapea cada código de acción (`SUSPENDER_USUARIO`, `CAMBIAR_ROL`, `EDITAR_EVENTO_ADMIN`, etc.) a una frase en español. El endpoint no pagina ni tiene parámetro de límite (devuelve toda la tabla, ya ordenada por fecha desc. desde el backend), así que el recorte a los últimos 6 registros se hace client-side.
+
+**Bug de tests pre-existente encontrado y corregido en el camino:** `VentaServiceTest` fallaba con `NullPointerException` en 2 de sus tests (`realizarVentaManual_sinCupo_...`, `realizarVentaManual_exitoso_...`) — el mock de `Evento`/`StaffVendedor` nunca seteaba `idOrganizador`, así que el chequeo de IDOR agregado en la Fase 4 explotaba contra un `null` en vez de comparar. No relacionado con este trabajo (confirmado que ya fallaba en `master` antes de estos cambios), pero se corrigió de paso para que la suite quede verde.
+
+Verificado end-to-end con Playwright contra un backend real (reiniciado para levantar el código nuevo) y datos demo persistentes: alta de un Staff Vendedor de prueba → "Dar de baja" → estado pasa a Inactivo con toast → "Reactivar" → vuelve a Activo, probado también sobre el Staff QR Demo real (dado de baja y reactivado en el mismo pase, sin dejarlo inactivo) → Admin Dashboard mostrando actividad reciente real y legible — sin errores de consola, en mobile y desktop. Fixture de staff de prueba eliminado de la base por SQL al terminar (no hay endpoint de borrado real, ver Gap 1).
+
+## Fase 9: Calidad y robustez del frontend (revisión post-rediseño)
+**Objetivo:** Cerrar los hallazgos de una revisión completa del frontend hecha después del rediseño y de la tanda de features nuevas (edición de eventos, detalle de evento, mapa, gestión de contraseñas). La base está sana (typecheck limpio, 27/27 tests, code-splitting funcionando); esta fase ataca un bug real y deuda de accesibilidad, performance, consistencia y cobertura de tests.
+
+Se divide en sub-fases independientes, **en este orden**, cada una cerrada y verificada por separado (typecheck + lint + tests + build + Playwright contra backend real en mobile y desktop), con pausa para confirmar antes de pasar a la siguiente y antes de commitear.
+
+**Estado:** la Fase 9 está **completa** ✅: 9.1 a 9.5 y la 9.3b (compresión del banner).
+
+### 9.1 — Bug: "hoy" calculado en UTC en vez de hora local 🔴 ✅
+`new Date().toISOString().slice(0, 10)` devuelve la fecha **UTC**. En Argentina (UTC-3), entre las 21:00 y las 00:00 ya devuelve el día siguiente.
+- **Impacto:** en `WizardPage.tsx:67` y `EditEventPage.tsx:64` el `min` del selector de fecha pasa a ser mañana → **de noche no se puede crear/editar un evento para hoy** (el backend sí lo aceptaría: `@FutureOrPresent` valida con la hora local del servidor). En `ListingPage.tsx:72` y `AllEventsPage.tsx:36`, el badge "Hay shows hoy" y el filtro "Hoy" muestran el día equivocado.
+- **Solución:** helper `hoyLocal()` en `lib/format.ts` (arma `YYYY-MM-DD` con `getFullYear/getMonth/getDate` locales), usado en los 4 lugares. `formatFecha` y `lib/eventFilters.ts` ya parsean bien (`T00:00:00` local), no se tocan.
+- **Test:** unit test de `hoyLocal()` fijando el reloj a las 22:30 hora argentina con `vi.setSystemTime` + `TZ=America/Argentina/Buenos_Aires` → debe devolver el mismo día, no el siguiente.
+- **Verificación:** Playwright con `timezoneId: "America/Argentina/Buenos_Aires"` y reloj a las 22:30 → el Wizard permite elegir la fecha de hoy.
+- **Resultado:** hecho como estaba planeado. El test usa `vi.stubEnv("TZ", ...)` en lugar de tocar `process.env` a mano, porque el `tsconfig` de la app no incluye los tipos de Node (con `process` el build fallaba aunque vitest corriera bien). Verificado contra el backend real a las 22:30 hora argentina, en mobile y desktop: la fecha UTC del navegador ya era el día siguiente (lo que el código anterior habría usado como mínimo), el `min` del selector quedó en el día local y elegir hoy no muestra error; sin errores de consola. De paso se descartó que el mapa se vea gris: era un efecto de congelar el reloj en el test (los tiles cargan bien con el reloj normal).
+
+### 9.2 — Accesibilidad y detalles de navegador 🟡 ✅
+- `index.html`: `<html lang="en">` → `lang="es-AR"` (lectores de pantalla pronuncian en inglés y Chrome ofrece traducir).
+- Links hechos con `<span onClick>` ("Registrate gratis" en `organizador/LoginPage.tsx:164`, "Iniciá sesión" en `RegisterPage.tsx:256`) → `<button type="button">`, para que se pueda llegar con teclado.
+- `aria-label` en los botones que son solo un ícono: ojito de contraseña (3 logins + registro), tacho de tandas (Wizard/Editar), `+`/`−` de cantidad (POS y Detalle), logout. Hoy hay solo 8 `aria-label` en toda la app.
+- Título de pestaña por pantalla: hook `useDocumentTitle()` en `lib/`, aplicado al menos en el Detalle del evento (nombre del evento) y en los paneles (Organizador/Staff/Admin). Hoy todas las pestañas dicen "AsistíAPP".
+- **Verificación:** recorrido con teclado (Tab/Enter) en Playwright por login, registro y checkout.
+- **Resultado:** hecho, con estos matices respecto al plan:
+  - El relevamiento real dio **18 botones de solo ícono sin nombre accesible** (no solo los que se habían listado a ojo): logo de Staff/Admin, ojito de contraseña ×5 (los 3 logins + las 2 del registro), volver y +/− del Detalle, tacho de tandas (Wizard y Editar), "volver al paso anterior" del Wizard, logout y +/− del POS, y linterna + logout del Scanner. Todos tienen `aria-label`; los toggles (contraseña, linterna) además `aria-pressed` y un nombre que cambia con el estado ("Mostrar"/"Ocultar contraseña"). El `ThemeToggle` ya tenía el suyo.
+  - Las tarjetas de evento del carrusel de la Home no cuentan: el nombre está en el texto de la tarjeta (primer barrido lo marcaba como falso positivo).
+  - Los links "Registrate gratis" e "Iniciá sesión" pasaron de `<span onClick>` a `<button type="button">`: ahora se enfocan con Tab y se activan con Enter.
+  - `useDocumentTitle()` en `lib/useDocumentTitle.ts` (formato `"Crear evento · AsistíAPP"`, restaura el título anterior al desmontar, y sin dato deja solo la marca en vez de "undefined"). Aplicado en las 20 pantallas; en los dos Detalle de evento (comprador y organizador) usa el nombre del evento.
+  - `<html lang="es-AR">`.
+- **Verificado** en mobile y desktop contra el backend real: `lang` correcto, los 7 títulos de pantallas públicas/login/paneles y el dinámico del Detalle coinciden, Tab+Enter navega del login al registro, el toggle de contraseña cambia de nombre y de `aria-pressed`, y un barrido automático de botones visibles sin nombre accesible da **0** en Detalle, Registro, los 3 logins, Dashboards de Organizador y Admin, Wizard (incluido el paso 2 con tachos), Editar evento, POS y Scanner. Sin errores de consola. Los 30 tests, typecheck y build siguen verdes.
+  - **Dato para futuras verificaciones:** `POST /auth/login` está limitado a **5 intentos por minuto por IP** (`RateLimitFilter`, anti fuerza bruta — funciona como debe). Un script de Playwright que inicie sesión por la UI varias veces se topa con el límite y falla de forma intermitente; conviene iniciar sesión por API una vez por rol e inyectar la sesión en `localStorage` (`asistiapp_session`).
+  - Los 2 eventos Borrador que el Wizard crea al pasar al paso 2 durante el test se borraron de la base al terminar.
+
+### 9.3 — Performance: carga diferida de imágenes 🟡 ✅
+Ninguna imagen usa `loading="lazy"`; la Home descarga ~22 fotos de 800px al abrirse, incluso las que están muy abajo.
+- `loading="lazy"` + `decoding="async"` en las imágenes de las grillas (`ListingPage`, `AllEventsPage`, miniaturas de `admin/EventsPage`).
+- Se dejan con carga normal el banner del hero y las primeras tarjetas del carrusel (son lo primero que se ve; diferirlas empeoraría el tiempo de carga percibido).
+- **Verificación:** Playwright contando las requests de imágenes en la carga inicial de la Home, antes vs. después.
+- **Resultado:** `loading="lazy"` + `decoding="async"` en la grilla de la Home, la de "Todos los eventos" (las primeras 4 quedan en carga normal), el carrusel de Destacados (las primeras 5 en carga normal) y las miniaturas de la tabla de eventos de Admin y del listado del Dashboard del Organizador. Se dejaron **sin diferir** a propósito: el banner del hero, el QR del ticket y del POS, y las portadas de Detalle/Ticket/Checkout (están a la vista al abrir; diferirlas las retrasaría). Todas las imágenes tienen contenedor con `aspect-ratio`, así que no hay saltos de layout al cargar.
+  - **Lo medido:** los atributos llegan al DOM (17 imágenes `lazy` en la Home, 12 en "Todos los eventos") y, lo más importante, **tras hacer scroll el 100 % de las imágenes carga** (22/22 en la Home y 16/16 en "Todos los eventos", en mobile y desktop), sin errores de consola. También se comprobó con una página sintética que el mecanismo de diferido funciona en el Chromium de Playwright.
+  - **Lo que NO se pudo medir, y por qué:** el ahorro de requests en la carga inicial. Chromium headless usa un umbral de carga diferida de ~3000 px (un Chrome real en 4G usa ~1250 px) y no hay forma de cambiarlo desde Playwright (se probaron `--force-effective-connection-type` y `--blink-settings`), y la grilla de 16 tarjetas es más corta que eso: ahí todo cae "cerca" y se pide igual (17 requests antes y después). Como **estimación** a partir de las posiciones reales de las imágenes en la página: en un Chrome real en 4G se evitarían ~4 de 16 descargas de portadas en la Home de escritorio (~25 %), ~8 de 16 en la Home mobile (~50 %) y ~4 de 16 en "Todos los eventos" mobile; en escritorio esa página entra casi entera en pantalla y no ahorra nada. Las portadas pesan ~70 KB cada una, o sea ~0,3 MB (escritorio) a ~0,55 MB (mobile) menos en la Home.
+  - **Hallazgo — el peso real está en el banner:** de los ~3,5 MB que descarga la Home, **~2,3 MB son `ticket2.png`** (el banner del hero, 2375 KB); las 16 portadas de eventos suman ~1,1 MB. Ese mismo PNG es el fondo de los 3 logins (`AuthBackground`), así que cada pantalla de login también baja 2,3 MB para mostrar una textura que se ve difuminada y atenuada. Comprimirlo (WebP/JPG a un tamaño acorde) ahorraría mucho más que todo el diferido de portadas y no cambiaría cómo se ve. No se tocó en esta sub-fase porque es un asset de diseño elegido por el usuario; quedó como **9.3b** (resuelta abajo).
+
+### 9.3b — Compresión del banner `ticket2.png` ✅
+Aprobada por el usuario. El banner (`ticket2.png`: 1825×862, RGB sin transparencia, 2375 KB) es el fondo del hero de la Home y de los 3 logins, y siempre se ve difuminado y atenuado.
+- **Qué se hizo:** se generó `frontend/public/ticket2.webp` (mismo tamaño en píxeles, WebP calidad 82, **166 KB: el 7 % del original**) y se apuntaron a él las dos referencias (`ListingPage` y `AuthBackground`). **El original no se tocó**: sigue intacto en `media/ticket2.png`. Se retiró `frontend/public/ticket2.png`, que era una copia byte a byte idéntica de ese original (mismo hash) y, al no estar referenciada, habría seguido viajando en cada build.
+- **Por qué WebP y no AVIF:** AVIF pesaba menos (95 KB a q50, 150 KB a q65), pero Safari anterior a 16.4 no lo abre; WebP lo soporta todo navegador actual. Se probaron WebP q55–q90, JPEG q70–q88 y AVIF; a q82 el WebP pesa 166 KB contra 187 KB del JPEG q70 y 235 KB del JPEG q80, con mejor calidad.
+- **Calidad medida, no supuesta:** contra el PNG original el WebP q82 da 40,0 dB de PSNR en crudo (indistinguible a simple vista) y **53,2 dB tal como se ve en pantalla** (difuminado). Capturas reales antes/después en 6 casos (Home en oscuro y claro, Home mobile, y los 3 logins en desktop/mobile y ambos temas): la diferencia de píxeles en la zona del banner es de **58 a 66 dB, con un máximo de 1 a 4 sobre 255**. Un solo caso (`home-desktop-dark`) figuraba en 39 dB, pero todas las diferencias estaban en las filas 614–640, que es el borde del carrusel de Destacados (se desplaza solo cada 2,2 s y en cada corrida quedó en otra posición); excluyendo esa franja da 60,8 dB. Se miraron las dos capturas y son idénticas.
+- **Resultado medido (mismo script, mismo servidor):** el banner pasó de **2375 KB a 166 KB en las 6 pantallas** (−93 %). Cada pantalla de login baja de 2,3 MB a 0,16 MB en total. La Home, que bajaba ~3,5 MB de imágenes, baja ahora ~1,3 MB (−63 %; dato derivado: 3504 − 2375 + 166 KB), mucho más de lo que ahorraba todo el `lazy` de la 9.3 junto. La suite completa (101 tests), el typecheck, el lint y el build siguen verdes, y `dist` ya no incluye el PNG.
+- **Convención para assets nuevos:** los originales se guardan en `media/`; la app sirve versiones optimizadas desde `frontend/public/`. Recomprimir con Pillow: `Image.open("media/x.png").convert("RGB").save("frontend/public/x.webp", "WEBP", quality=82, method=6)`.
+- **Observación (sin tocar):** `frontend/public/` todavía tiene `ticket.png` (1655 KB, el banner anterior) y `fiesta.jpg` (110 KB), que no referencia nada en `src/` ni en `index.html`. No afectan lo que descarga el usuario, pero sí el tamaño de cada build/deploy (~1,7 MB). Son assets de otra sesión de diseño; conviene sacarlos de `public/` (quedan sus originales en `media/`) si confirmás que ya no se usan.
+
+### 9.4 — `ConfirmDialog` propio en lugar de `window.confirm` 🟡 ✅
+Hay 6 `window.confirm` (cartel nativo del navegador) en acciones destructivas, que rompen el diseño: `admin/UsersPage.tsx:98` (eliminar usuario), `admin/EventsPage.tsx:48` (eliminar evento), `organizador/DashboardPage.tsx:59` y `EventoDetallePage.tsx:61` (cancelar evento), `EditEventPage.tsx:187` (eliminar tanda), `StaffMgmtPage.tsx:63` (resetear contraseña).
+- Componente `components/ConfirmDialog.tsx` con los tokens de `docs/tecnica/DESIGN.md`, variante destructiva (rojo), `role="alertdialog"`, cierre con Escape / click afuera, foco inicial en "Cancelar".
+- API con promesa (`const ok = await confirm({...})`) vía un provider/hook `useConfirm()`, para que cada llamada cambie en una sola línea.
+- Test del componente (confirmar → `true`; cancelar/Escape → `false`) y el patrón documentado en `docs/tecnica/DESIGN.md` → Component Patterns.
+- **Resultado:** hecho, con estos desvíos respecto al plan:
+  - **Se cubrieron los tres tipos de cartel nativo, no solo `confirm`.** Al relevar apareció además un `window.prompt` (Admin → cambiar contraseña de un usuario) y un `window.alert` (Organizador → mostrar la contraseña temporal de un staff). En lugar de un `ConfirmDialog` aislado se hizo un sistema único: `useDialog()` → `{ confirm, alert, prompt }` (`lib/dialogs.ts`, contexto + hook) y `components/DialogProvider.tsx` (el componente), separados para no sumar otro warning de hot-reload como los de `auth.tsx`/`theme.tsx`. Ya no queda ningún `window.confirm/alert/prompt` en `src/`.
+  - 8 llamados migrados: eliminar evento y eliminar usuario (Admin), cambiar contraseña con validación de mínimo 8 (Admin, ahora un `prompt` con input `password`), cancelar evento (Dashboard y Detalle del Organizador, con "No, volver" como botón de salida porque "Cancelar" sería ambiguo), eliminar tanda (Editar evento), y resetear contraseña de staff (un `confirm` y un `alert` con la contraseña y botón **Copiar**, que antes era un texto en un cartel nativo).
+  - Comportamiento: foco inicial en "Cancelar" si es destructivo (un Enter distraído no borra), Tab atrapado dentro del diálogo, Escape y clic afuera cancelan, scroll del fondo bloqueado, el foco vuelve al botón que lo abrió, y varios pedidos simultáneos se muestran de a uno en orden. Patrón documentado en `docs/tecnica/DESIGN.md` → Component Patterns → Dialogs.
+  - **Tests:** 18 nuevos (48/48 en total): 15 del componente (confirm/alert/prompt, Escape, clic afuera y dentro del panel, variante destructiva, foco inicial y restauración, trampa de Tab en ambos sentidos, scroll, cola, copiar al portapapeles, validación del prompt, error fuera del provider) y 2 de integración en `UsersPage` (eliminar solo borra si se confirma; cambiar contraseña no llama a la API con menos de 8 caracteres). Los 4 tests previos de `UsersPage` se adaptaron a renderizar dentro de `<DialogProvider>`.
+  - **Verificado en el navegador contra el backend real**, con un organizador y un staff de prueba propios para no tocar las cuentas demo: la contraseña cambiada por el `prompt` realmente funciona (re-login con la nueva), Escape y clic afuera no borran al usuario y confirmar sí, el reseteo de staff muestra la contraseña y **Copiar** la deja en el portapapeles, cancelar un evento desde el Dashboard no cancela nada al cerrar con clic afuera, y eliminar una tanda la deja intacta al cancelar. En mobile los diálogos caben en pantalla y los botones se apilan a todo el ancho. Sin errores de consola y sin ningún cartel nativo disparado (se escuchó el evento `dialog` de Playwright y dio 0). Se revisaron capturas en oscuro y claro, desktop y mobile.
+  - Nota de verificación: el panel arranca con opacidad 0 (`animate-fade-in-up`); una captura tomada justo al abrir lo muestra apagado. No es un defecto — hay que esperar ~500 ms antes de sacar la captura.
+  - **Gap de backend encontrado y corregido:** al verificar esta sub-fase apareció que `movimientos_credito` (y también `transacciones_credito` y `tokens_recuperacion`) no tiene clave foránea hacia el usuario, así que eliminar un Organizador desde Admin dejaba su historial de créditos suelto en la base (probado con la cuenta de prueba: 1 movimiento de bienvenida huérfano, más 7 de agosto de verificaciones anteriores). Se corrigió en `AdminUsuarioService.eliminarUsuario`: bloquea (409) borrar un Organizador con compras de créditos aprobadas —son registros de pago— y, si no las tiene, borra su historial de créditos, sus transacciones sin completar y sus tokens de recuperación junto con la cuenta. Detalle, tests y verificación contra Postgres en `docs/tecnica/backend_implementation_plan.md` → Fase 12 → "Corrección posterior"; los 7 huérfanos viejos se repararon por SQL.
+  - **Accesibilidad corregida — tarjetas del Dashboard del Organizador:** la observación inicial era más grave de lo que parecía. No era solo el ícono de cancelar: la tarjeta entera era un `<button>` que contenía **tres** `<span role="button" tabIndex={-1}>` (ver página pública, editar, cancelar), ninguno alcanzable con teclado, y además un control dentro de un `<button>` es HTML inválido. Se reestructuró con el patrón de "enlace extendido": la tarjeta es un contenedor, el botón principal la cubre con `::after` y las tres acciones son `<button>` reales por encima (`z-10`), con `aria-label` con el nombre del evento, anillo de foco visible y el de cancelar deshabilitado mientras se cancela. Verificado en mobile y desktop: 0 botones anidados y 0 `span[role=button]`, el mouse se comporta igual (clic en el cuerpo → detalle, en el lápiz → editar sin pasar por el detalle), Tab recorre Ver página pública → Editar → Cancelar, Enter sobre Cancelar abre el diálogo, Escape no cancela nada y el foco vuelve al botón.
+  - Las cuentas de prueba se limpiaron al terminar: el organizador descartable lo borró el propio flujo de eliminar, y el staff (no hay endpoint de borrado) se eliminó por SQL con condiciones por id y email.
+
+### 9.5 — Errores silenciosos y cobertura de tests 🟢 ✅
+- `StaffMgmtPage.tsx:35`: si falla la carga de eventos, hoy el `.catch(() => {})` deja el selector "Evento asignado" vacío sin explicación → mostrar un aviso. Los `.catch` silenciosos de stats/paquetes en `ListingPage` se dejan: ahí ocultar la sección es el comportamiento correcto.
+- Tests nuevos para las pantallas con más lógica de negocio y hoy sin cobertura, siguiendo el patrón ya establecido (mock de `api`): `WizardPage` (fecha en el pasado, validaciones de tandas), `EditEventPage` (carga, guardado, eliminar tanda con confirmación) y `EventoDetallePage` (render + cancelar evento).
+- **Resultado:** hecho. La suite pasó de 48 a **101 tests** (10 archivos), typecheck, lint (solo los 3 warnings conocidos) y build limpios.
+  - **Aviso en Staff:** el `.catch(() => {})` de `StaffMgmtPage` era más serio de lo que decía el plan. Desde que el evento asignado es obligatorio para ambos roles, si fallaba la carga de eventos el selector quedaba vacío y el formulario no se podía enviar, sin ninguna explicación. Ahora el selector se deshabilita y aparece un aviso ("No pudimos cargar tus eventos, y sin elegir uno no se puede agregar staff") con un botón **Reintentar** que vuelve a pedirlos; el listado de staff sigue funcionando aunque fallen los eventos. Verificado en el navegador real simulando la caída de `GET /eventos` (desktop y mobile): aparece el aviso, al recuperarse el backend y reintentar desaparece y el selector se llena con los 21 eventos.
+  - **Tests nuevos (53):** `WizardPage` (19: el validador de tandas `validarTandaContraEvento` caso por caso, fecha en el pasado, alta del borrador con el payload exacto, reanudar con `PUT` en vez de crear otro, sin créditos, cierre de venta el mismo día del evento a la hora del evento, éxito con créditos consumidos/saldo restante y error de publicación), `EditEventPage` (13: Organizador vs Admin usan `/eventos/*` vs `/admin/eventos/*`, evento cancelado no editable, guardar datos, fecha en el pasado, "el cupo no puede bajar de lo ya vendido", alta/edición de tandas, y los tres caminos de eliminar tanda: nueva sin guardar, cancelar y confirmar), `EventoDetallePage` (13: métricas y tabla por tanda, compradores ordenados, filtros por texto/estado/canal, borrador y cancelado, y cancelar el evento con confirmación, toast y recarga) y `StaffMgmtPage` (8: el aviso con reintento y el reseteo de contraseña con el diálogo nuevo y el botón Copiar).
+  - **Los tests no son vacíos:** se comprobó por mutación — al sacar el arreglo de `StaffMgmtPage` fallan exactamente los 3 tests del aviso y pasan los otros 5 (los de comportamiento que no cambió).
+  - Dos tests fallaron la primera vez por errores de los propios tests, no de la app (la primera tanda del Wizard viene con "Anticipada" precargado y mi helper escribía encima; y un texto mal copiado). Se corrigieron los tests; que el primero se detectara confirma que verifican el payload real.
+  - Detalle de implementación para tests futuros: `MapPicker`/`MapView` (Leaflet) y `recharts` se mockean (jsdom no tiene layout); `useAuth` se mockea cuando la pantalla depende del rol; las pantallas que usan `useDialog()` se renderizan dentro de `<DialogProvider>`.
+
+**Fuera de alcance (a propósito):** los 3 warnings de lint `only-export-components` (solo afectan el hot-reload en desarrollo, no la app), las 2 vulnerabilidades moderadas de `npm audit` (tema aparte, se evalúa por separado) y los colores hardcodeados del panel de marca del login de Organizador (fijo en oscuro por diseño, documentado en el propio código).
+
+---
+
+**Orden de ejecución recomendado:** 1 → 2 → 3 → 4 → 5 → 6 → (7). La Fase 1 es la única bloqueante real — nada del resto se puede hacer sin cliente API y sesión real. La Fase 2 (Comprador) va segunda a propósito: es el flujo con menos fricción (sin auth) para validar que el patrón cliente-API + loading/error funciona antes de meterse con los tres sistemas de login falsos de las Fases 3-5.
+
+---
+
+## Fase 10: Pedidos del cliente para el jueves (Organizador y Admin) ✅
+**Objetivo:** Cerrar los pedidos de la demo, en orden de prioridad. Cada sub-fase se marca ✅ recién cuando queda verificada (en el navegador, contra el backend real) y, si corresponde, commiteada. Las sub-fases del backend tienen su contraparte en `docs/tecnica/backend_implementation_plan.md` → Fase 18.
+
+### 10.1 — Imágenes de portada con Cloudinary ✅ (commit `7b64cf4`, pusheado)
+- Crear y Editar evento: el campo de link se reemplazó por el componente `ImagenPortadaField` (botón "Cargar imagen", "Cambiar", "Quitar", vista previa, estados de carga y error). El archivo se sube a `POST /eventos/imagenes` y se guarda la URL devuelta.
+- `api.upload()` en `lib/api.ts` envía `FormData` sin forzar `Content-Type` JSON.
+- Verificado en el navegador desde el formulario real, en mobile y desktop, sin errores de consola ni scroll horizontal. Las imágenes de prueba se borraron de Cloudinary.
+- Pendiente menor: `ImagenPortadaField` no tiene test unitario (la subida se verificó en el navegador). Se agrega en la próxima tanda de tests del frontend.
+
+### 10.2 — Admin: quitar "Cambiar Rol" y ajustar la sidebar ✅
+- Quitar el botón "Cambiar Rol" de la gestión de usuarios.
+- Sidebar del Admin igual a la del Organizador: nombre del administrador fijo abajo a la izquierda y botón de cerrar sesión arriba a la derecha.
+- Hecho: se quitó el ítem del menú ··· de Usuarios, la función `changeRole` y el tipo `ReasignarRolRequestDTO`. El filtro por rol de la tabla se mantiene.
+- Sidebar del Admin: nombre fijo abajo a la izquierda (sin botón) y "Salir" arriba a la derecha, igual que en Organizador.
+- Verificado en el navegador contra el backend real, desktop y mobile: sin "Cambiar Rol", con "Cambiar contraseña", sin scroll horizontal de página. Tests 101/101, typecheck y build limpios.
+- docs/tecnica/DESIGN.md actualizado (la lista del menú de Usuarios).
+
+### 10.3 — Mis eventos: orden y filtros ✅ (pendiente de commit)
+- Hecho: el orden lo define el backend (18.4), del más nuevo al más antiguo. El frontend ya no reordena por estado y fecha del evento, como hacía antes.
+- Filtros: búsqueda por nombre o lugar y filtro por estado (Publicados, Borradores, Cancelados). El contador muestra "N de total" cuando hay filtros activos, y un mensaje si no hay coincidencias.
+- Filtro por fecha del evento: no se hizo. `DateRangeFilter` quedó para otra pantalla si hace falta.
+- Verificado en el navegador contra el backend real, desktop y mobile: el orden visible coincide con la API, la búsqueda y el filtro funcionan y no hay scroll horizontal.
+- Tests unitarios pendientes, registrados en la Fase 19.6 de `docs/tecnica/backend_implementation_plan.md`.
+
+### 10.4 — Menú de perfil del organizador ✅ (pendiente de commit)
+- **Sidebar (desktop):** el nombre abajo a la izquierda es un acceso a "Mi perfil", con la foto o la inicial. Queda fijo abajo aunque la lista de eventos crezca.
+- **Mobile:** "Perfil" es la quinta pestaña de la barra inferior (no se usó un botón flotante: tapaba el título de cada página, ver 19.7).
+- **Página `/organizador/perfil`:** dos tarjetas. "Datos del perfil" (foto con `ImagenPortadaField` en variante avatar, nombre editable y email de solo lectura) y "Cambiar contraseña" (actual, nueva y repetición, con validación de 8 caracteres y de coincidencia antes de llamar a la API).
+- Al guardar, la sesión se actualiza con el nombre y la foto nuevos, así la sidebar cambia sin volver a iniciar sesión.
+- **Verificado en el navegador contra el backend real**, desktop y mobile: subir foto, guardar nombre, la sidebar muestra la foto, contraseña mal (cartel del backend) y contraseña bien (toast). Sin errores de consola y sin scroll horizontal. Cuentas y fotos de prueba borradas al final.
+- Tests unitarios de la página pendientes, registrados en 19.6.
+### 10.5 — Recuperar contraseña y Mailhog ✅
+- Pantalla `/organizador/recuperar-password?token=...` (de `feature-mailhog`): valida 8 caracteres, botón deshabilitado si no se cumple, error del backend si el token expiró o ya se usó, y cartel de éxito con link al login.
+- Página `/mi-entrada?codigoQr=...`: carga la entrada sin login, para el botón "Ver mi entrada" del mail de confirmación.
+- El pedido de recuperación ya existía en los logins (`recoverySent`), reutilizado tal cual.
+- **Verificado en el navegador** con un link real salido de un mail real (MailHog), desktop y mobile: sin errores de consola ni scroll horizontal.
+
+### 10.6 — Métricas del Dashboard del organizador ✅ (pendiente de commit)
+- Una sola llamada a `/eventos/resumen` (18.8), en lugar de una por evento.
+- Fila de ventas: entradas vendidas, ingresos y validadas en puerta (solo si hay eventos publicados).
+- Fila de créditos: disponibles, usados y próximo evento ("Hoy", "Mañana" o "En N días", con el nombre debajo).
+- **Verificado en el navegador**, desktop y mobile: valores del backend, sin errores ni scroll horizontal.
+- Decisión a confirmar: "Créditos usados" es neto (las devoluciones de tandas restan). Si el cliente prefiere el bruto, es un cambio de una línea en el backend.
+
+### 10.7 — Créditos: límite de entradas por tanda ✅
+- **Wizard (Crear evento):** el aviso muestra los créditos disponibles para entradas y el costo reservado de publicar. Si la suma de los cupos supera lo disponible, aparece el mensaje en rojo y se bloquea "Publicar evento".
+- **Editar evento:** una tanda nueva consume todo su cupo; una existente, solo la diferencia si sube el cupo. Si supera lo disponible, aviso debajo de la tanda y se bloquea "Guardar tanda".
+- **Billetera:** los movimientos nuevos tienen etiqueta ("Entradas de tanda", "Devolución de tanda").
+- **Textos:** el costo de publicar ya no está fijo en 1 (ver 19.8).
+- **Verificado:** en el navegador, desktop y mobile, el aviso aparece en el paso de tandas con los valores del backend, sin errores ni scroll horizontal. Tests: `WizardPage` (+1 caso), `EditEventPage` (mocks por ruta, sin cambios en los casos). Suite completa: 102/102.
+- Commit pendiente de confirmación.
+
+---
+
+## Retomar aca (estado al cierre de la sesion del 2026-10-06)
+
+**Hecho y pendiente de push/commit al cerrar:** ver los commits de la sesion. Todo lo de la Fase 10 y la Fase 18 queda terminado excepto lo que sigue.
+
+**Lo que falta:**
+1. **10.5 / 18.6 — Recuperar contrasena y Mailhog: hecho** (ver mas arriba). Se integro `feature-mailhog` de un companero de equipo y se verifico de punta a punta.
+2. **Decision pendiente: cancelar un evento no devuelve los creditos de sus tandas.** Hoy no se devuelve nada. Confirmar con el cliente.
+3. **Docker Desktop no arranca en esta maquina** por falta de virtualizacion (BIOS) y de "Plataforma de maquina virtual" en Windows. Si se quiere usar `docker-compose.yml` en vez del ejecutable standalone de MailHog, hay que habilitar la virtualizacion en la BIOS/UEFI y reiniciar.
+4. **Commits:** confirmar el contenido de cada commit antes de pushear (regla de `CLAUDE.md`).
+5. Con esto se completan todas las fases 10 y 18 planificadas. Falta decidir que sigue (ver "Pendiente de decision" en la Fase 18.7 y cualquier pedido nuevo del cliente).
+
+**Decisiones tomadas que conviene validar con el cliente:**
+- Reserva del costo de publicar: las entradas se limitan a `saldo - costo de publicar`.
+- "Creditos usados" en el Dashboard es neto (las devoluciones restan).
+
+**Antes de levantar el proyecto manana:**
+- Correr la migracion `backend/db/migraciones/2026-10-06-tipos-movimiento-tanda.sql` si la base es distinta a la de desarrollo de hoy (ya aplicada aca).
+- Cargar las variables `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y `CLOUDINARY_API_SECRET` en el entorno antes de `mvn spring-boot:run`.
+- Si queda una instancia vieja del backend en el 8080, cerrarla (ver 19.5).
+
+---
+
+## Fase 11: Correcciones del testeo manual del cliente ✅
+**Objetivo:** ver `docs/tecnica/backend_implementation_plan.md` → Fase 20 para el detalle completo de cada punto.
+
+### 11.1 — Componente único `EventoImagen`, con SVG de respaldo ✅
+- Antes cada pantalla resolvía "sin imagen" a su manera (algunas con ícono, otras con gradiente liso, otras sin nada), y ninguna reaccionaba si la URL existía pero la imagen no cargaba (quedaba el ícono roto del navegador).
+- `components/EventoImagen.tsx`: recibe `src`, `className` (mismo tamaño/bordes para la imagen real y el respaldo, sin salto de layout) y `iconSize`. Si no hay `src`, o si el `<img>` dispara `onError`, muestra un ícono (`ImageOff` de lucide) sobre el mismo degradé que ya se usaba.
+- Reemplazó los 9 lugares que mostraban la portada de un evento: `ListingPage` (x2), `AllEventsPage`, `DetailPage`, `CheckoutPage`, `TicketPage`, `DashboardPage`, `EventoDetallePage`, `EventsPage` (Admin).
+- **Verificado en el navegador** con un evento real con URL rota y otro sin imagen, en el listado público, el detalle público, el Dashboard del Organizador y el listado del Admin. Las dos imágenes de prueba se restauraron a su URL original al terminar.
+- Tests unitarios de `EventoImagen` pendientes (mismo criterio que 19.6 — se cierran en la próxima tanda de tests del frontend).
+
+### 11.2 y 11.3 — Borrado en Cloudinary (perfil y portada de evento) ✅
+- Backend puro — nada que cambiar en el frontend, los botones "Cambiar imagen/foto" y "Quitar" ya llaman a los mismos endpoints de siempre.
+
+### 11.4 — Un solo mail por compra múltiple ✅
+- Ver Fase 20.4 del plan de backend para el detalle y la verificación completa.
+- `CheckoutPage`: al terminar el loop de compras (incluido el camino donde falla a mitad de camino y ya se compraron algunas), llama una vez a `POST /tickets/confirmar-compra` con los códigos QR de todas las entradas. Si ese llamado falla, no bloquea la navegación: las entradas ya son válidas y se ven en pantalla igual, solo no llegaría el mail (best-effort).
+
+---
+
+## Fase 12: Adaptar el frontend a MercadoPago real ✅
+
+**Hecho y verificado end-to-end** (sesión del 2026-10-15, rama `feature-mercadopago`, commits `54f8e29` y `3220d57`) contra el backend real y el sandbox real de MercadoPago — compra de entradas y de créditos, pago aprobado, webhook procesado (con idempotencia confirmada: el mismo pago avisado dos veces solo se acredita una) y entrada/saldo reflejados en la UI.
+
+### Cambios de contrato (backend → frontend)
+- `POST /tickets/comprar-online` recibe **`cantidad`** (1–20) además de `idTanda`, `nombreComprador`, `emailComprador`, y devuelve `{ ordenId, urlPago, mensaje }` donde `ordenId` es un **UUID (string)** y `urlPago` es el `init_point`/`sandbox_init_point` de MercadoPago. `POST /creditos/comprar` devuelve lo mismo (`ordenId` pasó de número a string).
+- **Una sola llamada por compra** (ya no un `for` de `qty` llamadas): `cantidad: qty`. El total lo calcula el backend (precio × cantidad).
+- Ya **no** se llama a `/tickets/webhook/pago`, `/creditos/webhook/pago` ni `/tickets/confirmar-compra`: la confirmación y el mail los hace el backend cuando MercadoPago avisa.
+
+### Qué se hizo
+1. `CheckoutPage`: envía `cantidad` en una sola llamada y hace `window.location.href = urlPago` para redirigir a MercadoPago. Se sacó el loop de `qty` llamadas, la navegación inmediata a `/ticket/:id` y `enviarMailConfirmacion`.
+2. `WalletPage` (`handleComprar`): redirige a `urlPago` en vez de llamar al webhook simulado y recargar.
+3. Ruta nueva `/pago/resultado?ref=<uuid>&tipo=entradas|creditos` (`PagoResultadoPage`): consulta `GET /tickets/orden/{uuid}` o `GET /creditos/orden/{uuid}` (gap de backend encontrado y corregido en el camino, ver Fase 21.6 del plan de backend) y hace *polling* cada 2.5 s (máx. 8 intentos) mientras la orden siga `Pendiente`, porque el aviso de MP puede llegar después de que el comprador vuelve.
+4. Aprobado de entradas: lista las entradas de la orden con link a `/mi-entrada?codigoQr=...` (su QR real); aprobado de créditos: muestra el monto acreditado y vuelve a la billetera.
+5. Adaptaciones respecto al plan original:
+   - No se tocó `POST /tickets/confirmar-compra` (seguía sin uso desde antes; no bloqueaba esta fase).
+   - **Sin HTTPS en local, MercadoPago no muestra ningún botón de "Volver al sitio"** (ni con `auto_return` ni el manual) — no es un bug, ver `docs/proyecto/DECISIONES.md`. La verificación manual se hizo navegando directo a `/pago/resultado?ref=...` con el `externalReference` logueado por el backend.
+   - Gap real encontrado en el backend: faltaban los endpoints de estado de orden (`GET /tickets/orden/{uuid}`, `GET /creditos/orden/{uuid}`) — se agregaron correctamente del lado del backend (DTOs propios, sin exponer entidades), no se parcheó desde el frontend.
+   - Bug real de backend encontrado y corregido de paso: con credenciales de usuario de prueba, MercadoPago solo completa el pago en `sandbox_init_point`, no en `init_point` (que se usaba siempre) — ver `docs/proyecto/DECISIONES.md`.
+6. Probado de punta a punta con el flujo de la **Fase 21** (backend real + ngrok + usuario de prueba comprador de MP, login real — "pagar con tarjeta como invitado" no funciona con estas credenciales, ver `docs/proyecto/DECISIONES.md`) en desktop. Mobile no se re-verificó en esta sesión (la pantalla ya tenía breakpoints `md:`/`lg:` desde que se creó).
+
+## Fase 13: Pago en pestaña nueva cuando no hay HTTPS ✅
+**Objetivo:** poder mostrar la compra completa en local. Sin HTTPS, MercadoPago no ofrece ninguna forma de volver al sitio después de pagar (ver Fase 12 y `docs/proyecto/DECISIONES.md`), y la app se va a mostrar sin desplegar.
+
+### Qué se hizo
+1. `lib/pago.ts` (nuevo): `iniciarPago()` abre una pestaña en blanco en el mismo click, crea la orden y le carga la URL de MercadoPago. Solo en `http`; con HTTPS redirige en la misma pestaña como antes. Si el navegador bloquea la pestaña cae a la redirección normal, y si el backend falla cierra la pestaña en blanco.
+2. `CheckoutPage` y `WalletPage`: usan `iniciarPago()` y, si el pago quedó en otra pestaña, navegan a `/pago/resultado` con la referencia de la orden.
+3. `PagoResultadoPage`: la espera pasó de 8 intentos cada 2,5 s a 150 cada 4 s (10 minutos), reconsulta al instante cuando la pestaña recupera el foco, tolera un fallo suelto de red sin cortar la espera, y al agotarse ofrece "Volver a consultar". Si llegó por el flujo de pestaña nueva lo dice y deja reabrir MercadoPago.
+4. `types.ts`: `IniciarCompraCreditoResponseDTO.ordenId` estaba tipado como `number`; el backend manda el UUID como string.
+
+### Adaptaciones y notas
+- Sin cambios de backend: las dos respuestas de inicio de compra ya traían la referencia de la orden en `ordenId`.
+- Tests nuevos: `lib/pago.test.ts` (6) y `PagoResultadoPage.test.tsx` (5), que no tenía ninguno.
+- Verificado en vivo con Playwright en desktop y mobile, para entradas y créditos: se abre el checkout del sandbox en la pestaña nueva y la original queda esperando. El paso a "aprobado" se probó simulando la respuesta de estado de la orden; **el pago real con el usuario comprador de prueba queda por hacer a mano** (requiere login en MercadoPago).

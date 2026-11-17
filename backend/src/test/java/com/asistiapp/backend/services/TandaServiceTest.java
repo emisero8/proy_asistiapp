@@ -18,8 +18,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -152,6 +154,91 @@ class TandaServiceTest {
 
         verify(creditoLedgerService).registrarDevolucionTanda(organizador, 3, ID_EVENTO);
         verify(creditoLedgerService, never()).registrarConsumoTanda(any(), anyInt(), any());
+    }
+
+    // ── Tanda de cortesía (8.10) ────────────────────────────
+
+    @Test
+    void crearTanda_soloEmision_guardaElFlagConPrecioCeroYConsumeCreditosComoCualquierOtra() {
+        stubOrganizadorYEvento();
+        when(tandaRepository.save(any(Tanda.class))).thenAnswer(inv -> inv.getArgument(0));
+        TandaRequestDTO dto = dto(4);
+        dto.setNombre("Prensa");
+        dto.setSoloEmision(true); // el precio que llegue se ignora
+
+        var respuesta = tandaService.crearTanda(ID_EVENTO, dto, ID_ORG);
+
+        assertThat(respuesta.isSoloEmision()).isTrue();
+        assertThat(respuesta.getPrecio()).isZero();
+        verify(creditoLedgerService).registrarConsumoTanda(organizador, 4, ID_EVENTO);
+    }
+
+    @Test
+    void crearTanda_sinIndicarSoloEmision_esUnaTandaDeVentaNormal() {
+        stubOrganizadorYEvento();
+        when(tandaRepository.save(any(Tanda.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var respuesta = tandaService.crearTanda(ID_EVENTO, dto(4), ID_ORG);
+
+        assertThat(respuesta.isSoloEmision()).isFalse();
+        assertThat(respuesta.getPrecio()).isEqualTo(1000.0);
+    }
+
+    @Test
+    void actualizarTanda_cambiarSiEsSoloEmisionConEntradasVendidas_lanzaBusinessRuleException() {
+        stubOrganizadorYEvento();
+        when(tandaRepository.findById(ID_TANDA)).thenReturn(Optional.of(tandaExistente(6, 4)));
+        TandaRequestDTO dto = dto(6);
+        dto.setSoloEmision(true);
+
+        assertThatThrownBy(() -> tandaService.actualizarTanda(ID_EVENTO, ID_TANDA, dto, ID_ORG))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("ya tiene entradas");
+        verify(tandaRepository, never()).save(any());
+    }
+
+    @Test
+    void actualizarTanda_cambiarSiEsSoloEmisionSinVentas_lo_permite() {
+        stubOrganizadorYEvento();
+        when(tandaRepository.findById(ID_TANDA)).thenReturn(Optional.of(tandaExistente(6, 6)));
+        when(tandaRepository.save(any(Tanda.class))).thenAnswer(inv -> inv.getArgument(0));
+        TandaRequestDTO dto = dto(6);
+        dto.setSoloEmision(true);
+
+        var respuesta = tandaService.actualizarTanda(ID_EVENTO, ID_TANDA, dto, ID_ORG);
+
+        assertThat(respuesta.isSoloEmision()).isTrue();
+        assertThat(respuesta.getPrecio()).isZero();
+    }
+
+    @Test
+    void eliminarTanda_laUltimaDeVentaDeUnEventoPublicado_lanzaBusinessRuleException() {
+        // Hay otra tanda, pero es de cortesía: no se puede vender nada si se borra la de venta.
+        evento.setEstado(EstadoEvento.Publicado);
+        when(eventoRepository.findById(ID_EVENTO)).thenReturn(Optional.of(evento));
+        Tanda cortesia = tandaExistente(2, 2);
+        cortesia.setId(99L);
+        cortesia.setSoloEmision(true);
+        when(tandaRepository.findById(ID_TANDA)).thenReturn(Optional.of(tandaExistente(6, 6)));
+        when(tandaRepository.findByEventoId(ID_EVENTO)).thenReturn(List.of(tandaExistente(6, 6), cortesia));
+
+        assertThatThrownBy(() -> tandaService.eliminarTanda(ID_EVENTO, ID_TANDA, ID_ORG))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("tanda de venta");
+        verify(tandaRepository, never()).delete(any(Tanda.class));
+    }
+
+    @Test
+    void eliminarTanda_deCortesiaEnEventoPublicado_lo_permite() {
+        evento.setEstado(EstadoEvento.Publicado);
+        stubOrganizadorYEvento();
+        Tanda cortesia = tandaExistente(2, 2);
+        cortesia.setSoloEmision(true);
+        when(tandaRepository.findById(ID_TANDA)).thenReturn(Optional.of(cortesia));
+
+        tandaService.eliminarTanda(ID_EVENTO, ID_TANDA, ID_ORG);
+
+        verify(tandaRepository).delete(cortesia);
     }
 
     // ── Eliminar ────────────────────────────────────────────

@@ -1,4 +1,8 @@
 spring:
+  config:
+    # Archivo opcional backend/.env (ignorado por Git) con líneas CLAVE=valor: sirve para tener en un solo lugar
+    # las credenciales locales (SMTP_*, MP_*...). Las variables de entorno reales tienen prioridad sobre este archivo.
+    import: optional:file:.env[.properties]
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/asistiapp_db}
     username: ${DB_USERNAME:postgres}
@@ -20,32 +24,26 @@ spring:
       max-file-size: 5MB
       max-request-size: 5MB
 
-  # ── Gmail SMTP (producción) ──────────────────────────────────────────
-  # Descomentar este bloque y comentar el de MailHog para usar Gmail.
-  # mail:
-  #   host: ${SMTP_HOST:smtp.gmail.com}
-  #   port: ${SMTP_PORT:587}
-  #   username: ${SMTP_USERNAME:tu_email@gmail.com}
-  #   password: ${SMTP_PASSWORD:tu_app_password_aqui}
-  #   properties:
-  #     mail:
-  #       smtp:
-  #         auth: true
-  #         starttls:
-  #           enable: true
-
-  # ── MailHog SMTP (desarrollo local) ────────────────────────────────
-  # MailHog corre en localhost:1025 (SMTP) y localhost:8025 (UI web).
-  # Levantar con:  docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog
+  # ── SMTP (envío de mails) ────────────────────────────────────────────
+  # Por defecto apunta a MailHog (desarrollo local: SMTP en localhost:1025, bandeja en
+  # http://localhost:8025). Para usar Gmail u otro proveedor NO hace falta editar este archivo:
+  # alcanza con definir variables de entorno (las credenciales nunca van en el repo).
+  #
+  #   Gmail:  SMTP_HOST=smtp.gmail.com  SMTP_PORT=587  SMTP_AUTH=true  SMTP_STARTTLS=true
+  #           SMTP_USERNAME=tu_cuenta@gmail.com  SMTP_PASSWORD=<contraseña de aplicación de 16 letras>
+  #   La contraseña de aplicación se genera en la cuenta de Google (requiere verificación en 2 pasos);
+  #   NO sirve la contraseña normal de la cuenta. Gmail envía siempre desde la cuenta autenticada.
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${SMTP_AUTH:false}
           starttls:
-            enable: false
+            enable: ${SMTP_STARTTLS:false}
 
 server:
   port: ${SERVER_PORT:8080}
@@ -70,8 +68,26 @@ app:
     validar-firma-webhook: ${MP_VALIDAR_FIRMA:true}
     # URL pública (HTTPS) del backend a la que MP envía las notificaciones (ngrok en local).
     backend-public-url: ${BACKEND_PUBLIC_URL:http://localhost:8080}
+    # Clave AES-256 (32 bytes en Base64) con la que se cifran en la base los tokens de Mercado Pago de los Organizadores.
+    # El default es PÚBLICO (está en el repo): solo para desarrollo. En producción es obligatoria (MP_TOKEN_ENCRYPTION_KEY).
+    # Generar una: openssl rand -base64 32
+    token-encryption-key: ${MP_TOKEN_ENCRYPTION_KEY:ZGVzYXJyb2xsby1zb2xvLWNsYXZlLXB1YmxpY2EtMzI=}
+    # OAuth de marketplace (8.4): cada Organizador vincula su cuenta y el dinero cae en ella.
+    oauth:
+      client-id: ${MP_OAUTH_CLIENT_ID:}
+      client-secret: ${MP_OAUTH_CLIENT_SECRET:}
+      # URL pública (HTTPS) del backend a la que vuelve Mercado Pago; tiene que estar cargada igual en la app de MP.
+      redirect-uri: ${MP_OAUTH_REDIRECT_URI:}
+      authorization-url: ${MP_OAUTH_AUTHORIZATION_URL:https://auth.mercadopago.com/authorization}
+      token-url: ${MP_OAUTH_TOKEN_URL:https://api.mercadopago.com/oauth/token}
     # Minutos que una orden queda abierta para pagar antes de vencer.
     minutos-vencimiento-orden: ${MP_MINUTOS_VENCIMIENTO:30}
+    # Cobrar las entradas con la cuenta de cada Organizador y exigir que la vincule para publicar (8.5).
+    # DEJAR EN true: solo se apaga en local o en la suite e2e, donde no hay una cuenta real que vincular.
+    exigir-cuenta-vinculada: ${MP_EXIGIR_CUENTA_VINCULADA:true}
+    # Cada cuántos segundos, como mucho, se consulta a MercadoPago por una misma orden cuando el
+    # comprador mira el estado de su pago (el resto de las consultas se responde desde la base).
+    intervalo-reconciliacion-segundos: ${MP_INTERVALO_RECONCILIACION_SEGUNDOS:10}
   jwt:
     # Sin variable de entorno JWT_SECRET seteada, cae al valor de desarrollo de abajo.
     # NUNCA usar ese default en producción — es público (está en el repo).
@@ -80,6 +96,17 @@ app:
   cors:
     # Orígenes permitidos del Frontend, separados por coma. Ajustar por entorno.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+  rate-limit:
+    # Cuántos proxies/balanceadores PROPIOS hay delante del backend (nginx, etc.). Con 0 se cuenta
+    # a cada cliente por la IP de su conexión y se ignora el header X-Forwarded-For, que lo puede
+    # inventar cualquiera. Si se despliega detrás de un proxy, ponerlo en su cantidad (normalmente 1);
+    # si no, todos los usuarios compartirían la IP del proxy y el mismo límite.
+    proxies-confiables: ${RATE_LIMIT_PROXIES_CONFIABLES:0}
+  admin-inicial:
+    # Primer Administrador (solo se crea si no existe ninguno). Sin password: en desarrollo se usa una
+    # de desarrollo pública; con el perfil "prod" no se crea nada. Ver AdminInicialSeeder.
+    email: ${ADMIN_INICIAL_EMAIL:}
+    password: ${ADMIN_INICIAL_PASSWORD:}
   frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
 
 logging:

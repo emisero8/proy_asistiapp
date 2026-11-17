@@ -3,8 +3,8 @@ import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate, useParams } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import {
-  ChevronLeft, Pencil, ExternalLink, Ban, Ticket, TrendingUp, Users, ShieldCheck,
-  Search, Store, CreditCard, CheckCircle2, AlertCircle, Download,
+  ChevronLeft, Pencil, ExternalLink, Ban, Trash2, Ticket, TrendingUp, Users, ShieldCheck,
+  Search, Store, CreditCard, CheckCircle2, AlertCircle, Download, Gift,
 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
@@ -12,9 +12,24 @@ import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
+import { EmitirEntradasPanel } from "./EmitirEntradasPanel";
+import { EntradaAcciones } from "./EntradaAcciones";
+import { ReembolsosPanel } from "./ReembolsosPanel";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
 const TANDA_COLORS = ["#4a5d8f", "#9cadd3", "#5b6f9c", "#64748b"];
+
+/** Cómo llegó la entrada, para mostrarlo y exportarlo: lo que emitió el Organizador se distingue de Online/Manual. */
+function etiquetaCanal(e: EntradaResponseDTO): string {
+  if (e.tipoEmision === "Cortesia") return "Cortesía";
+  if (e.tipoEmision === "Pago_Externo") return "Pago externo";
+  return e.canalVenta;
+}
+
+/** Lo que esa entrada le dejó al Organizador: una cortesía no cobró nada. */
+function importeCobrado(e: EntradaResponseDTO): number {
+  return e.tipoEmision === "Cortesia" || e.estado === "Anulada" ? 0 : (e.precioTanda ?? 0);
+}
 
 function formatFechaHora(iso: string): string {
   const d = new Date(iso);
@@ -33,12 +48,15 @@ export function OrganizadorEventoDetallePage() {
   const [entradas, setEntradas] = useState<EntradaResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
+  const [publicando, setPublicando] = useState(false);
+  const [errorPublicar, setErrorPublicar] = useState<string | null>(null);
 
   useDocumentTitle(evento?.nombre);
   const { confirm } = useDialog();
 
   const [q, setQ] = useState("");
-  const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Online" | "Manual">("todas");
+  const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Anulada" | "Online" | "Manual">("todas");
 
   function cargar() {
     if (!id) return;
@@ -66,7 +84,7 @@ export function OrganizadorEventoDetallePage() {
     if (!evento) return;
     const ok = await confirm({
       titulo: "Cancelar evento",
-      mensaje: `¿Cancelar "${evento.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`,
+      mensaje: `¿Cancelar "${evento.nombre}"? Se avisa por email a los compradores y se devuelven los créditos de las entradas sin vender (el costo de publicar no se devuelve).`,
       confirmarTexto: "Cancelar evento",
       cancelarTexto: "No, volver",
       variante: "destructiva",
@@ -81,6 +99,42 @@ export function OrganizadorEventoDetallePage() {
       toast.error(e instanceof ApiError ? e.message : "No pudimos cancelar el evento.");
     } finally {
       setCancelando(false);
+    }
+  }
+
+  async function publicarEvento() {
+    if (!evento) return;
+    setPublicando(true);
+    setErrorPublicar(null);
+    try {
+      await api.patch(`/eventos/${evento.id}/publicar`);
+      toast.success("Evento publicado");
+      cargar();
+    } catch (e: unknown) {
+      setErrorPublicar(e instanceof ApiError ? e.message : "No pudimos publicar el evento.");
+    } finally {
+      setPublicando(false);
+    }
+  }
+
+  async function eliminarBorrador() {
+    if (!evento) return;
+    const ok = await confirm({
+      titulo: "Eliminar borrador",
+      mensaje: `¿Eliminar "${evento.nombre}"? Se borra para siempre y se devuelven los créditos de sus tandas.`,
+      confirmarTexto: "Eliminar borrador",
+      cancelarTexto: "No, volver",
+      variante: "destructiva",
+    });
+    if (!ok) return;
+    setEliminando(true);
+    try {
+      await api.delete(`/eventos/${evento.id}`);
+      toast.success("Borrador eliminado");
+      navigate("/organizador/dashboard");
+    } catch (e: unknown) {
+      toast.error(e instanceof ApiError ? e.message : "No pudimos eliminar el borrador.");
+      setEliminando(false);
     }
   }
 
@@ -109,10 +163,11 @@ export function OrganizadorEventoDetallePage() {
         { header: "Email",        key: "email",       width: 34 },
         { header: "Tanda",        key: "tanda",       width: 22 },
         { header: "Precio",       key: "precio",      width: 14, style: { numFmt: '"$"#,##0' } },
-        { header: "Canal",        key: "canal",       width: 12 },
+        { header: "Canal",        key: "canal",       width: 14 },
         { header: "Estado",       key: "estado",      width: 13 },
         { header: "Fecha Compra", key: "fechaCompra", width: 20, style: { numFmt: "dd/mm/yyyy hh:mm" } },
         { header: "Fecha Uso",    key: "fechaUso",    width: 20, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+        { header: "Motivo",       key: "motivo",      width: 28 },
       ];
 
       // ── Cabecera ─────────────────────────────────────────────
@@ -132,11 +187,12 @@ export function OrganizadorEventoDetallePage() {
           comprador:   e.nombreComprador,
           email:       e.emailComprador,
           tanda:       e.nombreTanda,
-          precio:      e.precioTanda ?? 0,
-          canal:       e.canalVenta,
+          precio:      importeCobrado(e),
+          canal:       etiquetaCanal(e),
           estado:      e.estado,
           fechaCompra: new Date(e.fechaCompra),
           fechaUso:    e.fechaUso ? new Date(e.fechaUso) : "",
+          motivo:      e.motivoEmision ?? "",
         });
         row.height = 22;
         row.eachCell({ includeEmpty: true }, (cell) => {
@@ -147,10 +203,10 @@ export function OrganizadorEventoDetallePage() {
 
       // Autofiltro sobre encabezado + datos, sin la fila de TOTAL (si se incluyera, Excel
       // la trataría como una fila más para filtrar/ordenar, rompiendo el resumen).
-      ws.autoFilter = { from: "A1", to: `I${1 + entradasFiltradas.length}` };
+      ws.autoFilter = { from: "A1", to: `J${1 + entradasFiltradas.length}` };
 
       // ── Fila de totales ──────────────────────────────────────
-      const totalIngresos = entradasFiltradas.reduce((sum, e) => sum + (e.precioTanda ?? 0), 0);
+      const totalIngresos = entradasFiltradas.reduce((sum, e) => sum + importeCobrado(e), 0);
       const totalRow = ws.addRow({
         id:          "TOTAL",
         comprador:   `${entradasFiltradas.length} entr.`,
@@ -161,6 +217,7 @@ export function OrganizadorEventoDetallePage() {
         estado:      "",
         fechaCompra: "",
         fechaUso:    "",
+        motivo:      "",
       });
       totalRow.height = 28;
       totalRow.eachCell({ includeEmpty: true }, (cell) => {
@@ -183,14 +240,14 @@ export function OrganizadorEventoDetallePage() {
           const k = clave(e);
           const actual = mapa.get(k) ?? { cantidad: 0, ingresos: 0 };
           actual.cantidad += 1;
-          actual.ingresos += e.precioTanda ?? 0;
+          actual.ingresos += importeCobrado(e);
           mapa.set(k, actual);
         }
         return [...mapa.entries()].map(([nombre, v]) => ({ nombre, ...v }));
       }
 
       const porTanda = agrupar((e) => e.nombreTanda);
-      const porCanal = agrupar((e) => e.canalVenta);
+      const porCanal = agrupar((e) => etiquetaCanal(e));
 
       const wsResumen = wb.addWorksheet("Resumen");
       wsResumen.columns = [
@@ -256,6 +313,7 @@ export function OrganizadorEventoDetallePage() {
         filtro === "todas" ||
         (filtro === "Pagada" && e.estado === "Pagada") ||
         (filtro === "Usada" && e.estado === "Usada") ||
+        (filtro === "Anulada" && e.estado === "Anulada") ||
         (filtro === "Online" && e.canalVenta === "Online") ||
         (filtro === "Manual" && e.canalVenta === "Manual");
       return matchQ && matchF;
@@ -350,6 +408,16 @@ export function OrganizadorEventoDetallePage() {
               >
                 <Ban size={14} />
               </button>
+              {evento.estado === "Borrador" && (
+                <button
+                  onClick={eliminarBorrador}
+                  disabled={eliminando}
+                  title="Eliminar borrador"
+                  className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </>
           )}
         </div>
@@ -370,6 +438,18 @@ export function OrganizadorEventoDetallePage() {
         <div className="rounded-2xl border border-dashed border-border bg-card/60 text-center py-12 px-6">
           <p className="text-sm font-semibold text-foreground mb-1">Este evento todavía está en borrador</p>
           <p className="text-xs text-muted-foreground">Publicalo para empezar a vender entradas y ver las métricas acá.</p>
+          {errorPublicar && (
+            <p role="alert" className="text-xs text-destructive mt-3">
+              {errorPublicar}
+            </p>
+          )}
+          <button
+            onClick={publicarEvento}
+            disabled={publicando}
+            className="mt-4 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {publicando ? "Publicando..." : "Publicar evento"}
+          </button>
         </div>
       )}
 
@@ -426,7 +506,11 @@ export function OrganizadorEventoDetallePage() {
                     <tr key={t.idTanda} className="border-b border-border last:border-0">
                       <td className="px-4 py-2.5 text-foreground font-medium">{t.nombre}</td>
                       <td className="px-4 py-2.5 text-right text-muted-foreground">
-                        {t.vendidas > 0 ? fmt(t.ingresos / t.vendidas) : "—"}
+                        {/* El precio de la tanda, no ingresos ÷ vendidas: las cortesías ocupan cupo pero no cobran. */}
+                        {(() => {
+                          const precio = evento.tandas.find((x) => x.id === t.idTanda)?.precio;
+                          return precio != null ? fmt(precio) : "—";
+                        })()}
                       </td>
                       <td className="px-4 py-2.5 text-right text-foreground">
                         {t.vendidas} <span className="text-muted-foreground">/ {t.cupoMaximo}</span>
@@ -445,6 +529,10 @@ export function OrganizadorEventoDetallePage() {
               </table>
             </div>
           </section>
+
+          <EmitirEntradasPanel evento={evento} onEmitidas={cargar} />
+
+          {evento.estado === "Cancelado" && <ReembolsosPanel idEvento={evento.id} onCambio={cargar} />}
 
           {/* Compradores */}
           <section className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -480,7 +568,7 @@ export function OrganizadorEventoDetallePage() {
 
             {(entradas?.length ?? 0) > 0 && (
               <div className="flex gap-1.5 px-4 py-2.5 border-b border-border overflow-x-auto hide-scrollbar">
-                {(["todas", "Pagada", "Usada", "Online", "Manual"] as const).map((f) => (
+                {(["todas", "Pagada", "Usada", "Anulada", "Online", "Manual"] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setFiltro(f)}
@@ -517,16 +605,26 @@ export function OrganizadorEventoDetallePage() {
                         <span>{e.nombreTanda}</span>
                         <span>·</span>
                         <span className="inline-flex items-center gap-1">
-                          {e.canalVenta === "Online" ? <CreditCard size={10} /> : <Store size={10} />}
-                          {e.canalVenta}
+                          {e.tipoEmision ? <Gift size={10} /> : e.canalVenta === "Online" ? <CreditCard size={10} /> : <Store size={10} />}
+                          {etiquetaCanal(e)}
                         </span>
                         <span>·</span>
                         <span>{formatFechaHora(e.fechaCompra)}</span>
                       </div>
+                      {e.motivoEmision && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Motivo: {e.motivoEmision}</p>
+                      )}
+                      {e.motivoAnulacion && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Anulada: {e.motivoAnulacion}</p>
+                      )}
                     </div>
                     <div className="flex-none text-right">
-                      <p className="text-sm font-bold text-foreground">{fmt(e.precioTanda)}</p>
-                      {e.estado === "Usada" ? (
+                      <p className="text-sm font-bold text-foreground">{e.tipoEmision === "Cortesia" ? "—" : fmt(e.precioTanda)}</p>
+                      {e.estado === "Anulada" ? (
+                        <span className="text-[11px] font-bold text-destructive">
+                          {e.reembolsadaEn ? "Anulada · reembolsada" : "Anulada"}
+                        </span>
+                      ) : e.estado === "Usada" ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
                           <CheckCircle2 size={11} />
                           Usada
@@ -534,6 +632,7 @@ export function OrganizadorEventoDetallePage() {
                       ) : (
                         <span className="text-[11px] font-bold text-green-400">Pagada</span>
                       )}
+                      <EntradaAcciones entrada={e} onCambio={cargar} />
                     </div>
                   </div>
                 ))}

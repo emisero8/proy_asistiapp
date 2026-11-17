@@ -28,4 +28,7 @@ target/
 ### Secrets (NUNCA commitear credenciales) ###
 application-local.yml
 application-prod.yml
+# Excepción: el application-prod.yml del repo trae solo ajustes NO secretos (show-sql, etc.). Las credenciales
+# de producción van siempre por variables de entorno, nunca en este archivo.
+!src/main/resources/application-prod.yml
 *.env

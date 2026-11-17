@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Check, ChevronLeft, ChevronRight, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { hoyLocal } from "../../lib/format";
@@ -7,7 +7,7 @@ import { DatePicker } from "../../components/DatePicker";
 import { TimePicker } from "../../components/TimePicker";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
-import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
+import type { CreditosResumenResponseDTO, EstadoCuentaMpResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, PerfilResponseDTO, TandaRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface WizardTanda {
@@ -17,6 +17,8 @@ interface WizardTanda {
   cupoMaximo: string;
   desde: string;
   hasta: string;
+  /** Tanda de cortesía (8.10): no se vende, solo la emite el Organizador; el precio queda en 0. */
+  soloEmision: boolean;
 }
 
 /**
@@ -45,11 +47,29 @@ export function OrganizadorWizardPage() {
   const topRef = useRef<HTMLDivElement>(null);
   const [published, setPublished] = useState(false);
   const [eventoId, setEventoId] = useState<number | null>(null);
+  // Tandas ya creadas en el servidor: si publicar falla y se reintenta, no se vuelven a crear (quedarían duplicadas).
+  const tandasCreadas = useRef<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [movimiento, setMovimiento] = useState<MovimientoCreditoResponseDTO | null>(null);
   const [resumen, setResumen] = useState<CreditosResumenResponseDTO | null>(null);
   const saldo = resumen?.saldo ?? null;
+
+  // Para publicar hace falta la cuenta de Mercado Pago vinculada (8.5) y un contacto de arrepentimiento (8.8).
+  // Se avisa antes de armar las tandas: si recién fallara al publicar, ya estarían creadas. Si la consulta falla
+  // no se bloquea nada: el backend valida igual.
+  const [sinMercadoPago, setSinMercadoPago] = useState(false);
+  const [sinContacto, setSinContacto] = useState(false);
+  useEffect(() => {
+    api
+      .get<EstadoCuentaMpResponseDTO>("/organizador/mercadopago/estado")
+      .then((e) => setSinMercadoPago(e.vinculada === false))
+      .catch(() => undefined);
+    api
+      .get<PerfilResponseDTO>("/organizador/perfil")
+      .then((p) => setSinContacto(p.contactoWhatsapp === null && p.contactoEmail === null))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     api
@@ -70,12 +90,15 @@ export function OrganizadorWizardPage() {
   const [venue, setVenue] = useState("");
   const [coords, setCoords] = useState<Coords | null>(null);
   const [img, setImg] = useState("");
-  const [tandas, setTandas] = useState<WizardTanda[]>([{ id: 1, nombre: "Anticipada", precio: "", cupoMaximo: "", desde: "", hasta: "" }]);
+  const [tandas, setTandas] = useState<WizardTanda[]>([{ id: 1, nombre: "Anticipada", precio: "", cupoMaximo: "", desde: "", hasta: "", soloEmision: false }]);
 
-  const addTanda = () => setTandas((t) => [...t, { id: Date.now(), nombre: "", precio: "", cupoMaximo: "", desde: "", hasta: "" }]);
+  const addTanda = () => setTandas((t) => [...t, { id: Date.now(), nombre: "", precio: "", cupoMaximo: "", desde: "", hasta: "", soloEmision: false }]);
   const removeTanda = (id: number) => setTandas((t) => t.filter((x) => x.id !== id));
-  const updateTanda = (id: number, field: keyof WizardTanda, val: string) =>
+  const updateTanda = (id: number, field: Exclude<keyof WizardTanda, "soloEmision">, val: string) =>
     setTandas((t) => t.map((x) => (x.id === id ? { ...x, [field]: val } : x)));
+  // Una tanda de cortesía no tiene precio: queda en 0 y se vuelve a pedir si se desmarca.
+  const toggleCortesia = (id: number, marcada: boolean) =>
+    setTandas((t) => t.map((x) => (x.id === id ? { ...x, soloEmision: marcada, precio: marcada ? "0" : "" } : x)));
 
   const hoyStr = hoyLocal();
   const fechaEnPasado = date !== "" && date < hoyStr;
@@ -88,11 +111,15 @@ export function OrganizadorWizardPage() {
   const disponibleEntradas = resumen?.disponibleParaEntradas ?? null;
   const totalEntradas = tandas.reduce((suma, t) => suma + (Number(t.cupoMaximo) || 0), 0);
   const excedeCreditos = disponibleEntradas !== null && totalEntradas > disponibleEntradas;
+  const haytandaDeVenta = tandas.some((t) => !t.soloEmision);
   const step2Valid =
     tandas.every((t) => t.nombre && t.precio && t.cupoMaximo) &&
+    haytandaDeVenta &&
     tandaErrors.every((e) => e === null) &&
     !sinCreditos &&
-    !excedeCreditos;
+    !excedeCreditos &&
+    !sinMercadoPago &&
+    !sinContacto;
 
   async function handleNext() {
     setLoading(true);
@@ -126,17 +153,20 @@ export function OrganizadorWizardPage() {
     setError(null);
     try {
       for (const t of tandas) {
+        if (tandasCreadas.current.has(t.id)) continue;
         // Si el "hasta" cae el mismo día del evento, la venta cierra cuando
         // empieza el evento (no a las 23:59) para no chocar con la validación.
         const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
         const dto: TandaRequestDTO = {
           nombre: t.nombre,
-          precio: Number(t.precio),
+          precio: t.soloEmision ? 0 : Number(t.precio),
           cupoMaximo: Number(t.cupoMaximo),
+          ...(t.soloEmision ? { soloEmision: true } : {}),
           fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
           fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
         };
         await api.post(`/eventos/${eventoId}/tandas`, dto);
+        tandasCreadas.current.add(t.id);
       }
       await api.patch(`/eventos/${eventoId}/publicar`);
       const historial = await api.get<MovimientoCreditoResponseDTO[]>("/creditos/historial");
@@ -368,11 +398,24 @@ export function OrganizadorWizardPage() {
                     className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
                 </div>
+                <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={t.soloEmision}
+                    onChange={(e) => toggleCortesia(t.id, e.target.checked)}
+                    className="mt-0.5 accent-primary"
+                  />
+                  <span>
+                    <span className="font-semibold text-foreground">Tanda de cortesía</span> — no se vende ni se muestra al público; solo vos
+                    emitís entradas de ella (prensa, invitados). Sin precio.
+                  </span>
+                </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Precio *</label>
                     <input
                       value={t.precio}
+                      disabled={t.soloEmision}
                       onChange={(e) => updateTanda(t.id, "precio", e.target.value)}
                       placeholder="12000"
                       inputMode="numeric"
@@ -411,6 +454,9 @@ export function OrganizadorWizardPage() {
                 )}
               </div>
             ))}
+            {!haytandaDeVenta && (
+              <p className="text-xs text-destructive">Necesitás al menos una tanda de venta: las de cortesía no se venden.</p>
+            )}
             <button
               onClick={addTanda}
               className="w-full py-3 rounded-2xl border border-dashed border-border text-muted-foreground text-sm flex items-center justify-center gap-2 hover:border-primary/50 hover:text-foreground transition-all"
@@ -418,6 +464,28 @@ export function OrganizadorWizardPage() {
               <Plus size={15} />
               Agregar tanda
             </button>
+            {(sinMercadoPago || sinContacto) && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-2xl px-4 py-3 flex gap-3">
+                <AlertCircle size={16} className="text-destructive flex-none mt-0.5" />
+                <div className="text-xs space-y-1">
+                  {sinMercadoPago && (
+                    <p className="text-foreground">
+                      <span className="font-semibold">Vinculá tu cuenta de Mercado Pago para publicar.</span> Es la cuenta donde vas a recibir el
+                      dinero de las entradas.
+                    </p>
+                  )}
+                  {sinContacto && (
+                    <p className="text-foreground">
+                      <span className="font-semibold">Cargá un contacto (WhatsApp o email) para publicar.</span> A ese contacto se deriva a quien
+                      quiera arrepentirse de su compra.
+                    </p>
+                  )}
+                  <Link to="/organizador/perfil" className="inline-block text-primary font-semibold underline">
+                    Ir a Mi perfil
+                  </Link>
+                </div>
+              </div>
+            )}
             {sinCreditos ? (
               <div className="bg-destructive/10 border border-destructive/30 rounded-2xl px-4 py-3 flex gap-3">
                 <AlertCircle size={16} className="text-destructive flex-none mt-0.5" />

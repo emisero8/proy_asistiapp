@@ -89,7 +89,7 @@ export function OrganizadorDashboardPage() {
   async function cancelarEvento(ev: EventoResponseDTO) {
     const ok = await confirm({
       titulo: "Cancelar evento",
-      mensaje: `¿Cancelar "${ev.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`,
+      mensaje: `¿Cancelar "${ev.nombre}"? Se avisa por email a los compradores y se devuelven los créditos de las entradas sin vender (el costo de publicar no se devuelve).`,
       confirmarTexto: "Cancelar evento",
       cancelarTexto: "No, volver",
       variante: "destructiva",

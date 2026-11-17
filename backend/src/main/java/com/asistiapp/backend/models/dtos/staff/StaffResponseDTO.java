@@ -16,4 +16,11 @@ public class StaffResponseDTO {
 
     /** Solo presente cuando rol = Staff_QR. */
     private Long idEvento;
+
+    // Solo presentes cuando rol = Staff_Vendedor (8.3).
+    /** Máximo de entradas que puede vender; null = vendedor anterior a la regla, sin tope. */
+    private Integer topeEntradas;
+    private Integer entradasVendidas;
+    /** Suma de lo que valen las entradas que vendió, para que el Organizador le pida la rendición. */
+    private Double totalRecaudado;
 }

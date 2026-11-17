@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { LayoutDashboard, Users, Calendar, CircleDollarSign, History, LogOut } from "lucide-react";
 import { NotificationBell } from "../../components/NotificationBell";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { useAuth } from "../../lib/auth";
 
 const TABS = [
@@ -8,11 +9,8 @@ const TABS = [
   { to: "/admin/usuarios", label: "Usuarios", Icon: Users },
   { to: "/admin/eventos", label: "Eventos", Icon: Calendar },
   { to: "/admin/config", label: "Config", Icon: CircleDollarSign },
+  { to: "/admin/auditoria", label: "Auditoría", Icon: History },
 ];
-
-// Solo en el sidebar de desktop: la bottom tab bar de mobile es un grid-cols-4 fijo,
-// agregar un 5to ítem ahí la rompería. En mobile se llega por "Ver todo" del Dashboard.
-const TABS_SOLO_DESKTOP = [{ to: "/admin/auditoria", label: "Auditoría", Icon: History }];
 
 export function AdminLayout() {
   const { session, logout } = useAuth();
@@ -20,10 +18,10 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-52">
-      {/* Notificaciones + cerrar sesión — fijo arriba a la derecha, a la izquierda del
-          toggle de tema, visible en todas las pantallas de Admin (mismo lugar que en Organizador). */}
-      <div className="fixed top-3 right-14 z-50 flex items-center gap-2">
+      {/* Barra de acciones — fija arriba a la derecha, visible en todas las pantallas: notificaciones, tema y cerrar sesión. */}
+      <div className="fixed top-3 right-3 z-50 flex items-center gap-2">
         <NotificationBell />
+        <ThemeToggle />
         <button
           onClick={logout}
           title="Cerrar sesión"
@@ -64,7 +62,7 @@ export function AdminLayout() {
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 relative">
-          {[...TABS, ...TABS_SOLO_DESKTOP].map(({ to, label, Icon }) => (
+          {TABS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -85,7 +83,7 @@ export function AdminLayout() {
 
       {/* Bottom tab bar — mobile only */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/95 backdrop-blur-md">
-        <div className="max-w-md mx-auto grid grid-cols-4">
+        <div className="max-w-md mx-auto grid grid-cols-5">
           {TABS.map(({ to, label, Icon }) => (
             <NavLink
               key={to}

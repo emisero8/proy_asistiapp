@@ -7,6 +7,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -18,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Rate limiting en memoria por IP para los endpoints públicos más sensibles
- * a fuerza bruta y abuso (SECURITY.md §5: login, recuperación de contraseña,
+ * a fuerza bruta y abuso (docs/tecnica/SECURITY.md §5: login, recuperación de contraseña,
  * transacciones de pago). El resto de la API no pasa por este filtro.
  *
  * Limitación conocida: al vivir en memoria, el límite no se comparte entre
@@ -40,14 +41,23 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     // Rutas con un UUID en el path (no matchean por igualdad exacta como las de arriba):
     // consultar el estado de una orden, mientras siga Pendiente, puede disparar una llamada
-    // real a la API de MercadoPago (reconciliación) — sin límite, alguien con la referencia
-    // de una orden podría spamear esa llamada saliente. 30/min de sobra para el polling real
-    // de la pantalla de resultado (1 cada 2.5 s, hasta 8 veces).
+    // real a la API de MercadoPago (reconciliación). Esa llamada saliente ya se limita por ORDEN
+    // (ThrottleReconciliacion: una vez cada 10 s), así que este límite por IP solo tiene que frenar
+    // el abuso de lecturas baratas. Tiene que ser holgado: los compradores de un mismo wifi (un
+    // evento, una oficina) comparten IP y cada pestaña consulta 15 veces por minuto (cada 4 s).
+    // 120/min alcanza para ~8 pestañas esperando a la vez desde la misma IP.
     private static final String PREFIJO_ORDEN_ENTRADAS = "/tickets/orden/";
     private static final String PREFIJO_ORDEN_CREDITOS = "/creditos/orden/";
-    private static final LimiteConfig LIMITE_CONSULTA_ORDEN = new LimiteConfig(30, Duration.ofMinutes(1));
+    private static final LimiteConfig LIMITE_CONSULTA_ORDEN = new LimiteConfig(120, Duration.ofMinutes(1));
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+
+    /** Cantidad de proxies propios delante del backend (0 = ninguno: se usa la IP de la conexión). */
+    private final int proxiesConfiables;
+
+    public RateLimitFilter(@Value("${app.rate-limit.proxies-confiables:0}") int proxiesConfiables) {
+        this.proxiesConfiables = Math.max(0, proxiesConfiables);
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -98,10 +108,30 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return Bucket.builder().addLimit(limit).build();
     }
 
+    /**
+     * IP con la que se cuenta al cliente.
+     *
+     * El header X-Forwarded-For lo escribe el propio cliente: leer su primer valor (lo que se hacía
+     * antes) deja que cualquiera cambie de "IP" en cada request y nunca agote el balde — con lo cual
+     * el límite de 5 logins/min no frenaba la fuerza bruta, y encima cada valor inventado creaba un
+     * balde nuevo en memoria. Por eso, sin proxies de confianza (default), se usa la IP real de la
+     * conexión y el header se ignora.
+     *
+     * Detrás de N proxies propios (nginx, balanceador…), cada uno agrega al final de X-Forwarded-For
+     * la IP desde la que le llegó el pedido; los valores de la izquierda pueden ser inventados, pero
+     * el N-ésimo desde la derecha lo escribió un proxy nuestro y es el cliente real.
+     */
     private String obtenerIpCliente(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
+        if (proxiesConfiables > 0) {
+            String forwarded = request.getHeader("X-Forwarded-For");
+            if (forwarded != null && !forwarded.isBlank()) {
+                String[] ips = forwarded.split(",");
+                int posicion = ips.length - proxiesConfiables;
+                if (posicion >= 0 && !ips[posicion].isBlank()) {
+                    return ips[posicion].trim();
+                }
+            }
+            // Header ausente o más corto que la cantidad de proxies: el pedido no pasó por ellos.
         }
         return request.getRemoteAddr();
     }

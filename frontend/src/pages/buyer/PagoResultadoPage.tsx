@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import { CheckCircle2, AlertCircle, CircleX, Clock3, QrCode } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { CheckCircle2, AlertCircle, CircleX, Clock3, QrCode, Copy, Check } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import type { EstadoOrdenCreditoResponseDTO, EstadoOrdenEntradasResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 /**
  * A esta pantalla vuelve el comprador (o el Organizador, para créditos) después de
@@ -12,24 +13,46 @@ import { useDocumentTitle } from "../../lib/useDocumentTitle";
  *
  * El pago se confirma por el webhook de MercadoPago, no por esta redirección: puede
  * llegar antes o (más seguido) después de que el comprador vuelva, así que esta
- * pantalla consulta el estado de la orden y reintenta unas vocês mientras esté
- * Pendiente, en vez de asumir nada de la URL de vuelta.
+ * pantalla consulta el estado de la orden y reintenta mientras esté Pendiente, en
+ * vez de asumir nada de la URL de vuelta.
+ *
+ * En local (http) MercadoPago no puede volver solo, así que el checkout se abre en
+ * otra pestaña (ver lib/pago.ts) y esta pantalla queda abierta desde ANTES de pagar:
+ * por eso la espera cubre varios minutos y no solo la demora del webhook. 4 s entre
+ * consultas = 15/min por pestaña. El rate limit de estas rutas es por IP (120/min), así que
+ * varios compradores en un mismo wifi lo pueden compartir: un 429 ("demasiadas solicitudes")
+ * se trata como transitorio y se reintenta, no como un error del pago.
  */
-const REINTENTOS_MAXIMOS = 8;
-const ESPERA_ENTRE_REINTENTOS_MS = 2500;
+export const REINTENTOS_MAXIMOS = 150; // 150 × 4 s = 10 minutos
+export const ESPERA_ENTRE_REINTENTOS_MS = 4000;
 
 export function PagoResultadoPage() {
   useDocumentTitle("Resultado del pago");
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const ref = searchParams.get("ref");
   const tipo = searchParams.get("tipo"); // "entradas" | "creditos"
+  // Solo viene cuando el pago se abrió en otra pestaña y esta quedó esperando.
+  const urlPago = (location.state as { urlPago?: string } | null)?.urlPago ?? null;
 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ordenEntradas, setOrdenEntradas] = useState<EstadoOrdenEntradasResponseDTO | null>(null);
   const [ordenCreditos, setOrdenCreditos] = useState<EstadoOrdenCreditoResponseDTO | null>(null);
-  const intentos = useRef(0);
+  const [linkCopiado, setLinkCopiado] = useState(false);
+  const [esperaAgotada, setEsperaAgotada] = useState(false);
+  const [ronda, setRonda] = useState(0);
+
+  async function copiarLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopiado(true);
+      setTimeout(() => setLinkCopiado(false), 2500);
+    } catch {
+      // Clipboard API puede fallar en http sin foco de página — no es crítico, se ignora.
+    }
+  }
 
   useEffect(() => {
     if (!ref || (tipo !== "entradas" && tipo !== "creditos")) {
@@ -39,42 +62,90 @@ export function PagoResultadoPage() {
     }
 
     let cancelado = false;
+    let terminado = false;
+    let enCurso = false;
+    let tieneOrden = false;
+    let esperandoPrimeraRespuesta = false; // 429 antes de conocer la orden: se sigue mostrando "Consultando…"
+    let intentos = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    setEsperaAgotada(false);
 
     async function consultar() {
+      if (enCurso || terminado || cancelado) return;
+      enCurso = true;
+      clearTimeout(timer);
       try {
+        let estado: string;
         if (tipo === "creditos") {
           const orden = await api.get<EstadoOrdenCreditoResponseDTO>(`/creditos/orden/${ref}`);
           if (cancelado) return;
           setOrdenCreditos(orden);
-          reintentarSiHaceFalta(orden.estado);
+          estado = orden.estado;
         } else {
           const orden = await api.get<EstadoOrdenEntradasResponseDTO>(`/tickets/orden/${ref}`, { skipAuth: true });
           if (cancelado) return;
           setOrdenEntradas(orden);
-          reintentarSiHaceFalta(orden.estado);
+          estado = orden.estado;
+        }
+        tieneOrden = true;
+        esperandoPrimeraRespuesta = false;
+        if (estado === "Pendiente") {
+          programarSiguiente();
+        } else {
+          terminado = true;
         }
       } catch (e: unknown) {
-        if (!cancelado) {
+        if (cancelado) return;
+        if (tieneOrden) {
+          // Un fallo suelto en medio de una espera de minutos no la corta: se reintenta.
+          programarSiguiente();
+        } else if (e instanceof ApiError && e.status === 429) {
+          // El límite de consultas es por IP: si hay mucha gente en la misma red puede saltar
+          // sin que nada ande mal con el pago. Se espera y se reintenta, sin asustar al comprador.
+          esperandoPrimeraRespuesta = true;
+          programarSiguiente();
+        } else {
+          terminado = true;
           setError(e instanceof ApiError ? e.message : "No pudimos consultar el estado de tu pago.");
         }
       } finally {
-        if (!cancelado) setCargando(false);
+        enCurso = false;
+        if (!cancelado && !esperandoPrimeraRespuesta) setCargando(false);
       }
     }
 
-    function reintentarSiHaceFalta(estado: string) {
-      if (estado === "Pendiente" && intentos.current < REINTENTOS_MAXIMOS) {
-        intentos.current += 1;
-        setTimeout(consultar, ESPERA_ENTRE_REINTENTOS_MS);
+    function programarSiguiente() {
+      intentos += 1;
+      if (intentos >= REINTENTOS_MAXIMOS) {
+        terminado = true;
+        if (tieneOrden) {
+          setEsperaAgotada(true);
+        } else {
+          // Nunca se pudo consultar (siempre 429): no queda una pantalla de "Consultando…" eterna.
+          esperandoPrimeraRespuesta = false;
+          setError("Hay mucha demanda en este momento y no pudimos consultar tu pago. Si ya pagaste, no te preocupes: te llegará la entrada por email. Intentá de nuevo en unos minutos.");
+          setCargando(false);
+        }
+      } else {
+        timer = setTimeout(consultar, ESPERA_ENTRE_REINTENTOS_MS);
       }
     }
 
-    consultar();
+    // El navegador frena los timers de una pestaña en segundo plano: al volver de la
+    // pestaña de MercadoPago se consulta al instante en vez de esperar al próximo tick.
+    function alCambiarVisibilidad() {
+      if (document.visibilityState === "visible") void consultar();
+    }
+    document.addEventListener("visibilitychange", alCambiarVisibilidad);
+
+    void consultar();
     return () => {
       cancelado = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", alCambiarVisibilidad);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ref, tipo]);
+  }, [ref, tipo, ronda]);
 
   const orden = tipo === "creditos" ? ordenCreditos : ordenEntradas;
   const estado = orden?.estado ?? null;
@@ -88,6 +159,7 @@ export function PagoResultadoPage() {
           </span>
         </button>
         <span className="text-muted-foreground text-sm">/ Resultado del pago</span>
+        <ThemeToggle className="ml-auto" />
       </div>
 
       <div className="max-w-md mx-auto px-4 py-10">
@@ -113,12 +185,40 @@ export function PagoResultadoPage() {
         {estado && (
           <div className="space-y-5">
             {estado === "Pendiente" && (
-              <EstadoCard
-                icon={<Clock3 size={24} className="text-amber-500" />}
-                iconBg="bg-amber-500/10 border-amber-500/20"
-                titulo="Estamos confirmando tu pago"
-                texto="Puede tardar unos minutos. Esta pantalla se actualiza sola — no hace falta que la recargues."
-              />
+              <>
+                <EstadoCard
+                  icon={<Clock3 size={24} className="text-amber-500" />}
+                  iconBg="bg-amber-500/10 border-amber-500/20"
+                  titulo={
+                    esperaAgotada ? "Todavía no vemos tu pago" : urlPago ? "Esperando tu pago" : "Estamos confirmando tu pago"
+                  }
+                  texto={
+                    esperaAgotada
+                      ? "Dejamos de consultar para no dejar la pantalla trabajando de más. Si ya pagaste, tocá el botón para volver a revisar."
+                      : urlPago
+                        ? "Completá el pago en la pestaña de MercadoPago que se abrió. Cuando termines, volvé acá: esta pantalla se actualiza sola."
+                        : "Puede tardar unos minutos. Esta pantalla se actualiza sola — no hace falta que la recargues."
+                  }
+                />
+                {esperaAgotada && (
+                  <button
+                    onClick={() => setRonda((r) => r + 1)}
+                    className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
+                  >
+                    Volver a consultar
+                  </button>
+                )}
+                {urlPago && (
+                  <a
+                    href={urlPago}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-center text-sm font-semibold text-primary hover:underline"
+                  >
+                    ¿Cerraste la pestaña? Abrir MercadoPago de nuevo
+                  </a>
+                )}
+              </>
             )}
 
             {estado === "Rechazada" && (
@@ -156,6 +256,23 @@ export function PagoResultadoPage() {
                   titulo="¡Pago aprobado!"
                   texto={`Ya tenés ${ordenEntradas.cantidad > 1 ? `tus ${ordenEntradas.cantidad} entradas` : "tu entrada"} para ${ordenEntradas.nombreEvento}. También te mandamos un mail con el código QR de cada una.`}
                 />
+                <button
+                  onClick={copiarLink}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-primary/40 bg-primary/5 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors"
+                >
+                  {linkCopiado ? (
+                    <>
+                      <Check size={15} /> Enlace copiado
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={15} /> Copiar enlace para compartir
+                    </>
+                  )}
+                </button>
+                <p className="text-xs text-muted-foreground text-center -mt-1">
+                  Ojo: este enlace es tu entrada. Quien lo tenga puede ver y usar el QR, así que compartilo solo con quien vaya a ir al evento.
+                </p>
                 <div className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden">
                   {ordenEntradas.entradas.map((entrada, i) => (
                     <button

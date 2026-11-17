@@ -6,6 +6,7 @@ import { SupportContactLine } from "../../components/SupportContactLine";
 import { formatRelativo } from "../../lib/format";
 import type { EntradaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 export function MiEntradaPage() {
   useDocumentTitle("Mi entrada");
@@ -80,6 +81,7 @@ export function MiEntradaPage() {
           </span>
         </button>
         <span className="text-muted-foreground text-sm">/ Mi entrada</span>
+        <ThemeToggle className="ml-auto" />
       </div>
 
       <div className="max-w-md mx-auto px-4 py-8 space-y-4">

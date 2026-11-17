@@ -6,6 +6,7 @@ import { StaffLoginPage } from "./LoginPage";
 import { AuthProvider } from "../../lib/auth";
 import { api, ApiError } from "../../lib/api";
 import type { AuthResponseDTO } from "../../lib/types";
+import { ThemeProvider } from "../../lib/theme";
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
@@ -14,15 +15,17 @@ vi.mock("../../lib/api", async (importOriginal) => {
 
 function renderLoginPage() {
   return render(
-    <AuthProvider>
-      <MemoryRouter initialEntries={["/staff/login"]}>
-        <Routes>
-          <Route path="/staff/login" element={<StaffLoginPage />} />
-          <Route path="/staff/scanner" element={<p>Pantalla del scanner</p>} />
-          <Route path="/staff/pos" element={<p>Pantalla del POS</p>} />
-        </Routes>
-      </MemoryRouter>
-    </AuthProvider>,
+    <ThemeProvider>
+      <AuthProvider>
+        <MemoryRouter initialEntries={["/staff/login"]}>
+          <Routes>
+            <Route path="/staff/login" element={<StaffLoginPage />} />
+            <Route path="/staff/scanner" element={<p>Pantalla del scanner</p>} />
+            <Route path="/staff/pos" element={<p>Pantalla del POS</p>} />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>
+    </ThemeProvider>,
   );
 }
 

@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router";
 import { LayoutDashboard, Sparkles, Wallet, Users, LogOut, UserRound } from "lucide-react";
 import { NotificationBell } from "../../components/NotificationBell";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { useAuth } from "../../lib/auth";
 
 // "label" se usa en el sidebar de desktop (hay lugar de sobra); "mobileLabel"
@@ -38,10 +39,10 @@ export function OrganizadorLayout() {
 
   return (
     <div className="min-h-screen bg-background pb-16 md:pb-0 md:pl-56">
-      {/* Notificaciones + cerrar sesión — fijo arriba a la derecha, a la izquierda del
-          toggle de tema, visible en todas las pantallas de Organizador. */}
-      <div className="fixed top-3 right-14 z-50 flex items-center gap-2">
+      {/* Barra de acciones — fija arriba a la derecha, visible en todas las pantallas: notificaciones, tema y cerrar sesión. */}
+      <div className="fixed top-3 right-3 z-50 flex items-center gap-2">
         <NotificationBell />
+        <ThemeToggle />
         <button
           onClick={handleLogout}
           title="Cerrar sesión"

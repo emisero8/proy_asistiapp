@@ -1,35 +1,42 @@
 import { Moon, Sun } from "lucide-react";
-import { useLocation } from "react-router";
 import { useTheme } from "../lib/theme";
 
-/**
- * Toggle de tema global — flota sobre cualquier pantalla (fixed, z-[60]) para no
- * depender de que cada layout (Buyer/Organizador/Staff/Admin) le haga lugar
- * en su propio header. z-[60] y no z-50: varias pantallas (ej. el nav sticky
- * de ListingPage) usan z-50 a todo el ancho, y al montarse después en el DOM
- * le ganaban el empate de z-index al toggle — tapándole los clicks en esa
- * esquina aunque visualmente el botón se viera encima.
- *
- * Oculto en /staff/scanner: esa pantalla es un overlay de cámara full-black
- * con sus propios botones circulares (linterna, salir) pegados al borde
- * derecho — ignora el tema claro/oscuro por diseño (siempre negra), así que
- * el toggle no solo no hace nada ahí, se superponía visualmente con esos
- * botones en mobile.
- */
-export function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-  const location = useLocation();
+type Props = {
+  /**
+   * - `normal`: botón redondo de la paleta, para usar dentro de un header (lo común).
+   * - `sobre-imagen`: translúcido y oscuro, para ponerlo encima de una foto (portada del evento).
+   * - `esquina`: fijo arriba a la derecha, SOLO para pantallas que no tienen header (login, registro).
+   */
+  variante?: "normal" | "sobre-imagen" | "esquina";
+  className?: string;
+};
 
-  if (location.pathname === "/staff/scanner") {
-    return null;
-  }
+const ESTILOS = {
+  normal:
+    "w-9 h-9 bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/40",
+  "sobre-imagen": "w-8 h-8 bg-black/50 backdrop-blur-sm text-white hover:bg-black/70",
+  esquina:
+    "fixed top-3 right-3 z-20 w-9 h-9 bg-card border border-border shadow-lg shadow-black/10 text-muted-foreground hover:text-foreground hover:border-primary/40",
+} as const;
+
+/**
+ * Botón de tema claro/oscuro. Cada pantalla lo coloca en su propio header (antes era un
+ * botón global flotante: tapaba los botones del escáner y, por z-index, quedaba debajo de
+ * los headers fijos de otras pantallas, que le tapaban los clics).
+ *
+ * El escáner de QR (`/staff/scanner`) no lo muestra a propósito: es un overlay de cámara
+ * negro que ignora el tema.
+ */
+export function ThemeToggle({ variante = "normal", className = "" }: Props) {
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
       aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
-      className="fixed top-3 right-3 z-[60] w-9 h-9 rounded-full bg-card border border-border shadow-lg shadow-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+      className={`flex-none rounded-full flex items-center justify-center transition-colors ${ESTILOS[variante]} ${className}`}
     >
       {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
     </button>

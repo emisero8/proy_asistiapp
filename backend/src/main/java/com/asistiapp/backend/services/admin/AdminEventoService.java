@@ -9,7 +9,9 @@ import com.asistiapp.backend.models.dtos.tanda.TandaResponseDTO;
 import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EntradaRepository;
+import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.repositories.TransaccionPagoRepository;
 import com.asistiapp.backend.security.audit.Auditable;
 import com.asistiapp.backend.services.EventoService;
 import com.asistiapp.backend.services.NotificacionService;
@@ -35,6 +37,7 @@ public class AdminEventoService {
 
     private final EventoRepository eventoRepository;
     private final EntradaRepository entradaRepository;
+    private final TransaccionPagoRepository transaccionPagoRepository;
     private final EventoService eventoService;
     private final TandaService tandaService;
     private final NotificacionService notificacionService;
@@ -107,7 +110,10 @@ public class AdminEventoService {
         return eventoService.toResponseDTO(saved);
     }
 
-    /** Bloquea la eliminación si el evento ya tiene entradas vendidas — cancelarlo es la vía correcta en ese caso. */
+    /**
+     * Bloquea la eliminación si el evento ya tiene entradas vendidas o compradores en pleno pago
+     * (órdenes `Pendiente` vigentes) — cancelarlo es la vía correcta en esos casos.
+     */
     @Transactional
     @Auditable(accion = "ELIMINAR_EVENTO_ADMIN", entidad = "Evento")
     public void eliminarEvento(Long idEvento) {
@@ -118,6 +124,17 @@ public class AdminEventoService {
                     "No se puede eliminar un evento con entradas vendidas. Cancelalo en su lugar.");
         }
 
+        if (transaccionPagoRepository.countOrdenesAbiertasDelEvento(
+                idEvento, EstadoTransaccion.Pendiente, LocalDateTime.now()) > 0) {
+            throw new BusinessRuleException(
+                    "No se puede eliminar un evento con compras en curso (hay compradores pagando ahora mismo). "
+                            + "Cancelalo en su lugar o esperá a que venzan las órdenes pendientes.");
+        }
+
+        // Las tandas consumieron créditos al crearse; un evento ya cancelado los devolvió al cancelarse.
+        if (evento.getEstado() != EstadoEvento.Cancelado) {
+            eventoService.devolverCreditosDeEntradasSinVender(evento);
+        }
         eventoRepository.delete(evento);
         log.info("Evento eliminado por Admin: id={}", idEvento);
     }

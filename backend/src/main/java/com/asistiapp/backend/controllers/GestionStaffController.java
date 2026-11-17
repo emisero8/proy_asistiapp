@@ -1,5 +1,6 @@
 package com.asistiapp.backend.controllers;
 
+import com.asistiapp.backend.models.dtos.staff.CambiarTopeVendedorRequestDTO;
 import com.asistiapp.backend.models.dtos.staff.CrearStaffQRRequestDTO;
 import com.asistiapp.backend.models.dtos.staff.CrearStaffVendedorRequestDTO;
 import com.asistiapp.backend.models.dtos.staff.StaffResponseDTO;
@@ -46,6 +47,13 @@ public class GestionStaffController {
     public ResponseEntity<List<StaffResponseDTO>> listarMiStaff() {
         Organizador org = securityUtils.getOrganizadorAutenticado();
         return ResponseEntity.ok(gestionStaffService.listarMiStaff(org.getId()));
+    }
+
+    @PatchMapping("/{id}/tope")
+    public ResponseEntity<StaffResponseDTO> cambiarTope(@PathVariable Long id,
+                                                        @Valid @RequestBody CambiarTopeVendedorRequestDTO dto) {
+        Organizador org = securityUtils.getOrganizadorAutenticado();
+        return ResponseEntity.ok(gestionStaffService.cambiarTopeVendedor(id, dto.getTopeEntradas(), org.getId()));
     }
 
     @PatchMapping("/{id}/desactivar")

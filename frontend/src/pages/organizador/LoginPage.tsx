@@ -4,7 +4,7 @@ import { Eye, EyeOff, AlertCircle, Zap, ShieldCheck, TrendingUp } from "lucide-r
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { AuthBackground } from "../../components/AuthBackground";
-import type { AuthResponseDTO, LoginRequestDTO } from "../../lib/types";
+import type { AuthResponseDTO, LoginRequestDTO, SolicitarRecuperacionRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const LOGIN_FEATURES = [
@@ -53,7 +53,7 @@ export function OrganizadorLoginPage() {
     setError(null);
     try {
       // El backend nunca revela si el email existe (evita filtrar usuarios registrados).
-      await api.post("/auth/recuperar-password", { email }, { skipAuth: true });
+      await api.post("/auth/recuperar-password", { email } satisfies SolicitarRecuperacionRequestDTO, { skipAuth: true });
       setRecoverySent(true);
     } catch (e: unknown) {
       setError(e instanceof ApiError ? e.message : "No pudimos procesar la solicitud.");

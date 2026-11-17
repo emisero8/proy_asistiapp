@@ -16,6 +16,7 @@ import com.asistiapp.backend.repositories.TransaccionCreditoRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.DatoSensible;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -134,7 +135,7 @@ public class AdminUsuarioService {
      */
     @Transactional
     @Auditable(accion = "CAMBIAR_PASSWORD_USUARIO", entidad = "Usuario")
-    public void cambiarPassword(Long idUsuario, String nuevaPassword) {
+    public void cambiarPassword(Long idUsuario, @DatoSensible String nuevaPassword) {
         Usuario usuario = getUsuarioOrThrow(idUsuario);
         usuario.setPasswordHash(passwordEncoder.encode(nuevaPassword));
         usuarioRepository.save(usuario);

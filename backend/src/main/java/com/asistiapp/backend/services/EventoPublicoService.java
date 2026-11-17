@@ -8,6 +8,7 @@ import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.Tanda;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.repositories.OrganizadorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,13 +28,13 @@ import java.util.List;
 public class EventoPublicoService {
 
     private final EventoRepository eventoRepository;
-    private final ConfiguracionService configuracionService;
+    private final LimiteCompradorService limiteCompradorService;
+    private final OrganizadorRepository organizadorRepository;
 
     @Transactional(readOnly = true)
     public List<EventoPublicoListItemDTO> listarPublicados() {
-        LocalDateTime ahora = LocalDateTime.now();
         return eventoRepository.findByEstado(EstadoEvento.Publicado).stream()
-                .filter(e -> LocalDateTime.of(e.getFechaEvento(), e.getHoraEvento()).isAfter(ahora))
+                .filter(e -> !e.yaFinalizo())
                 .map(this::toListItemDTO)
                 .toList();
     }
@@ -53,6 +54,7 @@ public class EventoPublicoService {
 
     private EventoPublicoListItemDTO toListItemDTO(Evento evento) {
         Double precioDesde = evento.getTandas().stream()
+                .filter(t -> !t.isSoloEmision())
                 .map(Tanda::getPrecio)
                 .min(Comparator.naturalOrder())
                 .orElse(null);
@@ -70,7 +72,9 @@ public class EventoPublicoService {
     }
 
     private EventoPublicoDetalleDTO toDetalleDTO(Evento evento) {
+        // Las tandas de cortesía son internas del Organizador: el público no las ve.
         List<TandaResponseDTO> tandas = evento.getTandas().stream()
+                .filter(t -> !t.isSoloEmision())
                 .map(t -> TandaResponseDTO.builder()
                         .id(t.getId())
                         .idEvento(evento.getId())
@@ -82,6 +86,8 @@ public class EventoPublicoService {
                         .fechaFinVigencia(t.getFechaFinVigencia())
                         .build())
                 .toList();
+
+        var organizador = organizadorRepository.findById(evento.getIdOrganizador()).orElse(null);
 
         return EventoPublicoDetalleDTO.builder()
                 .id(evento.getId())
@@ -95,9 +101,9 @@ public class EventoPublicoService {
                 .imagenPortadaUrl(evento.getImagenPortadaUrl())
                 .urlPublica(evento.getUrlPublica())
                 .tandas(tandas)
-                .maxEntradasPorCompra(configuracionService.obtenerEntero(
-                        VentaService.CLAVE_MAX_ENTRADAS_POR_COMPRADOR,
-                        VentaService.MAX_ENTRADAS_POR_COMPRADOR_DEFAULT))
+                .maxEntradasPorCompra(limiteCompradorService.limiteParaOrganizador(evento.getIdOrganizador()))
+                .contactoWhatsapp(organizador == null ? null : organizador.getContactoWhatsapp())
+                .contactoEmail(organizador == null ? null : organizador.getContactoEmail())
                 .build();
     }
 }

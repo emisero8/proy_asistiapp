@@ -4,13 +4,15 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
-import java.util.Base64;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -57,24 +59,45 @@ public class EmailService {
         try {
             int total = codigosQr.size();
             StringBuilder bloques = new StringBuilder();
+            StringBuilder textoEntradas = new StringBuilder();
+            List<byte[]> imagenesQr = new ArrayList<>();
             for (int i = 0; i < total; i++) {
                 String codigoQr = codigosQr.get(i);
-                byte[] qrPng = qrImageService.generarPng(codigoQr, TAMANO_QR_EMAIL_PX);
-                // Base64 data URI: compatible con MailHog y todos los clientes de email.
-                // CID inline requiere soporte explícito del visor (MailHog no lo tiene).
-                String qrDataUri = "data:image/png;base64," + Base64.getEncoder().encodeToString(qrPng);
+                imagenesQr.add(qrImageService.generarPng(codigoQr, TAMANO_QR_EMAIL_PX));
                 String ticketUrl = frontendBaseUrl + "/mi-entrada?codigoQr=" + codigoQr;
-                bloques.append(construirBloqueEntrada(i + 1, total, qrDataUri, codigoQr, ticketUrl));
+                // El QR viaja como imagen inline (cid:), no como data: URI en base64: Gmail (y otros
+                // clientes) bloquean las imágenes data: y mostraban el QR roto. MailHog no resuelve
+                // cid: en su vista HTML, pero ahí el botón "Ver mi entrada" lleva al QR igual.
+                bloques.append(construirBloqueEntrada(i + 1, total, "cid:" + cidDelQr(i), codigoQr, ticketUrl));
+                if (total > 1) {
+                    textoEntradas.append("Entrada ").append(i + 1).append(" de ").append(total).append("\n");
+                }
+                textoEntradas.append("Código: ").append(codigoQr).append("\n")
+                        .append("Ver mi entrada (con el QR): ").append(ticketUrl).append("\n\n");
             }
 
             MimeMessage mimeMessage = mailSender.createMimeMessage();
-            // multipart=false: ya no usamos CID inline, el HTML lleva la imagen embebida
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, "UTF-8");
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, "UTF-8");
             helper.setTo(emailDestino);
             helper.setSubject(total == 1
                     ? "✅ Tu entrada para " + nombreEvento + " — AsistíAPP"
                     : "✅ Tus " + total + " entradas para " + nombreEvento + " — AsistíAPP");
-            helper.setText(construirCuerpoEmailHtml(nombreComprador, nombreEvento, nombreTanda, total, bloques.toString()), true);
+            // Texto plano + HTML (multipart/alternative): los filtros de spam desconfían de los mails solo-HTML y
+            // los clientes sin HTML igual muestran lo esencial (evento, códigos y el link a cada entrada).
+            String textoPlano = "¡Compra confirmada!\n"
+                    + "Hola " + nombreComprador + ", ya tenés " + (total == 1 ? "tu entrada" : "tus " + total + " entradas") + ".\n\n"
+                    + "Evento: " + nombreEvento + "\n"
+                    + "Tanda: " + nombreTanda + "\n\n"
+                    + textoEntradas
+                    + "Mostrá el código QR en la puerta del evento.\n— AsistíAPP\n";
+            // El nombre del comprador lo escribe cualquiera (la compra es pública): se escapa para que no
+            // pueda meter HTML ni enlaces en un mail que sale con el remitente de AsistíAPP.
+            helper.setText(textoPlano, construirCuerpoEmailHtml(
+                    escaparHtml(nombreComprador), escaparHtml(nombreEvento), escaparHtml(nombreTanda), total, bloques.toString()));
+            // Las imágenes inline se agregan después del texto HTML que las referencia.
+            for (int i = 0; i < imagenesQr.size(); i++) {
+                helper.addInline(cidDelQr(i), new ByteArrayResource(imagenesQr.get(i)), "image/png");
+            }
 
             mailSender.send(mimeMessage);
             log.info("Email de confirmación enviado a: {} ({} entrada[s]) para el evento: {}",
@@ -231,6 +254,57 @@ public class EmailService {
     }
 
     /**
+     * Avisa a quien tenía una entrada que el Organizador la anuló (8.6). No dice el motivo: es una nota interna.
+     * Si hubo reembolso va en otro mail ({@link #enviarNotificacionReembolsoOrganizador}).
+     */
+    @Async
+    public void enviarNotificacionEntradaAnulada(String emailDestino, String nombreComprador, String nombreEvento) {
+        try {
+            SimpleMailMessage mensaje = new SimpleMailMessage();
+            mensaje.setTo(emailDestino);
+            mensaje.setSubject("Tu entrada fue anulada — " + nombreEvento + " — AsistíAPP");
+            mensaje.setText(String.format("""
+                    Hola %s,
+
+                    El organizador de "%s" anuló tu entrada, por lo que ya no tiene validez para
+                    ingresar al evento.
+
+                    Si tenés dudas, comunicate directamente con el organizador del evento.
+
+                    El equipo de AsistíAPP
+                    """,
+                    nombreComprador, nombreEvento));
+            mailSender.send(mensaje);
+            log.info("Aviso de entrada anulada enviado a: {} para el evento: {}", emailDestino, nombreEvento);
+        } catch (Exception e) {
+            log.error("Error al enviar el aviso de entrada anulada a {}: {}", emailDestino, e.getMessage());
+        }
+    }
+
+    /** Avisa que el Organizador le devolvió el dinero de su compra (anulación o evento cancelado), ya hecho en Mercado Pago (8.6). */
+    @Async
+    public void enviarNotificacionReembolsoOrganizador(String emailDestino, String nombreComprador, String nombreEvento, double monto) {
+        try {
+            SimpleMailMessage mensaje = new SimpleMailMessage();
+            mensaje.setTo(emailDestino);
+            mensaje.setSubject("Te devolvimos tu dinero — " + nombreEvento + " — AsistíAPP");
+            mensaje.setText(String.format(java.util.Locale.forLanguageTag("es-AR"), """
+                    Hola %s,
+
+                    El organizador de "%s" te devolvió $%,.2f de tu compra, a través de Mercado Pago.
+                    Deberías verlo reflejado en los próximos días según el medio de pago que hayas usado.
+
+                    El equipo de AsistíAPP
+                    """,
+                    nombreComprador, nombreEvento, monto));
+            mailSender.send(mensaje);
+            log.info("Aviso de reembolso enviado a: {} para el evento: {}", emailDestino, nombreEvento);
+        } catch (Exception e) {
+            log.error("Error al enviar el aviso de reembolso a {}: {}", emailDestino, e.getMessage());
+        }
+    }
+
+    /**
      * Avisa al Organizador que se le devolvió el dinero de una compra de créditos que no se
      * pudo acreditar. El reembolso en sí ya se hizo contra la API de MP antes de llamar a
      * este método — esto es solo la notificación.
@@ -264,8 +338,12 @@ public class EmailService {
         }
     }
 
+    private static String cidDelQr(int indice) {
+        return "qr-entrada-" + (indice + 1);
+    }
+
     /** Un bloque de QR + botón por cada entrada. "Entrada N de M" solo si hay más de una. */
-    private String construirBloqueEntrada(int numero, int total, String qrDataUri, String codigoQr, String ticketUrl) {
+    private String construirBloqueEntrada(int numero, int total, String qrSrc, String codigoQr, String ticketUrl) {
         String etiqueta = total > 1
                 ? "<p style=\"margin:0 0 12px;font-size:12px;color:#9cadd3;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;\">Entrada " + numero + " de " + total + "</p>"
                 : "";
@@ -293,10 +371,14 @@ public class EmailService {
                 """,
                 numero > 1 ? "border-top:1px solid #f3f4f6;" : "",
                 etiqueta,
-                qrDataUri,
+                qrSrc,
                 codigoQr,
                 ticketUrl
         );
+    }
+
+    private static String escaparHtml(String texto) {
+        return texto == null ? "" : HtmlUtils.htmlEscape(texto);
     }
 
     private String construirCuerpoEmailHtml(
