@@ -25,7 +25,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -148,6 +151,9 @@ class CreditoServiceTest {
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
         assertThat(transaccion.getMercadopagoPaymentId()).isEqualTo("999");
         verify(creditoLedgerService).registrarRecarga(organizador, 10, 7L);
+        // El Organizador se entera en la campanita de que ya tiene los créditos.
+        verify(notificacionService).crear(eq(organizador.getId()), eq("Se acreditaron tus créditos"),
+                argThat(m -> m.contains("10 créditos") && m.contains("11")), eq("TransaccionCredito"), eq(7L));
     }
 
     @Test
@@ -160,6 +166,7 @@ class CreditoServiceTest {
 
         assertThat(resultado).isEqualTo(ResultadoPago.YA_PROCESADA);
         verify(creditoLedgerService, never()).registrarRecarga(any(), anyInt(), anyLong());
+        verifyNoInteractions(notificacionService); // no se avisa dos veces
     }
 
     @Test

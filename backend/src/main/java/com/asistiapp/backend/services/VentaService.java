@@ -5,6 +5,7 @@ import com.asistiapp.backend.exceptions.ForbiddenActionException;
 import com.asistiapp.backend.exceptions.ResourceNotFoundException;
 import com.asistiapp.backend.models.dtos.entrada.*;
 import com.asistiapp.backend.models.entities.Entrada;
+import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.models.entities.Tanda;
 import com.asistiapp.backend.models.entities.TransaccionPago;
@@ -71,6 +72,7 @@ public class VentaService {
     private final SecurityUtils securityUtils;
     private final ConfiguracionService configuracionService;
     private final MercadoPagoService mercadoPagoService;
+    private final NotificacionService notificacionService;
 
     private static final int TAMANO_QR_DEFAULT_PX = 300;
 
@@ -267,6 +269,7 @@ public class VentaService {
 
         log.info("Pago confirmado: orden={}, pago MP={}, {} entrada(s), evento={}",
                 externalReference, paymentId, cantidad, tanda.getEvento().getNombre());
+        avisarVentaAlOrganizador(tanda, cantidad);
 
         // El mail lo manda el llamador después del commit, un solo mail con todos los QR.
         return new ConfirmacionEntradas(ResultadoPago.CONFIRMADA, codigosQr,
@@ -299,9 +302,15 @@ public class VentaService {
         transaccionPagoRepository.save(transaccion);
         log.info("Orden {} marcada como Reembolsada (pago MP {})", externalReference, paymentId);
 
-        String nombreEvento = tandaRepository.findById(transaccion.getIdTanda())
-                .map(t -> t.getEvento().getNombre())
-                .orElse("el evento");
+        Tanda tanda = tandaRepository.findById(transaccion.getIdTanda()).orElse(null);
+        String nombreEvento = tanda != null ? tanda.getEvento().getNombre() : "el evento";
+        if (tanda != null) {
+            notificacionService.crear(tanda.getEvento().getIdOrganizador(),
+                    "Se reembolsó una compra de entradas",
+                    "No pudimos entregar " + (transaccion.getCantidad() == 1 ? "1 entrada" : transaccion.getCantidad() + " entradas")
+                            + " de \"" + nombreEvento + "\" (la tanda se agotó o el evento dejó de estar a la venta) y le devolvimos el pago al comprador.",
+                    "Evento", tanda.getEvento().getId());
+        }
         return new ReembolsoEntradas(true, transaccion.getEmailComprador(), transaccion.getNombreComprador(), nombreEvento);
     }
 
@@ -393,7 +402,31 @@ public class VentaService {
                     saved.getId(), codigoQr, idStaffVendedor, tanda.getEvento().getNombre());
         }
 
+        avisarVentaAlOrganizador(tanda, cantidad);
         return generadas;
+    }
+
+    /**
+     * Avisa al Organizador (campanita) de dos hitos: la primera entrada vendida de su evento y la
+     * tanda que se agota. Corre dentro de la transacción de la venta, con las entradas ya guardadas.
+     * Una venta de varias entradas puede disparar los dos avisos a la vez.
+     */
+    private void avisarVentaAlOrganizador(Tanda tanda, int cantidad) {
+        Evento evento = tanda.getEvento();
+        Long idOrganizador = evento.getIdOrganizador();
+
+        if (entradaRepository.countByEventoId(evento.getId()) == cantidad) {
+            notificacionService.crear(idOrganizador,
+                    "Primera venta de \"" + evento.getNombre() + "\"",
+                    "Se vendió la primera entrada de tu evento (tanda " + tanda.getNombre() + ").",
+                    "Evento", evento.getId());
+        }
+        if (tandaRepository.cupoDisponibleActual(tanda.getId()) == 0) {
+            notificacionService.crear(idOrganizador,
+                    "Se agotó una tanda",
+                    "La tanda " + tanda.getNombre() + " de \"" + evento.getNombre() + "\" se quedó sin entradas.",
+                    "Evento", evento.getId());
+        }
     }
 
     // ─────────────────────────────────────────────

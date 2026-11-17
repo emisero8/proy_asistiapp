@@ -59,6 +59,8 @@ class VentaServiceTest {
     private com.asistiapp.backend.services.ConfiguracionService configuracionService;
     @Mock
     private MercadoPagoService mercadoPagoService;
+    @Mock
+    private NotificacionService notificacionService;
 
     @InjectMocks
     private VentaService ventaService;
@@ -381,6 +383,106 @@ class VentaServiceTest {
         assertThat(transaccion.getEstado()).isEqualTo(EstadoTransaccion.Aprobada);
         assertThat(resultado.reembolsada()).isFalse();
         verify(transaccionPagoRepository, never()).save(any());
+    }
+
+    // ─────────────────────────────────────────────
+    // Avisos al Organizador (campanita)
+    // ─────────────────────────────────────────────
+
+    private void ordenPagadaPorTresEntradas() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        transaccion.setCantidad(3);
+        transaccion.setMontoTotal(3000.0);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(tandaRepository.decrementarCupo(tanda.getId(), 3)).thenReturn(1);
+        when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    @Test
+    void confirmarPagoEntradas_laPrimeraVentaDelEvento_avisaAlOrganizador() {
+        ordenPagadaPorTresEntradas();
+        when(entradaRepository.countByEventoId(evento.getId())).thenReturn(3L); // solo las recién creadas
+        when(tandaRepository.cupoDisponibleActual(tanda.getId())).thenReturn(2);
+
+        ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(3000.0), "ARS");
+
+        verify(notificacionService).crear(eq(100L), contains("Primera venta"), anyString(), eq("Evento"), eq(evento.getId()));
+        verify(notificacionService, times(1)).crear(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void confirmarPagoEntradas_siLaTandaSeAgota_avisaAlOrganizador() {
+        ordenPagadaPorTresEntradas();
+        when(entradaRepository.countByEventoId(evento.getId())).thenReturn(10L); // ya había ventas
+        when(tandaRepository.cupoDisponibleActual(tanda.getId())).thenReturn(0);
+
+        ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(3000.0), "ARS");
+
+        verify(notificacionService).crear(eq(100L), eq("Se agotó una tanda"), contains("General"), eq("Evento"), eq(evento.getId()));
+        verify(notificacionService, times(1)).crear(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void confirmarPagoEntradas_unaVentaComun_noAvisaNada() {
+        ordenPagadaPorTresEntradas();
+        when(entradaRepository.countByEventoId(evento.getId())).thenReturn(10L);
+        when(tandaRepository.cupoDisponibleActual(tanda.getId())).thenReturn(2);
+
+        ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(3000.0), "ARS");
+
+        verifyNoInteractions(notificacionService);
+    }
+
+    @Test
+    void confirmarPagoEntradas_sinDisponibilidad_noAvisaDeVenta() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(tandaRepository.decrementarCupo(anyLong(), anyInt())).thenReturn(0);
+
+        ventaService.confirmarPagoEntradas("1", 999L, MONTO_ORDEN, "ARS");
+
+        verifyNoInteractions(notificacionService);
+    }
+
+    @Test
+    void realizarVentaManual_laPrimeraVentaDelEvento_avisaAlOrganizador() {
+        vendedorDeLaTanda();
+        when(tandaRepository.decrementarCupo(tanda.getId(), 1)).thenReturn(1);
+        when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(entradaRepository.countByEventoId(evento.getId())).thenReturn(1L);
+        when(tandaRepository.cupoDisponibleActual(tanda.getId())).thenReturn(0);
+
+        ventaService.realizarVentaManual(ventaManualDto(), 1L);
+
+        verify(notificacionService).crear(eq(100L), contains("Primera venta"), anyString(), eq("Evento"), eq(evento.getId()));
+        verify(notificacionService).crear(eq(100L), eq("Se agotó una tanda"), anyString(), eq("Evento"), eq(evento.getId()));
+    }
+
+    @Test
+    void marcarOrdenReembolsada_avisaAlOrganizadorDelEvento() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        transaccion.setCantidad(2);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+
+        ventaService.marcarOrdenReembolsada("1", 999L);
+
+        verify(notificacionService).crear(eq(100L), eq("Se reembolsó una compra de entradas"),
+                argThat(m -> m.contains("2 entradas") && m.contains(evento.getNombre())), eq("Evento"), eq(evento.getId()));
+    }
+
+    @Test
+    void marcarOrdenReembolsada_siLaOrdenYaEstabaEntregada_noAvisa() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Aprobada);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+
+        ventaService.marcarOrdenReembolsada("1", 999L);
+
+        verifyNoInteractions(notificacionService);
     }
 
     // ─────────────────────────────────────────────
