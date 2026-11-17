@@ -29,4 +29,11 @@ public class EventoPublicoDetalleDTO {
 
     /** Tope de entradas que una misma persona puede comprar para este evento. */
     private Integer maxEntradasPorCompra;
+
+    /**
+     * Contacto del Organizador al que deriva el botón de arrepentimiento (8.8). WhatsApp solo con dígitos
+     * (listo para wa.me) y/o email; null si no cargó.
+     */
+    private String contactoWhatsapp;
+    private String contactoEmail;
 }

@@ -58,6 +58,14 @@ export interface PerfilResponseDTO {
   /** Tope de entradas por comprador que fijó el Organizador; null = rige el de la plataforma (8.9). */
   maxEntradasPorComprador: number | null;
   maxEntradasPorCompradorPlataforma: number;
+  /** Contacto al que deriva el botón de arrepentimiento (8.8): WhatsApp solo con dígitos y/o email; null si no cargó. */
+  contactoWhatsapp: string | null;
+  contactoEmail: string | null;
+}
+
+export interface ContactoRequestDTO {
+  contactoWhatsapp: string | null;
+  contactoEmail: string | null;
 }
 
 export type EstadoCuentaMp = "Vinculada" | "Revocada";
@@ -195,6 +203,9 @@ export interface EventoPublicoDetalleDTO {
   urlPublica: string;
   tandas: TandaResponseDTO[];
   maxEntradasPorCompra: number;
+  /** Contacto del Organizador para el botón de arrepentimiento (8.8); null si no cargó. */
+  contactoWhatsapp: string | null;
+  contactoEmail: string | null;
 }
 
 // ── Entradas / Ventas ─────────────────────────────────

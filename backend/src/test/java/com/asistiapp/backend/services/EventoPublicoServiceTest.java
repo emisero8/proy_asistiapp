@@ -35,12 +35,14 @@ class EventoPublicoServiceTest {
     private EventoRepository eventoRepository;
     @Mock
     private LimiteCompradorService limiteCompradorService;
+    @Mock
+    private com.asistiapp.backend.repositories.OrganizadorRepository organizadorRepository;
 
     private EventoPublicoService eventoPublicoService;
 
     @BeforeEach
     void setUp() {
-        eventoPublicoService = new EventoPublicoService(eventoRepository, limiteCompradorService);
+        eventoPublicoService = new EventoPublicoService(eventoRepository, limiteCompradorService, organizadorRepository);
     }
 
     private Evento evento(Long id, LocalDate fecha, LocalTime hora) {
@@ -92,6 +94,37 @@ class EventoPublicoServiceTest {
         var resultado = eventoPublicoService.obtenerPorUrlPublica("evento-4");
 
         assertThat(resultado.getNombre()).isEqualTo("Evento 4");
+    }
+
+    @Test
+    void obtenerPorUrlPublica_incluyeElContactoDelOrganizadorParaElArrepentimiento() {
+        Evento ev = evento(7L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        ev.setIdOrganizador(55L);
+        var org = new com.asistiapp.backend.models.entities.Organizador();
+        org.setContactoWhatsapp("5491155551234");
+        org.setContactoEmail("hola@evento.com");
+        when(eventoRepository.findByUrlPublica("evento-7")).thenReturn(Optional.of(ev));
+        when(organizadorRepository.findById(55L)).thenReturn(Optional.of(org));
+        lenient().when(limiteCompradorService.limiteParaOrganizador(any())).thenReturn(6);
+
+        var resultado = eventoPublicoService.obtenerPorUrlPublica("evento-7");
+
+        assertThat(resultado.getContactoWhatsapp()).isEqualTo("5491155551234");
+        assertThat(resultado.getContactoEmail()).isEqualTo("hola@evento.com");
+    }
+
+    @Test
+    void obtenerPorUrlPublica_organizadorSinContacto_vienenNull() {
+        Evento ev = evento(8L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        ev.setIdOrganizador(56L);
+        when(eventoRepository.findByUrlPublica("evento-8")).thenReturn(Optional.of(ev));
+        when(organizadorRepository.findById(56L)).thenReturn(Optional.of(new com.asistiapp.backend.models.entities.Organizador()));
+        lenient().when(limiteCompradorService.limiteParaOrganizador(any())).thenReturn(6);
+
+        var resultado = eventoPublicoService.obtenerPorUrlPublica("evento-8");
+
+        assertThat(resultado.getContactoWhatsapp()).isNull();
+        assertThat(resultado.getContactoEmail()).isNull();
     }
 
     @Test

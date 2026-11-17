@@ -219,6 +219,13 @@ public class EventoService {
         Organizador organizador = organizadorRepository.findById(idOrganizador)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
 
+        // 8.8: el botón de arrepentimiento deriva a este contacto; sin él no hay a dónde derivar.
+        if (organizador.getContactoWhatsapp() == null && organizador.getContactoEmail() == null) {
+            throw new BusinessRuleException(
+                    "Cargá un contacto (WhatsApp o email) en Mi perfil antes de publicar: " +
+                    "ahí se deriva a quien quiera pedir el arrepentimiento de su compra");
+        }
+
         int costoPublicacion = configuracionService.obtenerEntero(
                 CLAVE_CREDITOS_POR_PUBLICACION, CREDITOS_POR_PUBLICACION_DEFAULT);
 

@@ -69,6 +69,28 @@ public class PerfilService {
         return toResponseDTO(organizador);
     }
 
+    /**
+     * El Organizador carga a dónde deriva el botón de arrepentimiento (8.8). El WhatsApp se guarda solo con
+     * dígitos (código de país incluido) para armar el link wa.me; vacío en ambos borra el contacto.
+     */
+    @Transactional
+    public PerfilResponseDTO cambiarContacto(Long idUsuario, String whatsapp, String email) {
+        String wa = whatsapp == null ? "" : whatsapp.replaceAll("[\\s+()\\-.]", "");
+        if (!wa.isEmpty() && !wa.matches("\\d{8,15}")) {
+            throw new BusinessRuleException("El WhatsApp tiene que ser un número con código de país (entre 8 y 15 dígitos)");
+        }
+        String mail = email == null ? "" : email.trim().toLowerCase();
+        if (!mail.isEmpty() && !mail.matches("[^@\\s]+@[^@\\s]+\\.[^@\\s]+")) {
+            throw new BusinessRuleException("El email de contacto no es válido");
+        }
+        Organizador organizador = organizadorRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        organizador.setContactoWhatsapp(wa.isEmpty() ? null : wa);
+        organizador.setContactoEmail(mail.isEmpty() ? null : mail);
+        organizadorRepository.save(organizador);
+        return toResponseDTO(organizador);
+    }
+
     @Transactional
     public void cambiarPassword(Long idUsuario, CambiarPasswordRequestDTO dto) {
         Usuario usuario = getUsuarioOrThrow(idUsuario);
@@ -94,13 +116,15 @@ public class PerfilService {
     }
 
     private PerfilResponseDTO toResponseDTO(Usuario usuario) {
+        Organizador org = organizadorRepository.findById(usuario.getId()).orElse(null);
         return PerfilResponseDTO.builder()
                 .id(usuario.getId())
                 .nombre(usuario.getNombre())
                 .email(usuario.getEmail())
                 .fotoPerfilUrl(usuario.getFotoPerfilUrl())
-                .maxEntradasPorComprador(organizadorRepository.findById(usuario.getId())
-                        .map(Organizador::getMaxEntradasPorComprador).orElse(null))
+                .maxEntradasPorComprador(org == null ? null : org.getMaxEntradasPorComprador())
+                .contactoWhatsapp(org == null ? null : org.getContactoWhatsapp())
+                .contactoEmail(org == null ? null : org.getContactoEmail())
                 .maxEntradasPorCompradorPlataforma(limiteCompradorService.limiteGlobal())
                 .build();
     }

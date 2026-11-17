@@ -1,11 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Save, KeyRound, AlertCircle, Users } from "lucide-react";
+import { Save, KeyRound, AlertCircle, Users, MessageCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
 import { CuentaMercadoPagoCard } from "./CuentaMercadoPagoCard";
-import type { CambiarPasswordRequestDTO, PerfilRequestDTO, PerfilResponseDTO, TopeCompradorRequestDTO } from "../../lib/types";
+import type { CambiarPasswordRequestDTO, ContactoRequestDTO, PerfilRequestDTO, PerfilResponseDTO, TopeCompradorRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const INPUT =
@@ -30,6 +30,11 @@ export function OrganizadorPerfilPage() {
   const [guardandoTope, setGuardandoTope] = useState(false);
   const [errorTope, setErrorTope] = useState<string | null>(null);
 
+  const [contactoWa, setContactoWa] = useState("");
+  const [contactoMail, setContactoMail] = useState("");
+  const [guardandoContacto, setGuardandoContacto] = useState(false);
+  const [errorContacto, setErrorContacto] = useState<string | null>(null);
+
   const [actual, setActual] = useState("");
   const [nueva, setNueva] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
@@ -44,6 +49,8 @@ export function OrganizadorPerfilPage() {
         setNombre(p.nombre);
         setFoto(p.fotoPerfilUrl ?? "");
         setTope(p.maxEntradasPorComprador == null ? "" : String(p.maxEntradasPorComprador));
+        setContactoWa(p.contactoWhatsapp ?? "");
+        setContactoMail(p.contactoEmail ?? "");
       })
       .catch((e: unknown) => setLoadError(e instanceof ApiError ? e.message : "No pudimos cargar tu perfil."));
   }, []);
@@ -71,6 +78,27 @@ export function OrganizadorPerfilPage() {
       setErrorPerfil(err instanceof ApiError ? err.message : "No pudimos guardar el perfil.");
     } finally {
       setGuardandoPerfil(false);
+    }
+  }
+
+  async function guardarContacto(e: FormEvent) {
+    e.preventDefault();
+    setErrorContacto(null);
+    const dto: ContactoRequestDTO = {
+      contactoWhatsapp: contactoWa.trim() === "" ? null : contactoWa.trim(),
+      contactoEmail: contactoMail.trim() === "" ? null : contactoMail.trim(),
+    };
+    setGuardandoContacto(true);
+    try {
+      const actualizado = await api.put<PerfilResponseDTO>("/organizador/perfil/contacto", dto);
+      setPerfil(actualizado);
+      setContactoWa(actualizado.contactoWhatsapp ?? "");
+      setContactoMail(actualizado.contactoEmail ?? "");
+      toast.success("Contacto guardado");
+    } catch (err) {
+      setErrorContacto(err instanceof ApiError ? err.message : "No pudimos guardar el contacto.");
+    } finally {
+      setGuardandoContacto(false);
     }
   }
 
@@ -193,6 +221,44 @@ export function OrganizadorPerfilPage() {
 
             <button type="submit" disabled={guardandoTope} className={BOTON}>
               <Save size={15} /> {guardandoTope ? "Guardando…" : "Guardar tope"}
+            </button>
+          </form>
+
+          <form onSubmit={guardarContacto} noValidate className="rounded-3xl bg-card border border-border p-5 space-y-5">
+            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+              <MessageCircle size={15} className="text-primary" /> Contacto para el arrepentimiento
+            </h3>
+            <p className="text-[11px] text-muted-foreground">
+              Quien quiera arrepentirse de una compra es derivado a este contacto: el pedido lo resolvés vos. Hace falta cargar al menos
+              uno para publicar un evento.
+            </p>
+            <div>
+              <label htmlFor="contacto-wa" className={LABEL}>WhatsApp de contacto</label>
+              <input
+                id="contacto-wa"
+                type="tel"
+                value={contactoWa}
+                onChange={(e) => setContactoWa(e.target.value)}
+                placeholder="+54 9 11 5555-1234"
+                className={INPUT}
+              />
+            </div>
+            <div>
+              <label htmlFor="contacto-mail" className={LABEL}>Email de contacto</label>
+              <input
+                id="contacto-mail"
+                type="email"
+                value={contactoMail}
+                onChange={(e) => setContactoMail(e.target.value)}
+                placeholder="contacto@tuevento.com"
+                className={INPUT}
+              />
+            </div>
+
+            {errorContacto && <p className="text-xs text-destructive">{errorContacto}</p>}
+
+            <button type="submit" disabled={guardandoContacto} className={BOTON}>
+              <Save size={15} /> {guardandoContacto ? "Guardando…" : "Guardar contacto"}
             </button>
           </form>
 

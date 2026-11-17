@@ -23,6 +23,8 @@ const PERFIL: PerfilResponseDTO = {
   fotoPerfilUrl: null,
   maxEntradasPorComprador: null,
   maxEntradasPorCompradorPlataforma: 6,
+  contactoWhatsapp: null,
+  contactoEmail: null,
 };
 
 beforeEach(() => {
@@ -182,5 +184,47 @@ describe("OrganizadorPerfilPage — entradas por persona (8.9)", () => {
     await userEvent.click(screen.getByRole("button", { name: "Guardar tope" }));
 
     expect(await screen.findByText("El tope no puede superar 100")).toBeInTheDocument();
+  });
+});
+
+describe("OrganizadorPerfilPage — contacto para el arrepentimiento (8.8)", () => {
+  it("muestra el contacto ya cargado", async () => {
+    vi.mocked(api.get).mockResolvedValue({ ...PERFIL, contactoWhatsapp: "5491155551234", contactoEmail: "hola@evento.com" });
+    await cargar();
+
+    expect(screen.getByLabelText("WhatsApp de contacto")).toHaveValue("5491155551234");
+    expect(screen.getByLabelText("Email de contacto")).toHaveValue("hola@evento.com");
+  });
+
+  it("sin contacto avisa que hace falta uno para publicar", async () => {
+    await cargar();
+
+    expect(screen.getByText(/para publicar/i)).toBeInTheDocument();
+  });
+
+  it("guarda el contacto nuevo", async () => {
+    await cargar();
+    vi.mocked(api.put).mockResolvedValueOnce({ ...PERFIL, contactoWhatsapp: "5491155551234", contactoEmail: null });
+    await userEvent.type(screen.getByLabelText("WhatsApp de contacto"), "+54 9 11 5555-1234");
+
+    await userEvent.click(screen.getByRole("button", { name: "Guardar contacto" }));
+
+    await waitFor(() =>
+      expect(api.put).toHaveBeenCalledWith("/organizador/perfil/contacto", {
+        contactoWhatsapp: "+54 9 11 5555-1234",
+        contactoEmail: null,
+      }),
+    );
+    await waitFor(() => expect(screen.getByLabelText("WhatsApp de contacto")).toHaveValue("5491155551234"));
+  });
+
+  it("muestra el error del backend si el contacto no es válido", async () => {
+    await cargar();
+    vi.mocked(api.put).mockRejectedValueOnce(new ApiError({ status: 409, error: "El email de contacto no es válido", path: "/organizador/perfil/contacto", timestamp: "" }));
+    await userEvent.type(screen.getByLabelText("Email de contacto"), "mal");
+
+    await userEvent.click(screen.getByRole("button", { name: "Guardar contacto" }));
+
+    expect(await screen.findByText("El email de contacto no es válido")).toBeInTheDocument();
   });
 });

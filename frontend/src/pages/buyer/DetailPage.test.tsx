@@ -51,6 +51,8 @@ function evento(tandas: TandaResponseDTO[]): EventoPublicoDetalleDTO {
     urlPublica: "festival-de-prueba",
     tandas,
     maxEntradasPorCompra: 6,
+    contactoWhatsapp: null,
+    contactoEmail: null,
   };
 }
 
@@ -111,5 +113,23 @@ describe("DetailPage — venta de cada tanda", () => {
     expect(screen.getByRole("button", { name: /Futura/ })).toBeDisabled();
     expect(screen.getByText("Venta aún no abierta")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /General/ })).toBeEnabled();
+  });
+});
+
+describe("DetailPage — botón de arrepentimiento (8.8)", () => {
+  it("muestra el botón que deriva al contacto del Organizador", async () => {
+    await renderPage({ ...evento([tanda(1, "General")]), contactoWhatsapp: "5491155551234", contactoEmail: null });
+
+    expect(await screen.findByRole("link", { name: /whatsapp/i })).toHaveAttribute(
+      "href",
+      expect.stringContaining("https://wa.me/5491155551234"),
+    );
+  });
+
+  it("si el Organizador no cargó contacto, no muestra el botón", async () => {
+    await renderPage(evento([tanda(1, "General")]));
+
+    await screen.findByText("Festival de Prueba");
+    expect(screen.queryByRole("link", { name: /whatsapp/i })).not.toBeInTheDocument();
   });
 });

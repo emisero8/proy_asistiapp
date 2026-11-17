@@ -123,6 +123,70 @@ class PerfilServiceTest {
         verify(organizadorRepository, never()).save(any());
     }
 
+    // ── Contacto para el arrepentimiento (8.8) ──────────────
+
+    @Test
+    void cambiarContacto_guardaWhatsappSoloConDigitos_yEmail() {
+        var org = organizador(null);
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = perfilService.cambiarContacto(ID, "+54 9 11 5555-1234", " Hola@Evento.com ");
+
+        assertThat(org.getContactoWhatsapp()).isEqualTo("5491155551234");
+        assertThat(org.getContactoEmail()).isEqualTo("hola@evento.com");
+        assertThat(response.getContactoWhatsapp()).isEqualTo("5491155551234");
+        assertThat(response.getContactoEmail()).isEqualTo("hola@evento.com");
+    }
+
+    @Test
+    void cambiarContacto_conUnSoloMedio_alcanza() {
+        var org = organizador(null);
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        perfilService.cambiarContacto(ID, "", "hola@evento.com");
+
+        assertThat(org.getContactoWhatsapp()).isNull();
+        assertThat(org.getContactoEmail()).isEqualTo("hola@evento.com");
+    }
+
+    @Test
+    void cambiarContacto_vacioEnAmbos_loBorra() {
+        var org = organizador(null);
+        org.setContactoWhatsapp("5491155551234");
+        org.setContactoEmail("hola@evento.com");
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        perfilService.cambiarContacto(ID, null, "  ");
+
+        assertThat(org.getContactoWhatsapp()).isNull();
+        assertThat(org.getContactoEmail()).isNull();
+    }
+
+    @Test
+    void cambiarContacto_whatsappInvalido_lanzaBusinessRuleExceptionYNoGuarda() {
+        assertThatThrownBy(() -> perfilService.cambiarContacto(ID, "12345", null)).isInstanceOf(BusinessRuleException.class);
+        assertThatThrownBy(() -> perfilService.cambiarContacto(ID, "abc", null)).isInstanceOf(BusinessRuleException.class);
+        verify(organizadorRepository, never()).save(any());
+    }
+
+    @Test
+    void cambiarContacto_emailInvalido_lanzaBusinessRuleExceptionYNoGuarda() {
+        assertThatThrownBy(() -> perfilService.cambiarContacto(ID, null, "no-es-un-mail")).isInstanceOf(BusinessRuleException.class);
+        verify(organizadorRepository, never()).save(any());
+    }
+
+    @Test
+    void obtenerPerfil_traeElContacto() {
+        var org = organizador(null);
+        org.setContactoWhatsapp("5491155551234");
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+
+        assertThat(perfilService.obtenerPerfil(ID).getContactoWhatsapp()).isEqualTo("5491155551234");
+    }
+
     // ── Perfil: validación de la foto ───────────────────────
 
     @Test

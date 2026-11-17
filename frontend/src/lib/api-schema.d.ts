@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizador/perfil/contacto": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["cambiarContacto"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/eventos/{id}": {
         parameters: {
             query?: never;
@@ -1206,6 +1222,8 @@ export interface components {
             maxEntradasPorComprador?: number;
             /** Format: int32 */
             maxEntradasPorCompradorPlataforma?: number;
+            contactoWhatsapp?: string;
+            contactoEmail?: string;
         };
         TopeCompradorRequestDTO: {
             /** Format: int32 */
@@ -1214,6 +1232,10 @@ export interface components {
         CambiarPasswordRequestDTO: {
             passwordActual: string;
             passwordNueva: string;
+        };
+        ContactoRequestDTO: {
+            contactoWhatsapp?: string;
+            contactoEmail?: string;
         };
         EventoRequestDTO: {
             nombre: string;
@@ -1571,6 +1593,8 @@ export interface components {
             tandas?: components["schemas"]["TandaResponseDTO"][];
             /** Format: int32 */
             maxEntradasPorCompra?: number;
+            contactoWhatsapp?: string;
+            contactoEmail?: string;
         };
         EstadisticasPublicasResponseDTO: {
             /** Format: int64 */
@@ -1821,6 +1845,30 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    cambiarContacto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContactoRequestDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PerfilResponseDTO"];
+                };
             };
         };
     };

@@ -27,4 +27,14 @@ public class Organizador extends Usuario {
      */
     @Column(name = "max_entradas_por_comprador")
     private Integer maxEntradasPorComprador;
+
+    /**
+     * Contacto al que se deriva el botón de arrepentimiento (8.8). WhatsApp solo con dígitos y código de
+     * país (listo para wa.me) y/o email. Hace falta al menos uno para publicar un evento.
+     */
+    @Column(name = "contacto_whatsapp", length = 20)
+    private String contactoWhatsapp;
+
+    @Column(name = "contacto_email", length = 200)
+    private String contactoEmail;
 }

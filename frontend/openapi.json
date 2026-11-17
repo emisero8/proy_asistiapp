@@ -115,6 +115,36 @@
         }
       }
     },
+    "/organizador/perfil/contacto": {
+      "put": {
+        "tags": [
+          "perfil-controller"
+        ],
+        "operationId": "cambiarContacto",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactoRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/eventos/{id}": {
       "get": {
         "tags": [
@@ -2604,6 +2634,12 @@
           "maxEntradasPorCompradorPlataforma": {
             "type": "integer",
             "format": "int32"
+          },
+          "contactoWhatsapp": {
+            "type": "string"
+          },
+          "contactoEmail": {
+            "type": "string"
           }
         }
       },
@@ -2631,6 +2667,21 @@
           "passwordNueva": {
             "maxLength": 100,
             "minLength": 8,
+            "type": "string"
+          }
+        }
+      },
+      "ContactoRequestDTO": {
+        "type": "object",
+        "properties": {
+          "contactoWhatsapp": {
+            "maxLength": 30,
+            "minLength": 0,
+            "type": "string"
+          },
+          "contactoEmail": {
+            "maxLength": 200,
+            "minLength": 0,
             "type": "string"
           }
         }
@@ -3633,6 +3684,12 @@
           "maxEntradasPorCompra": {
             "type": "integer",
             "format": "int32"
+          },
+          "contactoWhatsapp": {
+            "type": "string"
+          },
+          "contactoEmail": {
+            "type": "string"
           }
         }
       },

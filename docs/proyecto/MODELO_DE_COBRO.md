@@ -56,7 +56,7 @@ Lo que sí se construye, para que el Organizador lo tenga fácil:
 | D | Entradas manuales del Organizador (cortesía / pago externo) y trazabilidad de quién emitió cada entrada | — |
 | E | Tope por vendedor y resumen por vendedor | D |
 | F | Anular entrada y reembolsar desde el panel; reembolso masivo al cancelar; devolución de créditos de entradas anuladas | C |
-| G | Botón de arrepentimiento que deriva al WhatsApp o mail del Organizador (contacto por evento o por cuenta) | — |
+| G | Botón de arrepentimiento que deriva al WhatsApp o mail del Organizador (contacto por cuenta; sin contacto no se publica) | ✅ hecho (8.8) |
 
 ## 6. Riesgos conocidos
 

@@ -115,6 +115,7 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `PATCH /organizador/staff/{id}/tope` | Cambia el tope de un vendedor propio (`{ "topeEntradas": n }`). 409 si `n` es menor a lo que ya vendió; 403 si no es suyo. |
 | `PATCH /organizador/staff/{id}/desactivar`, `/reactivar`, `POST /organizador/staff/{id}/resetear-password` | Gestiona la cuenta de un staff. |
 | `GET/PUT /organizador/perfil`, `POST /organizador/perfil/foto`, `PUT /organizador/perfil/password` | Perfil, foto y cambio de contraseña. El perfil trae `maxEntradasPorComprador` (null = rige el de la plataforma) y `maxEntradasPorCompradorPlataforma`. |
+| `PUT /organizador/perfil/contacto` | Contacto del botón de arrepentimiento (`{ "contactoWhatsapp", "contactoEmail" }`, al menos uno para poder publicar; el WhatsApp con código de país, se guarda solo con dígitos; ambos vacíos lo borran). 409 si alguno no es válido. El detalle público del evento (`GET /public/eventos/{urlPublica}`) devuelve ambos. |
 | `PUT /organizador/perfil/tope-comprador` | Fija cuántas entradas puede tener una misma persona (mismo mail) para sus eventos (`{ "maxEntradasPorComprador": n }`, 1 a 100; `null` vuelve al valor de la plataforma). |
 
 ### Staff

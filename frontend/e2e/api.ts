@@ -22,6 +22,7 @@ async function llamar<T>(metodo: string, ruta: string, token?: string, cuerpo?: 
 
 export const get = <T>(ruta: string, token?: string) => llamar<T>("GET", ruta, token);
 export const post = <T>(ruta: string, token?: string, cuerpo?: unknown) => llamar<T>("POST", ruta, token, cuerpo);
+export const put = <T>(ruta: string, token?: string, cuerpo?: unknown) => llamar<T>("PUT", ruta, token, cuerpo);
 export const patch = <T>(ruta: string, token?: string, cuerpo?: unknown) => llamar<T>("PATCH", ruta, token, cuerpo);
 
 interface Auth { token: string; id: number; email: string }
@@ -40,6 +41,8 @@ export function emailUnico(rol: string) {
 export async function registrarOrganizador(): Promise<Auth> {
   const email = emailUnico("organizador");
   const r = await post<Auth>("/auth/register", undefined, { nombre: "E2E Organizador", email, password: PASSWORD });
+  // Para publicar hace falta un contacto del arrepentimiento (8.8).
+  await put("/organizador/perfil/contacto", r.token, { contactoEmail: email });
   return { token: r.token, id: r.id, email };
 }
 

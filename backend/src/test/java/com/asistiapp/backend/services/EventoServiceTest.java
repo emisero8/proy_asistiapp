@@ -76,6 +76,7 @@ class EventoServiceTest {
         organizador = new Organizador();
         organizador.setId(ID_ORGANIZADOR);
         organizador.setSaldoCreditos(3);
+        organizador.setContactoEmail("contacto@demo.com");
     }
 
     // ─────────────────────────────────────────────
@@ -274,6 +275,24 @@ class EventoServiceTest {
         assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Borrador");
+    }
+
+    @Test
+    void publicarEvento_sinContactoDeArrepentimiento_lanzaBusinessRuleExceptionYNoCambiaEstado() {
+        // 8.8: el botón de arrepentimiento necesita a dónde derivar; sin contacto no se publica.
+        agregarTandaAlEvento();
+        organizador.setContactoEmail(null);
+        organizador.setContactoWhatsapp(null);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(organizadorRepository.findById(ID_ORGANIZADOR)).thenReturn(Optional.of(organizador));
+
+        assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("contacto");
+
+        assertThat(evento.getEstado()).isEqualTo(EstadoEvento.Borrador);
+        verifyNoInteractions(creditoLedgerService);
+        verify(eventoRepository, never()).save(any());
     }
 
     @Test

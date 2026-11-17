@@ -22,4 +22,8 @@ public class PerfilResponseDTO {
     private Integer maxEntradasPorComprador;
     /** El tope de la plataforma, para mostrar qué rige cuando el Organizador no fijó el suyo. */
     private Integer maxEntradasPorCompradorPlataforma;
+
+    /** Contacto del arrepentimiento (8.8): WhatsApp solo con dígitos y/o email; null si no cargó. */
+    private String contactoWhatsapp;
+    private String contactoEmail;
 }

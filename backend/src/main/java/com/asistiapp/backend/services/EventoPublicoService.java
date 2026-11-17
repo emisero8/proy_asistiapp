@@ -8,6 +8,7 @@ import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.Tanda;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.repositories.OrganizadorRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ public class EventoPublicoService {
 
     private final EventoRepository eventoRepository;
     private final LimiteCompradorService limiteCompradorService;
+    private final OrganizadorRepository organizadorRepository;
 
     @Transactional(readOnly = true)
     public List<EventoPublicoListItemDTO> listarPublicados() {
@@ -85,6 +87,8 @@ public class EventoPublicoService {
                         .build())
                 .toList();
 
+        var organizador = organizadorRepository.findById(evento.getIdOrganizador()).orElse(null);
+
         return EventoPublicoDetalleDTO.builder()
                 .id(evento.getId())
                 .nombre(evento.getNombre())
@@ -98,6 +102,8 @@ public class EventoPublicoService {
                 .urlPublica(evento.getUrlPublica())
                 .tandas(tandas)
                 .maxEntradasPorCompra(limiteCompradorService.limiteParaOrganizador(evento.getIdOrganizador()))
+                .contactoWhatsapp(organizador == null ? null : organizador.getContactoWhatsapp())
+                .contactoEmail(organizador == null ? null : organizador.getContactoEmail())
                 .build();
     }
 }

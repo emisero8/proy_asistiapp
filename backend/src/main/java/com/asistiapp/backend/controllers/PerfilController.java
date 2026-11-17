@@ -2,6 +2,7 @@ package com.asistiapp.backend.controllers;
 
 import com.asistiapp.backend.models.dtos.evento.ImagenSubidaResponseDTO;
 import com.asistiapp.backend.models.dtos.perfil.CambiarPasswordRequestDTO;
+import com.asistiapp.backend.models.dtos.perfil.ContactoRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilResponseDTO;
 import com.asistiapp.backend.models.dtos.perfil.TopeCompradorRequestDTO;
@@ -24,6 +25,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   PUT    /organizador/perfil            → nombre y foto (URL ya subida)
  *   POST   /organizador/perfil/foto       → subir la foto a Cloudinary (devuelve la URL)
  *   PUT    /organizador/perfil/tope-comprador → tope de entradas por comprador (null = el de la plataforma)
+ *   PUT    /organizador/perfil/contacto   → WhatsApp y/o email del botón de arrepentimiento (8.8)
  *   PUT    /organizador/perfil/password   → cambiar contraseña (exige la actual)
  */
 @RestController
@@ -50,6 +52,12 @@ public class PerfilController {
     public ResponseEntity<PerfilResponseDTO> cambiarTopeComprador(@Valid @RequestBody TopeCompradorRequestDTO dto) {
         return ResponseEntity.ok(perfilService.cambiarTopeComprador(
                 securityUtils.getIdUsuarioAutenticado(), dto.getMaxEntradasPorComprador()));
+    }
+
+    @PutMapping("/contacto")
+    public ResponseEntity<PerfilResponseDTO> cambiarContacto(@Valid @RequestBody ContactoRequestDTO dto) {
+        return ResponseEntity.ok(perfilService.cambiarContacto(
+                securityUtils.getIdUsuarioAutenticado(), dto.getContactoWhatsapp(), dto.getContactoEmail()));
     }
 
     @PostMapping(value = "/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

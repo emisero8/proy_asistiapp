@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, MapPin, Calendar, Clock, Minus, Plus } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
+import { BotonArrepentimiento } from "../../components/BotonArrepentimiento";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { estadoVentaTanda, etiquetaEstadoTanda } from "../../lib/tanda";
 import type { EventoPublicoDetalleDTO, TandaResponseDTO } from "../../lib/types";
@@ -178,6 +179,13 @@ export function DetailPage() {
                 </div>
               </div>
               <p className="text-[11px] text-muted-foreground mt-2">Máximo {evento.maxEntradasPorCompra} entradas por persona para este evento.</p>
+            </div>
+            <div className="mt-6">
+              <BotonArrepentimiento
+                nombreEvento={evento.nombre}
+                contactoWhatsapp={evento.contactoWhatsapp}
+                contactoEmail={evento.contactoEmail}
+              />
             </div>
             <div className="h-32 lg:hidden" />
           </div>
