@@ -20,6 +20,7 @@
 | `SECURITY.md` | Criterios de seguridad que se auditan en el código. |
 | `GUIA_DEMO.md` | Guion para mostrar el sistema funcionando. |
 | `backend_implementation_plan.md` y `frontend_implementation_plan.md` | Registro fase por fase de lo construido y por qué. |
+| `MERCADOPAGO_COBRO.md` | **Cobro con Mercado Pago (Etapa 8):** cómo funciona, mapa del código, cómo preparar el entorno, cómo probar (sandbox vs. dinero real), hallazgos del sandbox con OAuth y trampas. Para personas y agentes. |
 | `Propuesta_Integracion_MercadoPago.docx` | Propuesta original de la integración de pagos. |
 
 ## `proyecto/` — registro del trabajo

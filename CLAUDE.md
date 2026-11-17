@@ -20,6 +20,15 @@ Para cualquier tarea relacionada con la base de datos, creación de endpoints, l
 - **Patrones de Código:** Usa siempre DTOs para las peticiones/respuestas (no expongas entidades JPA) e implementa manejo de errores global estructurado con `@ControllerAdvice`.
 - **Contrato con el frontend:** si cambiás un endpoint o un DTO, `OpenApiContratoTest` falla hasta que se regenere la copia del contrato del frontend: con el backend corriendo, `cd frontend && npm run types:api`, luego `npx tsc -b` y actualizar `frontend/src/lib/types.ts` donde marque (detalle en `frontend/README.md`, "Contrato con el backend").
 
+## 💳 COBRO CON MERCADO PAGO / ETAPA 8 (CRÍTICO)
+Para cualquier tarea que toque pagos, reembolsos, la cuenta de Mercado Pago del Organizador, entradas anuladas o el cobro de créditos, **DEBES leer `docs/tecnica/MERCADOPAGO_COBRO.md`** (modelo, mapa del código, flujos, cómo preparar el entorno, cómo probar, hallazgos del sandbox y trampas). La especificación está en `docs/proyecto/MODELO_DE_COBRO.md` y el estado en `docs/proyecto/PLAN_MEJORAS.md` (Etapa 8).
+- **Las entradas se cobran con el token OAuth del Organizador del evento; los créditos, con el de la plataforma.** Cada llamada a Mercado Pago lleva su propio token (`MPRequestOptions`): nunca cambies el token global del SDK. Las llamadas a Mercado Pago van **fuera** de las transacciones de base.
+- **Con la cuenta de un Organizador se usa `init_point`**, no `sandbox_init_point`.
+- **El cobro con OAuth no se puede probar con usuarios de prueba del sandbox** (investigación abierta en la guía, sección 7). Se prueba con `MP_EXIGIR_CUENTA_VINCULADA=false` (cobra con la cuenta de la plataforma) o con dinero real y montos mínimos.
+- **No leas ni uses tokens de Mercado Pago guardados en la base** (descifrarlos y llamar a la API) sin autorización expresa de la persona, y nunca imprimas un token. Las credenciales van en variables de entorno o `backend/.env`, jamás en el repo, en los `.md` ni en el chat.
+- Un valor nuevo de enum o una restricción nueva en Postgres necesita un script en `backend/db/migraciones/` (ver su `README.md`; `ddl-auto: update` no actualiza los CHECK). Para una base existente: `backend/db/aplicar-migraciones.ps1`.
+- **Antes de pagar algo real con la persona**, avisar el monto y que Mercado Pago cobra comisión aunque se reembolse; pagar solo desde una cuenta distinta del vendedor.
+
 ## 🛡️ AUDITORÍA DE SEGURIDAD
 Si se solicita una revisión de seguridad de código, **DEBES leer el archivo `docs/tecnica/SECURITY.md`** y auditar estrictamente el fragmento de código proporcionado buscando vulnerabilidades (SQLi, XSS, CSRF, IDOR), sin modificar ni requerir la lectura del resto del proyecto.
 

@@ -56,7 +56,7 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    psql -h localhost -U postgres -d asistiapp_db -f db/migraciones/<archivo>.sql
    ```
 
-   Si arrancás con una base vacía no necesitás correr ninguno. Si el anuncio global del Admin o marcar una orden como vencida/reembolsada devuelven 500, casi seguro falta alguno.
+   Si arrancás con una base vacía no necesitás correr ninguno. Para aplicarlos todos de una vez (son idempotentes): `./db/aplicar-migraciones.ps1` (ver `db/migraciones/README.md`). Si el anuncio global del Admin o marcar una orden como vencida/reembolsada devuelven 500, casi seguro falta alguno.
 
 4. La API queda en `http://localhost:8080`.
 
@@ -139,6 +139,8 @@ Para otros proveedores transaccionales (Brevo, SendGrid, Mailgun), el mecanismo 
 Si el envío falla (MailHog caído, credenciales mal puestas, límite excedido), la operación de negocio (compra, alta de staff, etc.) **igual se completa** — el fallo queda solo logueado (`EmailService` está diseñado para no bloquear el flujo principal por un mail caído). Para detectar fallos sistemáticos, revisar los logs del backend.
 
 ## Pagos con MercadoPago (Checkout Pro)
+
+> **Cómo funciona el cobro de entradas con la cuenta de cada Organizador (OAuth), cómo preparar el entorno y cómo probar (sandbox vs. dinero real): [`../docs/tecnica/MERCADOPAGO_COBRO.md`](../docs/tecnica/MERCADOPAGO_COBRO.md).** Lo de abajo describe el camino con la cuenta de la plataforma (compra de créditos y modo de desarrollo).
 
 El cobro de entradas y de créditos usa MercadoPago Checkout Pro. El detalle del diseño, las decisiones y el estado están en la **Fase 21** de `../docs/tecnica/backend_implementation_plan.md`.
 
