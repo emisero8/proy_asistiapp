@@ -70,6 +70,7 @@ export type ContratoConElBackend = [
   Afirma<Coincide<T.CompraOnlineRequestDTO, S["CompraOnlineRequestDTO"]>>,
   Afirma<Coincide<T.IniciarCompraResponseDTO, S["IniciarCompraResponseDTO"]>>,
   Afirma<Coincide<T.VentaManualRequestDTO, S["VentaManualRequestDTO"]>>,
+  Afirma<Coincide<T.EmisionOrganizadorRequestDTO, S["EmisionOrganizadorRequestDTO"]>>,
   Afirma<Coincide<T.DisponibilidadCompradorResponseDTO, S["DisponibilidadCompradorResponseDTO"]>>,
   Afirma<Coincide<T.ValidacionQRRequestDTO, S["ValidacionQRRequestDTO"]>>,
   Afirma<Coincide<T.ValidacionQRResponseDTO, S["ValidacionQRResponseDTO"]>>,

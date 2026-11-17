@@ -14,6 +14,7 @@ import com.asistiapp.backend.models.enums.EstadoEntrada;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.repositories.EntradaRepository;
+import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
 import com.asistiapp.backend.repositories.TandaRepository;
 import com.asistiapp.backend.repositories.TransaccionPagoRepository;
@@ -64,6 +65,7 @@ import java.util.UUID;
 public class VentaService {
 
     private final TandaRepository tandaRepository;
+    private final EventoRepository eventoRepository;
     private final EntradaRepository entradaRepository;
     private final StaffVendedorRepository staffVendedorRepository;
     private final TransaccionPagoRepository transaccionPagoRepository;
@@ -406,6 +408,62 @@ public class VentaService {
         return generadas;
     }
 
+    // ─────────────────────────────────────────────
+    // EMISIÓN DEL ORGANIZADOR — cortesía o pago por fuera de la plataforma
+    // ─────────────────────────────────────────────
+
+    /**
+     * El Organizador emite él mismo entradas de una de sus tandas: cortesías (prensa, invitados) o
+     * entradas que cobró por fuera. Salen del cupo de la tanda, que ya está pago en créditos (se
+     * consumen al crearla), así que no hay otro cobro. A diferencia de la venta, no tiene tope por
+     * comprador ni depende de la ventana de venta de la tanda: el límite es el cupo. Todo o nada, con
+     * el mismo bloqueo pesimista anti-sobreventa. No genera avisos a su campanita: lo hizo él.
+     *
+     * @param idOrganizador Organizador autenticado; la tanda tiene que ser de uno de sus eventos
+     */
+    @Transactional
+    public List<EntradaResponseDTO> emitirEntradasOrganizador(EmisionOrganizadorRequestDTO dto, Long idOrganizador) {
+        Tanda tanda = tandaRepository.findByIdWithLock(dto.getIdTanda())
+                .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada con id: " + dto.getIdTanda()));
+
+        if (!tanda.getEvento().getIdOrganizador().equals(idOrganizador)) {
+            throw new ForbiddenActionException("Esta tanda no pertenece a uno de tus eventos");
+        }
+        validarEventoVendible(tanda);
+
+        int cantidad = dto.getCantidad();
+        if (tanda.getCupoDisponible() < cantidad) {
+            throw new BusinessRuleException(tanda.getCupoDisponible() <= 0
+                    ? "La tanda \"" + tanda.getNombre() + "\" está agotada"
+                    : "Solo quedan " + tanda.getCupoDisponible() + " entradas en la tanda \"" + tanda.getNombre() + "\"");
+        }
+        if (tandaRepository.decrementarCupo(tanda.getId(), cantidad) == 0) {
+            throw new BusinessRuleException(cantidad == 1
+                    ? "Tanda agotada — no hay cupo disponible"
+                    : "No hay cupo para " + cantidad + " entradas en esta tanda");
+        }
+
+        String motivo = dto.getMotivo() == null || dto.getMotivo().isBlank() ? null : dto.getMotivo().trim();
+        List<EntradaResponseDTO> generadas = new ArrayList<>();
+        for (int i = 0; i < cantidad; i++) {
+            Entrada entrada = new Entrada();
+            entrada.setTanda(tanda);
+            entrada.setCodigoQr(generarCodigoQrUnico());
+            entrada.setNombreComprador(dto.getNombreDestinatario().trim());
+            entrada.setEmailComprador(dto.getEmailDestinatario().trim());
+            entrada.setEstado(EstadoEntrada.Pagada);
+            entrada.setCanalVenta(CanalVenta.Manual);
+            entrada.setIdOrganizadorEmisor(idOrganizador);
+            entrada.setTipoEmision(dto.getTipo());
+            entrada.setMotivoEmision(motivo);
+            generadas.add(toResponseDTOParaOrganizador(entradaRepository.save(entrada)));
+        }
+
+        log.info("Emisión del organizador: {} entrada(s) de tipo {} en la tanda {} del evento {} (organizador {})",
+                cantidad, dto.getTipo(), tanda.getId(), tanda.getEvento().getNombre(), idOrganizador);
+        return generadas;
+    }
+
     /**
      * Avisa al Organizador (campanita) de dos hitos: la primera entrada vendida de su evento y la
      * tanda que se agota. Corre dentro de la transacción de la venta, con las entradas ya guardadas.
@@ -433,12 +491,20 @@ public class VentaService {
     // Consultas
     // ─────────────────────────────────────────────
 
-    /** Lista todas las entradas de un evento (para reporte del Organizador). */
+    /**
+     * Lista todas las entradas de un evento (para reporte del Organizador). Solo el dueño del evento:
+     * cada entrada trae el QR y el mail del comprador.
+     */
     @Transactional(readOnly = true)
-    public List<EntradaResponseDTO> listarEntradasPorEvento(Long idEvento) {
+    public List<EntradaResponseDTO> listarEntradasPorEvento(Long idEvento, Long idOrganizador) {
+        Evento evento = eventoRepository.findById(idEvento)
+                .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + idEvento));
+        if (!evento.getIdOrganizador().equals(idOrganizador)) {
+            throw new ForbiddenActionException("Este evento no es tuyo");
+        }
         return entradaRepository.findByEventoId(idEvento)
                 .stream()
-                .map(this::toResponseDTO)
+                .map(this::toResponseDTOParaOrganizador)
                 .toList();
     }
 
@@ -485,6 +551,20 @@ public class VentaService {
     // Helpers privados
     // ─────────────────────────────────────────────
 
+    /** El evento tiene que estar Publicado y no haber terminado, sea cual sea la ventana de venta de la tanda. */
+    private void validarEventoVendible(Tanda tanda) {
+        if (tanda.getEvento().getEstado() != EstadoEvento.Publicado) {
+            throw new BusinessRuleException(
+                    "El evento no está disponible para la venta. " +
+                    "Estado: " + tanda.getEvento().getEstado());
+        }
+        if (tanda.getEvento().yaFinalizo()) {
+            // Independiente de la vigencia propia de la tanda (que es opcional): un evento que
+            // ya pasó no se puede seguir comprando, tenga o no la tanda su propia fecha de cierre.
+            throw new BusinessRuleException("El evento \"" + tanda.getEvento().getNombre() + "\" ya finalizó.");
+        }
+    }
+
     /**
      * Valida que la tanda esté disponible para la venta:
      *  - El evento debe estar Publicado.
@@ -493,17 +573,8 @@ public class VentaService {
      *  - El cupo_disponible debe alcanzar para la cantidad pedida.
      */
     private void validarTandaDisponible(Tanda tanda, int cantidad) {
-        if (tanda.getEvento().getEstado() != EstadoEvento.Publicado) {
-            throw new BusinessRuleException(
-                    "El evento no está disponible para la venta. " +
-                    "Estado: " + tanda.getEvento().getEstado());
-        }
+        validarEventoVendible(tanda);
         LocalDateTime ahora = LocalDateTime.now();
-        if (tanda.getEvento().yaFinalizo()) {
-            // Independiente de la vigencia propia de la tanda (que es opcional): un evento que
-            // ya pasó no se puede seguir comprando, tenga o no la tanda su propia fecha de cierre.
-            throw new BusinessRuleException("El evento \"" + tanda.getEvento().getNombre() + "\" ya finalizó.");
-        }
         if (tanda.getFechaInicioVigencia() != null && ahora.isBefore(tanda.getFechaInicioVigencia())) {
             throw new BusinessRuleException(
                     "La venta de la tanda \"" + tanda.getNombre() + "\" todavía no está abierta.");
@@ -576,7 +647,19 @@ public class VentaService {
         return codigoQr;
     }
 
+    /** Para lo que ve quien tiene la entrada: no incluye la nota interna del Organizador. */
     private EntradaResponseDTO toResponseDTO(Entrada entrada) {
+        EntradaResponseDTO dto = construirResponseDTO(entrada);
+        dto.setMotivoEmision(null);
+        return dto;
+    }
+
+    /** Para lo que ve el Organizador: incluye el motivo con el que emitió la entrada. */
+    private EntradaResponseDTO toResponseDTOParaOrganizador(Entrada entrada) {
+        return construirResponseDTO(entrada);
+    }
+
+    private EntradaResponseDTO construirResponseDTO(Entrada entrada) {
         Tanda tanda = entrada.getTanda();
         return EntradaResponseDTO.builder()
                 .id(entrada.getId())
@@ -592,6 +675,8 @@ public class VentaService {
                 .canalVenta(entrada.getCanalVenta())
                 .fechaCompra(entrada.getFechaCompra())
                 .fechaUso(entrada.getFechaUso())
+                .tipoEmision(entrada.getTipoEmision())
+                .motivoEmision(entrada.getMotivoEmision())
                 .build();
     }
 

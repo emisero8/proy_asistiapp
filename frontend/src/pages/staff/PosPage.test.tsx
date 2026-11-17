@@ -79,6 +79,8 @@ function entrada(id: number, codigoQr: string): EntradaResponseDTO {
     canalVenta: "Manual",
     fechaCompra: "2026-11-16T10:00:00",
     fechaUso: null,
+    tipoEmision: null,
+    motivoEmision: null,
   };
 }
 

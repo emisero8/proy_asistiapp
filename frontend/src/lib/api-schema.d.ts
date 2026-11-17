@@ -164,6 +164,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tickets/emision-organizador": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["emitirEntradasOrganizador"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tickets/comprar-online": {
         parameters: {
             query?: never;
@@ -1235,6 +1251,9 @@ export interface components {
             fechaCompra?: string;
             /** Format: date-time */
             fechaUso?: string;
+            /** @enum {string} */
+            tipoEmision?: "Cortesia" | "Pago_Externo";
+            motivoEmision?: string;
         };
         ValidacionQRRequestDTO: {
             codigoQr: string;
@@ -1252,6 +1271,18 @@ export interface components {
             estadoAnterior?: "Pagada" | "Usada";
             /** Format: date-time */
             fechaUso?: string;
+        };
+        EmisionOrganizadorRequestDTO: {
+            /** Format: int64 */
+            idTanda: number;
+            /** Format: int32 */
+            cantidad: number;
+            /** @enum {string} */
+            tipo: "Cortesia" | "Pago_Externo";
+            nombreDestinatario: string;
+            emailDestinatario: string;
+            motivo?: string;
+            enviarMail?: boolean;
         };
         CompraOnlineRequestDTO: {
             /** Format: int64 */
@@ -1990,6 +2021,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ValidacionQRResponseDTO"];
+                };
+            };
+        };
+    };
+    emitirEntradasOrganizador: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmisionOrganizadorRequestDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EntradaResponseDTO"][];
                 };
             };
         };

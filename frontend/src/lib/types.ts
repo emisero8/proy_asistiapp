@@ -12,6 +12,8 @@ export type EstadoUsuario = "Activo" | "Suspendido" | "Inactivo";
 export type EstadoEvento = "Borrador" | "Publicado" | "Cancelado";
 export type EstadoEntrada = "Pagada" | "Usada";
 export type CanalVenta = "Online" | "Manual";
+/** Por qué el Organizador emitió él mismo una entrada: regalada, o cobrada por fuera de la plataforma. */
+export type TipoEmision = "Cortesia" | "Pago_Externo";
 export type TipoMovimiento = "Bienvenida" | "Recarga" | "Consumo_Publicacion" | "Consumo_Tanda" | "Devolucion_Tanda";
 
 /** GET /eventos/resumen: métricas generales del Organizador (todos sus eventos). */
@@ -187,6 +189,10 @@ export interface EntradaResponseDTO {
   canalVenta: CanalVenta;
   fechaCompra: string;
   fechaUso: string | null;
+  /** Solo en las entradas que emitió el Organizador; null en las compradas online y en las del POS. */
+  tipoEmision: TipoEmision | null;
+  /** Nota interna del Organizador: solo viene en lo que ve el Organizador, nunca en lo que ve quien tiene la entrada. */
+  motivoEmision: string | null;
 }
 
 /** GET /tickets/orden/{ref}: estado de una compra de entradas, para /pago/resultado. */
@@ -225,6 +231,20 @@ export interface VentaManualRequestDTO {
   cantidad: number;
   nombreComprador: string;
   emailComprador: string;
+}
+
+/** POST /tickets/emision-organizador: el Organizador emite entradas de una de sus tandas (cortesía o pago externo). */
+export interface EmisionOrganizadorRequestDTO {
+  idTanda: number;
+  /** 1..100 entradas en una sola operación: se generan todas o ninguna. Sin tope por comprador. */
+  cantidad: number;
+  tipo: TipoEmision;
+  nombreDestinatario: string;
+  emailDestinatario: string;
+  /** Nota interna, hasta 200 caracteres. */
+  motivo?: string;
+  /** Si es true se le manda al destinatario el mail con las entradas. */
+  enviarMail: boolean;
 }
 
 /** GET /tickets/disponibilidad-comprador: cuánto más se le puede vender a este comprador (CU-019). */

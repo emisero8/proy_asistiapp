@@ -13,6 +13,7 @@ import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.TipoMovimiento;
 import com.asistiapp.backend.models.entities.Tanda;
 import com.asistiapp.backend.models.enums.EstadoEntrada;
+import com.asistiapp.backend.models.enums.TipoEmision;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.MovimientoCreditoRepository;
@@ -23,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Dashboard en tiempo real del Organizador para un evento propio (CU-012).
@@ -101,18 +104,25 @@ public class MetricasOrganizadorService {
                 .filter(e -> e.getEstado() == EstadoEntrada.Usada)
                 .count();
 
+        // Las cortesías ocupan cupo pero no cobraron nada: no suman a los ingresos.
+        // (El pago externo sí: se cobró, aunque fuera de la plataforma.)
+        Map<Long, Long> cortesiasPorTanda = entradas.stream()
+                .filter(e -> e.getTipoEmision() == TipoEmision.Cortesia)
+                .collect(Collectors.groupingBy(e -> e.getTanda().getId(), Collectors.counting()));
+
         int cupoTotal = 0;
         int cupoDisponible = 0;
         double ingresosTotales = 0;
         List<TandaMetricasDTO> tandasMetricas = evento.getTandas().stream()
-                .map(this::toTandaMetricasDTO)
+                .map(t -> toTandaMetricasDTO(t, cortesiasPorTanda.getOrDefault(t.getId(), 0L).intValue()))
                 .toList();
 
         for (Tanda tanda : evento.getTandas()) {
             cupoTotal += tanda.getCupoMaximo();
             cupoDisponible += tanda.getCupoDisponible();
-            int vendidasTanda = tanda.getCupoMaximo() - tanda.getCupoDisponible();
-            ingresosTotales += vendidasTanda * tanda.getPrecio();
+        }
+        for (TandaMetricasDTO t : tandasMetricas) {
+            ingresosTotales += t.getIngresos();
         }
 
         return EventoMetricasResponseDTO.builder()
@@ -127,7 +137,7 @@ public class MetricasOrganizadorService {
                 .build();
     }
 
-    private TandaMetricasDTO toTandaMetricasDTO(Tanda tanda) {
+    private TandaMetricasDTO toTandaMetricasDTO(Tanda tanda, int cortesias) {
         int vendidas = tanda.getCupoMaximo() - tanda.getCupoDisponible();
         return TandaMetricasDTO.builder()
                 .idTanda(tanda.getId())
@@ -135,7 +145,7 @@ public class MetricasOrganizadorService {
                 .cupoMaximo(tanda.getCupoMaximo())
                 .cupoDisponible(tanda.getCupoDisponible())
                 .vendidas(vendidas)
-                .ingresos(vendidas * tanda.getPrecio())
+                .ingresos(Math.max(0, vendidas - cortesias) * tanda.getPrecio())
                 .build();
     }
 }

@@ -1,6 +1,8 @@
 package com.asistiapp.backend.services;
 
+import com.asistiapp.backend.models.dtos.metricas.EventoMetricasResponseDTO;
 import com.asistiapp.backend.models.dtos.metricas.ResumenOrganizadorResponseDTO;
+import com.asistiapp.backend.models.enums.TipoEmision;
 import com.asistiapp.backend.models.entities.Entrada;
 import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.MovimientoCredito;
@@ -90,6 +92,43 @@ class MetricasOrganizadorServiceTest {
         assertThat(r.getEntradasVendidas()).isEqualTo(2);
         assertThat(r.getIngresosTotales()).isEqualTo(30_000.0);
         assertThat(r.getSaldoCreditos()).isEqualTo(7);
+    }
+
+    private Entrada entradaDe(Tanda tanda, TipoEmision tipo) {
+        Entrada e = new Entrada();
+        e.setTanda(tanda);
+        e.setTipoEmision(tipo);
+        return e;
+    }
+
+    @Test
+    void metricas_lasCortesiasOcupanCupoPeroNoSumanIngresos() {
+        // 30 entradas salieron de la tanda ($1000 c/u): 4 son cortesías del Organizador, que no cobró.
+        Evento publicado = evento(1L, EstadoEvento.Publicado, LocalDate.now().plusDays(10), 100, 70, 1000);
+        Tanda tanda = publicado.getTandas().get(0);
+        when(eventoRepository.findById(1L)).thenReturn(Optional.of(publicado));
+        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of(
+                entradaDe(tanda, TipoEmision.Cortesia), entradaDe(tanda, TipoEmision.Cortesia),
+                entradaDe(tanda, TipoEmision.Cortesia), entradaDe(tanda, TipoEmision.Cortesia),
+                entradaDe(tanda, null)));
+
+        EventoMetricasResponseDTO m = metricasService.obtenerMetricas(1L, ID_ORG);
+
+        assertThat(m.getIngresosTotales()).isEqualTo(26_000.0); // (30 - 4) x 1000
+        assertThat(m.getTandas().get(0).getIngresos()).isEqualTo(26_000.0);
+        assertThat(m.getTandas().get(0).getVendidas()).isEqualTo(30); // las cortesías sí ocupan cupo
+        assertThat(m.getEntradasVendidas()).isEqualTo(5);
+    }
+
+    @Test
+    void metricas_elPagoExternoSiSumaIngresos() {
+        // Cobrado por fuera de la plataforma, pero cobrado: es plata del Organizador.
+        Evento publicado = evento(1L, EstadoEvento.Publicado, LocalDate.now().plusDays(10), 100, 70, 1000);
+        Tanda tanda = publicado.getTandas().get(0);
+        when(eventoRepository.findById(1L)).thenReturn(Optional.of(publicado));
+        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of(entradaDe(tanda, TipoEmision.Pago_Externo)));
+
+        assertThat(metricasService.obtenerMetricas(1L, ID_ORG).getIngresosTotales()).isEqualTo(30_000.0);
     }
 
     @Test

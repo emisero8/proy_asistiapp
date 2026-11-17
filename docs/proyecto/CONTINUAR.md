@@ -16,7 +16,7 @@ Monorepo: `backend/` (Java 17 + Spring Boot 3.3.2, PostgreSQL, JWT stateless) y 
 
 ## 3. Dónde estamos
 
-Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente está **commiteado y pusheado a `feature-mercadopago`**. Suites: backend **346 tests, 0 fallos** (`cd backend && mvn clean test`); frontend **24 archivos, 219 tests, 0 fallos** (`cd frontend; npx vitest run`, desde PowerShell), además de `npx tsc -b`, `npm run lint` y `npm run build` limpios.
+Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente está **commiteado y pusheado a `feature-mercadopago`**. Suites: backend **369 tests, 0 fallos** (`cd backend && mvn clean test`); frontend **25 archivos, 228 tests, 0 fallos** (`cd frontend; npx vitest run`, desde PowerShell), además de `npx tsc -b`, `npm run lint` y `npm run build` limpios.
 
 **Hecho antes del 16/11:**
 - **Etapas 1, 2 y 3 completas** (2.4 queda para producción: `MP_VALIDAR_FIRMA=true`). Etapa 3: borrado de eventos con compras en curso, manejo global de errores 4xx (405/415/400 en vez de 500), el organizador puede borrar sus borradores, regla de "evento finalizado" unificada, zona horaria fija, venta manual con `cantidad`, espera de pago sin chocar con el límite de peticiones.
@@ -45,7 +45,7 @@ Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Tod
 
 ### 4.1 Código pendiente
 
-**Las mejoras críticas previstas están hechas**, salvo las que dependen de decidir el despliegue (sección siguiente). **Lo que viene es la Etapa 8 de `docs/proyecto/PLAN_MEJORAS.md`: el modelo de cobro del Organizador** (decidido el 17/11; hoy el dinero de las entradas no tiene camino hacia el Organizador). Leer `docs/proyecto/MODELO_DE_COBRO.md` (especificación) y `docs/proyecto/LEGAL_Y_FISCAL.md` (lo que Felipe define con un abogado y un contador). **Se retoma por el ítem 8.2 (entradas manuales del Organizador y trazabilidad de quién emitió cada entrada),** que no depende de MercadoPago; el ítem 8.1 (registrar la aplicación como marketplace) lo hace Felipe en el panel de MP y desbloquea 8.4–8.6. Además, el rediseño del frontend está a cargo de otro integrante (`frontend/GUIA_REDISENO.md`): avisarle de las pantallas nuevas.
+**Las mejoras críticas previstas están hechas**, salvo las que dependen de decidir el despliegue (sección siguiente). **Lo que viene es la Etapa 8 de `docs/proyecto/PLAN_MEJORAS.md`: el modelo de cobro del Organizador** (decidido el 17/11; hoy el dinero de las entradas no tiene camino hacia el Organizador). Leer `docs/proyecto/MODELO_DE_COBRO.md` (especificación) y `docs/proyecto/LEGAL_Y_FISCAL.md` (lo que Felipe define con un abogado y un contador). **8.1 (aplicación y credenciales OAuth en Mercado Pago) y 8.2 (entradas manuales del Organizador) están hechos; sigue el 8.3 (tope por vendedor),** que no depende de Mercado Pago. Las credenciales OAuth están en `backend/.env` (`MP_OAUTH_*`); el 8.4 en adelante (vinculación, cobro, reembolsos) las usa. Además, el rediseño del frontend está a cargo de otro integrante (`frontend/GUIA_REDISENO.md`): avisarle de las pantallas nuevas.
 
 ### 4.2 En pausa mientras no se despliegue (decisión del 16/11)
 
@@ -120,7 +120,7 @@ cd frontend; npm install; npm run dev       # http://localhost:5173
 cd tools;    .\MailHog.exe                  # opcional: UI http://localhost:8025 (si no hay backend/.env de Gmail)
 ```
 
-**Verificación rápida de que todo está bien:** `cd backend; mvn clean test` (346 tests, 0 fallos) y, en `frontend`, `npx tsc -b`, `npm run lint` y `npx vitest run` (219 tests).
+**Verificación rápida de que todo está bien:** `cd backend; mvn clean test` (369 tests, 0 fallos) y, en `frontend`, `npx tsc -b`, `npm run lint` y `npx vitest run` (228 tests).
 
 
 ## 8. Cosas del proyecto que no están en el código

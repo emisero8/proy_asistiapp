@@ -40,7 +40,11 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
     @Query("SELECT COUNT(e) FROM Entrada e WHERE e.tanda.evento.id = :eventoId AND LOWER(e.emailComprador) = LOWER(:email)")
     long countByEventoIdAndEmailComprador(@Param("eventoId") Long eventoId, @Param("email") String email);
 
-    /** Suma de ingresos de TODAS las entradas del sistema (métricas globales del Admin, CU-027). */
-    @Query("SELECT COALESCE(SUM(e.tanda.precio), 0) FROM Entrada e")
+    /**
+     * Suma de ingresos de las entradas del sistema (métricas globales del Admin, CU-027). Las cortesías
+     * del Organizador no cobraron nada y no cuentan; el pago externo sí (cobrado, aunque fuera de la plataforma).
+     */
+    @Query("SELECT COALESCE(SUM(e.tanda.precio), 0) FROM Entrada e "
+            + "WHERE e.tipoEmision IS NULL OR e.tipoEmision <> com.asistiapp.backend.models.enums.TipoEmision.Cortesia")
     Double sumaIngresosTotales();
 }

@@ -89,26 +89,26 @@ public class VentaController {
             @Valid @RequestBody VentaManualRequestDTO dto) {
         StaffVendedor staff = securityUtils.getStaffVendedorAutenticado();
         List<EntradaResponseDTO> entradas = ventaService.realizarVentaManual(dto, staff.getId());
-        enviarMailDeVentaManual(dto, entradas);
+        enviarMailAlDestinatario(dto.getEmailComprador(), dto.getNombreComprador(), entradas);
         return ResponseEntity.status(HttpStatus.CREATED).body(entradas);
     }
 
     /**
-     * El mail sale acá, ya con la venta confirmada (igual que en PagoWebhookService). Si algo falla al
-     * encolarlo se loguea y se sigue: devolver un error con la venta ya guardada haría que el vendedor
-     * la reintente y se duplique.
+     * El mail sale acá, ya con la venta o emisión confirmada (igual que en PagoWebhookService). Si algo
+     * falla al encolarlo se loguea y se sigue: devolver un error con todo ya guardado haría que quien
+     * operó lo reintente y se duplique.
      */
-    private void enviarMailDeVentaManual(VentaManualRequestDTO dto, List<EntradaResponseDTO> entradas) {
+    private void enviarMailAlDestinatario(String email, String nombre, List<EntradaResponseDTO> entradas) {
         try {
             EntradaResponseDTO primera = entradas.get(0);
             emailService.enviarConfirmacionCompra(
-                    dto.getEmailComprador(),
-                    dto.getNombreComprador(),
+                    email,
+                    nombre,
                     primera.getNombreEvento(),
                     primera.getNombreTanda(),
                     entradas.stream().map(EntradaResponseDTO::getCodigoQr).toList());
         } catch (RuntimeException e) {
-            log.error("La venta manual se confirmó pero no se pudo mandar el mail a {}: {}", dto.getEmailComprador(), e.getMessage());
+            log.error("Las entradas se confirmaron pero no se pudo mandar el mail a {}: {}", email, e.getMessage());
         }
     }
 
@@ -126,6 +126,27 @@ public class VentaController {
     }
 
     // ─────────────────────────────────────────────
+    // EMISIÓN DEL ORGANIZADOR — cortesía o pago por fuera de la plataforma
+    // ─────────────────────────────────────────────
+
+    /**
+     * El Organizador emite él mismo entradas de una de sus tandas (cortesía o pago externo).
+     * Salen del cupo de la tanda, ya paga en créditos. Todo o nada. El mail al destinatario es
+     * opcional ({@code enviarMail}) y sale ya con la emisión confirmada.
+     */
+    @PostMapping("/emision-organizador")
+    @PreAuthorize("hasRole('Organizador')")
+    public ResponseEntity<List<EntradaResponseDTO>> emitirEntradasOrganizador(
+            @Valid @RequestBody EmisionOrganizadorRequestDTO dto) {
+        Long idOrganizador = securityUtils.getOrganizadorAutenticado().getId();
+        List<EntradaResponseDTO> entradas = ventaService.emitirEntradasOrganizador(dto, idOrganizador);
+        if (dto.isEnviarMail()) {
+            enviarMailAlDestinatario(dto.getEmailDestinatario(), dto.getNombreDestinatario(), entradas);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(entradas);
+    }
+
+    // ─────────────────────────────────────────────
     // REPORTES — Solo Organizador
     // ─────────────────────────────────────────────
 
@@ -137,7 +158,8 @@ public class VentaController {
     @PreAuthorize("hasRole('Organizador')")
     public ResponseEntity<List<EntradaResponseDTO>> listarEntradasPorEvento(
             @PathVariable Long eventoId) {
-        return ResponseEntity.ok(ventaService.listarEntradasPorEvento(eventoId));
+        Long idOrganizador = securityUtils.getOrganizadorAutenticado().getId();
+        return ResponseEntity.ok(ventaService.listarEntradasPorEvento(eventoId, idOrganizador));
     }
 
     // ─────────────────────────────────────────────

@@ -2,6 +2,7 @@ package com.asistiapp.backend.models.entities;
 
 import com.asistiapp.backend.models.enums.CanalVenta;
 import com.asistiapp.backend.models.enums.EstadoEntrada;
+import com.asistiapp.backend.models.enums.TipoEmision;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -69,6 +70,19 @@ public class Entrada {
     /** Staff que realizó la venta manual. Null si es Online. */
     @Column(name = "id_staff_vendedor")
     private Long idStaffVendedor;
+
+    /** Organizador que emitió la entrada él mismo (cortesía o pago externo). Null en las demás. */
+    @Column(name = "id_organizador_emisor")
+    private Long idOrganizadorEmisor;
+
+    /** Por qué la emitió el Organizador. Null si no la emitió él. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_emision", length = 20)
+    private TipoEmision tipoEmision;
+
+    /** Nota interna del Organizador sobre esta emisión; no se le muestra a quien recibe la entrada. */
+    @Column(name = "motivo_emision", length = 200)
+    private String motivoEmision;
 
     /** Staff QR que validó la entrada en puerta. Null hasta que se use. */
     @Column(name = "id_staff_qr_validador")

@@ -60,7 +60,7 @@ El generador (`openapi-typescript`, a una versión fija) se ejecuta con `npx` y 
 npm test
 ```
 
-Vitest + React Testing Library, con `jsdom` (24 archivos, 219 tests). Cubren las reglas con más superficie de bug real y las pantallas principales:
+Vitest + React Testing Library, con `jsdom` (25 archivos, 228 tests). Cubren las reglas con más superficie de bug real y las pantallas principales:
 
 - **`src/lib/`** — el cliente HTTP (`api.test.ts`, incluida la detección de sesión vencida: un JWT rechazado por Spring Security no trae el mismo body que un 403 legítimo de la app), la sesión y `RequireRole` (`auth.test.tsx`), formato, reglas de tandas y de pago, y la guardia de tipos contra el backend (`types.contract.test.ts`).
 - **`src/components/`** — `DatePicker`, `TimePicker`, `ImagenPortadaField`, `DialogProvider` y `ThemeToggle`.

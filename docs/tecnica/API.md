@@ -103,7 +103,8 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `DELETE /eventos/{id}` | Borra un evento en borrador. |
 | `GET /eventos/resumen`, `GET /eventos/{id}/metricas` | Resumen del panel y métricas de un evento. |
 | `GET/POST/PUT/DELETE /eventos/{eventoId}/tandas[/{id}]` | Administra las tandas de un evento. |
-| `GET /tickets/evento/{eventoId}` | Entradas vendidas de un evento. |
+| `GET /tickets/evento/{eventoId}` | Entradas de un evento, con su tipo y el motivo si las emitió el Organizador. Solo el dueño del evento (otro Organizador recibe 403). |
+| `POST /tickets/emision-organizador` | Emite entradas de una de sus tandas: `Cortesia` (se regala) o `Pago_Externo` (cobrada por fuera de la plataforma), de 1 a 100 en una sola operación. Salen del cupo de la tanda, que ya está paga en créditos: no cuestan nada más. Sin tope por comprador ni ventana de venta; el límite es el cupo. Motivo opcional y mail al destinatario opcional (`enviarMail`). |
 | `POST /creditos/comprar` | Inicia la compra de un paquete de créditos (MercadoPago). |
 | `GET /creditos/paquetes`, `/resumen`, `/historial`, `/compras`, `/orden/{externalReference}` | Paquetes disponibles, saldo, movimientos, compras y estado de una orden. |
 | `POST /organizador/staff/qr`, `POST /organizador/staff/vendedor` | Crea un Staff QR o Vendedor asignado a un evento; la contraseña inicial le llega por mail. |
@@ -160,6 +161,8 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 El `Staff_QR` valida un código: debe existir, pertenecer al evento asignado a ese staff y no estar usado. Si es válido, la entrada pasa a `Usada` con su fecha y el staff que la validó; escanearla de nuevo se rechaza.
 
 ### Venta manual (CU-019)
+
+**Entradas que emite el Organizador** (`POST /tickets/emision-organizador`): cortesía o pago por fuera de la plataforma. Salen del cupo de una tanda **propia** (otro Organizador recibe 403) de un evento publicado que no terminó, con el mismo bloqueo pesimista que las ventas, y son todo o nada. No cobran créditos aparte porque los créditos se consumen al crear la tanda. No tienen tope por comprador ni dependen de la ventana de venta de la tanda. Quedan con canal `Manual`, `tipoEmision`, `motivoEmision` (nota interna, solo la ve el Organizador) e `idOrganizadorEmisor`. **Una cortesía no suma a los ingresos** (organizador, evento, tanda y total del Admin); el pago externo sí. No genera avisos en la campanita del Organizador.
 
 El `Staff_Vendedor` evita MercadoPago: descuenta el cupo, genera los QR y deja las entradas `Pagada`. Solo puede vender el evento que tiene asignado, respeta el tope por comprador y manda el mail con las entradas (un fallo del mail no deshace la venta).
 

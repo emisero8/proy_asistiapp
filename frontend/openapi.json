@@ -613,6 +613,39 @@
         }
       }
     },
+    "/tickets/emision-organizador": {
+      "post": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "emitirEntradasOrganizador",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmisionOrganizadorRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EntradaResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tickets/comprar-online": {
       "post": {
         "tags": [
@@ -2786,6 +2819,16 @@
           "fechaUso": {
             "type": "string",
             "format": "date-time"
+          },
+          "tipoEmision": {
+            "type": "string",
+            "enum": [
+              "Cortesia",
+              "Pago_Externo"
+            ]
+          },
+          "motivoEmision": {
+            "type": "string"
           }
         }
       },
@@ -2835,6 +2878,53 @@
           "fechaUso": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "EmisionOrganizadorRequestDTO": {
+        "required": [
+          "cantidad",
+          "emailDestinatario",
+          "idTanda",
+          "nombreDestinatario",
+          "tipo"
+        ],
+        "type": "object",
+        "properties": {
+          "idTanda": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cantidad": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          },
+          "tipo": {
+            "type": "string",
+            "enum": [
+              "Cortesia",
+              "Pago_Externo"
+            ]
+          },
+          "nombreDestinatario": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "emailDestinatario": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "motivo": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "enviarMail": {
+            "type": "boolean"
           }
         }
       },

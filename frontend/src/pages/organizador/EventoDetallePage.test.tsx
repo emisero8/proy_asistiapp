@@ -69,6 +69,8 @@ function entrada(id: number, nombre: string, extra: Partial<EntradaResponseDTO> 
     canalVenta: "Online",
     fechaCompra: `2026-03-0${id}T10:00:00`,
     fechaUso: null,
+    tipoEmision: null,
+    motivoEmision: null,
     ...extra,
   };
 }
@@ -100,10 +102,14 @@ function renderPage() {
 }
 
 /** Responde a cada endpoint según la URL, sin depender del orden en que la pantalla los pida. */
-function mockGets(evento: EventoResponseDTO = EVENTO, entradas: EntradaResponseDTO[] = ENTRADAS) {
+function mockGets(
+  evento: EventoResponseDTO = EVENTO,
+  entradas: EntradaResponseDTO[] = ENTRADAS,
+  metricas: EventoMetricasResponseDTO = METRICAS,
+) {
   vi.mocked(api.get).mockImplementation(async (path: string) => {
     if (path === "/eventos/5") return evento;
-    if (path === "/eventos/5/metricas") return METRICAS;
+    if (path === "/eventos/5/metricas") return metricas;
     if (path === "/tickets/evento/5") return entradas;
     throw new Error(`GET inesperado: ${path}`);
   });
@@ -148,6 +154,41 @@ describe("OrganizadorEventoDetallePage — render", () => {
     expect(within(fila("Ana Pérez")).getByText("Online")).toBeInTheDocument();
     expect(within(fila("Ana Pérez")).getByText("Pagada")).toBeInTheDocument();
     expect(within(fila("Carla Gómez")).getByText("Usada")).toBeInTheDocument();
+  });
+
+  it("las entradas que emitió el Organizador se distinguen: la cortesía va sin precio y con su motivo, el pago externo con su precio", async () => {
+    mockGets(EVENTO, [
+      entrada(1, "Ana Pérez"),
+      entrada(2, "Prensa Diario", { canalVenta: "Manual", tipoEmision: "Cortesia", motivoEmision: "Cobertura" }),
+      entrada(3, "Bruno Díaz", { canalVenta: "Manual", tipoEmision: "Pago_Externo" }),
+    ]);
+    renderPage();
+    await screen.findByText("Prensa Diario");
+
+    const fila = (nombre: string) => screen.getByText(nombre).closest("div.items-start") as HTMLElement;
+    expect(within(fila("Prensa Diario")).getByText("Cortesía")).toBeInTheDocument();
+    expect(within(fila("Prensa Diario")).getByText("—")).toBeInTheDocument();
+    expect(within(fila("Prensa Diario")).getByText("Motivo: Cobertura")).toBeInTheDocument();
+    expect(within(fila("Prensa Diario")).queryByText("$5.000")).not.toBeInTheDocument();
+    expect(within(fila("Bruno Díaz")).getByText("Pago externo")).toBeInTheDocument();
+    expect(within(fila("Bruno Díaz")).getByText("$5.000")).toBeInTheDocument();
+  });
+
+  it("la columna Precio de las tandas muestra el precio de la tanda, no ingresos ÷ vendidas (las cortesías no cobran)", async () => {
+    const tanda = { id: 11, idEvento: 5, nombre: "Anticipada", precio: 5000, cupoMaximo: 50, cupoDisponible: 46, fechaInicioVigencia: null, fechaFinVigencia: null };
+    const conTanda: EventoResponseDTO = { ...EVENTO, tandas: [tanda] };
+    // 4 salieron de la tanda, 2 son cortesías: ingresos 10.000, y 10.000 ÷ 4 = 2.500 sería un precio falso.
+    const metricas: EventoMetricasResponseDTO = {
+      ...METRICAS,
+      tandas: [{ idTanda: 11, nombre: "Anticipada", cupoMaximo: 50, cupoDisponible: 46, vendidas: 4, ingresos: 10000 }],
+    };
+    mockGets(conTanda, ENTRADAS, metricas);
+    renderPage();
+    await screen.findByRole("heading", { name: "Festival de Jazz" });
+
+    const fila = within(screen.getByRole("table")).getByText("Anticipada").closest("tr")!;
+    expect(within(fila).getByText("$5.000")).toBeInTheDocument();
+    expect(within(fila).queryByText("$2.500")).not.toBeInTheDocument();
   });
 
   it("un evento en borrador no pide métricas ni entradas y avisa que hay que publicarlo", async () => {
