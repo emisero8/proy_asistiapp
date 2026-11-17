@@ -88,12 +88,12 @@ export function OrganizadorWalletPage() {
           {historial === null ? (
             <Skeleton className="h-32 rounded-2xl" />
           ) : (
-            <section aria-label="Saldo" className="rounded-2xl bg-primary p-5 text-primary-foreground md:p-6">
-              <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-primary-foreground/75">
+            <section aria-label="Saldo" className="rounded-3xl bg-primary p-5 text-primary-foreground shadow-hard md:p-6">
+              <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground/75">
                 <Wallet size={14} aria-hidden="true" />
                 Saldo disponible
               </p>
-              <p className="mt-2 text-4xl font-extrabold tabular-nums">
+              <p className="mt-2 font-display text-4xl font-extrabold tabular-nums">
                 {saldo} <span className="text-lg font-semibold text-primary-foreground/75">créditos</span>
               </p>
               <p className="mt-3 text-xs text-primary-foreground/75">Sin comisiones por venta: vos cobrás el total de cada entrada.</p>
@@ -102,7 +102,7 @@ export function OrganizadorWalletPage() {
 
           {/* Comprar */}
           <Card as="section" aria-labelledby="comprar-titulo" className="space-y-4">
-            <h2 id="comprar-titulo" className="text-base font-bold text-foreground">
+            <h2 id="comprar-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
               Comprar créditos
             </h2>
             {paquetes === null ? (
@@ -141,7 +141,7 @@ export function OrganizadorWalletPage() {
         {/* Historial */}
         <Card as="section" padding="none" aria-labelledby="historial-titulo" className="overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4 md:p-5">
-            <h2 id="historial-titulo" className="text-base font-bold text-foreground">
+            <h2 id="historial-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
               Historial
             </h2>
             <div role="group" aria-label="Ver" className="inline-flex rounded-xl bg-muted p-1">

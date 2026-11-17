@@ -70,7 +70,7 @@ export function AdminDashboardPage() {
 
       <Card as="section" padding="none" aria-labelledby="actividad-titulo" className="overflow-hidden">
         <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 md:px-5">
-          <h2 id="actividad-titulo" className="flex items-center gap-2 text-base font-bold text-foreground">
+          <h2 id="actividad-titulo" className="flex items-center gap-2 font-display text-base font-bold tracking-tight text-foreground">
             <History size={16} aria-hidden="true" className="text-secondary" />
             Actividad reciente
           </h2>

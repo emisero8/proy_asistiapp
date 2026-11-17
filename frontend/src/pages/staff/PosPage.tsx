@@ -200,7 +200,7 @@ export function StaffPosPage() {
               <CheckCircle2 size={22} />
             </span>
             <div>
-              <h1 className="text-lg font-extrabold text-foreground lg:text-xl">
+              <h1 className="font-display text-lg font-extrabold tracking-tight text-foreground lg:text-xl">
                 {plural ? `¡${entradas.length} entradas generadas!` : "¡Entrada generada!"}
               </h1>
               <p className="text-sm text-muted-foreground">
@@ -333,8 +333,8 @@ export function StaffPosPage() {
           ) : (
             evento && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground">Evento</p>
-                <p className="text-base font-bold text-foreground">{evento.nombre}</p>
+                <p className="font-mono text-2xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Evento</p>
+                <p className="font-display text-base font-bold tracking-tight text-foreground">{evento.nombre}</p>
                 <p className="text-xs text-muted-foreground">{evento.lugar}</p>
               </div>
             )
@@ -385,7 +385,7 @@ export function StaffPosPage() {
         {/* Resumen + generar: panel sticky en desktop, barra fija en mobile/tablet. */}
         <aside aria-label="Resumen de la venta" className="hidden w-80 flex-none lg:sticky lg:top-24 lg:block">
           <Card className="space-y-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Resumen</p>
+            <p className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Resumen</p>
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-muted-foreground">{resumen}</span>
               <span className="text-xl font-extrabold tabular-nums text-foreground">{fmt(total)}</span>
@@ -414,7 +414,7 @@ function PosHeader({ nombre, vendidas, onLogout }: PosHeaderProps) {
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 lg:px-8">
         <div className="min-w-0">
-          <p className="text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Punto de venta</p>
+          <p className="font-mono text-2xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Punto de venta</p>
           <p className="truncate text-sm font-bold text-foreground">{nombre}</p>
         </div>
         <div className="flex flex-none items-center gap-2">

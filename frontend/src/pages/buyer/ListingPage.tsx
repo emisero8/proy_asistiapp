@@ -20,6 +20,7 @@ import {
   Zap,
   CalendarSearch,
 } from "lucide-react";
+import { BrandLogo } from "../../components/BrandLogo";
 import { EventCard, EventCardSkeleton } from "../../components/EventCard";
 import { DateRangeFilter } from "../../components/DateRangeFilter";
 import { SupportContactLine } from "../../components/SupportContactLine";
@@ -177,29 +178,10 @@ export function ListingPage() {
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 lg:px-8">
           <div className="flex min-w-0 items-center gap-2 lg:gap-6">
-            <Link
-              to="/"
+            <BrandLogo
               onClick={() => window.scrollTo({ top: 0, behavior: comportamientoScroll() })}
-              aria-label="AsistíAPP — volver arriba"
-              className="group flex flex-none items-center gap-2 rounded-md text-lg font-extrabold tracking-tight text-foreground"
-            >
-              <svg
-                viewBox="0 0 30 20"
-                aria-hidden="true"
-                className="h-5 w-[30px] transition-transform duration-(--duration-base) ease-emphasized group-hover:-rotate-6 group-hover:scale-110 group-active:scale-95"
-              >
-                <path
-                  d="M2 1h26a1 1 0 0 1 1 1v5a3 3 0 0 0 0 6v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-5a3 3 0 0 0 0-6V2a1 1 0 0 1 1-1z"
-                  fill="var(--accent)"
-                  stroke="var(--foreground)"
-                  strokeWidth="1.5"
-                />
-                <path d="M20 3v14" stroke="var(--foreground)" strokeWidth="1.5" strokeDasharray="2 2" />
-              </svg>
-              <span>
-                Asistí<span className="text-primary">APP</span>
-              </span>
-            </Link>
+              ariaLabel="AsistíAPP — volver arriba"
+            />
             {/* Nav de escritorio */}
             <nav aria-label="Principal" className="hidden items-center gap-1 lg:flex">
               <NavLink to="/eventos" className={cn(NAV_LINK_CLS, "font-semibold text-foreground")}>
@@ -216,15 +198,20 @@ export function ListingPage() {
             {/* Acciones de escritorio */}
             <Link
               to="/organizador/login"
-              className="hidden h-9 items-center rounded-xl px-3 text-sm font-semibold text-foreground transition-colors duration-(--duration-fast) hover:bg-muted active:scale-95 lg:inline-flex"
+              className="hidden h-9 items-center rounded-xl border border-transparent px-3 text-sm font-semibold text-foreground transition-[background-color,border-color,transform] duration-(--duration-fast) hover:-translate-y-px hover:border-border-strong hover:bg-muted active:translate-y-0 active:scale-95 lg:inline-flex"
             >
               Ingresar
             </Link>
             <Link
               to="/organizador/registro"
-              className="hidden h-9 items-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter,transform] duration-(--duration-fast) hover:brightness-110 active:scale-95 lg:inline-flex"
+              className="group/org hidden h-9 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground transition-[filter,transform,box-shadow] duration-(--duration-fast) hover:-translate-y-px hover:shadow-hard-sm hover:brightness-110 active:translate-y-0 active:scale-95 lg:inline-flex"
             >
               Soy organizador
+              <ArrowRight
+                size={15}
+                aria-hidden="true"
+                className="w-0 -translate-x-1 opacity-0 transition-all duration-(--duration-base) ease-emphasized group-hover/org:w-[15px] group-hover/org:translate-x-0 group-hover/org:opacity-100"
+              />
             </Link>
             <ThemeToggle />
             {/* Botón hamburguesa (mobile/tablet) */}
@@ -267,7 +254,7 @@ export function ListingPage() {
               <Link
                 to="/organizador/login"
                 onClick={() => setMenuOpen(false)}
-                className="inline-flex items-center gap-2 rounded-xl px-3 py-3 text-base font-semibold text-foreground transition-colors hover:bg-muted"
+                className="inline-flex items-center gap-2 rounded-xl px-3 py-3 text-base font-semibold text-foreground transition-[background-color,transform] duration-(--duration-fast) hover:bg-muted active:scale-[0.98]"
               >
                 <LogIn size={17} aria-hidden="true" />
                 Ingresar
@@ -275,10 +262,14 @@ export function ListingPage() {
               <Link
                 to="/organizador/registro"
                 onClick={() => setMenuOpen(false)}
-                className="mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-semibold text-primary-foreground shadow-hard-sm transition-[filter] duration-(--duration-fast) hover:brightness-110"
+                className="group/org-m mt-1 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-base font-semibold text-primary-foreground shadow-hard-sm transition-[filter,transform] duration-(--duration-fast) hover:brightness-110 active:scale-[0.98]"
               >
                 Soy organizador
-                <ArrowRight size={16} aria-hidden="true" />
+                <ArrowRight
+                  size={16}
+                  aria-hidden="true"
+                  className="transition-transform duration-(--duration-base) ease-emphasized group-hover/org-m:translate-x-0.5"
+                />
               </Link>
             </div>
           </nav>
@@ -288,7 +279,9 @@ export function ListingPage() {
       <main>
         {/* Hero editorial — composición del prototipo: titular a la izquierda con raya + bloque lima,
             sello rotativo, párrafo y buscador segmentado full-width. Fondo de tickets apenas visible. */}
-        <section className="relative -mt-16 border-b border-border px-4 pt-16 lg:px-8">
+        {/* z-20: mantiene al popover de "Cuándo" (que desborda hacia abajo) por encima del ticker,
+            que al ser hermano posterior en el flujo lo tapaba. Debajo del header (z-40). */}
+        <section className="relative z-20 -mt-16 border-b border-border px-4 pt-16 lg:px-8">
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
             <img
               src="/ticket2.webp"
@@ -334,7 +327,7 @@ export function ListingPage() {
               aria-label="Buscar eventos"
               className="mt-10 grid w-full grid-cols-1 rounded-2xl border border-border-strong bg-card text-left shadow-hard sm:grid-cols-[1.7fr_1fr_auto]"
             >
-              <div className="flex flex-col gap-0.5 rounded-t-2xl px-4 py-3 transition-colors duration-(--duration-fast) focus-within:bg-surface-sunken sm:rounded-t-none sm:rounded-l-2xl sm:border-r sm:border-border-strong">
+              <div className="flex flex-col gap-0.5 rounded-t-[15px] px-4 py-3 transition-colors duration-(--duration-fast) focus-within:bg-surface-sunken sm:rounded-t-none sm:rounded-l-[15px] sm:border-r sm:border-border-strong">
                 <label htmlFor="hero-q" className="font-mono text-2xs uppercase tracking-[0.1em] text-muted-foreground">
                   Evento o lugar
                 </label>
@@ -359,7 +352,7 @@ export function ListingPage() {
               />
               <button
                 type="submit"
-                className="group/btn flex items-center justify-center gap-2 rounded-b-2xl border-t border-border-strong bg-primary px-7 py-4 font-display text-sm font-bold text-primary-foreground transition-colors duration-(--duration-base) hover:bg-accent hover:text-accent-foreground active:translate-y-0.5 sm:rounded-b-none sm:rounded-r-2xl sm:border-l sm:border-t-0 lg:text-base"
+                className="group/btn flex items-center justify-center gap-2 rounded-b-[15px] border-t border-border-strong bg-primary px-7 py-4 font-display text-sm font-bold text-primary-foreground transition-colors duration-(--duration-base) hover:bg-accent hover:text-accent-foreground active:translate-y-0.5 sm:rounded-b-none sm:rounded-r-[15px] sm:border-l sm:border-t-0 lg:text-base"
               >
                 <Search size={17} aria-hidden="true" className="transition-transform duration-(--duration-base) ease-emphasized group-hover/btn:-translate-y-px group-hover/btn:scale-110" />
                 Buscar entradas

@@ -103,7 +103,7 @@ export function OrganizadorPerfilPage() {
       {perfil && (
         <div className="grid gap-6 md:grid-cols-2 md:items-start">
           <Card as="form" onSubmit={guardarPerfil} aria-labelledby="perfil-titulo" className="space-y-5">
-            <h2 id="perfil-titulo" className="text-base font-bold text-foreground">
+            <h2 id="perfil-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
               Datos del perfil
             </h2>
 
@@ -125,7 +125,7 @@ export function OrganizadorPerfilPage() {
           </Card>
 
           <Card as="form" onSubmit={cambiarPassword} aria-labelledby="password-titulo" className="space-y-5">
-            <h2 id="password-titulo" className="flex items-center gap-2 text-base font-bold text-foreground">
+            <h2 id="password-titulo" className="flex items-center gap-2 font-display text-base font-bold tracking-tight text-foreground">
               <KeyRound size={16} aria-hidden="true" className="text-secondary" />
               Cambiar contraseña
             </h2>

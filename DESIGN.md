@@ -85,7 +85,7 @@ De la más baja a la más alta — cada nivel tiene que distinguirse del anterio
 
 ### Excepción documentada
 
-El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, recupero) es **siempre oscuro, independiente del tema**: usa hex literal (`#09090b` + acentos `#9cadd3`) a propósito, centralizado en `components/AuthLayout.tsx` (constantes `MARCA_FONDO`/`MARCA_ACENTO`); las pantallas destacan una palabra del título con `<MarcaAcento>`, nunca con el hex.
+El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, recupero) es **siempre oscuro, independiente del tema**: usa hex literal (`#0c0b0a` casi-negro + acento lavanda `#c6c2ff` + detalle lima `#b6f24a`, la paleta editorial en sus valores oscuros) a propósito, centralizado en `components/AuthLayout.tsx` (constantes `MARCA_FONDO`/`MARCA_ACENTO`/`MARCA_LIMA`); las pantallas destacan una palabra del título con `<MarcaAcento>`, nunca con el hex. Antes de la Fase 14.6 el acento era navy `#9cadd3`.
 
 ---
 

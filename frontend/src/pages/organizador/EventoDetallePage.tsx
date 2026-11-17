@@ -375,7 +375,7 @@ export function OrganizadorEventoDetallePage() {
         <div className={cn("grid gap-6", metricas && tieneLateral && "lg:grid-cols-[minmax(0,1fr)_20rem]")}>
           {metricas && (
             <Card as="section" padding="none" aria-labelledby="tandas-titulo" className="overflow-hidden">
-              <h2 id="tandas-titulo" className="px-4 pt-4 text-base font-bold text-foreground md:px-5 md:pt-5">
+              <h2 id="tandas-titulo" className="px-4 pt-4 font-display text-base font-bold tracking-tight text-foreground md:px-5 md:pt-5">
                 Ventas e ingresos por tanda
               </h2>
               {hayVentas && metricas.tandas.length >= 2 && (
@@ -468,7 +468,7 @@ export function OrganizadorEventoDetallePage() {
         <Card as="section" padding="none" aria-labelledby="compradores-titulo" className="overflow-hidden">
           <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-center md:p-5">
             <div className="flex-1">
-              <h2 id="compradores-titulo" className="text-base font-bold text-foreground">
+              <h2 id="compradores-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
                 Compradores
               </h2>
               <p className="text-xs text-muted-foreground" aria-live="polite">

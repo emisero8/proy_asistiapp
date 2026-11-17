@@ -179,10 +179,10 @@ export function OrganizadorWizardPage() {
         <div className="mb-6 flex size-16 items-center justify-center rounded-full bg-success/12 text-success animate-scale-in">
           <PartyPopper size={30} aria-hidden="true" />
         </div>
-        <p role="status" className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-success">
+        <p role="status" className="mb-2 font-mono text-xs font-bold uppercase tracking-[0.2em] text-success">
           ¡Evento publicado!
         </p>
-        <h1 className="mb-2 text-2xl font-extrabold text-foreground">{title}</h1>
+        <h1 className="mb-2 font-display text-2xl font-extrabold tracking-tight text-foreground">{title}</h1>
         <p className="text-sm text-muted-foreground">{venue}</p>
         <p className="mb-6 text-sm text-muted-foreground">
           {formatFecha(date)} {time && `· ${time} hs`}
@@ -279,7 +279,7 @@ export function OrganizadorWizardPage() {
         {step === 2 && (
           <>
             <div>
-              <h2 className="text-base font-bold text-foreground">Tandas de entradas</h2>
+              <h2 className="font-display text-base font-bold tracking-tight text-foreground">Tandas de entradas</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Cada tanda tiene su precio y su cupo. Si dejás las fechas de venta vacías, se vende desde que publicás hasta que empieza el evento.
               </p>

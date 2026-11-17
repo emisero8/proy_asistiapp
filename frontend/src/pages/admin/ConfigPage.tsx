@@ -221,7 +221,7 @@ export function AdminConfigPage() {
         <Card as="section" padding="none" aria-labelledby="packs-titulo" className="overflow-hidden">
           <div className="flex items-center justify-between gap-3 border-b border-border p-4 md:p-5">
             <div>
-              <h2 id="packs-titulo" className="text-base font-bold text-foreground">
+              <h2 id="packs-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
                 Paquetes de créditos
               </h2>
               <p className="text-xs text-muted-foreground">Precios y disponibilidad para los organizadores.</p>
@@ -345,7 +345,7 @@ export function AdminConfigPage() {
         {/* Configuración global */}
         <Card as="form" onSubmit={handleSaveConfig} aria-labelledby="config-titulo" className="space-y-5">
           <div>
-            <h2 id="config-titulo" className="text-base font-bold text-foreground">
+            <h2 id="config-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
               Parámetros del sistema
             </h2>
             <p className="text-xs text-muted-foreground">Se aplican a todos los organizadores.</p>
@@ -372,7 +372,7 @@ export function AdminConfigPage() {
         {/* Anuncio global */}
         <Card as="form" onSubmit={enviarAnuncio} aria-labelledby="anuncio-titulo" className="space-y-4 lg:col-span-2">
           <div>
-            <h2 id="anuncio-titulo" className="flex items-center gap-2 text-base font-bold text-foreground">
+            <h2 id="anuncio-titulo" className="flex items-center gap-2 font-display text-base font-bold tracking-tight text-foreground">
               <Megaphone size={16} aria-hidden="true" className="text-secondary" />
               Anuncio global
             </h2>

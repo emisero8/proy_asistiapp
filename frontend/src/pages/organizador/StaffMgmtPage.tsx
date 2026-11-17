@@ -157,7 +157,7 @@ export function OrganizadorStaffMgmtPage() {
       <div className={cn("grid gap-6", showForm && "lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start")}>
         {/* Staff asignado */}
         <Card as="section" padding="none" aria-labelledby="staff-titulo" className="overflow-hidden">
-          <h2 id="staff-titulo" className="border-b border-border px-4 py-4 text-base font-bold text-foreground md:px-5">
+          <h2 id="staff-titulo" className="border-b border-border px-4 py-4 font-display text-base font-bold tracking-tight text-foreground md:px-5">
             Staff asignado {staff !== null && `(${staff.length})`}
           </h2>
           {staff === null ? (
@@ -229,7 +229,7 @@ export function OrganizadorStaffMgmtPage() {
         {/* Alta */}
         {showForm && (
           <Card as="section" aria-labelledby="nuevo-staff-titulo" className="space-y-4 lg:sticky lg:top-6">
-            <h2 id="nuevo-staff-titulo" className="text-base font-bold text-foreground">
+            <h2 id="nuevo-staff-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
               Nuevo miembro de staff
             </h2>
             <Field label="Nombre completo" required>

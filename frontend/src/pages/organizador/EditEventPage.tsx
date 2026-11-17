@@ -300,7 +300,7 @@ export function OrganizadorEditEventPage() {
       {!bloqueado && (
         <>
           <Card as="section" padding="none" aria-labelledby="datos-titulo" className="space-y-5 p-4 md:p-6">
-            <h2 id="datos-titulo" className="text-base font-bold text-foreground">
+            <h2 id="datos-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
               Datos del evento
             </h2>
             <DatosEventoCampos
@@ -330,7 +330,7 @@ export function OrganizadorEditEventPage() {
 
           <section aria-labelledby="tandas-titulo" className="space-y-4">
             <div>
-              <h2 id="tandas-titulo" className="text-base font-bold text-foreground">
+              <h2 id="tandas-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
                 Tandas
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">Cada tanda se guarda por separado.</p>

@@ -1,17 +1,19 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../lib/cn";
 import { AuthBackground } from "./AuthBackground";
+import { BrandLogo } from "./BrandLogo";
 import { ThemeToggle } from "./ThemeToggle";
 
 /*
  * Panel de marca: SIEMPRE oscuro, independiente del tema (excepción documentada en
  * DESIGN.md). Por eso usa colores literales, centralizados acá en vez de repetidos en cada
- * pantalla de acceso.
+ * pantalla de acceso. Acento = lavanda editorial (`#c6c2ff`, identidad de apoyo) + detalle
+ * lima para la energía "en vivo".
  */
-const MARCA_FONDO = "bg-[#09090b]";
-const MARCA_ACENTO = "text-[#9cadd3]";
+const MARCA_FONDO = "bg-[#0c0b0a]";
+const MARCA_ACENTO = "text-[#c6c2ff]";
+const MARCA_LIMA = "text-[#b6f24a]";
 
 /** Palabra destacada en el título del panel de marca (siempre oscuro): usa el acento de la marca. */
 export function MarcaAcento({ children }: { children: ReactNode }) {
@@ -35,14 +37,6 @@ interface AuthLayoutProps {
   children: ReactNode;
 }
 
-function Logo({ className, acento = "text-primary" }: { className?: string; acento?: string }) {
-  return (
-    <Link to="/" className={cn("rounded-md text-xl font-extrabold tracking-tight", className)} aria-label="AsistíAPP — volver al inicio">
-      Asistí<span className={acento}>APP</span>
-    </Link>
-  );
-}
-
 /**
  * Estructura común de las pantallas de acceso (logins, registro, recupero de contraseña):
  * header con el logo (vuelve al inicio) y el tema, y una tarjeta con el formulario sobre el
@@ -58,14 +52,17 @@ export function AuthLayout({ brand, size = "sm", children }: AuthLayoutProps) {
             className="absolute inset-0 opacity-[0.06]"
             style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "22px 22px" }}
           />
-          <Logo className="relative w-fit text-white" acento={MARCA_ACENTO} />
+          <BrandLogo tone="onDark" size="xl" className="relative w-fit" />
           <div className="relative max-w-md">
-            <p className="text-4xl font-extrabold leading-tight tracking-tight">{brand.title}</p>
+            <p className={cn("mb-4 font-mono text-xs font-semibold uppercase tracking-[0.2em]", MARCA_LIMA)}>
+              <span aria-hidden="true">✦</span> AsistíAPP para organizadores
+            </p>
+            <p className="font-display text-4xl font-extrabold leading-[1.05] tracking-tight">{brand.title}</p>
             <p className="mt-4 text-base leading-relaxed text-white/70">{brand.description}</p>
-            <ul className="mt-10 space-y-4">
+            <ul className="mt-10 space-y-3">
               {brand.features.map(({ icon: Icono, text }) => (
-                <li key={text} className="flex items-center gap-3 text-sm font-medium text-white/90">
-                  <span className="flex size-9 flex-none items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <li key={text} className="flex items-center gap-3 border-t border-white/10 pt-3 text-sm font-medium text-white/90 first:border-t-0 first:pt-0">
+                  <span className="flex size-9 flex-none items-center justify-center rounded-lg border border-white/15 bg-white/5">
                     <Icono size={16} aria-hidden="true" className={MARCA_ACENTO} />
                   </span>
                   {text}
@@ -73,7 +70,7 @@ export function AuthLayout({ brand, size = "sm", children }: AuthLayoutProps) {
               ))}
             </ul>
           </div>
-          <p className="relative text-xs text-white/40">© {new Date().getFullYear()} AsistíAPP</p>
+          <p className="relative font-mono text-xs text-white/40">© {new Date().getFullYear()} AsistíAPP</p>
         </aside>
       )}
 
@@ -81,13 +78,13 @@ export function AuthLayout({ brand, size = "sm", children }: AuthLayoutProps) {
         <AuthBackground />
         <header className="relative z-10 flex h-16 items-center justify-between gap-3 px-4 sm:px-6">
           {/* Con panel de marca, el logo ya está a la izquierda en desktop */}
-          <Logo className={cn("text-foreground", brand && "lg:invisible")} />
+          <BrandLogo className={cn(brand && "lg:invisible")} />
           <ThemeToggle variant="secondary" />
         </header>
         <main className="relative z-10 flex flex-1 items-center justify-center px-4 pb-12 pt-4 sm:px-6">
           <div
             className={cn(
-              "w-full rounded-3xl border border-border bg-card/95 p-6 shadow-modal backdrop-blur-xl sm:p-8",
+              "w-full rounded-2xl border border-foreground bg-card p-6 shadow-hard sm:p-8",
               size === "sm" ? "max-w-sm" : "max-w-md",
             )}
           >
@@ -110,12 +107,12 @@ export function AuthHeader({ title, description, icon: Icono }: AuthHeaderProps)
   return (
     <div className="mb-6">
       {Icono && (
-        <span className="mb-4 flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+        <span className="mb-4 flex size-11 items-center justify-center rounded-xl border border-foreground bg-primary text-primary-foreground shadow-hard-sm">
           <Icono size={20} aria-hidden="true" />
         </span>
       )}
-      <h1 className="text-xl font-extrabold tracking-tight text-foreground">{title}</h1>
-      {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground">{title}</h1>
+      {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
     </div>
   );
 }

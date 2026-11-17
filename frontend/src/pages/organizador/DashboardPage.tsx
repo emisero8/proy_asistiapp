@@ -204,7 +204,7 @@ export function OrganizadorDashboardPage() {
       {hayEventos && (
         <Card as="section" padding="none" aria-labelledby="mis-eventos-titulo">
           <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-center md:justify-between md:p-5">
-            <h2 id="mis-eventos-titulo" className="flex-none whitespace-nowrap text-base font-bold text-foreground">
+            <h2 id="mis-eventos-titulo" className="flex-none whitespace-nowrap font-display text-base font-bold tracking-tight text-foreground">
               {`Mis eventos (${eventosFiltrados.length}${eventosFiltrados.length !== eventos.length ? ` de ${eventos.length}` : ""})`}
             </h2>
             <div className="flex min-w-0 flex-col gap-2 sm:flex-row">

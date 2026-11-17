@@ -64,7 +64,7 @@ export function OrganizadorResetPasswordPage() {
           <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-success/12 text-success">
             <CheckCircle2 size={22} aria-hidden="true" />
           </span>
-          <h1 className="text-xl font-extrabold tracking-tight text-foreground">¡Contraseña actualizada!</h1>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground">¡Contraseña actualizada!</h1>
           <p className="mt-2 text-sm text-muted-foreground">Ya podés ingresar con tu nueva contraseña.</p>
           <Button block size="lg" className="mt-6" onClick={() => navigate("/organizador/login")}>
             Ir al ingreso

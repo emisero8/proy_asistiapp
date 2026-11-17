@@ -1,5 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router";
 import { ChevronLeft } from "lucide-react";
+import { BrandLogo } from "./BrandLogo";
 import { ThemeToggle } from "./ThemeToggle";
 
 interface PublicHeaderProps {
@@ -44,28 +45,7 @@ export function PublicHeader({ back }: PublicHeaderProps) {
               {back.label ?? "Volver"}
             </Link>
           )}
-          <Link
-            to="/"
-            className={`group items-center gap-2 rounded-md text-lg font-extrabold tracking-tight text-foreground ${back ? "hidden sm:flex" : "flex"}`}
-            aria-label="AsistíAPP — inicio"
-          >
-            <svg
-              viewBox="0 0 30 20"
-              aria-hidden="true"
-              className="h-5 w-[30px] flex-none transition-transform duration-(--duration-base) ease-emphasized group-hover:-rotate-6 group-hover:scale-110 group-active:scale-95"
-            >
-              <path
-                d="M2 1h26a1 1 0 0 1 1 1v5a3 3 0 0 0 0 6v5a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-5a3 3 0 0 0 0-6V2a1 1 0 0 1 1-1z"
-                fill="var(--accent)"
-                stroke="var(--foreground)"
-                strokeWidth="1.5"
-              />
-              <path d="M20 3v14" stroke="var(--foreground)" strokeWidth="1.5" strokeDasharray="2 2" />
-            </svg>
-            <span>
-              Asistí<span className="text-primary">APP</span>
-            </span>
-          </Link>
+          <BrandLogo display={back ? "hidden sm:flex" : "flex"} />
         </div>
         <nav aria-label="Secciones" className="flex items-center gap-1">
           <NavLink

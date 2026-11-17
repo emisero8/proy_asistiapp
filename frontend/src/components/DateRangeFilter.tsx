@@ -67,6 +67,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Filtrar por rango de fechas"
         className={`flex-none w-9 h-9 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-[1.08] active:scale-[0.94] ${
@@ -84,6 +85,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
           <div className="relative bg-card border border-border rounded-2xl shadow-overlay p-4">
             <div className="flex items-center justify-between mb-3">
               <button
+                type="button"
                 onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() - 1, 1))}
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150 hover:scale-110 active:scale-90"
                 aria-label="Mes anterior"
@@ -94,6 +96,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
                 {MESES[cursor.getMonth()]} {cursor.getFullYear()}
               </p>
               <button
+                type="button"
                 onClick={() => setCursor((c) => new Date(c.getFullYear(), c.getMonth() + 1, 1))}
                 className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150 hover:scale-110 active:scale-90"
                 aria-label="Mes siguiente"
@@ -138,6 +141,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
                 return (
                   <div key={i} className={`relative flex justify-center ${enRango ? "bg-primary/15" : ""} ${esDesde && draftHasta ? "rounded-l-full" : ""} ${esHasta ? "rounded-r-full" : ""}`}>
                     <button
+                      type="button"
                       onClick={() => pickDay(iso)}
                       className={`w-8 h-8 rounded-full text-xs font-semibold transition-all duration-150 flex items-center justify-center hover:scale-110 active:scale-90 ${
                         !enMes
@@ -158,6 +162,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
 
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
               <button
+                type="button"
                 onClick={limpiar}
                 className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-destructive transition-all duration-150 hover:scale-[1.05] active:scale-[0.95]"
               >
@@ -165,6 +170,7 @@ export function DateRangeFilter({ desde, hasta, onChange }: Props) {
                 Limpiar
               </button>
               <button
+                type="button"
                 disabled={!draftDesde}
                 onClick={aplicar}
                 className="px-4 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-all duration-150 hover:scale-[1.05] active:scale-[0.95] disabled:opacity-40 disabled:pointer-events-none disabled:hover:scale-100"

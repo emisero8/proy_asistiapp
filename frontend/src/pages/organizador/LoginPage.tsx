@@ -143,7 +143,7 @@ export function OrganizadorLoginPage() {
           <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-success/12 text-success">
             <MailCheck size={22} aria-hidden="true" />
           </span>
-          <h1 className="text-xl font-extrabold tracking-tight text-foreground">Revisá tu email</h1>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground">Revisá tu email</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Si <span className="font-medium text-foreground">{email}</span> está registrado, te enviamos un link para restablecer tu
             contraseña.
