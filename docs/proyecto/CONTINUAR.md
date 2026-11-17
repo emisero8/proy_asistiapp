@@ -55,7 +55,7 @@ Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Tod
 
 ### 4.3 Pendiente de Felipe (fuera del código)
 
-- Hay un `AsistíAPP - Planificación Scrum (1).xlsx` sin versionar (versión distinta de la que está en `docs/entrega/`): decidir cuál queda. Y abrir el PR `feature-mercadopago` → `master` (desde la web, con título y descripción) cuando se quiera integrar.
+- **El merge `feature-mercadopago` → `master` está en pausa** (decisión del 18/11) hasta terminar la Etapa 8. Cuando se retome: PR desde la web, con título y descripción; el merge es limpio.
 - **Rotar credenciales:** el 16/11 pasaron por el chat de la sesión credenciales de sandbox (el token de prueba de MercadoPago, el secreto del webhook, el secreto de Cloudinary, el authtoken de ngrok y la contraseña del comprador de prueba). Son de desarrollo, pero conviene rotarlas. También hay que **borrar el `cargar-variables.ps1`** con valores en texto plano que se usó para pasarlas de PC (no está en el repo; está en alguna carpeta local).
 - El mail de confirmación cayó en **spam** de Gmail con la cuenta de prueba: se resuelve con dominio propio + SPF/DKIM/DMARC vía un proveedor transaccional (solo importa si se despliega).
 

@@ -27,7 +27,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 5 | Calidad de código y tests | 6 | Continuo |
 | 6 | UX y funcionalidad faltante | 4 | A definir |
 | 7 | Documentación y repo | 4 | Continuo |
-| 8 | Modelo de cobro del Organizador y cierre legal/fiscal | 7 | Desde el 18/11 (decidido el 17/11) |
+| 8 | Modelo de cobro del Organizador y cierre legal/fiscal | 8 | Desde el 18/11 (decidido el 17/11) |
 
 ---
 
@@ -161,7 +161,8 @@ Decidido el 2026-11-17 (ver `docs/proyecto/DECISIONES.md`). La especificación c
 | 8.3 | **Tope de entradas por vendedor** (obligatorio al asignar un Staff Vendedor) y resumen por vendedor (cantidad y total) para el Organizador. | M | 8.2 | Pendiente |
 | 8.4 | **Vinculación OAuth de la cuenta del Organizador:** endpoints de inicio y retorno, tokens cifrados en la base, renovación, manejo de acceso revocado, estado visible en el panel. | L | 8.1 | Pendiente |
 | 8.5 | **Cobro de entradas con el token del Organizador:** preferencia, consulta del pago, webhook y reconciliación con el token del vendedor de la orden; no se puede publicar sin cuenta vinculada; la compra de créditos sigue con el token de la plataforma. | L | 8.4 | Pendiente |
-| 8.6 | **Anular y reembolsar entradas:** buscar una entrada y anularla (deja de valer en el escáner), reembolsar desde el panel con el token del Organizador, reembolso masivo al cancelar un evento con reintento y lista de pendientes, y devolución de créditos de las entradas anuladas o reembolsadas. **Sin botón de arrepentimiento para el comprador** (decisión del 17/11). | L | 8.5 (la parte de anular no depende de MP) | Pendiente |
+| 8.6 | **Anular y reembolsar entradas:** buscar una entrada y anularla (deja de valer en el escáner), reembolsar desde el panel con el token del Organizador, reembolso masivo al cancelar un evento con reintento y lista de pendientes, y devolución de créditos de las entradas anuladas o reembolsadas. El arrepentimiento no se reembolsa desde la plataforma (ver 8.8). | L | 8.5 (la parte de anular no depende de MP) | Pendiente |
+| 8.8 | **Botón de arrepentimiento que deriva al contacto del Organizador** (WhatsApp o mail): la plataforma solo hace de intermediaria, sin recibir ni aprobar solicitudes. Requiere que el Organizador tenga un contacto cargado (por cuenta o por evento). Decisión del 18/11. | S–M | — | Pendiente |
 | 8.7 | **Legal y fiscal:** términos y condiciones, política de privacidad, inscripción de la base en la AAIP, definir el aviso de arrepentimiento y la facturación con abogado y contador. Lista en [`LEGAL_Y_FISCAL.md`](LEGAL_Y_FISCAL.md). | — (de Felipe) | — | Pendiente |
 
 Notas:

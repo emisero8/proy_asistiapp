@@ -36,7 +36,7 @@ Lo que hay que construir en el backend:
 
 ## 4. Reembolsos y cancelaciones
 
-Principio: **la plataforma no interviene en reembolsos**, salvo cuando es ella la que cancela un evento. No se ofrece "botón de arrepentimiento" al comprador dentro de la plataforma: cualquier pedido del comprador se resuelve **fuera de la plataforma**, directamente con el Organizador (ver el punto de riesgo en [LEGAL_Y_FISCAL.md](LEGAL_Y_FISCAL.md)).
+Principio: **la plataforma no interviene en reembolsos**, salvo cuando es ella la que cancela un evento. Tampoco gestiona el arrepentimiento: ofrece un **botón de arrepentimiento que solo deriva al contacto del Organizador** (WhatsApp o mail, el que tenga cargado; la plataforma hace de intermediaria y no recibe ni aprueba nada). La solicitud, la decisión y el reembolso se resuelven **entre el comprador y el Organizador** (ver el punto de riesgo en [LEGAL_Y_FISCAL.md](LEGAL_Y_FISCAL.md)). Hace falta que el Organizador tenga al menos un contacto cargado para sus eventos.
 
 Lo que sí se construye, para que el Organizador lo tenga fácil:
 1. **Identificar y anular una entrada:** el Organizador busca una entrada (por comprador, mail o código) y la anula; deja de ser válida en el escáner. Opcionalmente, **reembolsar** esa compra desde el panel con su token (sale de su saldo de Mercado Pago), con aviso por mail al comprador y registro.
@@ -54,6 +54,7 @@ Lo que sí se construye, para que el Organizador lo tenga fácil:
 | D | Entradas manuales del Organizador (cortesía / pago externo) y trazabilidad de quién emitió cada entrada | — |
 | E | Tope por vendedor y resumen por vendedor | D |
 | F | Anular entrada y reembolsar desde el panel; reembolso masivo al cancelar; devolución de créditos de entradas anuladas | C |
+| G | Botón de arrepentimiento que deriva al WhatsApp o mail del Organizador (contacto por evento o por cuenta) | — |
 
 ## 6. Riesgos conocidos
 
