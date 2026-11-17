@@ -1,74 +1,66 @@
 # Guía de demo — AsistíAPP
 
-> ⚠️ Las credenciales de este archivo son de **cuentas demo del entorno local** (contraseña pública de desarrollo): no sirven fuera de una base de datos local. **Nunca agregar acá credenciales reales** (MercadoPago, Gmail, Cloudinary, etc.).
->
-> 📌 **Parte de esta guía quedó desactualizada** (escrita antes de MercadoPago real): la compra ya no es simulada (hoy abre el checkout de MercadoPago; ver `CLAUDE.md`, "Integraciones externas"), los datos sembrados que menciona (evento "Recital Demo", entradas, QR) pueden no existir en tu base, y la cuenta `staffvendedor@demo.com` dio 401 con la contraseña de la tabla el 12/11. Para el estado real del proyecto, ver `docs/proyecto/CONTINUAR.md`.
+Guion para mostrar el sistema funcionando de punta a punta, con un recorrido por cada rol. **No depende de datos precargados:** todo se crea durante la demo, así que sirve igual con una base vacía.
 
-## Usuarios de prueba
+> Las credenciales de esta guía son **valores de desarrollo públicos**, válidos solo en una base local. Nunca escribir acá credenciales reales (MercadoPago, Gmail, Cloudinary, etc.).
 
-Todos con la misma contraseña para que sea fácil recordarla.
+## 1. Preparación (antes de empezar)
 
-| Rol | URL de login | Email | Contraseña |
-|---|---|---|---|
-| **Comprador** | http://localhost:5173/ | *(no requiere login)* | — |
-| **Organizador** | http://localhost:5173/organizador/login | `organizador@demo.com` | `Demo1234!` |
-| **Staff QR** (escanea entradas) | http://localhost:5173/staff/login | `staffqr@demo.com` | `Demo1234!` |
-| **Staff Vendedor** (POS) | http://localhost:5173/staff/login | `staffvendedor@demo.com` | `Demo1234!` |
-| **Administrador** | http://localhost:5173/admin/login | `admin@demo.com` | `Demo1234!` |
+1. **Backend y frontend corriendo** (ver el [README](../../README.md) de la raíz): backend en `http://localhost:8080`, frontend en `http://localhost:5173`.
+2. **Administrador:** con una base vacía el backend crea solo `admin@asistiapp.com` con contraseña `Admin123!`. Si tu base ya tenía un Administrador, esas credenciales no existen: usá las de ese usuario (`select email from usuarios where rol = 'Administrador';`).
+3. **Pagos:** para mostrar la compra real hace falta configurar MercadoPago (credenciales de prueba y un usuario comprador de prueba). Está explicado paso a paso en [`backend/README.md`](../../backend/README.md), sección "Pagos con MercadoPago". Sin eso, el resto de la demo (todo menos pagar) funciona igual.
+4. **Mails:** los mails (entradas, credenciales de staff, recuperar contraseña) salen por el SMTP configurado. Para verlos en la demo, ver la sección "Envío de mails" del mismo README (MailHog o una cuenta de Gmail de prueba).
+5. **Imágenes:** subir la portada de un evento requiere Cloudinary configurado; sin eso el evento se puede crear igual, sin imagen.
 
-## Datos ya sembrados
+## 2. Recorrido sugerido
 
-- **Evento publicado**: "Recital Demo AsistiAPP" — $5.000 la entrada General, 100 cupos. El Staff QR y el Staff Vendedor demo ya están asignados a este evento/organizador.
-- **2 entradas reales compradas** (para que el Staff QR tenga algo para escanear):
-  ```
-  QR-FA7249E355A84DA6A1357BA08C15028B   (Comprador Demo 1)
-  QR-3F6926BC41E94C729D7CE0A8D1D004DF   (Comprador Demo 2)
-  ```
+Orden pensado para que cada paso deje lo que necesita el siguiente.
 
-## Flujo end-to-end sugerido, por rol
+### Paso 1 — Administrador: dejar el sistema listo
+Entrar en `http://localhost:5173/admin/login`.
+- **Config:** ver y ajustar los parámetros globales: créditos de bienvenida, costo en créditos de publicar un evento y contacto de soporte (mail y WhatsApp). Desde ahí también se envían los **anuncios** a todos los usuarios. Cargar también un **paquete de créditos** (por ejemplo, 100 créditos) si no hay ninguno: sin paquetes un Organizador no puede comprar más créditos.
+- **Dashboard:** métricas globales (se llenan a medida que avanza la demo; volver al final).
 
-### 1. Comprador (http://localhost:5173/) — sin login
-Vas a ver "Recital Demo AsistiAPP" en el listado → entrá → elegí cantidad → completá nombre/email → "Confirmar compra" → te muestra el QR real de la entrada. Podés generar más entradas de prueba así.
+### Paso 2 — Organizador: crear y publicar un evento
+Entrar en `http://localhost:5173/organizador/registro` y **crear una cuenta nueva** (recibe los créditos de bienvenida) o iniciar sesión en `/organizador/login`.
+- **Créditos:** ver el saldo y el historial (el movimiento de bienvenida). Mostrar la compra de un paquete (abre MercadoPago).
+- **Crear evento:** asistente de dos pasos. Paso 1: nombre, descripción, fecha, hora y lugar (con mapa; opcional una portada). Paso 2: una o más **tandas** (nombre, precio y cantidad de entradas) y **Publicar evento**. Publicar cuesta créditos, y cada entrada consume uno.
+- **Dashboard:** el evento aparece como publicado, con su enlace público.
+- **Staff:** crear un **Staff Vendedor** y un **Staff QR**, asignados a ese evento. Las credenciales iniciales llegan por mail; si no hay mail configurado, usar **"Resetear contraseña"** en la fila del staff: la pantalla muestra la contraseña nueva en el momento.
 
-### 2. Organizador (`organizador@demo.com` / `Demo1234!`)
-- **Dashboard**: vas a ver el evento con las 2 entradas ya vendidas y $10.000 de ingresos.
-- **Crear**: probá crear un evento nuevo desde cero (wizard de 2 pasos: datos → tandas → publicar).
-- **Créditos**: historial (créditos de bienvenida, consumo por publicar) y compra de más créditos (simulado).
-- **Staff**: ahí ya vas a ver a "Staff QR Demo" y "Staff Vendedor Demo" — probá agregar uno nuevo.
+### Paso 3 — Comprador: comprar una entrada
+Abrir `http://localhost:5173/` (no requiere cuenta).
+- Entrar al evento publicado, elegir tanda y cantidad (hay un tope por persona), **Comprar entradas**, completar nombre y email y **Confirmar compra**.
+- Se abre MercadoPago en una **pestaña nueva** (ver el README del backend para pagar con el usuario de prueba). La pestaña original queda en "Esperando tu pago" y pasa sola a "¡Pago aprobado!".
+- Llega un mail con el QR; también se ve la entrada desde el enlace. **El enlace de la entrada es la entrada:** no hay que compartirlo.
 
-### 3. Staff Vendedor (`staffvendedor@demo.com` / `Demo1234!`) → lleva directo al POS
-Elegí la tanda "General", cantidad, nombre y email de un comprador ficticio → "Generar entrada" → te muestra el QR real. Copiá ese código QR para usarlo en el paso siguiente.
+### Paso 4 — Staff Vendedor: vender en la puerta
+Entrar en `http://localhost:5173/staff/login` con el Staff Vendedor.
+- Lleva directo al **punto de venta (POS)**: elegir la tanda, la cantidad, nombre y email del comprador y **Generar entrada**. Muestra el QR y el comprador recibe un mail con sus entradas.
 
-### 4. Staff QR (`staffqr@demo.com` / `Demo1234!`) → lleva directo al scanner
-- Si tu compu tiene cámara, el navegador pide permiso y podés intentar escanear un QR real (por ejemplo mostrando el QR de una entrada desde el celular).
-- Más simple: tocá **"Ingresar código manualmente"** y pegá uno de los códigos de arriba (o el que generaste en el POS) → vas a ver el overlay verde "Ingreso válido" con el nombre real del comprador. Si lo volvés a escanear, te va a decir que ya fue usado (rechazo real, no simulado).
+### Paso 5 — Staff QR: validar en la puerta
+Entrar en `http://localhost:5173/staff/login` con el Staff QR. Lleva al **escáner**.
+- Con cámara, escanear el QR de una entrada. Sin cámara, tocar **"Ingresar código manualmente"** y pegar el código (empieza con `QR-`).
+- Muestra "Ingreso válido" con el nombre del comprador. Volver a validar la misma entrada la **rechaza** (ya fue usada).
 
-### 5. Administrador (`admin@demo.com` / `Demo1234!`)
-- **Dashboard**: métricas globales reales de toda la plataforma.
-- **Usuarios**: vas a ver a todos los usuarios de esta tabla — probá suspender/reactivar o cambiar el rol de alguno.
-- **Eventos**: gestión global — probá editar el evento demo o cancelarlo.
-- **Config**: paquetes de crédito y los 2 parámetros globales (créditos de bienvenida, costo de publicación).
+### Paso 6 — Volver al Organizador y al Administrador
+- **Organizador:** el dashboard ya muestra ventas e ingresos; la **campanita** avisa de la primera venta (y de que se agotó una tanda, si pasó). Entrar al detalle del evento para ver las entradas vendidas y exportarlas.
+- **Administrador:** **Usuarios** (suspender/reactivar), **Eventos** (editar o cancelar cualquiera), **Config** (enviar un anuncio a todos; les aparece en la campanita) y **Auditoría** (registro de las acciones administrativas).
 
-## Cómo desplegarlo manualmente (local)
+## 3. Cosas útiles durante la demo
 
-### 1. Backend
-```bash
-cd backend
-mvn spring-boot:run
-```
-Requiere Java 17 y PostgreSQL corriendo con una base `asistiapp_db` (el servicio `postgresql-x64-18` de Windows). Variables de entorno con defaults de desarrollo — no hace falta setear nada salvo que quieras cambiar algo (ver `backend/README.md`). Queda en `http://localhost:8080`.
+- **Tema claro/oscuro:** el botón con el sol/luna está en el encabezado de cada pantalla (el escáner no lo tiene a propósito).
+- **Cancelar un evento** devuelve los créditos de las entradas sin vender y avisa por mail a los compradores.
+- **Recuperar contraseña:** desde el login del Organizador ("¿Olvidaste tu contraseña?"); llega un mail con un enlace.
+- **Documentación de la API:** `http://localhost:8080/swagger-ui/index.html`.
 
-### 2. Frontend
-```bash
-cd frontend
-npm install        # solo la primera vez, o si cambió package.json
-npm run dev
-```
-Queda en `http://localhost:5173`. Necesita el backend corriendo para hacer cualquier cosa más allá del login.
+## 4. Si algo no anda
 
-### 3. Para cortar todo
-`Ctrl+C` en cada terminal. Los datos quedan guardados en Postgres para la próxima vez — no hace falta re-crear los usuarios de demo salvo que limpies la base.
-
-### Otros accesos útiles con el backend corriendo
-- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
-- Spec OpenAPI cruda: `http://localhost:8080/v3/api-docs`
+| Síntoma | Causa probable |
+|---|---|
+| Ninguna pantalla carga datos | El backend no está corriendo o el frontend apunta a otra URL (`VITE_API_BASE_URL`). |
+| "Demasiadas solicitudes" al iniciar sesión | El login admite 5 por minuto desde la misma IP; esperar un minuto. |
+| El pago no se confirma | Revisar que MercadoPago esté configurado y que se pagó con el usuario de prueba (ver README del backend). |
+| No llegan mails | Revisar la configuración SMTP; en el log del backend queda el error. |
+| No se puede subir la portada | Falta configurar Cloudinary. |
+| Entrar como staff da 401 | Credenciales incorrectas: usar "Resetear contraseña" desde el panel del Organizador. |

@@ -1,7 +1,7 @@
 # Para retomar el trabajo en otra máquina — AsistíAPP
 
 > Escrito para el agente (o la persona) que continúa el proyecto en otra PC sin el contexto de las sesiones anteriores. Resume dónde estamos para no tener que re-investigar. **No contiene credenciales** (nunca poner acá contraseñas ni tokens).
-> Última actualización: 2026-11-16 (cierre del día) · Rama: `feature-mercadopago` (remoto `https://github.com/emisero8/proy_asistiapp.git`, rama principal `master`). El último commit está en `git log`: este archivo se actualiza junto con el código.
+> Última actualización: 2026-11-17 · **Entrega del proyecto: 01/12/2026** · Rama: `feature-mercadopago` (remoto `https://github.com/emisero8/proy_asistiapp.git`, rama principal `master`). El último commit está en `git log`: este archivo se actualiza junto con el código.
 
 ## 1. Qué leer, en este orden
 
@@ -12,11 +12,11 @@
 
 ## 2. El proyecto en 5 líneas
 
-Monorepo: `backend/` (Java 17 + Spring Boot 3.3.2, PostgreSQL, JWT stateless) y `frontend/` (React + Vite + TypeScript 6 + Tailwind v4). Venta de entradas para eventos con roles Administrador, Organizador, Staff_QR y Staff_Vendedor. Pagos con **MercadoPago Checkout Pro** (backend e integración del frontend ya hechos), mails por SMTP, imágenes en Cloudinary. `figma-reference/` y `nuevo-diseño/` son solo material de consulta: no se editan.
+Monorepo: `backend/` (Java 17 + Spring Boot 3.3.2, PostgreSQL, JWT stateless) y `frontend/` (React + Vite + TypeScript 6 + Tailwind v4). Venta de entradas para eventos con roles Administrador, Organizador, Staff_QR y Staff_Vendedor. Pagos con **MercadoPago Checkout Pro** (backend e integración del frontend ya hechos), mails por SMTP, imágenes en Cloudinary. La documentación vive en `docs/` (índice en `docs/README.md`).
 
 ## 3. Dónde estamos
 
-Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente está **commiteado y pusheado a `feature-mercadopago`**. Suites: backend **345 tests, 0 fallos** (`cd backend && mvn clean test`); frontend **24 archivos, 219 tests, 0 fallos** (`cd frontend; npx vitest run`, desde PowerShell), además de `npx tsc -b`, `npm run lint` y `npm run build` limpios.
+Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente está **commiteado y pusheado a `feature-mercadopago`**. Suites: backend **346 tests, 0 fallos** (`cd backend && mvn clean test`); frontend **24 archivos, 219 tests, 0 fallos** (`cd frontend; npx vitest run`, desde PowerShell), además de `npx tsc -b`, `npm run lint` y `npm run build` limpios.
 
 **Hecho antes del 16/11:**
 - **Etapas 1, 2 y 3 completas** (2.4 queda para producción: `MP_VALIDAR_FIRMA=true`). Etapa 3: borrado de eventos con compras en curso, manejo global de errores 4xx (405/415/400 en vez de 500), el organizador puede borrar sus borradores, regla de "evento finalizado" unificada, zona horaria fija, venta manual con `cantidad`, espera de pago sin chocar con el límite de peticiones.
@@ -43,10 +43,9 @@ Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Tod
 
 ## 4. Lo que falta, en detalle
 
-### 4.1 Código pendiente, en el orden recomendado
+### 4.1 Código pendiente
 
-| Ítem | Qué es | Tamaño | Necesita de Felipe | Cómo encararlo |
-|---|---|---|---|---|
+**No queda ningún ítem crítico pendiente.** Todas las mejoras previstas en `docs/proyecto/PLAN_MEJORAS.md` están hechas, salvo las que dependen de decidir el despliegue (sección siguiente). Lo que sigue hasta la entrega es el rediseño del frontend (a cargo de otro integrante, ver `frontend/GUIA_REDISENO.md`) y la documentación final.
 
 ### 4.2 En pausa mientras no se despliegue (decisión del 16/11)
 
@@ -56,8 +55,7 @@ Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Tod
 
 ### 4.3 Pendiente de Felipe (fuera del código)
 
-- **0.3** qué hacer con el `.xlsx` de la raíz y **0.4** abrir el PR `feature-mercadopago` → `master` (desde la web, con título y descripción): los resuelve Felipe.
-- La cuenta demo `staffvendedor@demo.com` daba 401 en la PC anterior (un 401 es "credenciales inválidas": email inexistente o contraseña distinta). En la base de la PC del 16/11 ni existe. Falta decidir: resetearla en esa base o corregir `docs/tecnica/GUIA_DEMO.md`.
+- Hay un `AsistíAPP - Planificación Scrum (1).xlsx` sin versionar (versión distinta de la que está en `docs/entrega/`): decidir cuál queda. Y abrir el PR `feature-mercadopago` → `master` (desde la web, con título y descripción) cuando se quiera integrar.
 - **Rotar credenciales:** el 16/11 pasaron por el chat de la sesión credenciales de sandbox (el token de prueba de MercadoPago, el secreto del webhook, el secreto de Cloudinary, el authtoken de ngrok y la contraseña del comprador de prueba). Son de desarrollo, pero conviene rotarlas. También hay que **borrar el `cargar-variables.ps1`** con valores en texto plano que se usó para pasarlas de PC (no está en el repo; está en alguna carpeta local).
 - El mail de confirmación cayó en **spam** de Gmail con la cuenta de prueba: se resuelve con dominio propio + SPF/DKIM/DMARC vía un proveedor transaccional (solo importa si se despliega).
 
@@ -93,7 +91,7 @@ Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Tod
 - **Spring Boot no falla cuando una propiedad `${VAR}` no tiene valor: deja el texto literal.** Por eso existe `ConfiguracionProdValidator` (un `EnvironmentPostProcessor` registrado en `META-INF/spring.factories`, no un bean: tiene que correr antes de crear la conexión a la base).
 - **`application-prod.yml` está en el repo a propósito**, con una excepción en `backend/.gitignore`. Solo lleva ajustes no secretos.
 - **Límite de login: 5/min por IP** (en memoria): al hacer muchas pruebas aparece 429; reiniciar el backend lo resetea.
-- **Playwright** (para capturas): `npm install --no-save playwright`, y al terminar `npm uninstall playwright` + `npm prune` + reiniciar Vite (si no, Vite queda con dependencias optimizadas viejas). Borrar el script y las capturas.
+- **Playwright** ya es dependencia de desarrollo (`@playwright/test`): la suite está en `frontend/e2e/` (`npm run e2e`, ver `frontend/e2e/README.md`). La primera vez en una máquina: `npx playwright install chromium`. Para capturas sueltas, un script `.mjs` temporal fuera del repo.
 - **`node_modules` incompleto tras un pull:** si `npx tsc -b` falla con "Cannot find module 'exceljs'" (u otro paquete declarado en `package.json`), correr `cd frontend && npm install`.
 
 ## 7. Montar el entorno en la PC nueva
@@ -122,9 +120,8 @@ cd frontend; npm install; npm run dev       # http://localhost:5173
 cd tools;    .\MailHog.exe                  # opcional: UI http://localhost:8025 (si no hay backend/.env de Gmail)
 ```
 
-**Verificación rápida de que todo está bien:** `cd backend; mvn clean test` (345 tests, 0 fallos) y, en `frontend`, `npx tsc -b`, `npm run lint` y `npx vitest run` (219 tests).
+**Verificación rápida de que todo está bien:** `cd backend; mvn clean test` (346 tests, 0 fallos) y, en `frontend`, `npx tsc -b`, `npm run lint` y `npx vitest run` (219 tests).
 
-**Datos de prueba que hay en la base de la PC del 16/11** (no viajan con el repo): Organizador demo `organizador.demo@asistiapp.test` (contraseña de desarrollo `Demo1234!`) con el evento publicado "Evento Demo — Entregable Sprint 4" (id 39, tanda 38, 4 cupos, fecha 22/11/2026: después de esa fecha deja de ofrecerse, hay que crear otro) y un Staff QR `staff.qr.demo@asistiapp.test` (id 17, la contraseña temporal se mandó por mail y no se guarda). El evento de demo de la PC anterior ("Noche de Demo AsistíAPP", id 54) no está acá.
 
 ## 8. Cosas del proyecto que no están en el código
 

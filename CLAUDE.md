@@ -1,18 +1,19 @@
 # Guía de Desarrollo AsistíAPP (Full-Stack)
 
+- **Qué es este archivo:** instrucciones y contexto para el asistente de código (Claude) que trabaja en este repo. Para una visión general del proyecto, ver `README.md` y `docs/README.md`.
 - **Retomando el trabajo (sesión nueva o PC nueva): leer primero `docs/proyecto/CONTINUAR.md`** (dónde estamos, qué falta, trampas conocidas y cómo montar el entorno) y la sección "Estado actual" de `docs/proyecto/PLAN_MEJORAS.md`.
 - **Repo:** monorepo en GitHub (`proy_asistiapp`), raíz en `AsistiApp/`. `backend/` (Java/Spring Boot) y `frontend/` (React/Vite) son hermanos en el mismo repo.
-- **Frontend real:** `frontend/` — proyecto Vite + React + TypeScript **nuevo y limpio**, desarrollado y buildeado directo con `npm install && npm run dev` / `npm run build` (NO es el harness de Figma Make). Estructura multi-archivo normal: `src/App.tsx` (router), `src/lib/` (api.ts, auth.tsx, types.ts, format.ts), `src/pages/{buyer,organizador,staff,admin}/`.
+- **Frontend real:** `frontend/` — proyecto Vite + React + TypeScript, desarrollado y buildeado con `npm install && npm run dev` / `npm run build`. Estructura multi-archivo normal: `src/App.tsx` (router), `src/lib/` (api.ts, auth.tsx, types.ts, format.ts), `src/pages/{buyer,organizador,staff,admin}/`.
 - **Stack Frontend:** React + TypeScript + Tailwind CSS v4, `react-router` (v7, paquete unificado, no hace falta `react-router-dom`), `recharts` para gráficos.
 - **Stack Backend:** Java + Spring Boot + PostgreSQL.
 - **Iconos (Frontend):** lucide-react v0.487.0 (IMPORTANTE: Usa `CircleX`, NUNCA `XCircle`).
 
 ## 🎨 SISTEMA DE DISEÑO (FRONTEND - CRÍTICO)
-Para estructurar componentes, utilizar colores (`--primary`, `--card`, etc.), espaciados y tipografías, **DEBES leer y aplicar estrictamente las reglas del archivo `docs/tecnica/DESIGN.md`** (en `docs/tecnica/`). 
+Para estructurar componentes, utilizar colores (`--primary`, `--card`, etc.), espaciados y tipografías, **DEBES leer y aplicar estrictamente las reglas del archivo `docs/tecnica/DESIGN.md`**. Si la tarea es rediseñar pantallas, leer también `frontend/GUIA_REDISENO.md`. 
 - Usa la sección "Component Patterns" del `docs/tecnica/DESIGN.md` para crear botones, inputs y tarjetas. No inventes clases de Tailwind.
 
 ## ⚙️ ARQUITECTURA Y DATOS (BACKEND - CRÍTICO)
-Para cualquier tarea relacionada con la base de datos, creación de endpoints, lógica de negocio o integraciones, **DEBES leer el archivo `docs/tecnica/API.md`** (en `docs/tecnica/`).
+Para cualquier tarea relacionada con la base de datos, creación de endpoints, lógica de negocio o integraciones, **DEBES leer el archivo `docs/tecnica/API.md`** (modelo de datos, endpoints y reglas de negocio).
 - **Seguridad:** Usa Spring Security con JWT Stateless. Verifica siempre los roles del sistema (`Administrador`, `Organizador`, `Staff_QR`, `Staff_Vendedor`).
 - **Reglas de Negocio:** Respeta estrictamente los casos de uso definidos (ej. publicar un evento consume créditos, la validación de QR marca la entrada como usada).
 - **Transacciones (ACID):** Usa `@Transactional` en los servicios que modifican datos para evitar sobreventa de entradas (controlando rigurosamente el `cupo_disponible` en la entidad `TANDA`).
@@ -35,13 +36,13 @@ Si se solicita una revisión de seguridad de código, **DEBES leer el archivo `d
 - Mensajes de commit en español, explicando el qué y el porqué, del mismo estilo que el historial existente (`git log` para ver el tono).
 
 ## 📱💻 RESPONSIVE — MOBILE + DESKTOP
-`docs/tecnica/DESIGN.md` originalmente solo definía layout desktop para el panel de Admin (Comprador/Organizador/Staff eran mobile-only, pensados para el "phone frame" de la demo de Figma Make). Como esto es una app real que se abre en cualquier navegador, **toda pantalla nueva debe incluir breakpoints `md:`/`lg:` de Tailwind desde el principio** (no solo mobile), manteniendo intacta la paleta de colores/tokens de `docs/tecnica/DESIGN.md`. Patrón ya establecido: `OrganizadorLayout` usa sidebar fija de 208px en desktop (mismo ancho que el sidebar de Admin) y bottom tab bar en mobile; pantallas de detalle/checkout usan dos columnas con panel sticky en desktop.
+Es una app real que se abre en cualquier navegador: **toda pantalla nueva debe incluir breakpoints `md:`/`lg:` de Tailwind desde el principio** (no solo mobile), usando los tokens de `docs/tecnica/DESIGN.md`. Patrón ya establecido: `OrganizadorLayout` y `AdminLayout` usan sidebar fija de 224px en desktop y bottom tab bar en mobile; pantallas de detalle/checkout usan dos columnas con panel sticky en desktop.
 
 ## ✅ VERIFICACIÓN ANTES DE DAR POR TERMINADA UNA PANTALLA
 No alcanza con que compile. Antes de marcar una fase de frontend como hecha:
 1. Levantar el backend real (`cd backend && mvn spring-boot:run`, requiere Postgres corriendo) y el frontend (`cd frontend && npm run dev`).
 2. Probar el flujo end-to-end contra el backend real (no mocks) — si hace falta datos de prueba (un evento publicado, un organizador, etc.), sembrarlos vía `curl` contra la API y limpiarlos después (cancelar/suspender, no dejar basura de test en la base).
-3. Verificar visualmente con capturas (Playwright headless: `npm install --no-save playwright` + `npx playwright install chromium` si no están, un script `.mjs` temporal, revisar `console --errors`/`pageerror`, y **mirar las capturas**, no asumir). Borrar el script y desinstalar playwright al terminar.
+3. Verificar visualmente con capturas (Playwright, que ya es dependencia de desarrollo: un script `.mjs` temporal fuera del repo, revisar errores de consola y `pageerror`, y **mirar las capturas**, no asumir). Borrar el script al terminar. Los flujos principales ya los cubre `npm run e2e` (ver `frontend/e2e/README.md`): correrlo si se toca publicación, compra, POS o escáner.
 4. Confirmar que no rompió el otro tamaño de pantalla (mobile y desktop).
 
 ## 🔌 INTEGRACIONES EXTERNAS — ESTADO ACTUAL (a propósito, no son bugs)

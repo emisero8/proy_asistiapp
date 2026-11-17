@@ -1,5 +1,7 @@
 # Plan de Implementación Backend - AsistíAPP
 
+> **Qué es este documento:** el registro, fase por fase, de cómo se construyó el backend y por qué (decisiones, adaptaciones, errores corregidos). **Todas las fases están completadas**; sirve para entender el origen de una regla o de una decisión, no como lista de tareas pendientes. Para la visión actual del backend ver [`API.md`](API.md); para lo que se hizo después de estas fases, `docs/proyecto/PLAN_MEJORAS.md`. Las menciones a `figma-reference/` (el mockup original) son históricas: esa carpeta ya no está en el repo (queda en el historial de git).
+
 Este plan detalla el enfoque paso a paso para construir el backend del sistema de venta de entradas y control de acceso utilizando **Java, Spring Boot y PostgreSQL**, siguiendo estrictamente las arquitecturas y reglas de negocio documentadas en `docs/tecnica/API.md` y `CLAUDE.md`.
 
 > **Estado:** Fases 1 a 7 completadas e implementadas en `backend/`. Las Fases 8 en adelante surgen de contrastar lo construido contra la documentación completa del proyecto (`docs/Trabajo_PP2...pdf`, los diagramas DCU, el DER y el diagrama de tablas) — cubren entidades y casos de uso (CU-003, CU-005, CU-006, CU-012 a CU-016, CU-021 a CU-028) que no estaban implementados, y corrigen comportamiento existente que no coincide con el modelo de datos oficial.

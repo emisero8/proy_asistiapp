@@ -60,15 +60,25 @@ El generador (`openapi-typescript`, a una versión fija) se ejecuta con `npx` y 
 npm test
 ```
 
-Vitest + React Testing Library, con `jsdom`. Cubren lógica con más superficie de bug real, no cada pantalla una por una:
+Vitest + React Testing Library, con `jsdom` (24 archivos, 219 tests). Cubren las reglas con más superficie de bug real y las pantallas principales:
 
-- `src/lib/api.test.ts` — el cliente HTTP, en particular la detección de sesión vencida (un JWT rechazado por Spring Security no trae el mismo body que un 403 legítimo de la app — ver el comentario en `api.ts`).
-- `src/lib/auth.test.tsx` — `RequireRole` (redirige según sesión/rol) y `AuthProvider` (persiste/limpia la sesión en `localStorage`).
-- Un componente de login (`StaffLoginPage`) y una pantalla de listado con mutaciones (`AdminUsersPage`) como representantes de esos dos patrones, que se repiten en el resto de los roles.
+- **`src/lib/`** — el cliente HTTP (`api.test.ts`, incluida la detección de sesión vencida: un JWT rechazado por Spring Security no trae el mismo body que un 403 legítimo de la app), la sesión y `RequireRole` (`auth.test.tsx`), formato, reglas de tandas y de pago, y la guardia de tipos contra el backend (`types.contract.test.ts`).
+- **`src/components/`** — `DatePicker`, `TimePicker`, `ImagenPortadaField`, `DialogProvider` y `ThemeToggle`.
+- **`src/pages/`** — las pantallas del comprador (inicio, detalle, checkout, resultado del pago), del Organizador (dashboard, asistente, edición, detalle, staff, perfil), del Staff (login y POS) y de Admin (usuarios).
 
-Las pruebas de punta a punta (Playwright contra el backend real) están en `e2e/` y se corren con `npm run e2e`; ver [`e2e/README.md`](e2e/README.md).
+Dos cosas a tener en cuenta al escribir tests:
+- Cualquier pantalla que muestre el botón de tema se renderiza envuelta en `<ThemeProvider>` (sin él, `useTheme` falla a propósito).
+- Para fechas, congelar solo el reloj de `Date` (`vi.useFakeTimers({ toFake: ["Date"], now })`) y elegir días con `elegirFecha`/`elegirHora` de `src/testing/pickers.ts`, que usan los selectores reales como una persona.
 
-CI configurado en `.github/workflows/frontend-tests.yml` (typecheck + lint + tests + build en cada push/PR).
+Correr vitest desde PowerShell o CMD; desde Git Bash en Windows puede fallar al arrancar.
+
+### Pruebas de punta a punta
+
+Playwright contra el backend real, en `e2e/` (`npm run e2e`): publicación de un evento, compra hasta MercadoPago, venta en el POS y escaneo de una entrada. Requisitos y trampas en [`e2e/README.md`](e2e/README.md).
+
+### Integración continua
+
+`.github/workflows/frontend-tests.yml` corre typecheck, lint, tests y build en cada push y pull request. El e2e no corre ahí (necesita backend, base de datos y MercadoPago).
 
 ## Build de producción
 

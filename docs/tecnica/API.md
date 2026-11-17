@@ -1,137 +1,180 @@
-# AsistíAPP — Backend Architecture & API Specs
+# AsistíAPP — Backend: arquitectura, datos y API
 
-## Overview
-AsistíAPP is a ticketing and access-control platform for independent event organizers in Argentina. This document serves as the absolute truth for backend architecture, data modeling, and business logic.
+Referencia técnica del backend (`backend/`): cómo está armado, qué datos guarda, qué endpoints expone y qué reglas de negocio aplica. Para levantarlo y configurarlo, ver [`backend/README.md`](../../backend/README.md). Con el backend corriendo, la documentación interactiva de la API está en `http://localhost:8080/swagger-ui/index.html`.
 
-## 1. Stack & Infrastructure
-- **Framework:** Java with Spring Boot.
-- **Database:** PostgreSQL.
-- **ORM:** Spring Data JPA (Hibernate).
-- **Security:** Spring Security with Stateless JWT (JSON Web Tokens).
-- **Build Tool:** Maven or Gradle (Assume Maven unless stated otherwise).
-- **Key Integrations:** 
-  - MercadoPago SDK (Checkout Pro: payment preferences, signed Webhooks/IPN, refunds).
-  - SMTP Provider (for email delivery).
-- **Architecture Style:** Layered REST API (Controllers -> Services -> Repositories).
+## 1. Stack y arquitectura
 
----
+- **Java 17 + Spring Boot 3.3**, Maven.
+- **PostgreSQL** con Spring Data JPA (Hibernate). El esquema lo crea/actualiza Hibernate (`ddl-auto: update`); los cambios que Hibernate no hace solo están en `backend/db/migraciones/`.
+- **Spring Security con JWT sin estado** (24 horas de vigencia por defecto).
+- **Integraciones:** MercadoPago Checkout Pro (pagos, webhook firmado, reembolsos), SMTP (mails), Cloudinary (imágenes de portada y fotos de perfil).
+- **Capas:** controladores → servicios → repositorios. Los controladores reciben y devuelven DTOs (nunca entidades JPA); las reglas de negocio viven en los servicios, con `@Transactional` en todo lo que modifica datos.
+- **Errores:** un `@ControllerAdvice` global devuelve siempre el mismo JSON (`status`, `error`, `path`, `timestamp`). Los errores 5xx no exponen detalles internos.
+- **Zona horaria:** fija en `America/Argentina/Buenos_Aires` (variable `APP_TIMEZONE`), sin importar la del servidor.
+- **Perfiles:** el perfil `prod` exige las variables de entorno críticas y se niega a arrancar si faltan (ver `backend/README.md`).
 
-## 2. Security & Roles
-The system uses stateless JWT authentication. Every secured endpoint MUST extract the user's role from the JWT to enforce authorization.
+## 2. Roles y seguridad
 
-### Defined Roles (Enum `ROLES_USER`)
-1. **Administrador:** Global system management.
-2. **Organizador:** Creates events, manages tandas, and buys credits.
-3. **Staff_QR:** Scans and validates QR tickets.
-4. **Staff_Vendedor:** Performs manual ticket sales.
+Todo endpoint protegido valida el JWT y el rol. Los roles (`RolUsuario`):
 
-*Note: Roles are specialized from the base `USUARIO` entity.*
+| Rol | Qué hace |
+|---|---|
+| `Administrador` | Gestión global: usuarios, eventos, paquetes de créditos, configuración, anuncios, auditoría. |
+| `Organizador` | Crea y publica eventos, administra tandas y staff, compra créditos, ve sus métricas. |
+| `Staff_QR` | Valida entradas en la puerta (queda asignado a un evento). |
+| `Staff_Vendedor` | Vende entradas en la puerta (POS) para el evento que tiene asignado. |
 
----
+El **Comprador** no tiene cuenta: compra y consulta su entrada con endpoints públicos.
 
-## 3. Data Model (Entity-Relationship)
-This schema maps directly to the PostgreSQL database using JPA entities. 
-*CRITICAL RULE:* Ensure ACID properties are strictly handled in services (using `@Transactional`), especially to prevent ticket overselling (sobreventa).
+Cada recurso se valida contra su dueño: un Organizador solo ve y modifica sus eventos, y un Staff solo opera sobre el evento (u organizador) al que pertenece. Los criterios de seguridad completos están en [`SECURITY.md`](SECURITY.md).
 
-### Core Entities
+**Límite de peticiones** (por IP, en memoria): login 5 por minuto, recuperar contraseña 3 cada 5 minutos, consulta del estado de una orden 120 por minuto y webhook de MercadoPago 300 por minuto.
 
-**USUARIO** (Base entity)
-- `id` (PK, INT)
-- `nombre` (String)
-- `email` (String, Unique)
-- `password_hash` (String)
-- `rol` (String - Enum `ROLES_USER`)
-- `estado` (String - Enum `ESTADOS_USER`: Activo, Suspendido, Inactivo)
-- `fecha_creacion` (Datetime)
-- `creador_por` (INT, FK to Admin)
+## 3. Modelo de datos
 
-**ORGANIZADOR** (Extends USUARIO)
-- `id_usuario` (PK/FK)
-- `saldo_creditos` (INT)
+Todos los `id` son `Long`. Las fechas sin zona son hora de Argentina.
 
-**STAFF_QR** (Extends USUARIO)
-- `id_usuario` (PK/FK)
-- `id_evento` (INT, FK)
+### Usuarios
 
-**STAFF_VENDEDOR** (Extends USUARIO)
-- `id_usuario` (PK/FK)
-- `id_organizador` (INT, FK)
+- **`usuarios`:** `nombre`, `email` (único), `password_hash`, `rol`, `estado` (`Activo`, `Suspendido`, `Inactivo`), `fecha_creacion`, `creado_por`. Es la base de la herencia.
+- **`organizadores`** (`id_usuario`): `saldo_creditos`.
+- **`staff_qr`** (`id_usuario`): `id_evento`.
+- **`staff_vendedores`** (`id_usuario`): `id_organizador`, `id_evento`.
+- **`tokens_recuperacion`:** `token`, `id_usuario`, `fecha_expiracion`, `usado` (recuperar contraseña).
 
-**EVENTO**
-- `id` (PK, INT)
-- `id_organizador` (INT, FK)
-- `nombre` (String)
-- `descripcion` (String)
-- `fecha_evento` (Date)
-- `hora_evento` (Time)
-- `lugar` (String)
-- `imagen_portada_url` (String)
-- `estado` (String - Enum `ESTADOS_EVENTO`: Borrador, Publicado, Cancelado)
-- `url_publica` (String)
+### Eventos y entradas
 
-**TANDA**
-- `id` (PK, INT)
-- `id_evento` (INT, FK)
-- `nombre` (String)
-- `precio` (Double)
-- `cupo_maximo` (INT)
-- `cupo_disponible` (INT)
-- `fecha_inicio_vigencia` (Datetime)
-- `fecha_fin_vigencia` (Datetime)
+- **`eventos`:** `id_organizador`, `nombre`, `descripcion`, `fecha_evento`, `hora_evento`, `lugar`, `latitud`, `longitud`, `imagen_portada_url`, `estado` (`Borrador`, `Publicado`, `Cancelado`), `url_publica`, `fecha_creacion`, `fecha_publicacion`, `fecha_cancelacion`.
+- **`tandas`:** `id_evento`, `nombre`, `precio`, `cupo_maximo`, `cupo_disponible`, `fecha_inicio_vigencia`, `fecha_fin_vigencia`.
+- **`entradas`:** `id_tanda`, `codigo_qr` (único), `nombre_comprador`, `email_comprador`, `estado` (`Pagada`, `Usada`), `canal_venta` (`Online`, `Manual`), `id_transaccion_pago`, `id_staff_vendedor`, `id_staff_qr_validador`, `fecha_compra`, `fecha_uso`.
 
-**ENTRADA** (Ticket)
-- `id` (PK, INT)
-- `id_tanda` (INT, FK)
-- `codigo_qr` (String, Unique)
-- `nombre_comprador` (String)
-- `email_comprador` (String)
-- `estado` (String - Enum `ESTADOS_ENTRADA`: Pagada, Usada)
-- `canal_venta` (String - Enum `CANALES_VENTA`: Online, Manual)
-- `id_transaccion_pago` (INT, Nullable)
-- `id_staff_vendedor` (INT, Nullable)
-- `id_staff_qr_validador` (INT, Nullable)
-- `fecha_compra` (Datetime)
-- `fecha_uso` (Datetime)
+### Pagos y créditos
 
-**PAQUETE_CREDITO**
-- `id` (PK, INT)
-- `nombre` (String)
-- `cantidad_creditos` (INT)
-- `precio` (Double)
-- `estado` (String - Enum `ESTADOS_PAQUETE`: Activo, Deshabilitado)
+- **`transacciones_pago`** (órdenes de entradas): `id_tanda`, `cantidad`, `monto_total`, `external_reference` (UUID de la orden), `metodo_pago`, `estado` (`Pendiente`, `Aprobada`, `Rechazada`, `Expirada`, `Reembolsada`), `mercadopago_payment_id`, `nombre_comprador`, `email_comprador`, `fecha_vencimiento`, `fecha_transaccion`.
+- **`paquetes_credito`:** `nombre`, `cantidad_creditos`, `precio`, `estado` (`Activo`, `Deshabilitado`).
+- **`transacciones_credito`** (órdenes de compra de créditos): `id_organizador`, `id_paquete`, `monto`, `external_reference`, `estado` (mismos valores), `mercadopago_payment_id`, `fecha_vencimiento`, `fecha_transaccion`.
+- **`movimientos_credito`** (libro de créditos): `id_organizador`, `tipo_movimiento` (`Bienvenida`, `Recarga`, `Consumo_Publicacion`, `Consumo_Tanda`, `Devolucion_Tanda`), `monto`, `saldo_resultante`, `id_evento`, `id_transaccion_credito`, `fecha_movimiento`.
 
-### Audit & Logs
-**LOG_AUDITORIA**
-- Must record administrative actions (Admin ID, action, affected entity, datetime).
+### Sistema
 
----
+- **`notificaciones`:** `id_usuario_destino`, `origen` (`Admin`, `Sistema`), `titulo`, `mensaje`, `leida`, `tipo_entidad_relacionada`, `id_entidad_relacionada`, `fecha_creacion`.
+- **`configuraciones_sistema`:** `clave`, `valor`, `descripcion`. Claves usadas: `creditos_bienvenida`, `creditos_por_publicacion`, `max_entradas_por_comprador`, `email_soporte`, `whatsapp_soporte`.
+- **`log_auditoria`:** `id_admin`, `accion`, `entidad_afectada`, `id_entidad_afectada`, `detalle`, `fecha_hora`. Registra las acciones administrativas; los datos sensibles (contraseñas) se enmascaran.
 
-## 4. Key Business Rules (Service Layer Rules)
+> Hoy varias relaciones son un `Long` suelto y no una clave foránea real (por ejemplo `id_organizador` en `eventos`). Está anotado como mejora para cuando se defina el despliegue (ver `docs/proyecto/PLAN_MEJORAS.md`, ítem 4.2).
 
-1. **Ticket Purchase (Online) [CU-017]:**
-   - Must verify `cupo_disponible` > 0 in the `TANDA`.
-   - Must use pessimistic locking or database constraints to prevent overselling in high-concurrency scenarios.
-   - An order carries a `cantidad` (1-20). `POST /tickets/comprar-online` creates ONE pending `TRANSACCION_PAGO` for the whole order plus a real MercadoPago Checkout Pro preference, and returns the `init_point` (`urlPago`) and an opaque order UUID (`ordenId`). It does NOT decrement `cupo_disponible`.
-   - Payment confirmation happens ONLY through the MercadoPago webhook `POST /payments/mercadopago/webhook` (public, authenticated by the `x-signature` header). The notification content is never trusted: the payment is re-fetched from the MercadoPago API (status, amount, currency, `external_reference`) before anything is delivered. Must be idempotent (duplicate/retried notifications, the same payment arriving through Webhooks and IPN at once).
-   - On an approved payment: lock the `TANDA`, decrement `cupo_disponible` by the full `cantidad` (all-or-nothing), and for each unit generate a unique `codigo_qr` and create an `ENTRADA` with status `Pagada`; then send ONE email with all the QR codes (after commit).
-   - If an approved payment can no longer be honored (tanda sold out meanwhile, event no longer `Publicado`, per-buyer limit exceeded), refund it automatically through the MercadoPago API and mark the order `Reembolsada`. A second approved payment for an already resolved order is refunded too.
-   - Amount and currency of the payment must match the order exactly, otherwise nothing is delivered.
-2. **Event Creation/Publishing [CU-007, CU-010]:**
-   - Publishing an event consumes credits. The service must verify `saldo_creditos` > required amount.
-   - If insufficient credits, abort publishing and prompt credit purchase.
-3. **Credit Purchases [CU-014]:**
-   - Integrates with MercadoPago Checkout Pro (same preference + signed webhook flow as ticket sales, same `/payments/mercadopago/webhook` endpoint; orders are told apart by their `external_reference`). Upon an approved, verified payment, register in `TRANSACCION_CREDITO` and `MOVIMIENTO_CREDITO`, then update `saldo_creditos` in `ORGANIZADOR` — exactly once, even if the notification is repeated.
-4. **QR Validation (Staff_QR) [CU-018]:**
-   - Must verify the `codigo_qr` exists and belongs to the correct `EVENTO`.
-   - Must verify `estado` is NOT `Usada` (prevent duplicates).
-   - If valid, update `estado` to `Usada`, set `fecha_uso`, and link `id_staff_qr_validador`.
-5. **Manual Sales (Staff_Vendedor) [CU-019]:**
-   - Bypasses MercadoPago. Direct deduction of `cupo_disponible`. Generates QR and marks as `Pagada`.
+## 4. Endpoints
 
----
+Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar autenticado. El detalle de cada cuerpo y respuesta está en Swagger.
 
-## 5. Development Guidelines (Claude Instructions)
-- **Annotations:** Use standard Spring Boot annotations (`@RestController`, `@Service`, `@Repository`, `@Entity`).
-- **DTOs:** Always use DTOs (Data Transfer Objects) for Requests and Responses to avoid exposing raw JPA entities.
-- **Error Handling:** Implement a global `@ControllerAdvice` to return standardized JSON error responses (e.g., `{"error": "Tanda agotada", "status": 409}`).
-- **Transactions:** Use `@Transactional` on service methods that modify data.
+### Autenticación (públicos)
+
+| Método y ruta | Qué hace |
+|---|---|
+| `POST /auth/register` | Registra un Organizador y lo deja con sesión iniciada; recibe los créditos de bienvenida. |
+| `POST /auth/login` | Inicia sesión (cualquier rol) y devuelve el JWT. |
+| `POST /auth/recuperar-password` | Envía por mail un enlace para restablecer la contraseña (responde igual exista o no el email). |
+| `POST /auth/restablecer-password` | Fija la contraseña nueva con el token recibido por mail. |
+
+### Catálogo y compra (públicos, para el Comprador)
+
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /public/eventos` | Lista los eventos publicados y vigentes. |
+| `GET /public/eventos/{urlPublica}` | Detalle de un evento con sus tandas. |
+| `GET /public/estadisticas` | Cifras generales para la portada. |
+| `GET /public/paquetes-credito` | Paquetes de créditos activos (se muestran en la portada). |
+| `GET /public/soporte` | Contacto de soporte configurado por el Admin. |
+| `POST /tickets/comprar-online` | Crea la orden y la preferencia de pago de MercadoPago; devuelve `urlPago` y `ordenId`. |
+| `GET /tickets/orden/{externalReference}` | Estado de una orden de entradas (y las entradas, si ya se pagó). |
+| `GET /tickets/by-codigo` | Datos de una entrada a partir de su código. |
+| `GET /tickets/{id}/qr-image` | Imagen PNG del QR de una entrada. |
+| `POST /payments/mercadopago/webhook` | Aviso de pago de MercadoPago (autenticado por la firma, no por JWT). |
+
+### Organizador (`Organizador`)
+
+| Método y ruta | Qué hace |
+|---|---|
+| `GET /eventos`, `GET /eventos/{id}` | Sus eventos. |
+| `POST /eventos`, `PUT /eventos/{id}` | Crea/edita un evento (queda en borrador). |
+| `POST /eventos/imagenes` | Sube la portada a Cloudinary. |
+| `PATCH /eventos/{id}/publicar` | Publica el evento (consume créditos). |
+| `PATCH /eventos/{id}/cancelar` | Cancela el evento y avisa a los compradores. |
+| `DELETE /eventos/{id}` | Borra un evento en borrador. |
+| `GET /eventos/resumen`, `GET /eventos/{id}/metricas` | Resumen del panel y métricas de un evento. |
+| `GET/POST/PUT/DELETE /eventos/{eventoId}/tandas[/{id}]` | Administra las tandas de un evento. |
+| `GET /tickets/evento/{eventoId}` | Entradas vendidas de un evento. |
+| `POST /creditos/comprar` | Inicia la compra de un paquete de créditos (MercadoPago). |
+| `GET /creditos/paquetes`, `/resumen`, `/historial`, `/compras`, `/orden/{externalReference}` | Paquetes disponibles, saldo, movimientos, compras y estado de una orden. |
+| `POST /organizador/staff/qr`, `POST /organizador/staff/vendedor` | Crea un Staff QR o Vendedor asignado a un evento; la contraseña inicial le llega por mail. |
+| `GET /organizador/staff` | Lista su staff. |
+| `PATCH /organizador/staff/{id}/desactivar`, `/reactivar`, `POST /organizador/staff/{id}/resetear-password` | Gestiona la cuenta de un staff. |
+| `GET/PUT /organizador/perfil`, `POST /organizador/perfil/foto`, `PUT /organizador/perfil/password` | Perfil, foto y cambio de contraseña. |
+
+### Staff
+
+| Método y ruta | Rol | Qué hace |
+|---|---|---|
+| `GET /eventos/vendedor` | `Staff_Vendedor` | El evento publicado que puede vender. |
+| `POST /tickets/venta-manual` | `Staff_Vendedor` | Vende 1 a 20 entradas en una sola operación y manda el mail al comprador. |
+| `GET /tickets/disponibilidad-comprador` | `Staff_Vendedor` | Cuántas entradas más se le pueden vender a ese comprador. |
+| `POST /tickets/validate`, `GET /tickets/validate/{codigo}` | `Staff_QR` | Valida una entrada (la marca como usada) o solo la consulta. |
+
+### Notificaciones (cualquier usuario autenticado)
+
+`GET /notificaciones`, `GET /notificaciones/no-leidas/cantidad`, `PATCH /notificaciones/{id}/leer` y `PATCH /notificaciones/leer-todas`.
+
+### Administrador (`Administrador`)
+
+| Ruta | Qué hace |
+|---|---|
+| `GET /admin/usuarios`, `PATCH …/{id}/suspender`, `…/activar`, `…/password`, `DELETE …/{id}` | Gestiona usuarios. |
+| `GET/PUT/DELETE /admin/eventos[/{id}]`, `PATCH …/{id}/cancelar`, `POST/PUT/DELETE …/{id}/tandas[/{idTanda}]` | Gestiona cualquier evento y sus tandas. |
+| `GET/POST/PUT /admin/paquetes-credito`, `PATCH …/{id}/habilitar`, `…/deshabilitar` | Paquetes de créditos. |
+| `GET /admin/configuraciones`, `PUT /admin/configuraciones/{clave}` | Parámetros del sistema. |
+| `POST /admin/notificaciones` | Anuncio global a todos los usuarios activos. |
+| `GET /admin/metricas`, `GET /admin/auditoria` | Métricas globales y registro de auditoría. |
+
+## 5. Reglas de negocio
+
+### Compra online de entradas (CU-017)
+
+1. `POST /tickets/comprar-online` valida la tanda y la cantidad (1 a 20, y no más que el tope por comprador, `max_entradas_por_comprador`, 6 por defecto), crea **una** orden `Pendiente` por todo el pedido y una preferencia real de MercadoPago. **No descuenta cupo todavía.** La orden vence a los 30 minutos (`MP_MINUTOS_VENCIMIENTO`).
+2. La confirmación llega **solo** por el webhook firmado. El contenido del aviso no se confía: el pago se vuelve a pedir a la API de MercadoPago (estado, monto, moneda y referencia) antes de entregar nada. El monto y la moneda deben coincidir exactamente con la orden. Además, cuando el comprador mira el estado de su orden, el backend la reconcilia contra MercadoPago (como mucho una vez cada 10 segundos por orden), así que no depende de que el webhook llegue.
+3. Con el pago aprobado: se bloquea la tanda, se descuenta el cupo completo (todo o nada), se genera un código QR único por entrada y se manda **un solo mail** con todos los QR (después de confirmar la transacción).
+4. Si un pago aprobado ya no se puede honrar (tanda agotada, evento que ya no está publicado, tope por comprador), se **reembolsa automáticamente** y la orden queda `Reembolsada`. Un segundo pago aprobado para una orden ya resuelta también se reembolsa.
+5. Todo es **idempotente**: avisos repetidos o simultáneos del mismo pago no entregan dos veces.
+6. Un trabajo programado (cada 10 minutos) marca como `Expirada` las órdenes vencidas que nunca se pagaron, después de reconciliarlas.
+7. Un evento ya finalizado o dado de baja no se puede comprar.
+
+### Eventos, tandas y créditos (CU-007, CU-010, CU-014)
+
+- Publicar un evento cuesta créditos (`creditos_por_publicacion`, 1 por defecto); sin saldo suficiente no se publica.
+- **Cada entrada consume 1 crédito.** La suma de cupos de las tandas no puede superar los créditos disponibles (saldo menos el costo reservado de publicar). Al cancelar un evento o borrar una tanda se devuelven los créditos de las entradas sin vender.
+- Al registrarse, el Organizador recibe `creditos_bienvenida` créditos (5 por defecto).
+- La compra de créditos usa el mismo mecanismo de MercadoPago que las entradas (misma preferencia y webhook firmado; las órdenes se distinguen por su `external_reference`). Con el pago verificado se registran la transacción y el movimiento y se actualiza el saldo, exactamente una vez.
+- Un evento con compras en curso no se puede borrar.
+
+### Validación de QR (CU-018)
+
+El `Staff_QR` valida un código: debe existir, pertenecer al evento asignado a ese staff y no estar usado. Si es válido, la entrada pasa a `Usada` con su fecha y el staff que la validó; escanearla de nuevo se rechaza.
+
+### Venta manual (CU-019)
+
+El `Staff_Vendedor` evita MercadoPago: descuenta el cupo, genera los QR y deja las entradas `Pagada`. Solo puede vender el evento que tiene asignado, respeta el tope por comprador y manda el mail con las entradas (un fallo del mail no deshace la venta).
+
+### Avisos automáticos al Organizador
+
+Aparecen en su campanita: primera venta de un evento, tanda agotada, reembolso de entradas, créditos acreditados, y evento cancelado por el Admin o reembolso de una compra de créditos. Además, el Admin puede mandar anuncios a todos.
+
+### Auditoría
+
+Las acciones administrativas (cambiar contraseña, suspender, cancelar un evento, etc.) quedan en `log_auditoria` con el Admin, la acción y la entidad afectada. Los argumentos sensibles se enmascaran.
+
+## 6. Pautas de desarrollo
+
+- Anotaciones estándar de Spring (`@RestController`, `@Service`, `@Repository`, `@Entity`).
+- DTOs siempre en las entradas y salidas de la API.
+- Errores de negocio con las excepciones propias (`BusinessRuleException`, `ResourceNotFoundException`, `ForbiddenActionException`), que el manejador global traduce a la respuesta estándar.
+- `@Transactional` en todo servicio que modifique datos; bloqueo pesimista de la tanda al descontar cupo (la prueba de concurrencia está en `VentaServiceConcurrencyTest`).
+- Cuando cambia un DTO o un endpoint hay que regenerar los tipos del frontend (ver `frontend/README.md`, "Contrato con el backend").

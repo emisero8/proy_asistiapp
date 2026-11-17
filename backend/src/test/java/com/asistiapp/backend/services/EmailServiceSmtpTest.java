@@ -124,6 +124,31 @@ class EmailServiceSmtpTest {
         assertThat(imagenes).containsExactlyInAnyOrder("<qr-entrada-1>", "<qr-entrada-2>");
     }
 
+    @Test
+    void confirmacionDeCompra_escapaElHtmlDelNombreDelComprador() throws Exception {
+        // La compra es pública: quien compra elige el nombre. No puede colar HTML ni enlaces en el mail.
+        JavaMailSenderImpl sender = new JavaMailSenderImpl();
+        sender.setHost("localhost");
+        sender.setPort(smtp.getSmtp().getPort());
+        sender.setDefaultEncoding("UTF-8");
+        EmailService servicio = new EmailService(sender, new QrImageService());
+
+        servicio.enviarConfirmacionCompra("ana@ejemplo.com", "<a href=\"http://malo.example\">Ingresá acá</a>",
+                "Noche <b>de</b> Demo", "General", List.of("QR-AAA"));
+
+        List<Part> partes = new ArrayList<>();
+        recolectar(unicoMensaje(), partes);
+        String html = null;
+        for (Part parte : partes) {
+            if (parte.isMimeType("text/html")) {
+                html = (String) parte.getContent();
+            }
+        }
+        assertThat(html).doesNotContain("http://malo.example\"").doesNotContain("<a href=\"http://malo")
+                .doesNotContain("<b>de</b>")
+                .contains("&lt;a href=&quot;http://malo.example&quot;&gt;").contains("Noche &lt;b&gt;de&lt;/b&gt; Demo");
+    }
+
     private static void recolectar(Part parte, List<Part> acumulado) throws Exception {
         if (parte.isMimeType("multipart/*")) {
             Multipart multipart = (Multipart) parte.getContent();

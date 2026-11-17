@@ -149,7 +149,7 @@ El cobro de entradas y de créditos usa MercadoPago Checkout Pro. El detalle del
 1. Con el backend y el frontend corriendo, elegir un evento publicado, ir a **Comprar entradas** y completar el checkout.
 2. Como el sitio corre en `http`, **el checkout de MercadoPago se abre en una pestaña nueva** (`frontend/src/lib/pago.ts`). Si el navegador bloquea la ventana emergente, la app avisa antes de crear la orden: permitirlas para `localhost` y reintentar. La pestaña original queda en `/pago/resultado` esperando.
 3. En MercadoPago, **en una ventana de incógnito**, elegir **"Ingresar con mi cuenta"**, entrar con el usuario comprador de prueba y pagar con **"Dinero disponible"**.
-   - **No pagar como invitado con una tarjeta de prueba** (ni siquiera con titular `APRO`): con credenciales de usuario de prueba MercadoPago lo rechaza con una pantalla de error genérica (`/fatal/`). Está probado en un Chrome real y en Playwright; ver `../DECISIONES.md` (2026-10-15).
+   - **No pagar como invitado con una tarjeta de prueba** (ni siquiera con titular `APRO`): con credenciales de usuario de prueba MercadoPago lo rechaza con una pantalla de error genérica (`/fatal/`). Está probado en un Chrome real y en Playwright; ver `../docs/proyecto/DECISIONES.md` (2026-10-15).
    - Si se automatiza el login con Playwright, MercadoPago muestra un reCAPTCHA después de varios intentos seguidos: hacer este paso a mano.
 4. **En local la pantalla de "pago aprobado" de MercadoPago no tiene botón "Volver al sitio"**, y no es un bug: MercadoPago solo vuelve solo si el frontend es HTTPS público. Cerrar esa pestaña y volver a la original: sigue en `/pago/resultado`, consulta el estado cada 4 s (hasta 10 minutos) y pasa sola a **"¡Pago aprobado!"** con las entradas y su QR.
 5. El mail de confirmación sale por el SMTP configurado (ver "Envío de mails"). En la vista HTML de MailHog el QR no se ve, porque viaja como imagen inline `cid:`; en un cliente real (Gmail) sí. Las entradas se ven igual en la pantalla de resultado.
@@ -193,6 +193,6 @@ Los orígenes permitidos salen de `CORS_ALLOWED_ORIGINS` (coma-separado). Si el 
 ```
 mvn test
 ```
-Corren contra H2 en memoria (perfil `test`, ver `application-test.yml`) — no necesitan PostgreSQL. CI configurado en `.github/workflows/backend-tests.yml`.
+346 tests. Corren contra H2 en memoria (perfil `test`, ver `application-test.yml`) — no necesitan PostgreSQL. `EmailServiceSmtpTest` levanta un servidor SMTP de verdad (GreenMail) para comprobar los mails reales. Las pruebas de punta a punta del sistema completo están en `frontend/e2e/`. CI configurado en `.github/workflows/backend-tests.yml`.
 
 `OpenApiContratoTest` compara el contrato que publica la API (`/v3/api-docs`) con la copia que guarda el frontend (`../frontend/openapi.json`, de la que genera sus tipos). **Si cambiás un endpoint o un DTO y falla**, es lo esperado: con el backend corriendo, `cd frontend && npm run types:api`, después `npx tsc -b` para ver qué tipos del frontend actualizar, y commitear todo junto.

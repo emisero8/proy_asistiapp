@@ -2,16 +2,16 @@
 
 ## Overview
 
-AsistíAPP is a ticketing and access-control platform for independent event organizers in Argentina. The UI is a set of high-fidelity functional mockups built in **React + TypeScript + Tailwind CSS v4**, rendered inside device frames so stakeholders can interact with every screen without a real backend.
+Sistema de diseño de la interfaz de AsistíAPP (`frontend/`): React + TypeScript + Tailwind CSS v4. Define los colores, la tipografía y los patrones de componentes que usan todas las pantallas. Si se rediseña la interfaz, es el documento a actualizar junto con `frontend/src/styles/theme.css`; ver también `frontend/GUIA_REDISENO.md`.
 
-There are **four audience modes**, each with its own frame:
+La aplicación tiene cuatro áreas, una por tipo de usuario:
 
-| Mode | Frame | Screens |
-|---|---|---|
-| Buyer (`buyer`) | Phone 390×844 r-50 | A–D: Listing → Detail → Checkout → Ticket |
-| Organizer (`org`) | Phone 390×844 r-50 | E–H + E2: Login, Register, Dashboard, Wizard, Wallet, Staff Mgmt |
-| Staff (`staff`) | Phone 390×844 r-50 | I–J: Scanner QR, Valid overlay, Invalid overlay + POS for Vendedor |
-| Admin (`admin`) | Desktop 1100×700 r-16 | K–N: Dashboard, Users, Events, Config |
+| Área | Quién | Pantallas | Formato |
+|---|---|---|---|
+| Comprador (`pages/buyer`) | Público, sin cuenta | Inicio, todos los eventos, detalle, checkout, resultado del pago, entrada, "mi entrada" | Pensada primero para celular; se adapta a escritorio |
+| Organizador (`pages/organizador`) | Quien publica eventos | Login, registro, recuperar contraseña, dashboard, asistente de creación, edición, detalle, créditos, staff, perfil | Barra lateral en escritorio, barra inferior en celular |
+| Staff (`pages/staff`) | Vendedor y personal de acceso | Login, punto de venta (POS), escáner de QR | Celular |
+| Administrador (`pages/admin`) | Equipo de AsistíAPP | Login, dashboard, usuarios, eventos, configuración, auditoría | Barra lateral en escritorio, barra inferior en celular |
 
 ---
 
@@ -79,7 +79,7 @@ Toda la app soporta modo claro y oscuro — **no es mobile-only ni dark-only**, 
 
 - **Mecanismo:** clase `.dark` en `<html>`, agregada/sacada por `src/lib/theme.tsx` (`ThemeProvider` + hook `useTheme()`). Tailwind ya está configurado para esto (`@custom-variant dark (&:is(.dark *))` en `theme.css`) — no hace falta tocar esa parte.
 - **Persistencia:** el modo elegido se guarda en `localStorage` (`asistiapp_theme`). Default: **oscuro** (identidad original de la app).
-- **Toggle:** `src/components/ThemeToggle.tsx` — un botón flotante (`fixed`, `z-50`, esquina superior derecha) montado una sola vez en `App.tsx`, visible en cualquier pantalla sin que cada layout tenga que hacerle lugar en su header.
+- **Toggle:** `src/components/ThemeToggle.tsx` — un botón redondo que **cada pantalla coloca en su propio encabezado** (variantes `normal`, `sobre-imagen` y `esquina`; ver "Layouts por rol"). Ya no es un botón flotante global: eso tapaba botones del escáner y quedaba debajo de los encabezados fijos. `useTheme()` exige `<ThemeProvider>`, así que los tests de una pantalla con toggle la envuelven en él.
 - **Regla para código nuevo:** usar siempre los tokens (`bg-card`, `text-foreground`, `border-border`, `bg-primary`, etc.), nunca hex/rgb literal para colores que deban adaptarse al modo. Si de verdad necesitás un color que **no** cambie con el tema (ej. un panel de marca siempre-oscuro como en `OrganizadorLoginPage`), usá hex literal a propósito y dejalo comentado como tal — es la excepción, no la regla.
 - **`recharts` (gráficos):** los `contentStyle`/`fill` de `Tooltip`/`Cell` son estilos inline de JS, no CSS — ahí hay que pasar `"var(--card)"`, `"var(--foreground)"`, etc. explícitamente como string (ver `DashboardPage.tsx` del Organizador) en vez de hex hardcodeado, si no el tooltip queda fijo en un modo.
 
@@ -112,35 +112,21 @@ Do **not** add Tailwind font-size / font-weight classes unless overriding—the 
 ## Spacing & Layout
 
 - Base unit: Tailwind's 4px grid.
-- Screen padding: `px-4` (mobile) / `px-7` (admin desktop).
-- Top safe-area offset: `pt-14` (accounts for status bar + notch simulation).
+- Padding de pantalla: `px-4` en celular y `lg:px-8` en escritorio.
 - Card border-radius: `rounded-2xl` (16px). Inputs: `rounded-xl` or `rounded-2xl`.
 - Gaps between cards/sections: `space-y-4` or `space-y-5`.
 
 ---
 
-## Device Frames
+## Layouts por rol
 
-### Phone Frame (Buyer / Org / Staff)
-```
-width: 390px  height: 844px  border-radius: 50px
-background: var(--background)  [or #000 for Staff]
-box-shadow: 0 0 0 1px rgba(255,255,255,0.08),
-            0 40px 80px rgba(0,0,0,0.85),
-            0 0 120px rgba(124,58,237,0.15)
-```
-- Status bar (`pt-3 pb-1`) simulates iOS notch: time left, pill center, signal/battery right.
-- Staff QR scanner hides the status bar (full-bleed immersive).
-- Organizer has a bottom tab bar when logged in (4 items: Dashboard, Crear, Créditos, Staff).
-
-### Desktop Frame (Admin)
-```
-width: 1100px  height: 700px  border-radius: 16px
-background: var(--background)
-box-shadow: same as phone
-```
-- No browser chrome simulation — the `AdminShell` fills the frame directly.
-- `AdminShell` uses a 208px sidebar + flex-1 main area.
+- **Breakpoint principal:** `md` (768 px) para los paneles con barra lateral, `lg` (1024 px) para el resto de la grilla.
+- **Organizador y Administrador:** en escritorio, barra lateral fija de 224 px (`md:w-56`); en celular, barra inferior fija con las secciones principales (Organizador: Dashboard, Crear, Créditos, Staff, Perfil; Administrador: Dashboard, Usuarios, Eventos, Config, Auditoría). El contenido deja margen inferior para que la barra no lo tape.
+- **Acciones del panel:** arriba a la derecha, siempre visibles, van agrupadas en `fixed top-3 right-3`: campanita de notificaciones, botón de tema y "Salir".
+- **Comprador:** encabezado propio en cada pantalla; el botón de tema va dentro de ese encabezado (sobre la portada del evento usa la variante translúcida).
+- **Staff:** el POS usa una columna centrada con pie fijo para el botón de acción; el escáner es un overlay negro a pantalla completa que ignora el tema y no lleva botón de tema.
+- **Pantallas de acceso** (login, registro, recuperar contraseña): fondo con imagen (`AuthBackground`) y el botón de tema fijo en la esquina, porque no tienen encabezado.
+- **Regla:** el botón de tema (`ThemeToggle`) **nunca** es global ni flotante; cada pantalla lo coloca en su propio encabezado.
 
 ---
 
@@ -292,9 +278,9 @@ Infinite horizontal scroll for a short list of value props. The content is dupli
 
 | Type | Classes |
 |---|---|
-| Category (violet) | `bg-violet-400/15 text-violet-400 text-[10px] font-bold px-2.5 py-1 rounded-full` |
-| Staff QR | `bg-violet-400/10 text-violet-400` |
-| Staff Vendedor | `bg-amber-400/10 text-amber-400` |
+| Categoría / rol Staff QR | `bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 rounded-full` |
+| Staff Vendedor | `bg-muted text-muted-foreground` |
+| Rol en la tabla de usuarios (Admin) | `bg-muted text-foreground` |
 | Status: activo | `bg-emerald-400/15 text-emerald-400` |
 | Status: cancelado/suspendido | `bg-red-400/15 text-red-400` |
 | Popular pack | `bg-accent text-accent-foreground` |
@@ -373,20 +359,11 @@ Reglas de diseño y comportamiento (ya resueltas en el componente, no se reimple
 - Si se piden varios a la vez se muestran de a uno, en orden.
 - En los tests, renderizar la pantalla dentro de `<DialogProvider>` (sin él, `useDialog()` tira un error explícito).
 
-### QR Code Component
-Custom SVG-based generator (no external library). `<QRCodeSVG seed="string" />` produces a deterministic 25-module QR-like grid with real finder patterns. Used in Buyer success screen and Staff Vendedor generated ticket.
+### Código QR
+El QR **no se dibuja en el frontend**: es una imagen PNG que genera el backend (`GET /tickets/{id}/qr-image?codigoQr=…`) y se muestra con un `<img>` (entrada del comprador, POS). En los mails viaja como imagen adjunta en línea.
 
-### Scanner Camera Simulation
-CSS-only camera effect:
-```tsx
-<div className="absolute inset-0 bg-gradient-to-b from-neutral-900 via-neutral-800 to-neutral-900" />
-<div className="absolute inset-0 opacity-[0.04]"
-  style={{ backgroundImage: "linear-gradient(rgba(255,255,255,0.4) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,0.4) 1px,transparent 1px)",
-    backgroundSize: "20px 20px" }} />
-<div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_38%,rgba(0,0,0,0.82)_100%)]" />
-```
-Scan line animation via `scan-line-anim` CSS class (see globals.css).
+### Escáner de QR
+`ScannerPage` usa la cámara con la librería `html5-qrcode` sobre un fondo negro a pantalla completa. Si no hay cámara o no se dio permiso, avisa y ofrece **"Ingresar código manualmente"** (campo `AST-XXXXXX` y botón "Validar"). El resultado se muestra como superposición verde (ingreso válido, con el nombre del comprador) o roja (rechazada: ya usada, de otro evento, inexistente), y un contador de válidos e inválidos.
 
 ---
 
@@ -405,91 +382,22 @@ Always add `<div className="h-8" />` (or `h-24` above sticky footers) at the bot
 
 | Class | Keyframe | Usage |
 |---|---|---|
-| `scan-line-anim` | `scan-line` 2s ease-in-out infinite | QR scanner sweep line |
-| `countdown-bar` | `countdown` 3.5s linear forwards | Valid overlay auto-dismiss bar |
-| `countdown-bar-red` | `countdown` 4s linear forwards | Invalid overlay auto-dismiss bar |
 | `marquee-track` | `marquee` 26s linear infinite | Ticker en Buyer Listing (ver Poster Card / Ticker arriba) |
 
 ---
 
-## Screen Inventory
+## Pantallas
 
-### Section 1 — Buyer
-| Screen | Key | Notable interactions |
-|---|---|---|
-| A. Listing | `listing` | Search input + category filter chips, featured card + list cards |
-| B. Detail | `detail` | Tanda radio selection, quantity stepper, sticky buy footer |
-| C. Checkout | `checkout` | Name + email fields enable button; payment method pre-selected as "mp" |
-| D. Ticket | `success` | QR code display, download + back buttons |
+Las rutas están en `frontend/src/App.tsx` y cada pantalla en `frontend/src/pages/<área>/`.
 
-### Section 2 — Organizer
-| Screen | Key | Notable interactions |
-|---|---|---|
-| E. Login | `login` | Toggle to recover-password sub-view; "Registrate gratis" → register |
-| E2. Register | `register` | 5 fields + terms checkbox; on success shows welcome credits screen |
-| F. Dashboard | `dashboard` | Metrics grid, BarChart (recharts), recent sales list, quick-action buttons |
-| G. Wizard | `wizard` | 2-step: basic info → tanda config; publish → success state with credit deduction |
-| H. Wallet | `wallet` | Balance hero card, pack selection (expand-to-pay), transaction history |
-| Staff Mgmt | `staff` | Role legend, staff list, add-member form with role toggle |
+| Área | Rutas |
+|---|---|
+| Comprador | `/` (inicio), `/eventos`, `/eventos/:urlPublica` (detalle), `/checkout`, `/pago/resultado`, `/ticket/:id`, `/mi-entrada` |
+| Organizador | `/organizador/login`, `/registro`, `/recuperar-password`, `/dashboard`, `/crear`, `/eventos/:id`, `/eventos/:id/editar`, `/creditos`, `/staff`, `/perfil` |
+| Staff | `/staff/login`, `/staff/pos` (Staff Vendedor), `/staff/scanner` (Staff QR) |
+| Administrador | `/admin/login`, `/dashboard`, `/usuarios`, `/eventos`, `/eventos/:id/editar`, `/config`, `/auditoria` |
 
-### Section 3 — Staff
-| Screen | Key | Notable interactions |
-|---|---|---|
-| Staff Login | (entry) | Email + password; demo credential buttons; routes by `role` field |
-| I. Scanner | `scanner` | Camera simulation, scan-frame corners, simulate-valid/invalid buttons, manual code entry, stats counters |
-| J. Valid | `valid` | Full-screen emerald overlay, ticket holder info, countdown bar auto-dismiss |
-| J. Invalid | `invalid` | Full-screen red overlay, reason code + detail, countdown bar auto-dismiss |
-| Vendedor POS | (role-routed) | Tanda selection, quantity, optional buyer name, Efectivo/Transferencia payment, generate QR |
-
-### Section 4 — Admin Backoffice
-| Screen | Key | Notable interactions |
-|---|---|---|
-| Admin Login | `login` | Email + password; any credential enters |
-| K. Dashboard | `dashboard` | 4 KPI cards, 3 quick-nav cards, activity log |
-| L. Users | `users` | Search + role filter, sortable table, three-dot menu (Suspender/Activar / Cambiar contraseña / Eliminar) |
-| M. Events | `events` | Search, table with status badges, three-dot menu (Editar / Cancelar / Eliminar) |
-| N. Config | `config` | Credit packs list (inline price edit + toggle), global settings card with save confirmation |
-
----
-
-## State Architecture
-
-Everything lives in `src/app/App.tsx`. Key state in `App()`:
-
-```tsx
-const [mode, setMode]           = useState<AppMode>("buyer");
-const [buyerScreen, ...]        = useState<BuyerScreen>("listing");
-const [orgScreen, ...]          = useState<OrgScreen>("login");
-const [orgLoggedIn, ...]        = useState(false);
-const [selEvent, ...]           = useState<BuyerEvent>(EVENTS[0]);
-const [selTanda, ...]           = useState<Tanda>(EVENTS[0].tandas[0]);
-const [selQty, ...]             = useState(1);
-const [buyerName, ...]          = useState("");
-const [staffForced, ...]        = useState<StaffScreen | undefined>(undefined);
-```
-
-`AdminShell` owns its own `screen: AdminScreen` state internally (including `"login"`).
-`StaffShell` owns its own `account: StaffAccount | null` and `screen: StaffScreen` state.
-
----
-
-## Data Layer (mock)
-
-All data is static constant arrays at the top of `App.tsx`.
-
-| Constant | Type | Count | Description |
-|---|---|---|---|
-| `EVENTS` | `BuyerEvent[]` | 6 | Events with tandas, images (Unsplash URLs) |
-| `SALES_CHART` | array | 3 | Tanda names + sold qty for org BarChart |
-| `TRANSACTIONS` | array | 5 | Credit wallet history |
-| `CREDIT_PACKS` | array | 3 | Buyer-facing packs (Starter/Pro/Studio) |
-| `ADMIN_USERS` | `AdminUser[]` | 6 | System users with roles + status |
-| `ADMIN_EVENTS` | `AdminEvent[]` | 6 | Global event list for admin |
-| `ADMIN_PACKS` | `CreditPackAdmin[]` | 4 | Packs with enabled toggle |
-| `DEFAULT_STAFF` | `StaffMember[]` | 2 | Pre-populated org staff |
-| `STAFF_ACCOUNTS` | `StaffAccount[]` | 2 | Login credentials (diego/sofia + pass 1234) |
-| `INVALID_REASONS` | array | 4 | QR error codes + messages |
-| `VALID_TICKETS` | array | 3 | Mock ticket holders for valid overlay |
+Todos los datos vienen de la API real; no hay datos de ejemplo en el código.
 
 ---
 
@@ -507,75 +415,56 @@ Frequently used icons in this project:
 `FlashlightOff`, `Flashlight`, `UserCheck`, `CircleX`, `Hash`, `UserPlus`, `BadgeCheck`,
 `QrCode`, `Store`, `PartyPopper`, `RotateCcw`, `Share2`, `ClipboardCheck`.
 
----
-
-## Charts
-
-Package: `recharts`.
-
-**Org Dashboard** — `BarChart` with custom cell colors per tanda:
-```tsx
-<BarChart data={SALES_CHART} barCategoryGap="30%">
-  <XAxis dataKey="tanda" tick={{ fill: "#6e6b8f", fontSize: 10 }} axisLine={false} tickLine={false} />
-  <YAxis hide />
-  <Tooltip contentStyle={{ background: "#131222", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 11, color: "#f0eeff" }}
-    cursor={{ fill: "rgba(124,58,237,0.08)" }} />
-  <Bar dataKey="vendidas" radius={[6,6,0,0]}>
-    {SALES_CHART.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-  </Bar>
-</BarChart>
-```
-
-All charts wrapped in `<ResponsiveContainer width="100%" height={...}>`.
 
 ---
 
-## Formatting Helpers
+## Gráficos
 
-```tsx
-const fmt = (n: number) => `$${Math.abs(n).toLocaleString("es-AR")}`;
-```
-Used for all peso amounts throughout the app.
+Librería: `recharts` (solo en el detalle de eventos del Organizador y su dashboard). Se envuelven siempre en `<ResponsiveContainer width="100%" height={...}>` y usan los colores de los tokens del tema, para que respondan al modo claro/oscuro.
 
 ---
 
-## File Structure
+## Formato de valores
+
+Siempre con los helpers de `src/lib/format.ts`, no a mano: `fmt` (pesos, `es-AR`), `formatFecha`, `formatHora`, `formatRelativo` y `hoyLocal`.
+
+---
+
+## Estructura de archivos
 
 ```
 src/
-  app/
-    App.tsx          ← all components + App root (single file)
-    components/      ← empty (all code lives in App.tsx)
-  styles/
-    fonts.css        ← Google Fonts @import (Inter)
-    globals.css      ← hide-scrollbar, scan-line, countdown keyframes
-    theme.css        ← CSS custom properties + @theme inline block
-    index.css        ← @import chain
+  App.tsx            ← rutas (carga diferida por área)
+  pages/             ← una carpeta por área: buyer, organizador, staff, admin
+  components/        ← componentes compartidos (pickers, mapa, campanita, diálogos, ThemeToggle…)
+  lib/               ← api, auth, tema, tipos, formato, reglas (tanda, pago, calendario)
+  styles/            ← fonts.css, globals.css, theme.css (tokens), index.css, tailwind.css
+  testing/           ← utilidades de tests (elegir fecha/hora en los pickers)
 ```
 
 ---
 
-## Naming Conventions
+## Convenciones
 
-- Components: PascalCase — `ListingScreen`, `AdminShell`, `QRCodeSVG`
-- Types: PascalCase — `BuyerScreen`, `OrgScreen`, `AdminUser`
-- Data constants: SCREAMING_SNAKE_CASE — `EVENTS`, `ADMIN_PACKS`
-- CSS animation classes: kebab-case — `scan-line-anim`, `countdown-bar`
+- Componentes y tipos en PascalCase (`ListingPage`, `ThemeToggle`); funciones y variables en camelCase.
+- Cada pantalla vive en su archivo `NombrePage.tsx`, con su test al lado (`NombrePage.test.tsx`).
+- Clases de animación en kebab-case (`marquee-track`).
 
 ---
 
-## Do's and Don'ts
+## Qué hacer y qué no
 
-**Do:**
-- Keep all component code in `src/app/App.tsx`.
-- Use `hide-scrollbar` on every scrollable div.
-- Pre-select default values so forms/selections feel ready (e.g., payment method, first tanda).
-- Use `active:scale-[0.98]` on primary CTAs for tactile feel.
-- Close three-dot menus on parent click via `e.stopPropagation()` / `onClick={() => setOpenMenu(null)}`.
+**Hacer:**
+- Usar los tokens del tema (`bg-card`, `text-foreground`, `bg-primary`…) en lugar de colores fijos, para que el modo claro y el oscuro funcionen solos.
+- Poner `hide-scrollbar` en los contenedores con scroll propio.
+- Dejar un espaciador al final de los contenedores con scroll cuando hay pie o barra fija.
+- Usar `active:scale-[0.98]` en los botones principales.
+- Cerrar los menús de tres puntos al hacer clic fuera.
+- Revisar cada pantalla nueva o modificada en celular y en escritorio, en claro y en oscuro.
 
-**Don't:**
-- Don't import `XCircle` from lucide-react — it doesn't exist in v0.487. Use `CircleX`.
-- Don't add duplicate React imports — keep a single `import { useState, useEffect, useCallback } from "react"`.
-- Don't use `npm`/`vite build`/`index.html` — the Figma Make harness handles all of that.
-- Don't use font-size or font-weight Tailwind classes on elements already styled by `theme.css` base layer unless intentionally overriding.
-- Don't put scrollable content behind sticky footers without a spacer div at the bottom.
+**No hacer:**
+- No importar `XCircle` de lucide-react (en la v0.487 se llama `CircleX`).
+- No poner el botón de tema como flotante global.
+- No usar `dangerouslySetInnerHTML` (ver `SECURITY.md`).
+- No cambiar un texto de botón, título o `aria-label` sin actualizar los tests que lo usan (ver `frontend/GUIA_REDISENO.md`).
+- No dejar contenido de scroll detrás de un pie fijo sin espaciador.

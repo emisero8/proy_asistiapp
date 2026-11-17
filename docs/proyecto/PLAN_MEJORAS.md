@@ -4,7 +4,9 @@
 
 Este documento junta todo lo que quedó pendiente después de cerrar las fases de `docs/tecnica/backend_implementation_plan.md` y `docs/tecnica/frontend_implementation_plan.md`: problemas de seguridad, bugs, deuda técnica y mejoras de UX detectados revisando el código y probando la app en vivo.
 
-**Nada de lo que está acá está aprobado todavía.** Es una lista para evaluar: cada ítem se hace recién cuando se decide hacerlo, y al terminarlo se marca con ✅ y se anota en `docs/proyecto/DECISIONES.md` como el resto del trabajo.
+**Estado (17/11/2026): todos los ítems críticos están hechos.** Quedan solo los que dependen de decidir el despliegue (en pausa) y el 7.4, descartado. Cada ítem se hizo recién cuando se decidió hacerlo, y al terminarlo se marcó y se anotó en `docs/proyecto/DECISIONES.md`.
+
+**Estados:** ✅ hecho y verificado · ⏸ en pausa (depende del despliegue) · 🔎 investigado, se cierra en producción · ❎ descartado.
 
 ## Cómo leerlo
 
@@ -36,7 +38,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 - Etapas **0, 1 y 3 completas** (0.3 y 0.4 salieron del plan: los resuelve Felipe por fuera); Etapa **2** completa salvo 2.4 (se cierra en producción); de la Etapa 4: **4.3, 4.4, 4.5 y 4.6**.
 - **Etapa 5:** 5.1 (guardia de desfasajes de `types.ts` contra el OpenAPI del backend), 5.4 (tests de `ListingPage` y `PosPage`) y 5.6, cerrados el 16/11; **5.3** (tests de fecha y hora contra los selectores reales) y **5.5** (botón de tema en el header de cada pantalla) y **5.2** (suite e2e con Playwright) cerrados el 17/11. **Etapa 6:** 6.1, 6.3 y 6.4 (16/11) y 6.2 (17/11). **Etapa 7:** 7.1, 7.2 y 7.3. Cerrados el 16/11.
 - Fuera del plan, el 12/11: SMTP configurable por variables de entorno (Gmail sin editar `application.yml`), lectura de un `backend/.env` opcional, el QR del mail de confirmación como imagen inline `cid:` y la versión en texto plano del mismo mail.
-- Suites: backend **345 tests, 0 fallos**; frontend **24 archivos, 219 tests, 0 fallos**; typecheck, lint y build limpios.
+- Suites: backend **346 tests, 0 fallos**; frontend **24 archivos, 219 tests, 0 fallos**; typecheck, lint y build limpios.
 
 **Decisiones de Felipe del 16/11** (en `docs/proyecto/DECISIONES.md`): **por ahora no se despliega nada, se sigue en local** (4.8); **el POS sí manda mail** al comprador (6.4).
 

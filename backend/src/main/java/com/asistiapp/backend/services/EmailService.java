@@ -10,6 +10,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -89,7 +90,10 @@ public class EmailService {
                     + "Tanda: " + nombreTanda + "\n\n"
                     + textoEntradas
                     + "Mostrá el código QR en la puerta del evento.\n— AsistíAPP\n";
-            helper.setText(textoPlano, construirCuerpoEmailHtml(nombreComprador, nombreEvento, nombreTanda, total, bloques.toString()));
+            // El nombre del comprador lo escribe cualquiera (la compra es pública): se escapa para que no
+            // pueda meter HTML ni enlaces en un mail que sale con el remitente de AsistíAPP.
+            helper.setText(textoPlano, construirCuerpoEmailHtml(
+                    escaparHtml(nombreComprador), escaparHtml(nombreEvento), escaparHtml(nombreTanda), total, bloques.toString()));
             // Las imágenes inline se agregan después del texto HTML que las referencia.
             for (int i = 0; i < imagenesQr.size(); i++) {
                 helper.addInline(cidDelQr(i), new ByteArrayResource(imagenesQr.get(i)), "image/png");
@@ -320,6 +324,10 @@ public class EmailService {
                 codigoQr,
                 ticketUrl
         );
+    }
+
+    private static String escaparHtml(String texto) {
+        return texto == null ? "" : HtmlUtils.htmlEscape(texto);
     }
 
     private String construirCuerpoEmailHtml(
