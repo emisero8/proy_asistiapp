@@ -27,6 +27,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 5 | Calidad de código y tests | 6 | Continuo |
 | 6 | UX y funcionalidad faltante | 4 | A definir |
 | 7 | Documentación y repo | 4 | Continuo |
+| 8 | Modelo de cobro del Organizador y cierre legal/fiscal | 7 | Desde el 18/11 (decidido el 17/11) |
 
 ---
 
@@ -43,6 +44,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 **Decisiones de Felipe del 16/11** (en `docs/proyecto/DECISIONES.md`): **por ahora no se despliega nada, se sigue en local** (4.8); **el POS sí manda mail** al comprador (6.4).
 
 **Falta, en el orden que recomiendo** (detalle de cada uno en `docs/proyecto/CONTINUAR.md`, sección 4):
+0. **Nuevo (17/11): Etapa 8 — modelo de cobro del Organizador.** Hoy el dinero de las entradas no tiene camino hacia el Organizador (un solo token de MercadoPago de la plataforma). Está decidido el modelo y falta construirlo; ver la Etapa 8 y `docs/proyecto/MODELO_DE_COBRO.md`. Lo legal y fiscal está en `docs/proyecto/LEGAL_Y_FISCAL.md`. **Se retoma el 18/11 por el ítem 8.2 (entradas manuales), que no depende de MercadoPago.**
 1. **En pausa mientras no se despliegue:** 4.1 Flyway (L), 4.2 claves foráneas (L), 4.7 límite de peticiones en memoria (M) y 4.8. Si Felipe pide una muestra en la web, se reabre 4.8 (hay una recomendación de dónde y cómo en `docs/proyecto/CONTINUAR.md`, sección 4.2).
 2. **Antes de cualquier producción:** 2.4 (`MP_VALIDAR_FIRMA=true` comprobado con un pago real) y el checklist de la Fase 21 de `docs/tecnica/backend_implementation_plan.md`.
 
@@ -147,6 +149,25 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 7.2 | **Sección "cómo probar un pago en local" en el README.** Comprador de prueba, pestaña nueva, sin ngrok. Hoy está solo en `CLAUDE.md`. | S | ✅ 2026-11-16: `backend/README.md`, sección "Pagos con MercadoPago", reordenada en configuración mínima, **"Cómo probar un pago en local (sin túnel)"** paso a paso y "Probar el webhook en sí (opcional, con túnel)". De paso se corrigieron dos afirmaciones viejas del README: que MercadoPago "necesita una URL pública" para pagar y que una tarjeta con titular `APRO` aprueba el pago (como invitado falla con `/fatal/`, ver `docs/proyecto/DECISIONES.md` 2026-10-15). Cada dato se contrastó con el código (`pago.ts`, `PagoResultadoPage`, `MercadoPagoService`, `VencimientoOrdenesJob`, `application.yml`). Es documentación: el flujo ya estaba verificado en vivo (0.2 y la reconciliación sin túnel) |
 | 7.3 | **Aclarar en el README que las credenciales son solo de desarrollo.** Va junto con 1.4 y 2.5. | S | ✅ 2026-11-16: aviso al principio de "Levantar en local" en `backend/README.md`: `DB_PASSWORD=1234`, el `JWT_SECRET` de desarrollo y el Admin `admin@asistiapp.com` / `Admin123!` son públicos y solo para desarrollo, y qué hace el perfil `prod` con cada uno. Se contrastó con `ConfiguracionProdValidator`: exige que las variables ⚠️ existan, pero no valida que su valor sea fuerte, y el texto lo dice. Los otros `.md` con credenciales de dev (`docs/tecnica/GUIA_DEMO.md`, `docs/proyecto/CONTINUAR.md`) ya las marcan como públicas de desarrollo |
 | 7.4 | **Ramas más chicas de acá en adelante,** una por tema, para que los PR se puedan revisar. | — | ❎ Descartado el 2026-11-17 por Felipe: ya no tiene sentido |
+
+## Etapa 8 — Modelo de cobro del Organizador y cierre legal/fiscal
+
+Decidido el 2026-11-17 (ver `docs/proyecto/DECISIONES.md`). La especificación completa está en [`MODELO_DE_COBRO.md`](MODELO_DE_COBRO.md); acá solo el orden de trabajo. Cada ítem cierra con tests, verificación en vivo y documentación, como el resto del plan.
+
+| # | Qué | Tamaño | Depende de | Estado |
+|---|---|---|---|---|
+| 8.1 | **Registrar la aplicación como marketplace en Mercado Pago** y crear vendedor y comprador de prueba. Verificar qué API aplica en Argentina (`/checkout/preferences` u `/v1/orders`), cómo llegan las notificaciones de pagos de vendedores vinculados y el vencimiento de los tokens. | S (de Felipe) | — | Pendiente |
+| 8.2 | **Entradas manuales del Organizador** (cortesía / pago externo, con motivo opcional): cada una consume 1 crédito y guarda **quién la emitió** (también para las del POS). | M | — | Pendiente — **arranca el 18/11** |
+| 8.3 | **Tope de entradas por vendedor** (obligatorio al asignar un Staff Vendedor) y resumen por vendedor (cantidad y total) para el Organizador. | M | 8.2 | Pendiente |
+| 8.4 | **Vinculación OAuth de la cuenta del Organizador:** endpoints de inicio y retorno, tokens cifrados en la base, renovación, manejo de acceso revocado, estado visible en el panel. | L | 8.1 | Pendiente |
+| 8.5 | **Cobro de entradas con el token del Organizador:** preferencia, consulta del pago, webhook y reconciliación con el token del vendedor de la orden; no se puede publicar sin cuenta vinculada; la compra de créditos sigue con el token de la plataforma. | L | 8.4 | Pendiente |
+| 8.6 | **Anular y reembolsar entradas:** buscar una entrada y anularla (deja de valer en el escáner), reembolsar desde el panel con el token del Organizador, reembolso masivo al cancelar un evento con reintento y lista de pendientes, y devolución de créditos de las entradas anuladas o reembolsadas. **Sin botón de arrepentimiento para el comprador** (decisión del 17/11). | L | 8.5 (la parte de anular no depende de MP) | Pendiente |
+| 8.7 | **Legal y fiscal:** términos y condiciones, política de privacidad, inscripción de la base en la AAIP, definir el aviso de arrepentimiento y la facturación con abogado y contador. Lista en [`LEGAL_Y_FISCAL.md`](LEGAL_Y_FISCAL.md). | — (de Felipe) | — | Pendiente |
+
+Notas:
+- **8.2 y 8.3 se pueden hacer ya;** 8.4 a 8.6 esperan a 8.1.
+- El frontend lo rediseña otro integrante: las pantallas nuevas de esta etapa (entradas manuales, tope, vinculación, anulación) conviene avisarle antes para que las incluya en su diseño.
+- Riesgo a validar con un abogado: que la plataforma no tenga obligación propia de ofrecer el botón de arrepentimiento (ver `LEGAL_Y_FISCAL.md`, punto 1).
 
 ---
 

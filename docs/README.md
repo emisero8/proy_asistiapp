@@ -28,4 +28,6 @@
 |---|---|
 | `PLAN_MEJORAS.md` | Plan de mejoras por etapas y su estado (todo lo crítico está hecho). |
 | `DECISIONES.md` | Decisiones tomadas con fecha y su motivo, y deuda técnica conocida. |
+| `MODELO_DE_COBRO.md` | Modelo de cobro decidido (créditos para la plataforma, entradas directo al Organizador), entradas manuales, reembolsos y etapas de construcción. |
+| `LEGAL_Y_FISCAL.md` | Temas legales y fiscales de Argentina a definir antes de producción (con checklist). |
 | `CONTINUAR.md` | Traspaso para retomar el trabajo: dónde estamos, trampas conocidas y cómo montar el entorno. |

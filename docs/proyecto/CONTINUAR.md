@@ -45,7 +45,7 @@ Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Tod
 
 ### 4.1 Código pendiente
 
-**No queda ningún ítem crítico pendiente.** Todas las mejoras previstas en `docs/proyecto/PLAN_MEJORAS.md` están hechas, salvo las que dependen de decidir el despliegue (sección siguiente). Lo que sigue hasta la entrega es el rediseño del frontend (a cargo de otro integrante, ver `frontend/GUIA_REDISENO.md`) y la documentación final.
+**Las mejoras críticas previstas están hechas**, salvo las que dependen de decidir el despliegue (sección siguiente). **Lo que viene es la Etapa 8 de `docs/proyecto/PLAN_MEJORAS.md`: el modelo de cobro del Organizador** (decidido el 17/11; hoy el dinero de las entradas no tiene camino hacia el Organizador). Leer `docs/proyecto/MODELO_DE_COBRO.md` (especificación) y `docs/proyecto/LEGAL_Y_FISCAL.md` (lo que Felipe define con un abogado y un contador). **Se retoma por el ítem 8.2 (entradas manuales del Organizador y trazabilidad de quién emitió cada entrada),** que no depende de MercadoPago; el ítem 8.1 (registrar la aplicación como marketplace) lo hace Felipe en el panel de MP y desbloquea 8.4–8.6. Además, el rediseño del frontend está a cargo de otro integrante (`frontend/GUIA_REDISENO.md`): avisarle de las pantallas nuevas.
 
 ### 4.2 En pausa mientras no se despliegue (decisión del 16/11)
 
