@@ -55,6 +55,13 @@ export interface PerfilResponseDTO {
   nombre: string;
   email: string;
   fotoPerfilUrl: string | null;
+  /** Tope de entradas por comprador que fijó el Organizador; null = rige el de la plataforma (8.9). */
+  maxEntradasPorComprador: number | null;
+  maxEntradasPorCompradorPlataforma: number;
+}
+
+export interface TopeCompradorRequestDTO {
+  maxEntradasPorComprador: number | null;
 }
 
 export interface PerfilRequestDTO {

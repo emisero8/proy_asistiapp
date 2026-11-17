@@ -27,7 +27,7 @@ import java.util.List;
 public class EventoPublicoService {
 
     private final EventoRepository eventoRepository;
-    private final ConfiguracionService configuracionService;
+    private final LimiteCompradorService limiteCompradorService;
 
     @Transactional(readOnly = true)
     public List<EventoPublicoListItemDTO> listarPublicados() {
@@ -94,9 +94,7 @@ public class EventoPublicoService {
                 .imagenPortadaUrl(evento.getImagenPortadaUrl())
                 .urlPublica(evento.getUrlPublica())
                 .tandas(tandas)
-                .maxEntradasPorCompra(configuracionService.obtenerEntero(
-                        VentaService.CLAVE_MAX_ENTRADAS_POR_COMPRADOR,
-                        VentaService.MAX_ENTRADAS_POR_COMPRADOR_DEFAULT))
+                .maxEntradasPorCompra(limiteCompradorService.limiteParaOrganizador(evento.getIdOrganizador()))
                 .build();
     }
 }

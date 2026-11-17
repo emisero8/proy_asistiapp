@@ -17,4 +17,9 @@ public class PerfilResponseDTO {
     private String nombre;
     private String email;
     private String fotoPerfilUrl;
+
+    /** Tope de entradas por comprador que fijó el Organizador; null = no fijó uno y rige el de la plataforma (8.9). */
+    private Integer maxEntradasPorComprador;
+    /** El tope de la plataforma, para mostrar qué rige cuando el Organizador no fijó el suyo. */
+    private Integer maxEntradasPorCompradorPlataforma;
 }

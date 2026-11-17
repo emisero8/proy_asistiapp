@@ -4,6 +4,7 @@ import com.asistiapp.backend.models.dtos.evento.ImagenSubidaResponseDTO;
 import com.asistiapp.backend.models.dtos.perfil.CambiarPasswordRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilResponseDTO;
+import com.asistiapp.backend.models.dtos.perfil.TopeCompradorRequestDTO;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.services.ImagenService;
 import com.asistiapp.backend.services.PerfilService;
@@ -22,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   GET    /organizador/perfil            → ver mi perfil
  *   PUT    /organizador/perfil            → nombre y foto (URL ya subida)
  *   POST   /organizador/perfil/foto       → subir la foto a Cloudinary (devuelve la URL)
+ *   PUT    /organizador/perfil/tope-comprador → tope de entradas por comprador (null = el de la plataforma)
  *   PUT    /organizador/perfil/password   → cambiar contraseña (exige la actual)
  */
 @RestController
@@ -42,6 +44,12 @@ public class PerfilController {
     @PutMapping
     public ResponseEntity<PerfilResponseDTO> actualizarPerfil(@Valid @RequestBody PerfilRequestDTO dto) {
         return ResponseEntity.ok(perfilService.actualizarPerfil(securityUtils.getIdUsuarioAutenticado(), dto));
+    }
+
+    @PutMapping("/tope-comprador")
+    public ResponseEntity<PerfilResponseDTO> cambiarTopeComprador(@Valid @RequestBody TopeCompradorRequestDTO dto) {
+        return ResponseEntity.ok(perfilService.cambiarTopeComprador(
+                securityUtils.getIdUsuarioAutenticado(), dto.getMaxEntradasPorComprador()));
     }
 
     @PostMapping(value = "/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

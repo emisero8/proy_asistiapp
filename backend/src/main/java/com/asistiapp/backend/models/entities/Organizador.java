@@ -20,4 +20,11 @@ public class Organizador extends Usuario {
 
     @Column(name = "saldo_creditos", nullable = false)
     private Integer saldoCreditos = 0;
+
+    /**
+     * Máximo de entradas que puede tener una misma persona (mismo mail) para un evento de este
+     * Organizador. Null = no fijó uno: rige el de la plataforma (8.9).
+     */
+    @Column(name = "max_entradas_por_comprador")
+    private Integer maxEntradasPorComprador;
 }

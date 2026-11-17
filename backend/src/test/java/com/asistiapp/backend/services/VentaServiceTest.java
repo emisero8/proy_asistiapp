@@ -48,6 +48,8 @@ class VentaServiceTest {
     @Mock
     private TandaRepository tandaRepository;
     @Mock
+    private com.asistiapp.backend.repositories.EventoRepository eventoRepository;
+    @Mock
     private EntradaRepository entradaRepository;
     @Mock
     private StaffVendedorRepository staffVendedorRepository;
@@ -56,7 +58,7 @@ class VentaServiceTest {
     @Mock
     private EmailService emailService;
     @Mock
-    private com.asistiapp.backend.services.ConfiguracionService configuracionService;
+    private LimiteCompradorService limiteCompradorService;
     @Mock
     private MercadoPagoService mercadoPagoService;
     @Mock
@@ -86,8 +88,7 @@ class VentaServiceTest {
         tanda.setCupoMaximo(50);
         tanda.setCupoDisponible(5);
 
-        lenient().when(configuracionService.obtenerEntero(eq("max_entradas_por_comprador"), anyInt()))
-                .thenReturn(6);
+        lenient().when(limiteCompradorService.limiteParaOrganizador(any())).thenReturn(6);
     }
 
     // ─────────────────────────────────────────────
@@ -777,6 +778,46 @@ class VentaServiceTest {
 
         assertThat(resultado.getYaCompradas()).isEqualTo(4L);
         assertThat(resultado.getDisponible()).isEqualTo(2);
+    }
+
+    @Test
+    void consultarDisponibilidadComprador_usaElTopeDelOrganizadorDelEvento() {
+        // 8.9: el Organizador del evento (100) fijó 2 en vez del valor de la plataforma.
+        when(limiteCompradorService.limiteParaOrganizador(100L)).thenReturn(2);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(entradaRepository.countByEventoIdAndEmailComprador(evento.getId(), "ya@compro.com")).thenReturn(1L);
+
+        var resultado = ventaService.consultarDisponibilidadComprador(evento.getId(), "ya@compro.com");
+
+        assertThat(resultado.getLimite()).isEqualTo(2);
+        assertThat(resultado.getDisponible()).isEqualTo(1);
+    }
+
+    @Test
+    void realizarVentaManual_pasandoElTopeDelOrganizador_noGeneraNinguna() {
+        vendedorDeLaTanda();
+        when(limiteCompradorService.limiteParaOrganizador(100L)).thenReturn(2);
+
+        assertThatThrownBy(() -> ventaService.realizarVentaManual(ventaManualDto(3), 1L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("máximo de 2 entradas");
+
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void iniciarCompraOnline_pasandoElTopeDelOrganizador_noCreaLaOrden() {
+        when(limiteCompradorService.limiteParaOrganizador(100L)).thenReturn(2);
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+
+        CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        dto.setCantidad(3);
+
+        assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("máximo de 2 entradas");
+
+        verifyNoInteractions(transaccionPagoRepository);
     }
 
     @Test

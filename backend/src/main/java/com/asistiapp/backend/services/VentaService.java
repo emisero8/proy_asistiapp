@@ -72,15 +72,11 @@ public class VentaService {
     private final EmailService emailService;
     private final QrImageService qrImageService;
     private final SecurityUtils securityUtils;
-    private final ConfiguracionService configuracionService;
     private final MercadoPagoService mercadoPagoService;
     private final NotificacionService notificacionService;
+    private final LimiteCompradorService limiteCompradorService;
 
     private static final int TAMANO_QR_DEFAULT_PX = 300;
-
-    /** Tope de entradas que una misma persona (email) puede comprar para un mismo evento. */
-    static final String CLAVE_MAX_ENTRADAS_POR_COMPRADOR = "max_entradas_por_comprador";
-    static final int MAX_ENTRADAS_POR_COMPRADOR_DEFAULT = 6;
 
     // ─────────────────────────────────────────────
     // FLUJO ONLINE — Paso 1: Iniciar compra
@@ -615,25 +611,24 @@ public class VentaService {
 
     /**
      * Impide que una misma persona (identificada por email) supere el tope de
-     * entradas configurado para un evento. El límite lo fija el Admin
-     * (clave "max_entradas_por_comprador"), con un default razonable.
+     * entradas permitido para un evento. Lo fija el Organizador del evento y, si no fijó
+     * uno, vale el de la plataforma (ver LimiteCompradorService).
      */
     private void validarLimitePorComprador(Tanda tanda, String email, int cantidad) {
         if (excedeLimitePorComprador(tanda, email, cantidad)) {
             throw new BusinessRuleException(
-                    "Alcanzaste el máximo de " + limitePorComprador() + " entradas por persona para este evento.");
+                    "Alcanzaste el máximo de " + limitePorComprador(tanda.getEvento()) + " entradas por persona para este evento.");
         }
     }
 
     private boolean excedeLimitePorComprador(Tanda tanda, String email, int cantidad) {
         long yaCompradas = entradaRepository.countByEventoIdAndEmailComprador(
                 tanda.getEvento().getId(), email);
-        return yaCompradas + cantidad > limitePorComprador();
+        return yaCompradas + cantidad > limitePorComprador(tanda.getEvento());
     }
 
-    private int limitePorComprador() {
-        return configuracionService.obtenerEntero(
-                CLAVE_MAX_ENTRADAS_POR_COMPRADOR, MAX_ENTRADAS_POR_COMPRADOR_DEFAULT);
+    private int limitePorComprador(Evento evento) {
+        return limiteCompradorService.limiteParaOrganizador(evento == null ? null : evento.getIdOrganizador());
     }
 
     /**
@@ -643,7 +638,7 @@ public class VentaService {
      */
     @Transactional(readOnly = true)
     public DisponibilidadCompradorResponseDTO consultarDisponibilidadComprador(Long idEvento, String email) {
-        int limite = limitePorComprador();
+        int limite = limitePorComprador(eventoRepository.findById(idEvento).orElse(null));
         long yaCompradas = (email == null || email.isBlank())
                 ? 0
                 : entradaRepository.countByEventoIdAndEmailComprador(idEvento, email);

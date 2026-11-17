@@ -20,6 +20,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizador/perfil/tope-comprador": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["cambiarTopeComprador"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organizador/perfil/password": {
         parameters: {
             query?: never;
@@ -1122,6 +1138,14 @@ export interface components {
             nombre?: string;
             email?: string;
             fotoPerfilUrl?: string;
+            /** Format: int32 */
+            maxEntradasPorComprador?: number;
+            /** Format: int32 */
+            maxEntradasPorCompradorPlataforma?: number;
+        };
+        TopeCompradorRequestDTO: {
+            /** Format: int32 */
+            maxEntradasPorComprador?: number;
         };
         CambiarPasswordRequestDTO: {
             passwordActual: string;
@@ -1662,6 +1686,30 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["PerfilRequestDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PerfilResponseDTO"];
+                };
+            };
+        };
+    };
+    cambiarTopeComprador: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopeCompradorRequestDTO"];
             };
         };
         responses: {

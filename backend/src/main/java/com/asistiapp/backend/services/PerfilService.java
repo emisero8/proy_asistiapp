@@ -6,6 +6,8 @@ import com.asistiapp.backend.models.dtos.perfil.CambiarPasswordRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilResponseDTO;
 import com.asistiapp.backend.models.entities.Usuario;
+import com.asistiapp.backend.models.entities.Organizador;
+import com.asistiapp.backend.repositories.OrganizadorRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +27,8 @@ public class PerfilService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final ImagenService imagenService;
+    private final OrganizadorRepository organizadorRepository;
+    private final LimiteCompradorService limiteCompradorService;
 
     @Transactional(readOnly = true)
     public PerfilResponseDTO obtenerPerfil(Long idUsuario) {
@@ -50,6 +54,19 @@ public class PerfilService {
             imagenService.eliminarSiEsNuestra(fotoAnterior);
         }
         return response;
+    }
+
+    /** El Organizador fija cuántas entradas puede tener una misma persona para sus eventos; null vuelve al de la plataforma. */
+    @Transactional
+    public PerfilResponseDTO cambiarTopeComprador(Long idUsuario, Integer tope) {
+        if (tope != null && (tope < 1 || tope > 100)) {
+            throw new BusinessRuleException("El tope de entradas por comprador tiene que estar entre 1 y 100");
+        }
+        Organizador organizador = organizadorRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        organizador.setMaxEntradasPorComprador(tope);
+        organizadorRepository.save(organizador);
+        return toResponseDTO(organizador);
     }
 
     @Transactional
@@ -82,6 +99,9 @@ public class PerfilService {
                 .nombre(usuario.getNombre())
                 .email(usuario.getEmail())
                 .fotoPerfilUrl(usuario.getFotoPerfilUrl())
+                .maxEntradasPorComprador(organizadorRepository.findById(usuario.getId())
+                        .map(Organizador::getMaxEntradasPorComprador).orElse(null))
+                .maxEntradasPorCompradorPlataforma(limiteCompradorService.limiteGlobal())
                 .build();
     }
 }

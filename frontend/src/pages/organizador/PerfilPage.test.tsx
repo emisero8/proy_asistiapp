@@ -15,7 +15,14 @@ vi.mock("../../lib/auth", () => ({
   useAuth: () => ({ session: { id: 1, nombre: "Ana", email: "ana@demo.com", rol: "Organizador", token: "t", tipo: "Bearer" }, login }),
 }));
 
-const PERFIL: PerfilResponseDTO = { id: 1, nombre: "Ana", email: "ana@demo.com", fotoPerfilUrl: null };
+const PERFIL: PerfilResponseDTO = {
+  id: 1,
+  nombre: "Ana",
+  email: "ana@demo.com",
+  fotoPerfilUrl: null,
+  maxEntradasPorComprador: null,
+  maxEntradasPorCompradorPlataforma: 6,
+};
 
 beforeEach(() => {
   vi.mocked(api.get).mockResolvedValue(PERFIL);
@@ -112,5 +119,67 @@ describe("OrganizadorPerfilPage — contraseña", () => {
       }),
     );
     await waitFor(() => expect(screen.getByLabelText("Contraseña actual")).toHaveValue(""));
+  });
+});
+
+describe("OrganizadorPerfilPage — entradas por persona (8.9)", () => {
+  it("sin tope propio muestra el de la plataforma como el que rige", async () => {
+    await cargar();
+
+    expect(screen.getByLabelText("Máximo de entradas por persona")).toHaveValue(null);
+    expect(screen.getByText(/Hoy rige el de la plataforma: 6/)).toBeInTheDocument();
+  });
+
+  it("con tope propio lo muestra cargado", async () => {
+    vi.mocked(api.get).mockResolvedValue({ ...PERFIL, maxEntradasPorComprador: 4 });
+    await cargar();
+
+    expect(screen.getByLabelText("Máximo de entradas por persona")).toHaveValue(4);
+    expect(screen.queryByText(/Hoy rige el de la plataforma/)).not.toBeInTheDocument();
+  });
+
+  it("guarda el tope nuevo", async () => {
+    await cargar();
+    vi.mocked(api.put).mockResolvedValueOnce({ ...PERFIL, maxEntradasPorComprador: 10 });
+
+    await userEvent.type(screen.getByLabelText("Máximo de entradas por persona"), "10");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar tope" }));
+
+    expect(api.put).toHaveBeenCalledWith("/organizador/perfil/tope-comprador", { maxEntradasPorComprador: 10 });
+    expect(await screen.findByText("Tu tope es de 10 entradas por persona.")).toBeInTheDocument();
+  });
+
+  it("dejándolo vacío vuelve al de la plataforma (manda null)", async () => {
+    vi.mocked(api.get).mockResolvedValue({ ...PERFIL, maxEntradasPorComprador: 4 });
+    await cargar();
+    vi.mocked(api.put).mockResolvedValueOnce(PERFIL);
+
+    await userEvent.clear(screen.getByLabelText("Máximo de entradas por persona"));
+    await userEvent.click(screen.getByRole("button", { name: "Guardar tope" }));
+
+    expect(api.put).toHaveBeenCalledWith("/organizador/perfil/tope-comprador", { maxEntradasPorComprador: null });
+    expect(await screen.findByText(/Hoy rige el de la plataforma: 6/)).toBeInTheDocument();
+  });
+
+  it.each(["0", "101", "2.5"])("rechaza %s sin llamar a la API", async (valor) => {
+    await cargar();
+
+    await userEvent.type(screen.getByLabelText("Máximo de entradas por persona"), valor);
+    await userEvent.click(screen.getByRole("button", { name: "Guardar tope" }));
+
+    expect(screen.getByText("El tope tiene que ser un número entero entre 1 y 100.")).toBeInTheDocument();
+    expect(api.put).not.toHaveBeenCalled();
+  });
+
+  it("si el backend lo rechaza muestra el motivo", async () => {
+    await cargar();
+    vi.mocked(api.put).mockRejectedValueOnce(
+      new ApiError({ status: 400, error: "El tope no puede superar 100", path: "/x", timestamp: "2026-01-01T00:00:00" }),
+    );
+
+    await userEvent.type(screen.getByLabelText("Máximo de entradas por persona"), "50");
+    await userEvent.click(screen.getByRole("button", { name: "Guardar tope" }));
+
+    expect(await screen.findByText("El tope no puede superar 100")).toBeInTheDocument();
   });
 });

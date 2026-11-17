@@ -62,6 +62,36 @@
         }
       }
     },
+    "/organizador/perfil/tope-comprador": {
+      "put": {
+        "tags": [
+          "perfil-controller"
+        ],
+        "operationId": "cambiarTopeComprador",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TopeCompradorRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organizador/perfil/password": {
       "put": {
         "tags": [
@@ -2474,6 +2504,25 @@
           },
           "fotoPerfilUrl": {
             "type": "string"
+          },
+          "maxEntradasPorComprador": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxEntradasPorCompradorPlataforma": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "TopeCompradorRequestDTO": {
+        "type": "object",
+        "properties": {
+          "maxEntradasPorComprador": {
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

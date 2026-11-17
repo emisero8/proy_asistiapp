@@ -34,13 +34,13 @@ class EventoPublicoServiceTest {
     @Mock
     private EventoRepository eventoRepository;
     @Mock
-    private ConfiguracionService configuracionService;
+    private LimiteCompradorService limiteCompradorService;
 
     private EventoPublicoService eventoPublicoService;
 
     @BeforeEach
     void setUp() {
-        eventoPublicoService = new EventoPublicoService(eventoRepository, configuracionService);
+        eventoPublicoService = new EventoPublicoService(eventoRepository, limiteCompradorService);
     }
 
     private Evento evento(Long id, LocalDate fecha, LocalTime hora) {
@@ -87,11 +87,23 @@ class EventoPublicoServiceTest {
         Evento pasado = evento(4L, LocalDate.now().minusDays(5), LocalTime.of(21, 0));
         pasado.setTandas(List.of());
         when(eventoRepository.findByUrlPublica("evento-4")).thenReturn(Optional.of(pasado));
-        lenient().when(configuracionService.obtenerEntero(any(), anyInt())).thenReturn(6);
+        lenient().when(limiteCompradorService.limiteParaOrganizador(any())).thenReturn(6);
 
         var resultado = eventoPublicoService.obtenerPorUrlPublica("evento-4");
 
         assertThat(resultado.getNombre()).isEqualTo("Evento 4");
+    }
+
+    @Test
+    void obtenerPorUrlPublica_informaElTopeDeEntradasDelOrganizadorDelEvento() {
+        // 8.9: la pantalla de compra no deja elegir más de lo que el Organizador permite.
+        Evento ev = evento(6L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        ev.setIdOrganizador(55L);
+        ev.setTandas(List.of());
+        when(eventoRepository.findByUrlPublica("evento-6")).thenReturn(Optional.of(ev));
+        when(limiteCompradorService.limiteParaOrganizador(55L)).thenReturn(3);
+
+        assertThat(eventoPublicoService.obtenerPorUrlPublica("evento-6").getMaxEntradasPorCompra()).isEqualTo(3);
     }
 
     @Test
