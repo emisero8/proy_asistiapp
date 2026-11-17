@@ -24,6 +24,8 @@ SPA de AsistíAPP. React 19 + TypeScript + Vite + Tailwind CSS v4 + react-router
    ```
 4. La app queda en `http://localhost:5173`. El backend tiene que tener ese origen habilitado en `CORS_ALLOWED_ORIGINS` (ya viene así por default en dev).
 
+> Si vas a **rediseñar la interfaz**, leé primero [`GUIA_REDISENO.md`](GUIA_REDISENO.md). Las pruebas de punta a punta están en [`e2e/README.md`](e2e/README.md).
+
 ## Estructura
 
 - `src/pages/{buyer,organizador,staff,admin}/` — una carpeta por rol/flujo.
