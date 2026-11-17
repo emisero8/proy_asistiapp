@@ -2,6 +2,7 @@ import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type SelectH
 import { AlertCircle, ChevronDown } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { FieldContext, useFieldControl } from "./fieldContext";
+import { CONTROL, SUPERFICIES, ALTOS, type Superficie, type TamanoControl } from "./controlStyles";
 
 interface FieldProps {
   label: ReactNode;
@@ -56,18 +57,6 @@ export function Field({ label, hint, error, required, labelHidden, className, ch
     </FieldContext.Provider>
   );
 }
-
-type Superficie = "card" | "sunken";
-type TamanoControl = "sm" | "md";
-
-const CONTROL =
-  "w-full rounded-xl border border-border-strong text-sm text-foreground placeholder:text-muted-foreground " +
-  "transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard " +
-  "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 " +
-  "disabled:opacity-50 aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:ring-destructive/25";
-
-const SUPERFICIES: Record<Superficie, string> = { card: "bg-card", sunken: "bg-surface-sunken" };
-const ALTOS: Record<TamanoControl, string> = { sm: "h-9", md: "h-11" };
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   /** `card` sobre el fondo de la pantalla (default); `sunken` dentro de una tarjeta. */

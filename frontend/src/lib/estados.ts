@@ -20,19 +20,23 @@ export type Tono =
   | "primary-strong"
   | "highlight"
   | "accent"
+  // `live`: estado "en vivo / en venta / activo" — chip lima sutil + punto lima, para conectar
+  // el backoffice con la identidad de la plataforma (ver Badge). Distinto de `success` (verde
+  // oscuro semántico de "completado": pago aprobado, entrada ya usada).
+  | "live"
   | "success"
   | "warning"
   | "danger"
   | "info";
 
 export const TONO_ESTADO_EVENTO: Record<EstadoEvento, Tono> = {
-  Publicado: "success",
+  Publicado: "live",
   Borrador: "warning",
   Cancelado: "danger",
 };
 
 export const TONO_ESTADO_USUARIO: Record<EstadoUsuario, Tono> = {
-  Activo: "success",
+  Activo: "live",
   Suspendido: "danger",
   Inactivo: "neutral",
 };
@@ -55,7 +59,7 @@ export const TONO_ESTADO_TRANSACCION: Record<EstadoTransaccion, Tono> = {
 };
 
 export const TONO_ESTADO_PAQUETE: Record<EstadoPaquete, Tono> = {
-  Activo: "success",
+  Activo: "live",
   Deshabilitado: "neutral",
 };
 

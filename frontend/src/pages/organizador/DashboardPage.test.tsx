@@ -105,7 +105,9 @@ describe("OrganizadorDashboardPage — Mis eventos", () => {
     renderDashboard();
     await screen.findByText("Recital de rock");
 
-    await userEvent.selectOptions(screen.getByLabelText("Filtrar por estado"), "Publicado");
+    // El filtro es un combobox editorial (SelectMenu): se abre y se elige la opción.
+    await userEvent.click(screen.getByRole("combobox", { name: "Filtrar por estado" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Publicados" }));
 
     expect(titulosVisibles()).toEqual(["Recital de rock", "Feria de bandas"]);
   });

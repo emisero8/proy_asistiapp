@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { Ban, CalendarDays, CircleDollarSign, ExternalLink, Pencil, Plus, Search, ShieldCheck, Sparkles, Ticket, TrendingUp, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { EventoImagen } from "../../components/EventoImagen";
-import { Button, Card, EmptyState, ErrorState, Input, Menu, PageHeader, Select, Skeleton, StatCard, StatusBadge } from "../../components/ui";
+import { Button, Card, EmptyState, ErrorState, Input, Menu, PageHeader, SelectMenu, Skeleton, StatCard, StatusBadge } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { cn } from "../../lib/cn";
@@ -219,19 +219,20 @@ export function OrganizadorDashboardPage() {
                 leadingIcon={<Search size={15} />}
                 className="min-w-0 sm:flex-1 lg:w-64 lg:flex-none"
               />
-              <Select
+              <SelectMenu
                 size="sm"
                 surface="sunken"
                 value={estadoFiltro}
-                onChange={(e) => setEstadoFiltro(e.target.value as typeof estadoFiltro)}
+                onChange={(v) => setEstadoFiltro(v as typeof estadoFiltro)}
                 aria-label="Filtrar por estado"
                 className="sm:w-44"
-              >
-                <option value="todos">Todos los estados</option>
-                <option value="Publicado">Publicados</option>
-                <option value="Borrador">Borradores</option>
-                <option value="Cancelado">Cancelados</option>
-              </Select>
+                options={[
+                  { value: "todos", label: "Todos los estados" },
+                  { value: "Publicado", label: "Publicados" },
+                  { value: "Borrador", label: "Borradores" },
+                  { value: "Cancelado", label: "Cancelados" },
+                ]}
+              />
             </div>
           </div>
 

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { api, ApiError, API_BASE_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { Alert, Button, Card, EmptyState, ErrorState, Field, IconButton, Input, QuantityStepper, RadioCardGroup, Select, Skeleton, StickyActionBar } from "../../components/ui";
+import { Alert, Button, Card, EmptyState, ErrorState, Field, IconButton, Input, QuantityStepper, RadioCardGroup, SelectMenu, Skeleton, StickyActionBar } from "../../components/ui";
 import { fmt } from "../../lib/format";
 import type {
   DisponibilidadCompradorResponseDTO,
@@ -316,19 +316,14 @@ export function StaffPosPage() {
         <div className="min-w-0 flex-1 space-y-6">
           {eventos.length > 1 ? (
             <Field label="Evento" hint={evento?.lugar}>
-              <Select
-                value={evento?.id ?? ""}
-                onChange={(e) => {
-                  const next = eventos.find((ev) => ev.id === Number(e.target.value));
+              <SelectMenu
+                value={String(evento?.id ?? "")}
+                onChange={(v) => {
+                  const next = eventos.find((ev) => ev.id === Number(v));
                   if (next) selectEvento(next);
                 }}
-              >
-                {eventos.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.nombre}
-                  </option>
-                ))}
-              </Select>
+                options={eventos.map((e) => ({ value: String(e.id), label: e.nombre }))}
+              />
             </Field>
           ) : (
             evento && (

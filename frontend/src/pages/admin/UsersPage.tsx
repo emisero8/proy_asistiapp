@@ -5,7 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import type { RolUsuario, UsuarioResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
-import { Badge, Card, EmptyState, ErrorState, Input, Menu, PageHeader, Select, Skeleton, StatusBadge } from "../../components/ui";
+import { Badge, Card, EmptyState, ErrorState, Input, Menu, PageHeader, SelectMenu, Skeleton, StatusBadge } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { ETIQUETA_ROL, TONO_ROL } from "../../lib/estados";
 
@@ -134,21 +134,15 @@ export function AdminUsersPage() {
               leadingIcon={<Search size={15} />}
               className="min-w-0 sm:flex-1"
             />
-            <Select
+            <SelectMenu
               size="sm"
               surface="sunken"
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
+              onChange={(v) => setRoleFilter(v as typeof roleFilter)}
               aria-label="Filtrar por rol"
               className="sm:w-48"
-            >
-              <option value="todos">Todos los roles</option>
-              {ROLES.map((r) => (
-                <option key={r} value={r}>
-                  {ETIQUETA_ROL[r]}
-                </option>
-              ))}
-            </Select>
+              options={[{ value: "todos", label: "Todos los roles" }, ...ROLES.map((r) => ({ value: r, label: ETIQUETA_ROL[r] }))]}
+            />
           </div>
 
           {filtered.length === 0 ? (

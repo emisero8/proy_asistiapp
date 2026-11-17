@@ -98,7 +98,10 @@ export function AppShell({ nav, mobileNav, usuario, onLogout }: AppShellProps) {
               className={({ isActive }) =>
                 cn(
                   "flex h-10 items-center gap-3 rounded-xl px-3 text-sm transition-colors duration-(--duration-fast)",
-                  isActive ? "bg-primary/10 font-semibold text-primary" : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+                  // Marcador de sección activa: una barrita lima fina a la izquierda (identidad de la plataforma).
+                  isActive
+                    ? "relative bg-primary/10 font-semibold text-primary before:absolute before:left-0 before:top-1/2 before:h-5 before:w-1 before:-translate-y-1/2 before:rounded-r-full before:bg-accent"
+                    : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
                 )
               }
             >
@@ -167,7 +170,7 @@ export function AppShell({ nav, mobileNav, usuario, onLogout }: AppShellProps) {
             >
               {({ isActive }) => (
                 <>
-                  {isActive && <span aria-hidden="true" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-primary" />}
+                  {isActive && <span aria-hidden="true" className="absolute inset-x-4 top-0 h-0.5 rounded-full bg-accent" />}
                   <Icono size={19} aria-hidden="true" />
                   <span className="max-w-full truncate">{mobileLabel ?? label}</span>
                 </>

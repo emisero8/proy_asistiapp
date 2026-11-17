@@ -9,6 +9,7 @@ export { claseBoton } from "./buttonStyles";
 export { Spinner } from "./Spinner";
 export { Tooltip } from "./Tooltip";
 export { Field, Input, Textarea, Select, type InputProps, type SelectProps, type TextareaProps } from "./Field";
+export { SelectMenu, type SelectMenuProps, type SelectOption } from "./SelectMenu";
 export { PasswordInput } from "./PasswordInput";
 export { Checkbox, Switch, RadioCardGroup, type RadioCardOption } from "./Selection";
 export { Badge, StatusBadge } from "./Badge";

@@ -67,9 +67,11 @@ describe("OrganizadorStaffMgmtPage — selector de evento", () => {
     renderPage();
     await abrirFormulario(user);
 
-    expect(screen.getByRole("option", { name: "Festival de Jazz" })).toBeInTheDocument();
     expect(screen.queryByText(/No pudimos cargar tus eventos/)).not.toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeEnabled();
+    // El selector es un combobox editorial: sus opciones se renderizan al abrirlo.
+    await user.click(screen.getByRole("combobox"));
+    expect(await screen.findByRole("option", { name: "Festival de Jazz" })).toBeInTheDocument();
   });
 
   it("si falla la carga de eventos lo avisa (en vez de dejar el selector vacío sin explicación) y lo deshabilita", async () => {
@@ -94,7 +96,8 @@ describe("OrganizadorStaffMgmtPage — selector de evento", () => {
 
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
     expect(screen.getByRole("combobox")).toBeEnabled();
-    expect(screen.getByRole("option", { name: "Festival de Jazz" })).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox"));
+    expect(await screen.findByRole("option", { name: "Festival de Jazz" })).toBeInTheDocument();
   });
 
   it("si reintentar vuelve a fallar, el aviso sigue ahí", async () => {

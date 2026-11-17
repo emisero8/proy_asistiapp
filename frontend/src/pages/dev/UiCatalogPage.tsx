@@ -16,7 +16,7 @@ import {
   PageHeader,
   QuantityStepper,
   RadioCardGroup,
-  Select,
+  SelectMenu,
   Skeleton,
   StatCard,
   StatusBadge,
@@ -40,6 +40,7 @@ export function UiCatalogPage() {
   const [activo, setActivo] = useState(true);
   const [acepto, setAcepto] = useState(false);
   const [email, setEmail] = useState("no-es-un-mail");
+  const [estado, setEstado] = useState("todos");
   const [cargando, setCargando] = useState(false);
 
   return (
@@ -109,11 +110,16 @@ export function UiCatalogPage() {
             <Input leadingIcon={<Search size={15} />} placeholder="Buscar por nombre o lugar…" size="sm" />
           </Field>
           <Field label="Estado">
-            <Select defaultValue="todos" size="sm">
-              <option value="todos">Todos los estados</option>
-              <option>Publicado</option>
-              <option>Borrador</option>
-            </Select>
+            <SelectMenu
+              size="sm"
+              value={estado}
+              onChange={setEstado}
+              options={[
+                { value: "todos", label: "Todos los estados" },
+                { value: "Publicado", label: "Publicado" },
+                { value: "Borrador", label: "Borrador" },
+              ]}
+            />
           </Field>
           <Field label="Descripción" className="sm:col-span-2">
             <Textarea placeholder="Contá de qué se trata el evento…" />

@@ -699,4 +699,30 @@ Cuatro detalles vistos en el navegador por el usuario, corregidos sobre la Home 
 3. **Esquina del botón "Buscar entradas":** el form es `rounded-2xl` (16px) + borde 1px, pero el botón redondeaba a 16px desde su caja interna → arco descentrado respecto del borde del padre (escalón/doble línea). Se alinean las esquinas del botón y de la celda de búsqueda al **radio interno real** (`rounded-*-[15px]`).
 4. **Marca unificada (`BrandLogo` nuevo):** se extrae el isotipo del ticket lima + wordmark (con la microanimación de hover) a un único componente compartido por **Home, `PublicHeader` y `AuthLayout`** → el logo es idéntico en toda la app (antes Auth usaba un logo de solo texto). Variante `onDark` para el panel de marca de Auth; "APP" **monocromática** (hereda el color del wordmark, sin lavanda) para leerse igual que en la Home. Microinteracciones sutiles de hover/active en los botones "Ingresar" y "Soy organizador" del nav (desktop + menú mobile). `npm run build` OK, **223/223 tests** OK, Playwright sobre el popover (sin que lo tape la cinta), el calendario inline (sin navegar), la esquina del botón y los logos de Auth (claro/oscuro, desktop/mobile) — 0 errores.
 
-**Commit:** bloque "14.5" completo (Auth + Organizador + Admin + Staff + pulido del hero y marca), autor local del repo (**Facundo Riffel**), sin trailer de Claude.
+**Commit:** `d7e06ea` — bloque "14.5" completo (Auth + Organizador + Admin + Staff + pulido del hero y marca), autor local del repo (**Facundo Riffel**), sin trailer de Claude.
+
+### 14.6 — Pulido final: combobox editorial y consistencia global ✅ (sin commitear; pendiente OK)
+Cierre de la Fase 14. El gap real de consistencia que quedaba era el **`<select>` nativo**: su disparador se podía estilar (`appearance-none`) pero **el desplegable que abre es el del sistema operativo**, imposible de restylear y fuera de la estética editorial.
+
+**`SelectMenu` (nuevo, `components/ui/SelectMenu.tsx`):** combobox de selección única con el patrón WAI-ARIA (`role="combobox"` + `aria-expanded`/`aria-controls`, panel `role="listbox"` con `option`s, `aria-activedescendant`, teclado ↑/↓/Inicio/Fin/Enter/Esc/Tab + type-ahead). El **disparador reusa el mismo estilo que los inputs** (consts `CONTROL`/`SUPERFICIES`/`ALTOS` movidas a `controlStyles.ts` para no romper el fast-refresh de `Field.tsx`) y el **panel es editorial** (borde 1px `border-border-strong` + `.shadow-hard`, opción activa `bg-muted`, seleccionada en carbón `bg-primary` + check). Va en **portal con `position: fixed`** (no lo recorta el `overflow` de una tarjeta/tabla) y se da vuelta hacia arriba si abajo no entra; se integra con `<Field>` (toma id/label/ayuda/error/`aria-invalid`) o suelto con `aria-label`.
+
+**Migrados los 5 `<select>` a `SelectMenu`** (los dos que pidió el usuario + el resto, por consistencia global):
+- **Organizador → Staff** (`StaffMgmtPage`): "Evento asignado" (placeholder "Elegí un evento…", `disabled` cuando falla la carga de eventos). *(pedido explícito)*
+- **Admin → Usuarios** (`UsersPage`): filtro de rol. *(pedido explícito)*
+- **Organizador → Dashboard** (`DashboardPage`): filtro por estado.
+- **Staff → POS** (`PosPage`): selector de evento (cuando hay más de uno).
+- **Catálogo de diseño** (`dev/UiCatalogPage`): el ejemplo del formulario.
+El `Select` nativo sigue existiendo como primitiva (y su test), pero **`SelectMenu` es el dropdown por defecto** de acá en más. Auditoría: no queda ningún otro `<select>` nativo suelto.
+
+**Lógica/permisos/tests intactos:** refactor visual + de interacción, sin tocar lógica, roles ni endpoints. Dos interacciones de test que manejaban el control nativo se adaptaron al combobox **sin perder cobertura** (misma aserción): `DashboardPage.test` (abre el combobox y clickea "Publicados" en vez de `selectOptions`) y `StaffMgmtPage.test` (abre el combobox antes de leer sus `option`s, ya que se renderizan al abrirlo; los chequeos de `combobox` habilitado/deshabilitado quedan igual porque el disparador es `role="combobox"` y respeta `disabled`).
+
+**Estados vacíos/error, modales, drawers, toasts y skeletons:** ya eran editoriales desde la Fase 13.2 (primitivas `EmptyState`/`ErrorState`/`Skeleton`, `DialogProvider`, `sonner`) y heredan los tokens; se revisaron en vivo en las pantallas migradas sin encontrar inconsistencias.
+
+**Acentos lima editoriales en los paneles internos (Organizador y Admin)** — destellos puntuales de `--accent` para conectar el backoffice con la identidad, sin saturar las tablas ni tocar los botones de acción (que siguen en carbón):
+- **Marcador de sección activa (`AppShell`):** barrita lima fina a la izquierda del ítem activo del sidebar (desktop) y la barra superior de la pestaña activa en mobile pasa de carbón a lima.
+- **Estado "en vivo" (`Badge`/`estados.ts`):** nuevo tono `live` (chip lima sutil `bg-accent/15` + **punto lima sólido**, siempre visible) para **Publicado** (evento), **Activo** (usuario) y **Activo** (paquete) — se distingue de `success` (verde oscuro semántico de "completado": pago aprobado, entrada ya usada), que no se tocó. Propaga a las tablas/cards de Organizador y Admin vía `StatusBadge`.
+- **KPI destacada:** el ícono `Wallet` del hero de saldo de `WalletPage` (bloque carbón protagonista) va en lima.
+
+**Verificación (gate completo):** `npm run lint` (solo los 4 warnings viejos de fast-refresh), `npm run build` OK, **223/223 tests** OK, **Playwright** sobre el combobox abierto en **Admin → Usuarios** (claro/oscuro/mobile, filtrado real), **Organizador → Dashboard** (claro/oscuro) y **Organizador → Staff** (abrir + elegir evento) + el catálogo de diseño, y los **acentos lima** en Admin (eventos/usuarios) y Organizador (dashboard con "Publicado", wallet) en **claro/oscuro**, **0 errores de consola/página**, capturas revisadas.
+
+**Commit:** bloque "14.6" completo (combobox editorial + acentos lima), autor local del repo (**Facundo Riffel**), sin trailer de Claude.

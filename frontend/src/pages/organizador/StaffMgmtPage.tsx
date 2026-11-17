@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { KeyRound, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
-import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader, RadioCardGroup, Select, Skeleton } from "../../components/ui";
+import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader, RadioCardGroup, SelectMenu, Skeleton } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { ETIQUETA_ROL, TONO_ROL } from "../../lib/estados";
 import type { CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, StaffResponseDTO } from "../../lib/types";
@@ -272,19 +272,14 @@ export function OrganizadorStaffMgmtPage() {
                     : "Solo va a poder vender entradas de este evento."
               }
             >
-              <Select
+              <SelectMenu
                 surface="sunken"
                 value={form.idEvento}
-                onChange={(e) => setForm((f) => ({ ...f, idEvento: e.target.value }))}
+                onChange={(idEvento) => setForm((f) => ({ ...f, idEvento }))}
                 disabled={errorEventos}
-              >
-                <option value="">Elegí un evento…</option>
-                {eventosDisponibles.map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    {ev.nombre}
-                  </option>
-                ))}
-              </Select>
+                placeholder="Elegí un evento…"
+                options={eventosDisponibles.map((ev) => ({ value: String(ev.id), label: ev.nombre }))}
+              />
             </Field>
             {errorEventos && (
               <p role="alert" className="flex flex-wrap items-center gap-x-2 text-xs font-medium text-destructive">

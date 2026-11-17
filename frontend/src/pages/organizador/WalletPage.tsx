@@ -90,7 +90,7 @@ export function OrganizadorWalletPage() {
           ) : (
             <section aria-label="Saldo" className="rounded-3xl bg-primary p-5 text-primary-foreground shadow-hard md:p-6">
               <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground/75">
-                <Wallet size={14} aria-hidden="true" />
+                <Wallet size={14} aria-hidden="true" className="text-accent" />
                 Saldo disponible
               </p>
               <p className="mt-2 font-display text-4xl font-extrabold tabular-nums">

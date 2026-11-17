@@ -17,6 +17,8 @@ const TONOS: Record<Tono, string> = {
   "primary-strong": "bg-primary text-primary-foreground",
   highlight: "bg-highlight text-highlight-foreground",
   accent: "bg-accent text-accent-foreground",
+  // Chip lima sutil (el protagonismo lo da el punto lima sólido, no el fondo).
+  live: "bg-accent/15 text-foreground",
   success: "bg-success/12 text-success",
   warning: "bg-warning/14 text-warning",
   danger: "bg-destructive/12 text-destructive",
@@ -30,6 +32,7 @@ const PUNTOS: Record<Tono, string> = {
   "primary-strong": "bg-primary-foreground",
   highlight: "bg-highlight-foreground",
   accent: "bg-accent-foreground",
+  live: "bg-accent",
   success: "bg-success",
   warning: "bg-warning",
   danger: "bg-destructive",
@@ -46,6 +49,8 @@ interface BadgeProps {
 }
 
 export function Badge({ tone = "neutral", dot = false, size = "md", className, children }: BadgeProps) {
+  // El tono "live" lleva siempre su punto lima (es el indicador "en vivo", no un adorno opcional).
+  const mostrarPunto = dot || tone === "live";
   return (
     <span
       className={cn(
@@ -55,7 +60,7 @@ export function Badge({ tone = "neutral", dot = false, size = "md", className, c
         className,
       )}
     >
-      {dot && <span aria-hidden="true" className={cn("size-1.5 rounded-full", PUNTOS[tone])} />}
+      {mostrarPunto && <span aria-hidden="true" className={cn("size-1.5 rounded-full", PUNTOS[tone])} />}
       {children}
     </span>
   );
