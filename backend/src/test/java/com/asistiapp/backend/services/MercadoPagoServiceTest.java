@@ -136,6 +136,20 @@ class MercadoPagoServiceTest {
     }
 
     @Test
+    void crearPreferencia_conTokenDelOrganizador_usaElInitPointNormalAunqueMercadoPagoDevuelvaElDeSandbox() throws Exception {
+        // La cuenta del Organizador se vincula por OAuth con la aplicación de producción: su checkout es el
+        // normal. Con la URL de sandbox un comprador real no podría pagar. (Mercado Pago devuelve las dos.)
+        when(config.getFrontendBaseUrl()).thenReturn("http://localhost:5173");
+        when(config.getBackendPublicUrl()).thenReturn("http://localhost:8080");
+        when(preferenceClient.create(any(PreferenceRequest.class), any(com.mercadopago.core.MPRequestOptions.class)))
+                .thenReturn(preferenciaCon("https://www.mercadopago.com.ar/x", "https://sandbox.mercadopago.com.ar/x"));
+
+        var resultado = mercadoPagoService.crearPreferencia(orden(), "token-del-organizador");
+
+        assertThat(resultado.initPoint()).isEqualTo("https://www.mercadopago.com.ar/x");
+    }
+
+    @Test
     void crearPreferencia_conTokenDelOrganizador_noExigeQueLaPlataformaTengaElSuyo() throws Exception {
         // La cuenta de la plataforma puede no estar configurada y aun así cobrarse con la del Organizador.
         when(config.getFrontendBaseUrl()).thenReturn("http://localhost:5173");

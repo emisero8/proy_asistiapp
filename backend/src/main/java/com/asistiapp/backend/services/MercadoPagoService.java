@@ -129,10 +129,14 @@ public class MercadoPagoService {
                     ? preferenceClient.create(request.build())
                     : preferenceClient.create(request.build(), opciones(accessToken));
             log.info("Preferencia MP creada: id={}, externalReference={}", preferencia.getId(), orden.externalReference());
-            // Con credenciales de un usuario de prueba, MercadoPago solo completa el pago en
-            // sandbox_init_point — el init_point "de producción" devuelve error de acceso.
-            // Con credenciales reales, sandbox_init_point viene vacío y se usa init_point.
-            String urlCheckout = (preferencia.getSandboxInitPoint() != null && !preferencia.getSandboxInitPoint().isBlank())
+            // Cuenta de la plataforma con credenciales de prueba: MercadoPago solo completa el pago en
+            // sandbox_init_point (el init_point "de producción" devuelve error de acceso); con credenciales
+            // reales ese campo viene vacío. Cuenta de un Organizador (OAuth, aplicación de producción):
+            // MercadoPago devuelve las dos URLs pero la de sandbox no puede cobrar dinero real, así que
+            // se usa siempre la normal.
+            boolean cuentaDelOrganizador = accessToken != null;
+            String urlCheckout = (!cuentaDelOrganizador
+                    && preferencia.getSandboxInitPoint() != null && !preferencia.getSandboxInitPoint().isBlank())
                     ? preferencia.getSandboxInitPoint()
                     : preferencia.getInitPoint();
             return new PreferenciaCreada(preferencia.getId(), urlCheckout);
