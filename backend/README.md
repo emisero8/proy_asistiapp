@@ -198,6 +198,6 @@ Los orígenes permitidos salen de `CORS_ALLOWED_ORIGINS` (coma-separado). Si el 
 ```
 mvn test
 ```
-533 tests. Corren contra H2 en memoria (perfil `test`, ver `application-test.yml`) — no necesitan PostgreSQL. `EmailServiceSmtpTest` levanta un servidor SMTP de verdad (GreenMail) para comprobar los mails reales. Las pruebas de punta a punta del sistema completo están en `frontend/e2e/`. CI configurado en `.github/workflows/backend-tests.yml`.
+534 tests. Corren contra H2 en memoria (perfil `test`, ver `application-test.yml`) — no necesitan PostgreSQL. `EmailServiceSmtpTest` levanta un servidor SMTP de verdad (GreenMail) para comprobar los mails reales. Las pruebas de punta a punta del sistema completo están en `frontend/e2e/`. CI configurado en `.github/workflows/backend-tests.yml`.
 
 `OpenApiContratoTest` compara el contrato que publica la API (`/v3/api-docs`) con la copia que guarda el frontend (`../frontend/openapi.json`, de la que genera sus tipos). **Si cambiás un endpoint o un DTO y falla**, es lo esperado: con el backend corriendo, `cd frontend && npm run types:api`, después `npx tsc -b` para ver qué tipos del frontend actualizar, y commitear todo junto.

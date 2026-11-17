@@ -61,7 +61,7 @@ En el modo de desarrollo, **el reembolso a través de Mercado Pago no es represe
    - `BACKEND_PUBLIC_URL=https://<tu-dominio>.ngrok-free.dev`.
    - Para la **vinculación OAuth**, `MP_OAUTH_REDIRECT_URI=https://<tu-dominio>.ngrok-free.dev/mercadopago/oauth/callback` y **esa misma URL tiene que estar cargada en la aplicación OAuth** (panel de Mercado Pago → la aplicación → Redirect URLs). Hay que verificar en el panel si la aplicación admite varias URLs; si solo admite una, **solo un desarrollador a la vez puede probar la vinculación**.
 5. **Reiniciar el backend desde PowerShell** si cambiaste variables de entorno de Windows: una Bash que ya estaba abierta no las ve y el backend arranca "sin configurar".
-6. **Probar que anda:** `cd backend && mvn clean test` (533 tests) y `cd frontend && npx tsc -b && npx vitest run` (desde PowerShell). Los tests **no** necesitan Mercado Pago ni base real.
+6. **Probar que anda:** `cd backend && mvn clean test` (534 tests) y `cd frontend && npx tsc -b && npx vitest run` (desde PowerShell). Los tests **no** necesitan Mercado Pago ni base real.
 
 ## 6. Cómo probar el cobro
 
@@ -81,7 +81,7 @@ En el modo de desarrollo, **el reembolso a través de Mercado Pago no es represe
 
 Costo de la prueba real del 17/11: comisión de Mercado Pago de $0,42 sobre $10. Mercado Pago puede no devolverla al reembolsar.
 
-**Lo que se verifica sin Mercado Pago:** los 533 tests del backend y 304 del frontend cubren la lógica (reserva del turno de reembolso, crédito una sola vez, fallas parciales, tokens por operación). Un script de verificación contra la API real de la 8.6 dio 15/15.
+**Lo que se verifica sin Mercado Pago:** los 534 tests del backend y 304 del frontend cubren la lógica (reserva del turno de reembolso, crédito una sola vez, fallas parciales, tokens por operación). Un script de verificación contra la API real de la 8.6 dio 15/15.
 
 ## 7. Por qué el sandbox no sirve para el cobro con OAuth (investigación, 2026-11-17)
 
