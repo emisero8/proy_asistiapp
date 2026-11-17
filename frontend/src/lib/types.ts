@@ -60,6 +60,20 @@ export interface PerfilResponseDTO {
   maxEntradasPorCompradorPlataforma: number;
 }
 
+export type EstadoCuentaMp = "Vinculada" | "Revocada";
+
+/** Cuenta de Mercado Pago del Organizador (8.4). `estado` null = nunca vinculó. */
+export interface EstadoCuentaMpResponseDTO {
+  vinculada: boolean;
+  estado: EstadoCuentaMp | null;
+  mpUserId: number | null;
+  vinculadaEn: string | null;
+}
+
+export interface IniciarVinculacionResponseDTO {
+  urlAutorizacion: string;
+}
+
 export interface TopeCompradorRequestDTO {
   maxEntradasPorComprador: number | null;
 }

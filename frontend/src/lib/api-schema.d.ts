@@ -292,6 +292,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizador/mercadopago/vincular": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["vincular"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/eventos": {
         parameters: {
             query?: never;
@@ -868,6 +884,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizador/mercadopago/estado": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["estado"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/notificaciones": {
         parameters: {
             query?: never;
@@ -892,6 +924,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["contarNoLeidas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mercadopago/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["callback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1103,6 +1151,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organizador/mercadopago": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["desvincular"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1375,6 +1439,9 @@ export interface components {
         ImagenSubidaResponseDTO: {
             url?: string;
         };
+        IniciarVinculacionResponseDTO: {
+            urlAutorizacion?: string;
+        };
         IniciarCompraCreditoRequestDTO: {
             /** Format: int64 */
             idPaquete: number;
@@ -1512,6 +1579,15 @@ export interface components {
             entradasVendidas?: number;
             /** Format: int64 */
             eventosPublicados?: number;
+        };
+        EstadoCuentaMpResponseDTO: {
+            vinculada?: boolean;
+            /** @enum {string} */
+            estado?: "Vinculada" | "Revocada";
+            /** Format: int64 */
+            mpUserId?: number;
+            /** Format: date-time */
+            vinculadaEn?: string;
         };
         NotificacionResponseDTO: {
             /** Format: int64 */
@@ -2276,6 +2352,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ImagenSubidaResponseDTO"];
+                };
+            };
+        };
+    };
+    vincular: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["IniciarVinculacionResponseDTO"];
                 };
             };
         };
@@ -3152,6 +3248,26 @@ export interface operations {
             };
         };
     };
+    estado: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EstadoCuentaMpResponseDTO"];
+                };
+            };
+        };
+    };
     listar: {
         parameters: {
             query?: never;
@@ -3191,6 +3307,28 @@ export interface operations {
                         [key: string]: number;
                     };
                 };
+            };
+        };
+    };
+    callback: {
+        parameters: {
+            query?: {
+                code?: string;
+                state?: string;
+                error?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -3458,6 +3596,24 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["LogAuditoriaResponseDTO"][];
                 };
+            };
+        };
+    };
+    desvincular: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

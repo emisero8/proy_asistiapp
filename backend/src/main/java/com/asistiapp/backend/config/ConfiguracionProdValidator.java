@@ -39,6 +39,10 @@ public class ConfiguracionProdValidator implements EnvironmentPostProcessor, Ord
         OBLIGATORIAS_EN_PROD.put("app.mercadopago.access-token", "MP_ACCESS_TOKEN");
         OBLIGATORIAS_EN_PROD.put("app.mercadopago.webhook-secret", "MP_WEBHOOK_SECRET");
         OBLIGATORIAS_EN_PROD.put("app.mercadopago.backend-public-url", "BACKEND_PUBLIC_URL");
+        OBLIGATORIAS_EN_PROD.put("app.mercadopago.token-encryption-key", "MP_TOKEN_ENCRYPTION_KEY");
+        OBLIGATORIAS_EN_PROD.put("app.mercadopago.oauth.client-id", "MP_OAUTH_CLIENT_ID");
+        OBLIGATORIAS_EN_PROD.put("app.mercadopago.oauth.client-secret", "MP_OAUTH_CLIENT_SECRET");
+        OBLIGATORIAS_EN_PROD.put("app.mercadopago.oauth.redirect-uri", "MP_OAUTH_REDIRECT_URI");
         OBLIGATORIAS_EN_PROD.put("app.cors.allowed-origins", "CORS_ALLOWED_ORIGINS");
         OBLIGATORIAS_EN_PROD.put("app.frontend-base-url", "FRONTEND_BASE_URL");
         OBLIGATORIAS_EN_PROD.put("app.cloudinary.cloud-name", "CLOUDINARY_CLOUD_NAME");

@@ -910,6 +910,26 @@
         }
       }
     },
+    "/organizador/mercadopago/vincular": {
+      "post": {
+        "tags": [
+          "vinculacion-mercado-pago-controller"
+        ],
+        "operationId": "vincular",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/IniciarVinculacionResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/eventos": {
       "get": {
         "tags": [
@@ -2063,6 +2083,26 @@
         }
       }
     },
+    "/organizador/mercadopago/estado": {
+      "get": {
+        "tags": [
+          "vinculacion-mercado-pago-controller"
+        ],
+        "operationId": "estado",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstadoCuentaMpResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/notificaciones": {
       "get": {
         "tags": [
@@ -2106,6 +2146,45 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/mercadopago/oauth/callback": {
+      "get": {
+        "tags": [
+          "vinculacion-mercado-pago-controller"
+        ],
+        "operationId": "callback",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -2440,6 +2519,19 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/organizador/mercadopago": {
+      "delete": {
+        "tags": [
+          "vinculacion-mercado-pago-controller"
+        ],
+        "operationId": "desvincular",
+        "responses": {
+          "200": {
+            "description": "OK"
           }
         }
       }
@@ -3170,6 +3262,14 @@
           }
         }
       },
+      "IniciarVinculacionResponseDTO": {
+        "type": "object",
+        "properties": {
+          "urlAutorizacion": {
+            "type": "string"
+          }
+        }
+      },
       "IniciarCompraCreditoRequestDTO": {
         "required": [
           "idPaquete"
@@ -3550,6 +3650,29 @@
           "eventosPublicados": {
             "type": "integer",
             "format": "int64"
+          }
+        }
+      },
+      "EstadoCuentaMpResponseDTO": {
+        "type": "object",
+        "properties": {
+          "vinculada": {
+            "type": "boolean"
+          },
+          "estado": {
+            "type": "string",
+            "enum": [
+              "Vinculada",
+              "Revocada"
+            ]
+          },
+          "mpUserId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "vinculadaEn": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

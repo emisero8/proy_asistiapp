@@ -11,6 +11,7 @@ vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
   return { ...actual, api: { ...actual.api, get: vi.fn(), put: vi.fn(), upload: vi.fn() } };
 });
+vi.mock("./CuentaMercadoPagoCard", () => ({ CuentaMercadoPagoCard: () => null }));
 vi.mock("../../lib/auth", () => ({
   useAuth: () => ({ session: { id: 1, nombre: "Ana", email: "ana@demo.com", rol: "Organizador", token: "t", tipo: "Bearer" }, login }),
 }));

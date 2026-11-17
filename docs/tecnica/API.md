@@ -89,6 +89,9 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `GET /tickets/orden/{externalReference}` | Estado de una orden de entradas (y las entradas, si ya se pagó). |
 | `GET /tickets/by-codigo` | Datos de una entrada a partir de su código. |
 | `GET /tickets/{id}/qr-image` | Imagen PNG del QR de una entrada. |
+| `POST /organizador/mercadopago/vincular` | `Organizador`. Devuelve `{ urlAutorizacion }`: la URL de Mercado Pago a la que el frontend redirige para que el Organizador autorice la aplicación. |
+| `GET /mercadopago/oauth/callback` | Público (lo abre el navegador al volver de Mercado Pago). Cambia el código por tokens y redirige a `/organizador/perfil?mp=ok`, `cancelado` o `error`. |
+| `GET /organizador/mercadopago/estado`, `DELETE /organizador/mercadopago` | `Organizador`. Estado de su cuenta (`vinculada`, `estado`, `mpUserId`, nunca tokens) y desvinculación. |
 | `POST /payments/mercadopago/webhook` | Aviso de pago de MercadoPago (autenticado por la firma, no por JWT). |
 
 ### Organizador (`Organizador`)

@@ -4,6 +4,7 @@ import { Save, KeyRound, AlertCircle, Users } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
+import { CuentaMercadoPagoCard } from "./CuentaMercadoPagoCard";
 import type { CambiarPasswordRequestDTO, PerfilRequestDTO, PerfilResponseDTO, TopeCompradorRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
@@ -158,6 +159,8 @@ export function OrganizadorPerfilPage() {
               <Save size={15} /> {guardandoPerfil ? "Guardando…" : "Guardar cambios"}
             </button>
           </form>
+
+          <CuentaMercadoPagoCard />
 
           <form onSubmit={guardarTope} noValidate className="rounded-3xl bg-card border border-border p-5 space-y-5">
             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">

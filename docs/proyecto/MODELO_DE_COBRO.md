@@ -21,6 +21,8 @@ Lo que hay que construir en el backend:
 3. Renovar el token antes de que venza y manejar "el Organizador revocó el acceso" (el estado vuelve a no vinculado y se le avisa por la campanita).
 4. `MercadoPagoService`: crear preferencia, consultar pago y reembolsar con el token **del Organizador** (hoy usa uno solo de la plataforma). La compra de créditos sigue con el token de la plataforma.
 5. Estado "cuenta vinculada" visible en el panel del Organizador; bloqueo de la publicación si no está vinculada.
+
+> **Estado (17/11):** los puntos 1 a 4 y el estado visible en Mi perfil están implementados (8.4). La autorización real se probó con éxito; el bloqueo de la publicación queda para 8.5. Tokens: `access_token` de 180 días, `refresh_token` que rota en cada renovación (se guarda el nuevo).
 6. Webhook y reconciliación: ya consultan cada pago por API; deben usar el token del vendedor correspondiente a la orden.
 
 **A verificar antes de construir** (no se pudo confirmar en la documentación de Argentina): qué API aplica (`/checkout/preferences` u `/v1/orders`), cómo llegan las notificaciones de pagos de vendedores vinculados y el vencimiento de los tokens. Hace falta registrar la aplicación como marketplace en el panel de Mercado Pago y crear un vendedor y un comprador de prueba.

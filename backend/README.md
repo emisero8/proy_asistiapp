@@ -31,6 +31,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `SPRING_PROFILES_ACTIVE` | vacío en desarrollo. **`prod` en producción**: activa el control de `JWT_SECRET`, exige las variables marcadas ⚠️ (también `FRONTEND_BASE_URL`; las tres de Cloudinary también), evita que se cree un Admin con contraseña pública, apaga el SQL en el log, baja el nivel de log a INFO y no devuelve mensajes internos en los errores |
    | `CORS_ALLOWED_ORIGINS` ⚠️ | `http://localhost:5173,http://localhost:3000` |
    | `MP_ACCESS_TOKEN` ⚠️ | vacío — Access Token de MercadoPago (ver sección MercadoPago) |
+   | `MP_OAUTH_CLIENT_ID` / `MP_OAUTH_CLIENT_SECRET` / `MP_OAUTH_REDIRECT_URI` ⚠️ | vacíos — vinculación de la cuenta de Mercado Pago de cada Organizador (8.4). Salen de las credenciales de **producción** de la aplicación; la Redirect URI tiene que coincidir con la cargada en la aplicación (ngrok en local) |
+   | `MP_TOKEN_ENCRYPTION_KEY` ⚠️ | clave pública de desarrollo — cifra los tokens de Mercado Pago en la base (AES-256, 32 bytes en Base64; generar con `openssl rand -base64 32`) |
    | `MP_WEBHOOK_SECRET` ⚠️ | vacío — clave secreta de Webhooks de MercadoPago |
    | `MP_VALIDAR_FIRMA` | `true` — **dejar en `true` en producción** |
    | `BACKEND_PUBLIC_URL` ⚠️ | `http://localhost:8080` — solo hace falta HTTPS público para recibir el webhook (ngrok en local); para pagar en local no es necesario, ver "Pagos con MercadoPago" |
@@ -193,6 +195,6 @@ Los orígenes permitidos salen de `CORS_ALLOWED_ORIGINS` (coma-separado). Si el 
 ```
 mvn test
 ```
-408 tests. Corren contra H2 en memoria (perfil `test`, ver `application-test.yml`) — no necesitan PostgreSQL. `EmailServiceSmtpTest` levanta un servidor SMTP de verdad (GreenMail) para comprobar los mails reales. Las pruebas de punta a punta del sistema completo están en `frontend/e2e/`. CI configurado en `.github/workflows/backend-tests.yml`.
+447 tests. Corren contra H2 en memoria (perfil `test`, ver `application-test.yml`) — no necesitan PostgreSQL. `EmailServiceSmtpTest` levanta un servidor SMTP de verdad (GreenMail) para comprobar los mails reales. Las pruebas de punta a punta del sistema completo están en `frontend/e2e/`. CI configurado en `.github/workflows/backend-tests.yml`.
 
 `OpenApiContratoTest` compara el contrato que publica la API (`/v3/api-docs`) con la copia que guarda el frontend (`../frontend/openapi.json`, de la que genera sus tipos). **Si cambiás un endpoint o un DTO y falla**, es lo esperado: con el backend corriendo, `cd frontend && npm run types:api`, después `npx tsc -b` para ver qué tipos del frontend actualizar, y commitear todo junto.
