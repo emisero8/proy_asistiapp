@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ESPERA_ENTRE_REINTENTOS_MS, PagoResultadoPage, REINTENTOS_MAXIMOS } from "./PagoResultadoPage";
 import { api, ApiError } from "../../lib/api";
 import type { EstadoOrdenEntradasResponseDTO } from "../../lib/types";
+import { ThemeProvider } from "../../lib/theme";
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
@@ -29,9 +30,11 @@ const APROBADA: EstadoOrdenEntradasResponseDTO = {
 
 function renderPage(state?: { urlPago: string }) {
   return render(
-    <MemoryRouter initialEntries={[{ pathname: "/pago/resultado", search: "?ref=ref-123&tipo=entradas", state }]}>
-      <PagoResultadoPage />
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[{ pathname: "/pago/resultado", search: "?ref=ref-123&tipo=entradas", state }]}>
+        <PagoResultadoPage />
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 

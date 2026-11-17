@@ -28,23 +28,22 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 ---
 
-## Estado actual — por dónde vamos (actualizado el 2026-11-16, cierre del día)
+## Estado actual — por dónde vamos (actualizado el 2026-11-17)
 
 > Para retomar desde otra máquina leer también `CONTINUAR.md`: tiene el detalle de lo que falta, las trampas conocidas y cómo montar el entorno.
 
 **Hecho (todo commiteado y pusheado a `feature-mercadopago`):**
 - Etapas **0, 1 y 3 completas** (0.3 y 0.4 salieron del plan: los resuelve Felipe por fuera); Etapa **2** completa salvo 2.4 (se cierra en producción); de la Etapa 4: **4.3, 4.4, 4.5 y 4.6**.
-- **Etapa 5:** 5.1 (guardia de desfasajes de `types.ts` contra el OpenAPI del backend), 5.4 (tests de `ListingPage` y `PosPage`) y 5.6, cerrados el 16/11; **5.3** (tests de fecha y hora contra los selectores reales) cerrado el 17/11. **Etapa 6:** 6.1, 6.3 y 6.4. **Etapa 7:** 7.1, 7.2 y 7.3. Cerrados el 16/11.
+- **Etapa 5:** 5.1 (guardia de desfasajes de `types.ts` contra el OpenAPI del backend), 5.4 (tests de `ListingPage` y `PosPage`) y 5.6, cerrados el 16/11; **5.3** (tests de fecha y hora contra los selectores reales) y **5.5** (botón de tema en el header de cada pantalla) cerrados el 17/11. **Etapa 6:** 6.1, 6.3 y 6.4. **Etapa 7:** 7.1, 7.2 y 7.3. Cerrados el 16/11.
 - Fuera del plan, el 12/11: SMTP configurable por variables de entorno (Gmail sin editar `application.yml`), lectura de un `backend/.env` opcional, el QR del mail de confirmación como imagen inline `cid:` y la versión en texto plano del mismo mail.
-- Suites: backend **338 tests, 0 fallos**; frontend **23 archivos, 216 tests, 0 fallos**; typecheck, lint y build limpios.
+- Suites: backend **338 tests, 0 fallos**; frontend **24 archivos, 219 tests, 0 fallos**; typecheck, lint y build limpios.
 
 **Decisiones de Felipe del 16/11** (en `DECISIONES.md`): **por ahora no se despliega nada, se sigue en local** (4.8); **el POS sí manda mail** al comprador (6.4).
 
 **Falta, en el orden que recomiendo** (detalle de cada uno en `CONTINUAR.md`, sección 4):
-1. **5.5** — mover el botón de tema claro/oscuro (M). **Necesita que Felipe decida dónde va.**
-2. **5.2** — suite end-to-end fija con Playwright (L). No automatizar el pago real de MercadoPago (reCAPTCHA).
-3. **6.2** — notificaciones automáticas (M–L). **Necesita que Felipe defina cuáles avisos quiere.**
-4. **7.4** — no es código: ramas más chicas, una por tema.
+1. **5.2** — suite end-to-end fija con Playwright (L). No automatizar el pago real de MercadoPago (reCAPTCHA).
+2. **6.2** — notificaciones automáticas (M–L). **Necesita que Felipe defina cuáles avisos quiere.**
+3. **7.4** — no es código: ramas más chicas, una por tema.
 6. **En pausa mientras no se despliegue:** 4.1 Flyway (L), 4.2 claves foráneas (L), 4.7 límite de peticiones en memoria (M) y 4.8. Si Felipe pide una muestra en la web, se reabre 4.8 (hay una recomendación de dónde y cómo en `CONTINUAR.md`, sección 4.2).
 7. **Antes de cualquier producción:** 2.4 (`MP_VALIDAR_FIRMA=true` comprobado con un pago real) y el checklist de la Fase 21 de `backend_implementation_plan.md`.
 
@@ -129,7 +128,7 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 | 5.2 | **Suite end-to-end fija con Playwright.** Hoy se instala y desinstala en cada verificación con scripts descartables, así que nada queda como regresión. Cubrir compra, venta del vendedor, escaneo y publicación. | L | ⏳ |
 | 5.3 | **Reescribir los tests de fecha y hora contra `DatePicker`/`TimePicker`.** Siguen pasando gracias a un `<input>` nativo oculto que quedó como puente; después se puede sacar. | M | ✅ 2026-11-17: tests propios de `DatePicker` y `TimePicker`, `src/testing/pickers.ts` (`elegirFecha`/`elegirHora`), `WizardPage` y `EditEventPage` reescritos, input oculto eliminado |
 | 5.4 | **Tests para `ListingPage` y `PosPage`.** No tienen ninguno y las dos cambiaron bastante. | M | ✅ 2026-11-16: `ListingPage.test.tsx` (17 tests) y `PosPage.test.tsx` (22 tests). Cubren estados de carga/error/vacío, orden por fecha, el tope de 16 eventos con el botón "Ir a ver todos" y el link fijo a `/eventos` (los dos bugs de la home que ya habían pasado), la línea de soporte, el tope de cantidad del POS (cupo de la tanda, tope por comprador, máximo 20, mail que ya agotó el tope), la validación del formulario, la venta en una sola llamada, el error de venta, "Vendidas hoy" y "Nueva venta", y copiar enlaces. Se comprobó que sirven: se rompió a propósito el código real de 3 formas (tope de 20, tope por comprador, tope de 16) y 4 tests fallaron; se revirtió. Suite del frontend: **20 archivos, 197 tests, 0 fallos**; lint sin mensajes en los tests nuevos |
-| 5.5 | **Mover el botón de tema claro/oscuro al header o a la navegación.** Como botón flotante ya causó dos bugs (tapaba botones del escáner; no respondía en el home). | M | ⏳ |
+| 5.5 | **Mover el botón de tema claro/oscuro al header o a la navegación.** Como botón flotante ya causó dos bugs (tapaba botones del escáner; no respondía en el home). | M | ✅ 2026-11-17: el toggle va en el header de cada pantalla (`ThemeToggle` con variantes `normal`/`sobre-imagen`/`esquina`), sin botón global; verificado con Playwright en 18 pantallas × desktop/mobile |
 | 5.6 | **Borrar las órdenes `Pendiente` huérfanas** que quedaron de las pruebas del 10/11 si el job de vencimiento no las cerró. | S | ✅ 2026-11-16: en esta base había 5 `Pendiente` (ids 25–29), pero eran del 10/9, del flujo simulado previo a MercadoPago: sin `fecha_vencimiento`, por eso el job nunca las tocó. Sin entradas asociadas; borradas. Limpieza de datos locales, sin cambio de código |
 
 ## Etapa 6 — UX y funcionalidad faltante

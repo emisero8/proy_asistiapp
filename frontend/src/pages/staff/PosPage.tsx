@@ -12,6 +12,7 @@ import type {
   VentaManualRequestDTO,
 } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 /** Link público (sin login) donde el comprador ve su entrada y el QR — para que el vendedor se lo pueda mandar. */
 function linkEntrada(codigoQr: string) {
@@ -150,7 +151,7 @@ export function StaffPosPage() {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-4xl mx-auto flex flex-col min-h-screen">
-          <div className="flex-none px-4 lg:px-0 pt-14 lg:pt-10 pb-4 border-b border-border">
+          <div className="flex-none px-4 lg:px-0 pt-4 lg:pt-10 pb-4 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center">
                 <QrCode size={16} className="text-green-400" />
@@ -161,6 +162,7 @@ export function StaffPosPage() {
                   {entradas.length} entrada{entradas.length > 1 ? "s" : ""} · {tanda.nombre}
                 </p>
               </div>
+              <ThemeToggle className="ml-auto" />
             </div>
           </div>
 
@@ -267,7 +269,7 @@ export function StaffPosPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="px-4 lg:px-8 pt-14 lg:pt-8 pb-3 border-b border-border bg-background sticky top-0 z-10">
+      <div className="px-4 lg:px-8 pt-4 lg:pt-8 pb-3 border-b border-border bg-background sticky top-0 z-10">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase">Punto de Venta</p>
@@ -278,6 +280,7 @@ export function StaffPosPage() {
               <p className="text-[10px] text-muted-foreground">Vendidas hoy</p>
               <p className="text-sm font-extrabold text-primary">{soldToday}</p>
             </div>
+            <ThemeToggle />
             <button onClick={logout} aria-label="Cerrar sesión" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
               <LogOut size={14} />
             </button>

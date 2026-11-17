@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ListingPage } from "./ListingPage";
 import { api, ApiError } from "../../lib/api";
+import { ThemeProvider } from "../../lib/theme";
 import type {
   EstadisticasPublicasResponseDTO,
   EventoPublicoListItemDTO,
@@ -79,13 +80,15 @@ function RutaActual() {
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={["/"]}>
-      <RutaActual />
-      <Routes>
-        <Route path="/" element={<ListingPage />} />
-        <Route path="*" element={<div>otra pantalla</div>} />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={["/"]}>
+        <RutaActual />
+        <Routes>
+          <Route path="/" element={<ListingPage />} />
+          <Route path="*" element={<div>otra pantalla</div>} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 

@@ -5,6 +5,7 @@ import { API_BASE_URL } from "../../lib/api";
 import { formatFecha, formatHora } from "../../lib/format";
 import type { EntradaResponseDTO, EventoPublicoDetalleDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 interface TicketState {
   entradas: EntradaResponseDTO[];
@@ -47,6 +48,7 @@ export function TicketPage() {
                 {entradas.length > 1 ? `${entradas.length} entradas enviadas` : "Entrada enviada"} a tu email
               </p>
             </div>
+            <ThemeToggle className="ml-auto" />
           </div>
         </div>
 

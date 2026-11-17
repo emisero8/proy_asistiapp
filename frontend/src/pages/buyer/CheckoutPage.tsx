@@ -12,6 +12,7 @@ import type {
   TandaResponseDTO,
 } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 interface CheckoutState {
   evento: EventoPublicoDetalleDTO;
@@ -83,13 +84,16 @@ export function CheckoutPage() {
     <div className="min-h-screen bg-background">
       <div className="px-4 lg:px-8 pt-6 pb-3 border-b border-border bg-background sticky top-0 z-10">
         <div className="max-w-[1800px] mx-auto">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors"
-          >
-            <ChevronLeft size={15} />
-            Volver
-          </button>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground transition-colors"
+            >
+              <ChevronLeft size={15} />
+              Volver
+            </button>
+            <ThemeToggle />
+          </div>
           <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Finalizar compra</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Sin registro. Solo tu nombre y email.</p>
         </div>

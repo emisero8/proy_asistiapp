@@ -8,6 +8,7 @@ import { FILTROS_FECHA, fechaEnRango, rangoFinDeSemana, type FiltroFecha } from 
 import { DateRangeFilter } from "../../components/DateRangeFilter";
 import type { EventoPublicoListItemDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 const POR_PAGINA = 16;
 
@@ -73,13 +74,16 @@ export function AllEventsPage() {
     <div className="min-h-screen bg-background">
       <div id="all-events-top" className="px-4 lg:px-8 pt-5 pb-4 border-b border-border">
         <div className="max-w-[1400px] mx-auto">
-          <button
-            onClick={() => navigate("/")}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-3"
-          >
-            <ChevronLeft size={15} />
-            Volver al inicio
-          </button>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <button
+              onClick={() => navigate("/")}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronLeft size={15} />
+              Volver al inicio
+            </button>
+            <ThemeToggle />
+          </div>
           <h1 className="font-display uppercase text-xl lg:text-2xl font-extrabold text-foreground tracking-tight mb-4">
             Todos los eventos
           </h1>

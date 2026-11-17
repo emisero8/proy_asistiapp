@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DetailPage } from "./DetailPage";
 import { api } from "../../lib/api";
 import type { EventoPublicoDetalleDTO, TandaResponseDTO } from "../../lib/types";
+import { ThemeProvider } from "../../lib/theme";
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
@@ -55,11 +56,13 @@ function evento(tandas: TandaResponseDTO[]): EventoPublicoDetalleDTO {
 async function renderPage(e: EventoPublicoDetalleDTO) {
   vi.mocked(api.get).mockResolvedValue(e);
   render(
-    <MemoryRouter initialEntries={["/eventos/festival-de-prueba"]}>
-      <Routes>
-        <Route path="/eventos/:urlPublica" element={<DetailPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={["/eventos/festival-de-prueba"]}>
+        <Routes>
+          <Route path="/eventos/:urlPublica" element={<DetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
   await waitFor(() => expect(screen.getByText("Elegí tu tanda")).toBeInTheDocument());
 }

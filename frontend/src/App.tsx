@@ -4,7 +4,6 @@ import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
 import { ThemeProvider, useTheme } from "./lib/theme";
 import { DialogProvider } from "./components/DialogProvider";
-import { ThemeToggle } from "./components/ThemeToggle";
 
 const ListingPage = lazy(() => import("./pages/buyer/ListingPage").then((m) => ({ default: m.ListingPage })));
 const AllEventsPage = lazy(() => import("./pages/buyer/AllEventsPage").then((m) => ({ default: m.AllEventsPage })));
@@ -177,7 +176,6 @@ function AppShell() {
       />
       <DialogProvider>
         <BrowserRouter>
-          <ThemeToggle />
           <Suspense fallback={<RouteFallback />}>
             <AnimatedRoutes />
           </Suspense>

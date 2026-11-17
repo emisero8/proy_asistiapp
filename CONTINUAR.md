@@ -16,7 +16,7 @@ Monorepo: `backend/` (Java 17 + Spring Boot 3.3.2, PostgreSQL, JWT stateless) y 
 
 ## 3. Dónde estamos
 
-Se trabaja ítem por ítem sobre `PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente está **commiteado y pusheado a `feature-mercadopago`**. Suites: backend **338 tests, 0 fallos** (`cd backend && mvn clean test`); frontend **23 archivos, 216 tests, 0 fallos** (`cd frontend; npx vitest run`, desde PowerShell), además de `npx tsc -b`, `npm run lint` y `npm run build` limpios.
+Se trabaja ítem por ítem sobre `PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente está **commiteado y pusheado a `feature-mercadopago`**. Suites: backend **338 tests, 0 fallos** (`cd backend && mvn clean test`); frontend **24 archivos, 219 tests, 0 fallos** (`cd frontend; npx vitest run`, desde PowerShell), además de `npx tsc -b`, `npm run lint` y `npm run build` limpios.
 
 **Hecho antes del 16/11:**
 - **Etapas 1, 2 y 3 completas** (2.4 queda para producción: `MP_VALIDAR_FIRMA=true`). Etapa 3: borrado de eventos con compras en curso, manejo global de errores 4xx (405/415/400 en vez de 500), el organizador puede borrar sus borradores, regla de "evento finalizado" unificada, zona horaria fija, venta manual con `cantidad`, espera de pago sin chocar con el límite de peticiones.
@@ -24,6 +24,7 @@ Se trabaja ítem por ítem sobre `PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente
 - **Fuera del plan, el 12/11:** SMTP configurable por variables de entorno (Gmail sin editar `application.yml`); el backend lee un `backend/.env` opcional; el QR del mail de confirmación viaja como imagen inline `cid:` (Gmail bloqueaba la `data:` URI); el mail de confirmación lleva versión en texto plano.
 
 **Hecho el 17/11:**
+- **5.5** — el botón de tema ya no es global ni flotante: `ThemeToggle` se coloca en el header de cada pantalla (`variante="normal"` en headers, `"sobre-imagen"` sobre la portada del evento, `"esquina"` fijo solo en pantallas sin header: login/registro vía `AuthBackground`). En `OrganizadorLayout`/`AdminLayout` va en el grupo de acciones (campanita, tema, salir). El escáner QR no lo tiene a propósito. **Los tests de páginas que renderizan `ThemeToggle` deben envolverse en `ThemeProvider`** (`useTheme` tira error fuera). Verificado con Playwright: 18 pantallas × desktop y mobile, 1 toggle, visible, sin tapar, sin errores de consola.
 - **5.3** — los tests de fecha y hora ya no usan el `<input>` nativo oculto que quedaba como puente: `DatePicker` y `TimePicker` tienen tests propios, `src/testing/pickers.ts` expone `elegirFecha`/`elegirHora` (abren el selector, navegan los meses y tocan el día/la hora como una persona) y `WizardPage`/`EditEventPage` los usan; el input oculto se eliminó de los componentes. Los días y horas ahora tienen nombre accesible ("28 de junio de 2030", "Hora 21"). **Ojo al escribir tests con fechas:** el calendario abre en el mes de hoy y cada mes es un clic, así que hay que congelar el reloj cerca con `vi.useFakeTimers({ toFake: ["Date"], now })` (solo `Date`, para no frenar a `userEvent`). Y con los selectores reales **no se puede elegir un día fuera de `min`/`max`** (por eso ya no hay un test que fuerce una fecha pasada o una venta posterior al evento: se prueba que esos días estén deshabilitados y, para el aviso de venta posterior al evento, el camino real de adelantar el evento).
 
 **Hecho el 16/11:**
@@ -42,7 +43,6 @@ Se trabaja ítem por ítem sobre `PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente
 
 | Ítem | Qué es | Tamaño | Necesita de Felipe | Cómo encararlo |
 |---|---|---|---|---|
-| **5.5** | Mover el botón de tema claro/oscuro (`ThemeToggle`, hoy flotante `fixed top-3 right-3 z-[60]`) al header o a la navegación. Como flotante ya causó dos bugs: tapaba los botones del escáner QR (hoy se oculta en `/staff/scanner`) y no respondía en pantallas con un header `z-50` propio. | M | **decidir dónde va** (header de cada layout, sidebar de desktop, menú) | Un lugar por layout (Organizador, Admin, comprador, Staff). Pantalla nueva ⇒ breakpoints mobile + desktop; verificar con capturas en los dos tamaños. |
 | **5.2** | Suite end-to-end fija con Playwright (hoy se instala y desinstala en cada verificación con scripts descartables, así que no queda ninguna regresión). | L | nada, salvo definir cómo sembrar datos | Cubrir compra (hasta la redirección), venta del vendedor, escaneo y publicación. **No automatizar el pago real en MercadoPago**: el login dispara reCAPTCHA tras pocos intentos y el pago como invitado falla (ver trampas). Va a necesitar datos sembrados por la API real y limpieza al final. |
 | **6.2** | Notificaciones automáticas. Existen la campanita y el anuncio global del Admin, pero solo hay avisos automáticos por evento cancelado por el Admin y reembolso de compra de créditos. | M–L | **definir cuáles avisos quiere** | Candidatos ya identificados y dejados afuera a propósito (`DECISIONES.md` 2026-10-22): avisar al Organizador cuando se reembolsan entradas de su evento y cuando se aprueba una compra de créditos (hace falta pasar `idOrganizador` por los records de retorno de `VentaService`/`CreditoService`). Otros posibles: staff asignado, créditos acreditados. |
 | **7.4** | No es código: ramas más chicas, una por tema, para que los PR se puedan revisar (`feature-mercadopago` acumuló muchísimo). | — | — | Antes de arrancar un tema nuevo, crear una rama propia. |
@@ -121,7 +121,7 @@ cd frontend; npm install; npm run dev       # http://localhost:5173
 cd tools;    .\MailHog.exe                  # opcional: UI http://localhost:8025 (si no hay backend/.env de Gmail)
 ```
 
-**Verificación rápida de que todo está bien:** `cd backend; mvn clean test` (338 tests, 0 fallos) y, en `frontend`, `npx tsc -b`, `npm run lint` y `npx vitest run` (216 tests).
+**Verificación rápida de que todo está bien:** `cd backend; mvn clean test` (338 tests, 0 fallos) y, en `frontend`, `npx tsc -b`, `npm run lint` y `npx vitest run` (219 tests).
 
 **Datos de prueba que hay en la base de la PC del 16/11** (no viajan con el repo): Organizador demo `organizador.demo@asistiapp.test` (contraseña de desarrollo `Demo1234!`) con el evento publicado "Evento Demo — Entregable Sprint 4" (id 39, tanda 38, 4 cupos, fecha 22/11/2026: después de esa fecha deja de ofrecerse, hay que crear otro) y un Staff QR `staff.qr.demo@asistiapp.test` (id 17, la contraseña temporal se mandó por mail y no se guarda). El evento de demo de la PC anterior ("Noche de Demo AsistíAPP", id 54) no está acá.
 

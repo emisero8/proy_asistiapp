@@ -8,6 +8,7 @@ import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { estadoVentaTanda, etiquetaEstadoTanda } from "../../lib/tanda";
 import type { EventoPublicoDetalleDTO, TandaResponseDTO } from "../../lib/types";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 export function DetailPage() {
   const { urlPublica } = useParams<{ urlPublica: string }>();
@@ -82,6 +83,7 @@ export function DetailPage() {
           >
             <ChevronLeft size={18} />
           </button>
+          <ThemeToggle variante="sobre-imagen" className="absolute top-4 right-4" />
         </div>
 
         <div className="lg:flex lg:gap-8 lg:items-start lg:mt-8">

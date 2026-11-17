@@ -4,6 +4,7 @@ import { CheckCircle2, AlertCircle, CircleX, Clock3, QrCode, Copy, Check } from 
 import { api, ApiError } from "../../lib/api";
 import type { EstadoOrdenCreditoResponseDTO, EstadoOrdenEntradasResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 /**
  * A esta pantalla vuelve el comprador (o el Organizador, para créditos) después de
@@ -158,6 +159,7 @@ export function PagoResultadoPage() {
           </span>
         </button>
         <span className="text-muted-foreground text-sm">/ Resultado del pago</span>
+        <ThemeToggle className="ml-auto" />
       </div>
 
       <div className="max-w-md mx-auto px-4 py-10">

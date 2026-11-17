@@ -5,6 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import type { AuthResponseDTO, MovimientoCreditoResponseDTO, RegisterRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 const PITCH_STATS = [
   { value: "0%", label: "comisión al organizador" },
@@ -90,6 +91,7 @@ export function OrganizadorRegisterPage() {
 
   return (
     <div className="min-h-screen bg-background lg:flex lg:items-center lg:justify-center lg:py-10">
+      <ThemeToggle variante="esquina" />
       <div className="w-full lg:max-w-5xl lg:mx-auto lg:grid lg:grid-cols-2 lg:gap-12 lg:items-center lg:px-8">
         {/* Pitch — solo desktop, para no alargar el flujo corto de mobile */}
         <div className="hidden lg:block">

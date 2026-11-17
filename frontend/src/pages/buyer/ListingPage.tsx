@@ -6,6 +6,7 @@ import { MapPin, Calendar, Sparkles, ArrowRight, Zap, ShieldCheck, TrendingUp, W
 import { api, ApiError } from "../../lib/api";
 import { fmt, formatFecha, hoyLocal } from "../../lib/format";
 import type { EstadisticasPublicasResponseDTO, EventoPublicoListItemDTO, PaqueteCreditoDisponibleDTO } from "../../lib/types";
+import { ThemeToggle } from "../../components/ThemeToggle";
 
 const EVENTOS_HOME = 16; // 4 filas de 4 columnas en desktop
 
@@ -105,7 +106,7 @@ export function ListingPage() {
     <div className="min-h-screen bg-background">
       {/* Header — fijo al hacer scroll, con blur y borde que aparecen recién al bajar */}
       <nav className={`sticky top-0 z-50 transition-all duration-300 ${scrolled ? "bg-background/90 backdrop-blur-md border-b border-border" : "bg-transparent"}`}>
-        <div className="max-w-[1800px] mx-auto pl-4 pr-16 lg:pl-8 lg:pr-20 h-16 flex items-center justify-between gap-3">
+        <div className="max-w-[1800px] mx-auto px-4 lg:px-8 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 sm:gap-8 min-w-0">
             <h2 className="text-lg font-extrabold text-foreground tracking-tight flex-none">
               Asistí<span className="text-primary">APP</span>
@@ -127,6 +128,7 @@ export function ListingPage() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3 flex-none">
+            <ThemeToggle />
             <button
               onClick={() => navigate("/organizador/login")}
               aria-label="Ingresar"

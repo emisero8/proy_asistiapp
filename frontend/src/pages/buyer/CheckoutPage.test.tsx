@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
 import { CheckoutPage } from "./CheckoutPage";
 import type { EventoPublicoDetalleDTO, TandaResponseDTO } from "../../lib/types";
+import { ThemeProvider } from "../../lib/theme";
 
 const TANDA: TandaResponseDTO = {
   id: 7,
@@ -32,11 +33,13 @@ const EVENTO = {
 
 function renderPage() {
   return render(
-    <MemoryRouter initialEntries={[{ pathname: "/checkout", state: { evento: EVENTO, tanda: TANDA, qty: 2 } }]}>
-      <Routes>
-        <Route path="/checkout" element={<CheckoutPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[{ pathname: "/checkout", state: { evento: EVENTO, tanda: TANDA, qty: 2 } }]}>
+        <Routes>
+          <Route path="/checkout" element={<CheckoutPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 

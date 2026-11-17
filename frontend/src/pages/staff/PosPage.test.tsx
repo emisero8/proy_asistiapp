@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StaffPosPage } from "./PosPage";
 import { api, ApiError } from "../../lib/api";
+import { ThemeProvider } from "../../lib/theme";
 import type {
   DisponibilidadCompradorResponseDTO,
   EntradaResponseDTO,
@@ -103,10 +104,10 @@ function mockApi({ eventos = [evento(1, "Festival", [tanda(1, "General")])], dis
 
 function renderPage() {
   return render(
-    <>
+    <ThemeProvider>
       <StaffPosPage />
       <Toaster />
-    </>,
+    </ThemeProvider>,
   );
 }
 
