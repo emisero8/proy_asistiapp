@@ -31,6 +31,14 @@ public class MercadoPagoConfig {
     @Value("${app.mercadopago.backend-public-url}")
     private String backendPublicUrl;
 
+    /**
+     * Las entradas se cobran con la cuenta de Mercado Pago de cada Organizador y no se puede publicar sin
+     * vincularla (8.5). Solo se apaga en local o en la suite e2e, donde no hay cuenta real que vincular: ahí
+     * se cobra con la cuenta de la plataforma, como antes.
+     */
+    @Value("${app.mercadopago.exigir-cuenta-vinculada:true}")
+    private boolean exigirCuentaVinculada;
+
     @Value("${app.mercadopago.minutos-vencimiento-orden}")
     private int minutosVencimientoOrden;
 

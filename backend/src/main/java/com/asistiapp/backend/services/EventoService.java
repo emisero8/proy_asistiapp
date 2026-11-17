@@ -49,6 +49,7 @@ public class EventoService {
     private final ConfiguracionService configuracionService;
     private final EmailService emailService;
     private final ImagenService imagenService;
+    private final CuentaCobroService cuentaCobroService;
 
     // ─────────────────────────────────────────────
     // Consultas
@@ -218,6 +219,13 @@ public class EventoService {
         // Verificar y descontar créditos del organizador
         Organizador organizador = organizadorRepository.findById(idOrganizador)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+
+        // 8.5: las entradas se cobran con la cuenta de Mercado Pago del Organizador, sin ella no hay a dónde cobrar.
+        if (!cuentaCobroService.puedeCobrar(idOrganizador)) {
+            throw new BusinessRuleException(
+                    "Vinculá tu cuenta de Mercado Pago en Mi perfil antes de publicar: " +
+                    "es la cuenta donde vas a recibir el dinero de las entradas");
+        }
 
         // 8.8: el botón de arrepentimiento deriva a este contacto; sin él no hay a dónde derivar.
         if (organizador.getContactoWhatsapp() == null && organizador.getContactoEmail() == null) {

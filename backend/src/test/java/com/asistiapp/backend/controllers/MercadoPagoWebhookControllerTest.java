@@ -69,7 +69,19 @@ class MercadoPagoWebhookControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(BODY_PAGO))
                 .andExpect(status().isOk());
 
-        verify(pagoWebhookService).procesarNotificacionPago(123456L);
+        verify(pagoWebhookService).procesarNotificacionPago(123456L, null, null);
+    }
+
+    @Test
+    void conReferenciaYVendedorEnElAviso_selosPasaAlServicioParaElegirElTokenDelOrganizador() throws Exception {
+        when(firmaValidator.esValida(any(), any(), any())).thenReturn(true);
+
+        mockMvc.perform(post("/payments/mercadopago/webhook?data.id=123456&type=payment&ref=ref-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"payment\",\"user_id\":\"478575150\",\"data\":{\"id\":\"123456\"}}"))
+                .andExpect(status().isOk());
+
+        verify(pagoWebhookService).procesarNotificacionPago(123456L, "ref-1", 478575150L);
     }
 
     @Test
@@ -80,7 +92,7 @@ class MercadoPagoWebhookControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(BODY_PAGO))
                 .andExpect(status().isOk());
 
-        verify(pagoWebhookService).procesarNotificacionPago(123456L);
+        verify(pagoWebhookService).procesarNotificacionPago(123456L, null, null);
     }
 
     @Test
@@ -91,7 +103,7 @@ class MercadoPagoWebhookControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"type\":\"merchant_order\",\"data\":{\"id\":\"55\"}}"))
                 .andExpect(status().isOk());
 
-        verify(pagoWebhookService, never()).procesarNotificacionPago(anyLong());
+        verify(pagoWebhookService, never()).procesarNotificacionPago(anyLong(), any(), any());
     }
 
     @Test
@@ -102,7 +114,7 @@ class MercadoPagoWebhookControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"type\":\"payment\"}"))
                 .andExpect(status().isBadRequest());
 
-        verify(pagoWebhookService, never()).procesarNotificacionPago(anyLong());
+        verify(pagoWebhookService, never()).procesarNotificacionPago(anyLong(), any(), any());
     }
 
     @Test
@@ -114,7 +126,7 @@ class MercadoPagoWebhookControllerTest {
                         .header("x-request-id", "req-1"))
                 .andExpect(status().isOk());
 
-        verify(pagoWebhookService).procesarNotificacionPago(123456L);
+        verify(pagoWebhookService).procesarNotificacionPago(123456L, null, null);
     }
 
     @Test
@@ -124,13 +136,13 @@ class MercadoPagoWebhookControllerTest {
         mockMvc.perform(post("/payments/mercadopago/webhook?id=45290772479&topic=merchant_order"))
                 .andExpect(status().isOk());
 
-        verify(pagoWebhookService, never()).procesarNotificacionPago(anyLong());
+        verify(pagoWebhookService, never()).procesarNotificacionPago(anyLong(), any(), any());
     }
 
     @Test
     void errorTransitorioDeMercadoPago_devuelve5xxParaQueReintente() throws Exception {
         when(firmaValidator.esValida(any(), any(), any())).thenReturn(true);
-        doThrow(new PasarelaPagoException("MP caído")).when(pagoWebhookService).procesarNotificacionPago(eq(123456L));
+        doThrow(new PasarelaPagoException("MP caído")).when(pagoWebhookService).procesarNotificacionPago(eq(123456L), any(), any());
 
         mockMvc.perform(post("/payments/mercadopago/webhook?data.id=123456&type=payment")
                         .contentType(MediaType.APPLICATION_JSON).content(BODY_PAGO))

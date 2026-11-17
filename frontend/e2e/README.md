@@ -18,6 +18,7 @@ Prueba el sistema **real**: frontend en el navegador contra el backend y la base
    $env:SMTP_HOST='localhost'; $env:SMTP_PORT='1025'; $env:SMTP_USERNAME=''; $env:SMTP_PASSWORD=''; $env:SMTP_AUTH='false'; $env:SMTP_STARTTLS='false'
    mvn spring-boot:run
    ```
+   Agregá también `$env:MP_EXIGIR_CUENTA_VINCULADA='false'`: los Organizadores que crea la suite no tienen una cuenta real de Mercado Pago que vincular, y con la exigencia apagada se publica igual y se cobra con la cuenta de la plataforma (8.5).
    (`MP_ACCESS_TOKEN` tiene que estar cargado para que la compra pueda crear el pago; sale del `.env` o de las variables de entorno.)
 2. **Frontend:** `cd frontend; npm run dev` (puerto 5173).
 3. **Suite:** `cd frontend; npm run e2e`. La primera vez en una máquina nueva: `npx playwright install chromium`.

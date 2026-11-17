@@ -42,6 +42,7 @@ public class MercadoPagoWebhookController {
             @RequestParam(value = "type", required = false) String typeQuery,
             @RequestParam(value = "id", required = false) String idIpnQuery,
             @RequestParam(value = "topic", required = false) String topicIpnQuery,
+            @RequestParam(value = "ref", required = false) String referencia,
             @RequestBody(required = false) JsonNode body) {
 
         // MP manda cada pago por dos vías: Webhooks (?data.id=…&type=payment) y el formato
@@ -79,8 +80,21 @@ public class MercadoPagoWebhookController {
             return ResponseEntity.badRequest().build();
         }
 
-        pagoWebhookService.procesarNotificacionPago(paymentId);
+        pagoWebhookService.procesarNotificacionPago(paymentId, referencia, vendedorMp(body));
         return ResponseEntity.ok().build();
+    }
+
+    /** Vendedor de Mercado Pago que cobró el pago (`user_id` del aviso); null si no viene o no es un número. */
+    private static Long vendedorMp(JsonNode body) {
+        String texto = texto(body, "user_id");
+        if (texto == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(texto);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static String texto(JsonNode nodo, String campo) {

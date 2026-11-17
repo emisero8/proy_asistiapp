@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * locking de TandaRepository.findByIdWithLock() + decrementarCupo() deben
  * garantizar.
  */
-@SpringBootTest
+@SpringBootTest(properties = "app.mercadopago.exigir-cuenta-vinculada=false")
 @ActiveProfiles("test")
 class VentaServiceConcurrencyTest {
 
@@ -61,7 +61,7 @@ class VentaServiceConcurrencyTest {
     void mockearMercadoPago() {
         org.mockito.Mockito.when(mercadoPagoService.calcularVencimiento())
                 .thenReturn(java.time.LocalDateTime.now().plusMinutes(30));
-        org.mockito.Mockito.when(mercadoPagoService.crearPreferencia(org.mockito.ArgumentMatchers.any()))
+        org.mockito.Mockito.when(mercadoPagoService.crearPreferencia(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new MercadoPagoService.PreferenciaCreada("pref", "https://mp.test/init"));
     }
 

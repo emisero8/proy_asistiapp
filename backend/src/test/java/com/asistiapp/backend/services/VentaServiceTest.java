@@ -62,6 +62,8 @@ class VentaServiceTest {
     @Mock
     private MercadoPagoService mercadoPagoService;
     @Mock
+    private CuentaCobroService cuentaCobroService;
+    @Mock
     private NotificacionService notificacionService;
 
     @InjectMocks
@@ -153,7 +155,8 @@ class VentaServiceTest {
             t.setExternalReference("ref-uuid-123"); // lo setea @PrePersist en la base real
             return t;
         });
-        when(mercadoPagoService.crearPreferencia(any()))
+        when(cuentaCobroService.tokenParaCobrar(evento.getIdOrganizador())).thenReturn("token-del-organizador");
+        when(mercadoPagoService.crearPreferencia(any(), any()))
                 .thenReturn(new MercadoPagoService.PreferenciaCreada("pref-1", "https://mp.test/init"));
 
         IniciarCompraResponseDTO response = ventaService.iniciarCompraOnline(dto);
@@ -170,9 +173,25 @@ class VentaServiceTest {
                 o.cantidad() == 3
                         && o.precioUnitario().compareTo(BigDecimal.valueOf(1000.0)) == 0
                         && o.externalReference().equals("ref-uuid-123")
-                        && o.tipo().equals(MercadoPagoService.TIPO_ENTRADAS)));
+                        && o.tipo().equals(MercadoPagoService.TIPO_ENTRADAS)), eq("token-del-organizador"));
         // Comprar no descuenta cupo: eso lo hace el webhook al confirmar el pago.
         verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
+    }
+
+    @Test
+    void iniciarCompraOnline_elOrganizadorNoPuedeCobrar_lanzaBusinessRuleExceptionSinCrearOrdenNiPreferencia() {
+        // 8.5: sin cuenta de Mercado Pago utilizable del Organizador no hay a dónde cobrar.
+        CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        dto.setCantidad(1);
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(cuentaCobroService.tokenParaCobrar(evento.getIdOrganizador()))
+                .thenThrow(new BusinessRuleException("Este evento no puede cobrar online en este momento. Contactá al organizador."));
+
+        assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("no puede cobrar online");
+
+        verifyNoInteractions(transaccionPagoRepository, mercadoPagoService);
     }
 
     @Test

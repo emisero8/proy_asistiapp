@@ -14,6 +14,9 @@ public interface CuentaMercadoPagoRepository extends JpaRepository<CuentaMercado
 
     Optional<CuentaMercadoPago> findByIdOrganizador(Long idOrganizador);
 
+    /** Para ubicar la cuenta de un cobro a partir del vendedor que informa Mercado Pago en el aviso. */
+    Optional<CuentaMercadoPago> findByMpUserId(Long mpUserId);
+
     /** Cuentas cuyo token vence antes de la fecha dada: son las que hay que renovar. */
     List<CuentaMercadoPago> findByEstadoAndExpiraEnBefore(EstadoCuentaMp estado, LocalDateTime fecha);
 }

@@ -37,6 +37,8 @@ class PagoWebhookServiceTest {
     @Mock
     private MercadoPagoService mercadoPagoService;
     @Mock
+    private CuentaCobroService cuentaCobroService;
+    @Mock
     private VentaService ventaService;
     @Mock
     private CreditoService creditoService;
@@ -50,7 +52,7 @@ class PagoWebhookServiceTest {
 
     /** El Payment se arma ANTES de stubbear: Mockito no admite stubbear dentro del argumento de otro stub. */
     private void mpDevuelve(Payment pago) {
-        when(mercadoPagoService.obtenerPago(PAYMENT_ID)).thenReturn(Optional.of(pago));
+        when(mercadoPagoService.obtenerPago(PAYMENT_ID, null)).thenReturn(Optional.of(pago));
     }
 
     private Payment pago(String estado, String referencia) {
@@ -74,7 +76,7 @@ class PagoWebhookServiceTest {
 
     @Test
     void pagoInexistenteEnMercadoPago_noHaceNada() {
-        when(mercadoPagoService.obtenerPago(PAYMENT_ID)).thenReturn(Optional.empty());
+        when(mercadoPagoService.obtenerPago(PAYMENT_ID, null)).thenReturn(Optional.empty());
 
         service.procesarNotificacionPago(PAYMENT_ID);
 
@@ -83,7 +85,7 @@ class PagoWebhookServiceTest {
 
     @Test
     void errorAlConsultarMercadoPago_sePropagaParaQueMercadoPagoReintente() {
-        when(mercadoPagoService.obtenerPago(PAYMENT_ID)).thenThrow(new PasarelaPagoException("MP caído"));
+        when(mercadoPagoService.obtenerPago(PAYMENT_ID, null)).thenThrow(new PasarelaPagoException("MP caído"));
 
         assertThatThrownBy(() -> service.procesarNotificacionPago(PAYMENT_ID))
                 .isInstanceOf(PasarelaPagoException.class);
@@ -106,7 +108,7 @@ class PagoWebhookServiceTest {
         service.procesarNotificacionPago(PAYMENT_ID);
 
         verifyNoInteractions(ventaService, creditoService, emailService);
-        verify(mercadoPagoService, never()).reembolsar(anyLong());
+        verify(mercadoPagoService, never()).reembolsar(anyLong(), any());
     }
 
     @Test
@@ -119,7 +121,7 @@ class PagoWebhookServiceTest {
         service.procesarNotificacionPago(PAYMENT_ID);
 
         verify(emailService).enviarConfirmacionCompra("juan@example.com", "Juan", "Evento", "General", List.of("QR-1", "QR-2"));
-        verify(mercadoPagoService, never()).reembolsar(anyLong());
+        verify(mercadoPagoService, never()).reembolsar(anyLong(), any());
     }
 
     @Test
@@ -132,7 +134,7 @@ class PagoWebhookServiceTest {
         service.procesarNotificacionPago(PAYMENT_ID);
 
         verifyNoInteractions(emailService);
-        verify(mercadoPagoService, never()).reembolsar(anyLong());
+        verify(mercadoPagoService, never()).reembolsar(anyLong(), any());
     }
 
     @Test
@@ -146,7 +148,7 @@ class PagoWebhookServiceTest {
 
         service.procesarNotificacionPago(PAYMENT_ID);
 
-        verify(mercadoPagoService).reembolsar(PAYMENT_ID);
+        verify(mercadoPagoService).reembolsar(PAYMENT_ID, null);
         verify(ventaService).marcarOrdenReembolsada(REF, PAYMENT_ID);
         verify(emailService).enviarNotificacionReembolsoEntradas("juan@example.com", "Juan", "Evento");
     }
@@ -171,7 +173,7 @@ class PagoWebhookServiceTest {
         when(ventaService.existeOrdenEntradas(REF)).thenReturn(true);
         when(ventaService.confirmarPagoEntradas(eq(REF), eq(PAYMENT_ID), any(), eq("ARS")))
                 .thenReturn(VentaService.ConfirmacionEntradas.sinEntradas(ResultadoPago.SIN_DISPONIBILIDAD));
-        org.mockito.Mockito.doThrow(new PasarelaPagoException("MP caído")).when(mercadoPagoService).reembolsar(PAYMENT_ID);
+        org.mockito.Mockito.doThrow(new PasarelaPagoException("MP caído")).when(mercadoPagoService).reembolsar(PAYMENT_ID, null);
 
         assertThatThrownBy(() -> service.procesarNotificacionPago(PAYMENT_ID))
                 .isInstanceOf(PasarelaPagoException.class);
@@ -188,7 +190,7 @@ class PagoWebhookServiceTest {
 
         service.procesarNotificacionPago(PAYMENT_ID);
 
-        verify(mercadoPagoService).reembolsar(PAYMENT_ID);
+        verify(mercadoPagoService).reembolsar(PAYMENT_ID, null);
         verify(ventaService, never()).marcarOrdenReembolsada(any(), anyLong());
     }
 
@@ -202,7 +204,7 @@ class PagoWebhookServiceTest {
         service.procesarNotificacionPago(PAYMENT_ID);
 
         verifyNoInteractions(emailService);
-        verify(mercadoPagoService, never()).reembolsar(anyLong());
+        verify(mercadoPagoService, never()).reembolsar(anyLong(), any());
     }
 
     @Test
@@ -232,7 +234,7 @@ class PagoWebhookServiceTest {
 
         service.procesarNotificacionPago(PAYMENT_ID);
 
-        verify(mercadoPagoService).reembolsar(PAYMENT_ID);
+        verify(mercadoPagoService).reembolsar(PAYMENT_ID, null);
         verify(creditoService).marcarOrdenReembolsada(REF, PAYMENT_ID);
         verify(emailService).enviarNotificacionReembolsoCreditos("org@example.com", "Organizador", 10);
     }
@@ -247,7 +249,7 @@ class PagoWebhookServiceTest {
 
         verify(ventaService, never()).confirmarPagoEntradas(any(), anyLong(), any(), any());
         verify(creditoService, never()).confirmarPagoCredito(any(), anyLong(), any(), any());
-        verify(mercadoPagoService, never()).reembolsar(anyLong());
+        verify(mercadoPagoService, never()).reembolsar(anyLong(), any());
     }
 
     @Test
@@ -275,13 +277,75 @@ class PagoWebhookServiceTest {
         verifyNoMoreInteractions(emailService);
     }
 
+
+    // ─────────────────────────────────────────────
+    // Token de la cuenta que cobró (8.5)
+    // ─────────────────────────────────────────────
+
+    @Test
+    void avisoConReferenciaDeUnaOrdenDeEntradas_consultaElPagoConElTokenDelOrganizador() {
+        when(cuentaCobroService.tokenParaOrden(REF)).thenReturn("token-org");
+        Payment pago = pago("pending", REF);
+        when(mercadoPagoService.obtenerPago(PAYMENT_ID, "token-org")).thenReturn(Optional.of(pago));
+
+        service.procesarNotificacionPago(PAYMENT_ID, REF, null);
+
+        verify(mercadoPagoService).obtenerPago(PAYMENT_ID, "token-org");
+    }
+
+    @Test
+    void avisoSinReferencia_usaElVendedorQueCobroParaElegirElToken() {
+        when(cuentaCobroService.tokenParaVendedor(478575150L)).thenReturn("token-org");
+        Payment pendiente = pago("pending", REF);
+        when(mercadoPagoService.obtenerPago(PAYMENT_ID, "token-org")).thenReturn(Optional.of(pendiente));
+
+        service.procesarNotificacionPago(PAYMENT_ID, null, 478575150L);
+
+        verify(mercadoPagoService).obtenerPago(PAYMENT_ID, "token-org");
+    }
+
+    @Test
+    void avisoSinReferenciaNiVendedor_usaLaCuentaDeLaPlataforma_comoLaCompraDeCreditos() {
+        Payment pendiente = pago("pending", REF);
+        when(mercadoPagoService.obtenerPago(PAYMENT_ID, null)).thenReturn(Optional.of(pendiente));
+
+        service.procesarNotificacionPago(PAYMENT_ID, null, null);
+
+        verify(mercadoPagoService).obtenerPago(PAYMENT_ID, null);
+    }
+
+    @Test
+    void sinDisponibilidad_reembolsaDesdeLaCuentaDelOrganizador() {
+        // El dinero está en la cuenta del Organizador: el reembolso automático sale de ahí, no de la de la plataforma.
+        when(cuentaCobroService.tokenParaOrden(REF)).thenReturn("token-org");
+        mpDevuelve(pagoAprobado());
+        when(ventaService.existeOrdenEntradas(REF)).thenReturn(true);
+        when(ventaService.confirmarPagoEntradas(eq(REF), eq(PAYMENT_ID), any(), eq("ARS")))
+                .thenReturn(confirmacion(ResultadoPago.SIN_DISPONIBILIDAD));
+        when(ventaService.marcarOrdenReembolsada(REF, PAYMENT_ID)).thenReturn(VentaService.ReembolsoEntradas.NO_HIZO_FALTA);
+
+        service.procesarNotificacionPago(PAYMENT_ID);
+
+        verify(mercadoPagoService).reembolsar(PAYMENT_ID, "token-org");
+    }
+
+    @Test
+    void reconciliar_buscaLosPagosConElTokenDelOrganizadorDeLaOrden() {
+        when(cuentaCobroService.tokenParaOrden(REF)).thenReturn("token-org");
+        when(mercadoPagoService.buscarPagosPorReferencia(REF, "token-org")).thenReturn(List.of());
+
+        service.reconciliar(REF);
+
+        verify(mercadoPagoService).buscarPagosPorReferencia(REF, "token-org");
+    }
+
     // ─────────────────────────────────────────────
     // reconciliar — orden que sigue Pendiente, por si el webhook nunca llegó
     // ─────────────────────────────────────────────
 
     @Test
     void reconciliar_sinPagosEncontrados_noHaceNada() {
-        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of());
+        when(mercadoPagoService.buscarPagosPorReferencia(REF, null)).thenReturn(List.of());
 
         service.reconciliar(REF);
 
@@ -292,7 +356,7 @@ class PagoWebhookServiceTest {
     void reconciliar_pagoAprobadoEncontrado_loProcesaIgualQueElWebhook() {
         Payment pago = pagoAprobado();
         lenient().when(pago.getId()).thenReturn(PAYMENT_ID);
-        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of(pago));
+        when(mercadoPagoService.buscarPagosPorReferencia(REF, null)).thenReturn(List.of(pago));
         when(ventaService.existeOrdenEntradas(REF)).thenReturn(true);
         when(ventaService.confirmarPagoEntradas(eq(REF), eq(PAYMENT_ID), any(), eq("ARS")))
                 .thenReturn(confirmacion(ResultadoPago.CONFIRMADA));
@@ -308,7 +372,7 @@ class PagoWebhookServiceTest {
         lenient().when(rechazado.getId()).thenReturn(111L);
         Payment aprobado = pagoAprobado();
         lenient().when(aprobado.getId()).thenReturn(222L);
-        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of(rechazado, aprobado));
+        when(mercadoPagoService.buscarPagosPorReferencia(REF, null)).thenReturn(List.of(rechazado, aprobado));
         when(ventaService.existeOrdenEntradas(REF)).thenReturn(true);
         when(ventaService.confirmarPagoEntradas(eq(REF), eq(222L), any(), eq("ARS")))
                 .thenReturn(confirmacion(ResultadoPago.CONFIRMADA));
@@ -326,11 +390,11 @@ class PagoWebhookServiceTest {
     @Test
     void reconciliarSiCorresponde_cuandoTocaConsultar_consultaAMercadoPago() {
         when(throttleReconciliacion.permitir(REF)).thenReturn(true);
-        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of());
+        when(mercadoPagoService.buscarPagosPorReferencia(REF, null)).thenReturn(List.of());
 
         service.reconciliarSiCorresponde(REF);
 
-        verify(mercadoPagoService).buscarPagosPorReferencia(REF);
+        verify(mercadoPagoService).buscarPagosPorReferencia(REF, null);
     }
 
     @Test
@@ -345,11 +409,11 @@ class PagoWebhookServiceTest {
     @Test
     void reconciliar_aSecas_nuncaPasaPorElThrottle() {
         // El job de vencimiento llama a reconciliar() directo: no puede saltearse la consulta.
-        when(mercadoPagoService.buscarPagosPorReferencia(REF)).thenReturn(List.of());
+        when(mercadoPagoService.buscarPagosPorReferencia(REF, null)).thenReturn(List.of());
 
         service.reconciliar(REF);
 
         verifyNoInteractions(throttleReconciliacion);
-        verify(mercadoPagoService).buscarPagosPorReferencia(REF);
+        verify(mercadoPagoService).buscarPagosPorReferencia(REF, null);
     }
 }

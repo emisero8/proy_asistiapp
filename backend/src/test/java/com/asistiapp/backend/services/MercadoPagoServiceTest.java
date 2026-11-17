@@ -28,6 +28,10 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -111,6 +115,103 @@ class MercadoPagoServiceTest {
 
         assertThatThrownBy(() -> mercadoPagoService.crearPreferencia(orden()))
                 .isInstanceOf(PasarelaPagoException.class);
+    }
+
+    // ─────────────────────────────────────────────
+    // Cobro con la cuenta del Organizador (8.5)
+    // ─────────────────────────────────────────────
+
+    @Test
+    void crearPreferencia_conTokenDelOrganizador_cobraConEseTokenYNoConElDeLaPlataforma() throws Exception {
+        when(config.getFrontendBaseUrl()).thenReturn("http://localhost:5173");
+        when(config.getBackendPublicUrl()).thenReturn("http://localhost:8080");
+        when(preferenceClient.create(any(PreferenceRequest.class), any(com.mercadopago.core.MPRequestOptions.class)))
+                .thenReturn(preferenciaCon("https://www.mercadopago.com.ar/x", null));
+
+        mercadoPagoService.crearPreferencia(orden(), "token-del-organizador");
+
+        verify(preferenceClient).create(any(PreferenceRequest.class),
+                argThat(o -> "token-del-organizador".equals(o.getAccessToken())));
+        verify(preferenceClient, never()).create(any(PreferenceRequest.class));
+    }
+
+    @Test
+    void crearPreferencia_conTokenDelOrganizador_noExigeQueLaPlataformaTengaElSuyo() throws Exception {
+        // La cuenta de la plataforma puede no estar configurada y aun así cobrarse con la del Organizador.
+        when(config.getFrontendBaseUrl()).thenReturn("http://localhost:5173");
+        when(config.getBackendPublicUrl()).thenReturn("http://localhost:8080");
+        when(preferenceClient.create(any(PreferenceRequest.class), any(com.mercadopago.core.MPRequestOptions.class)))
+                .thenReturn(preferenciaCon("https://www.mercadopago.com.ar/x", null));
+
+        var resultado = mercadoPagoService.crearPreferencia(orden(), "token-del-organizador");
+
+        assertThat(resultado.initPoint()).isEqualTo("https://www.mercadopago.com.ar/x");
+    }
+
+    @Test
+    void crearPreferencia_laUrlDeNotificacionLlevaLaReferenciaDeLaOrden() throws Exception {
+        when(config.getAccessToken()).thenReturn("APP_USR-algo");
+        when(config.getFrontendBaseUrl()).thenReturn("https://front.test");
+        when(config.getBackendPublicUrl()).thenReturn("https://back.test");
+        when(preferenceClient.create(any(PreferenceRequest.class)))
+                .thenReturn(preferenciaCon("https://www.mercadopago.com.ar/x", null));
+
+        mercadoPagoService.crearPreferencia(orden());
+
+        var captor = org.mockito.ArgumentCaptor.forClass(PreferenceRequest.class);
+        verify(preferenceClient).create(captor.capture());
+        // El aviso solo trae el id del pago: con la referencia se sabe de qué Organizador es la orden.
+        assertThat(captor.getValue().getNotificationUrl())
+                .isEqualTo("https://back.test/payments/mercadopago/webhook?ref=ext-ref-1");
+    }
+
+    @Test
+    void obtenerPago_conToken_consultaConEseToken() throws Exception {
+        Payment pago = mock(Payment.class);
+        when(paymentClient.get(eq(77L), any(com.mercadopago.core.MPRequestOptions.class))).thenReturn(pago);
+
+        var resultado = mercadoPagoService.obtenerPago(77L, "token-del-organizador");
+
+        assertThat(resultado).contains(pago);
+        verify(paymentClient).get(eq(77L), argThat(o -> "token-del-organizador".equals(o.getAccessToken())));
+    }
+
+    @Test
+    void obtenerPago_sinToken_usaLaCuentaDeLaPlataforma() throws Exception {
+        Payment pago = mock(Payment.class);
+        when(paymentClient.get(77L)).thenReturn(pago);
+
+        assertThat(mercadoPagoService.obtenerPago(77L, null)).contains(pago);
+    }
+
+    @Test
+    void buscarPagosPorReferencia_conToken_buscaConEseToken() throws Exception {
+        Payment pago = mock(Payment.class);
+        MPResultsResourcesPage<Payment> page = new MPResultsResourcesPage<>();
+        page.setResults(List.of(pago));
+        when(paymentClient.search(any(MPSearchRequest.class), any(com.mercadopago.core.MPRequestOptions.class))).thenReturn(page);
+
+        var resultado = mercadoPagoService.buscarPagosPorReferencia("ext-ref-1", "token-del-organizador");
+
+        assertThat(resultado).containsExactly(pago);
+        verify(paymentClient).search(any(MPSearchRequest.class), argThat(o -> "token-del-organizador".equals(o.getAccessToken())));
+    }
+
+    @Test
+    void reembolsar_conToken_reembolsaDesdeLaCuentaDelOrganizador() throws Exception {
+        mercadoPagoService.reembolsar(77L, "token-del-organizador");
+
+        var captor = org.mockito.ArgumentCaptor.forClass(com.mercadopago.core.MPRequestOptions.class);
+        verify(paymentRefundClient).refund(eq(77L), captor.capture());
+        assertThat(captor.getValue().getAccessToken()).isEqualTo("token-del-organizador");
+        verify(paymentRefundClient, never()).refund(77L);
+    }
+
+    @Test
+    void reembolsar_sinToken_reembolsaDesdeLaCuentaDeLaPlataforma() throws Exception {
+        mercadoPagoService.reembolsar(77L, null);
+
+        verify(paymentRefundClient).refund(77L);
     }
 
     // ─────────────────────────────────────────────

@@ -22,7 +22,7 @@ Lo que hay que construir en el backend:
 4. `MercadoPagoService`: crear preferencia, consultar pago y reembolsar con el token **del Organizador** (hoy usa uno solo de la plataforma). La compra de créditos sigue con el token de la plataforma.
 5. Estado "cuenta vinculada" visible en el panel del Organizador; bloqueo de la publicación si no está vinculada.
 
-> **Estado (17/11):** los puntos 1 a 4 y el estado visible en Mi perfil están implementados (8.4). La autorización real se probó con éxito; el bloqueo de la publicación queda para 8.5. Tokens: `access_token` de 180 días, `refresh_token` que rota en cada renovación (se guarda el nuevo).
+> **Estado (17/11):** los puntos 1 a 4 y el estado visible en Mi perfil están implementados (8.4). La autorización real se probó con éxito. El cobro con el token del Organizador y el bloqueo de la publicación sin cuenta vinculada están implementados (8.5); falta probar un pago real. Tokens: `access_token` de 180 días, `refresh_token` que rota en cada renovación (se guarda el nuevo).
 6. Webhook y reconciliación: ya consultan cada pago por API; deben usar el token del vendedor correspondiente a la orden.
 
 **A verificar antes de construir** (no se pudo confirmar en la documentación de Argentina): qué API aplica (`/checkout/preferences` u `/v1/orders`), cómo llegan las notificaciones de pagos de vendedores vinculados y el vencimiento de los tokens. Hace falta registrar la aplicación como marketplace en el panel de Mercado Pago y crear un vendedor y un comprador de prueba.
@@ -52,7 +52,7 @@ Lo que sí se construye, para que el Organizador lo tenga fácil:
 |---|---|---|
 | A | Registrar la aplicación como marketplace; verificar API y notificaciones con vendedor de prueba | Felipe, en el panel de Mercado Pago |
 | B | Vinculación OAuth, tokens cifrados, renovación, estado en el panel | A |
-| C | Cobro de entradas con el token del Organizador (preferencia, consulta, webhook, reconciliación); bloqueo de publicar sin cuenta | B |
+| C | Cobro de entradas con el token del Organizador (preferencia, consulta, webhook, reconciliación); bloqueo de publicar sin cuenta (código listo en 8.5; falta probar un pago real) | B |
 | D | Entradas manuales del Organizador (cortesía / pago externo) y trazabilidad de quién emitió cada entrada | — |
 | E | Tope por vendedor y resumen por vendedor | D |
 | F | Anular entrada y reembolsar desde el panel; reembolso masivo al cancelar; devolución de créditos de entradas anuladas | C |

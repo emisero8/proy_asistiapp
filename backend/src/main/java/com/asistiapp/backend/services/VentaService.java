@@ -73,6 +73,7 @@ public class VentaService {
     private final QrImageService qrImageService;
     private final SecurityUtils securityUtils;
     private final MercadoPagoService mercadoPagoService;
+    private final CuentaCobroService cuentaCobroService;
     private final NotificacionService notificacionService;
     private final LimiteCompradorService limiteCompradorService;
 
@@ -106,6 +107,10 @@ public class VentaService {
             throw new BusinessRuleException("Esta tanda no tiene un precio válido para pagar online");
         }
 
+        // 8.5: el dinero cae en la cuenta de Mercado Pago del Organizador. Se pide antes de crear la orden:
+        // si no puede cobrar, el comprador lo sabe ya y no queda una orden huérfana.
+        String tokenCobro = cuentaCobroService.tokenParaCobrar(tanda.getEvento().getIdOrganizador());
+
         TransaccionPago transaccion = new TransaccionPago();
         transaccion.setIdTanda(tanda.getId());
         transaccion.setCantidad(cantidad);
@@ -128,7 +133,8 @@ public class VentaService {
                         saved.getExternalReference(),
                         MercadoPagoService.TIPO_ENTRADAS,
                         dto.getEmailComprador(),
-                        saved.getFechaVencimiento()));
+                        saved.getFechaVencimiento()),
+                tokenCobro);
 
         log.info("Compra iniciada: transaccionId={}, ref={}, tanda={}, cantidad={}, comprador={}",
                 saved.getId(), saved.getExternalReference(), dto.getIdTanda(), cantidad, dto.getEmailComprador());

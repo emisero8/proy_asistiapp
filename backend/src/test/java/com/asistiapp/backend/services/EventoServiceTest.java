@@ -47,6 +47,8 @@ class EventoServiceTest {
     @Mock
     private OrganizadorRepository organizadorRepository;
     @Mock
+    private CuentaCobroService cuentaCobroService;
+    @Mock
     private EntradaRepository entradaRepository;
     @Mock
     private CreditoLedgerService creditoLedgerService;
@@ -77,6 +79,7 @@ class EventoServiceTest {
         organizador.setId(ID_ORGANIZADOR);
         organizador.setSaldoCreditos(3);
         organizador.setContactoEmail("contacto@demo.com");
+        lenient().when(cuentaCobroService.puedeCobrar(ID_ORGANIZADOR)).thenReturn(true);
     }
 
     // ─────────────────────────────────────────────
@@ -275,6 +278,23 @@ class EventoServiceTest {
         assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Borrador");
+    }
+
+    @Test
+    void publicarEvento_sinCuentaDeMercadoPagoVinculada_lanzaBusinessRuleExceptionYNoCambiaEstado() {
+        // 8.5: las entradas se cobran en la cuenta del Organizador; sin ella no se publica.
+        agregarTandaAlEvento();
+        when(cuentaCobroService.puedeCobrar(ID_ORGANIZADOR)).thenReturn(false);
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+        when(organizadorRepository.findById(ID_ORGANIZADOR)).thenReturn(Optional.of(organizador));
+
+        assertThatThrownBy(() -> eventoService.publicarEvento(evento.getId(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Mercado Pago");
+
+        assertThat(evento.getEstado()).isEqualTo(EstadoEvento.Borrador);
+        verifyNoInteractions(creditoLedgerService);
+        verify(eventoRepository, never()).save(any());
     }
 
     @Test

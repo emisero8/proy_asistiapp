@@ -92,7 +92,7 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `POST /organizador/mercadopago/vincular` | `Organizador`. Devuelve `{ urlAutorizacion }`: la URL de Mercado Pago a la que el frontend redirige para que el Organizador autorice la aplicación. |
 | `GET /mercadopago/oauth/callback` | Público (lo abre el navegador al volver de Mercado Pago). Cambia el código por tokens y redirige a `/organizador/perfil?mp=ok`, `cancelado` o `error`. |
 | `GET /organizador/mercadopago/estado`, `DELETE /organizador/mercadopago` | `Organizador`. Estado de su cuenta (`vinculada`, `estado`, `mpUserId`, nunca tokens) y desvinculación. |
-| `POST /payments/mercadopago/webhook` | Aviso de pago de MercadoPago (autenticado por la firma, no por JWT). |
+| `POST /payments/mercadopago/webhook` | Aviso de pago de MercadoPago (autenticado por la firma, no por JWT). Parámetro opcional `ref` (la referencia de la orden, que va en la URL de notificación): con él y el `user_id` del aviso se elige la cuenta de Mercado Pago con la que se consulta el pago. |
 
 ### Organizador (`Organizador`)
 
@@ -101,7 +101,7 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `GET /eventos`, `GET /eventos/{id}` | Sus eventos. |
 | `POST /eventos`, `PUT /eventos/{id}` | Crea/edita un evento (queda en borrador). |
 | `POST /eventos/imagenes` | Sube la portada a Cloudinary. |
-| `PATCH /eventos/{id}/publicar` | Publica el evento (consume créditos). |
+| `PATCH /eventos/{id}/publicar` | Publica el evento (consume créditos). 409 si el Organizador no tiene la cuenta de Mercado Pago vinculada (8.5) ni un contacto de arrepentimiento cargado (8.8). |
 | `PATCH /eventos/{id}/cancelar` | Cancela el evento y avisa a los compradores. |
 | `DELETE /eventos/{id}` | Borra un evento en borrador. |
 | `GET /eventos/resumen`, `GET /eventos/{id}/metricas` | Resumen del panel y métricas de un evento. |

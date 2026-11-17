@@ -82,6 +82,9 @@ app:
       token-url: ${MP_OAUTH_TOKEN_URL:https://api.mercadopago.com/oauth/token}
     # Minutos que una orden queda abierta para pagar antes de vencer.
     minutos-vencimiento-orden: ${MP_MINUTOS_VENCIMIENTO:30}
+    # Cobrar las entradas con la cuenta de cada Organizador y exigir que la vincule para publicar (8.5).
+    # DEJAR EN true: solo se apaga en local o en la suite e2e, donde no hay una cuenta real que vincular.
+    exigir-cuenta-vinculada: ${MP_EXIGIR_CUENTA_VINCULADA:true}
     # Cada cuántos segundos, como mucho, se consulta a MercadoPago por una misma orden cuando el
     # comprador mira el estado de su pago (el resto de las consultas se responde desde la base).
     intervalo-reconciliacion-segundos: ${MP_INTERVALO_RECONCILIACION_SEGUNDOS:10}

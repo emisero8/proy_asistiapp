@@ -40,11 +40,24 @@ function resumenDe(saldo: number) {
   return { saldo, costoPublicacion: 1, disponibleParaEntradas: Math.max(0, saldo - 1) };
 }
 
-/** Saldo del Organizador: /creditos/resumen para el armado y /creditos/historial para el resto. */
-function mockCreditos(saldo: number) {
-  vi.mocked(api.get).mockImplementation(async (path: string) =>
-    path === "/creditos/resumen" ? resumenDe(saldo) : [movimiento(saldo)],
-  );
+/**
+ * Saldo del Organizador: /creditos/resumen para el armado y /creditos/historial para el resto. Por defecto el
+ * Organizador tiene la cuenta de Mercado Pago vinculada y un contacto cargado: lo que hace falta para publicar.
+ */
+function mockCreditos(
+  saldo: number,
+  requisitos: { mpVinculada?: boolean; contacto?: boolean; historial?: MovimientoCreditoResponseDTO[] } = {},
+) {
+  const { mpVinculada = true, contacto = true, historial } = requisitos;
+  vi.mocked(api.get).mockImplementation(async (path: string) => {
+    if (path === "/creditos/resumen") return resumenDe(saldo);
+    if (path === "/organizador/mercadopago/estado") return { vinculada: mpVinculada, estado: mpVinculada ? "Vinculada" : null, mpUserId: null, vinculadaEn: null };
+    if (path === "/organizador/perfil") {
+      return { id: 1, nombre: "Ana", email: "ana@demo.com", fotoPerfilUrl: null, maxEntradasPorComprador: null, maxEntradasPorCompradorPlataforma: 6,
+        contactoWhatsapp: null, contactoEmail: contacto ? "contacto@demo.com" : null };
+    }
+    return historial ?? [movimiento(saldo)];
+  });
 }
 
 function movimiento(saldoResultante: number, monto = 0): MovimientoCreditoResponseDTO {
@@ -272,6 +285,42 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
   });
 
+  it("sin la cuenta de Mercado Pago vinculada avisa, manda a Mi perfil y bloquea publicar (8.5)", async () => {
+    const user = userEvent.setup();
+    mockCreditos(10, { mpVinculada: false });
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user);
+
+    expect(await screen.findByText(/Vinculá tu cuenta de Mercado Pago/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ir a Mi perfil/ })).toHaveAttribute("href", "/organizador/perfil");
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
+  });
+
+  it("sin contacto para el arrepentimiento avisa, manda a Mi perfil y bloquea publicar (8.8)", async () => {
+    const user = userEvent.setup();
+    mockCreditos(10, { contacto: false });
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user);
+
+    expect(await screen.findByText(/Cargá un contacto/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ir a Mi perfil/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
+  });
+
+  it("con la cuenta vinculada y el contacto cargado no muestra ningún aviso de requisitos", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user);
+
+    expect(screen.queryByText(/Vinculá tu cuenta de Mercado Pago/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Cargá un contacto/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeEnabled();
+  });
+
   it("las entradas no pueden superar los créditos disponibles para entradas (se reserva el costo de publicar)", async () => {
     const user = userEvent.setup();
     mockCreditos(50); // disponible para entradas: 49
@@ -314,7 +363,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("publica una tanda de venta y una de cortesía: la de cortesía va con soloEmision y precio 0", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(resumenDe(500)).mockResolvedValueOnce([movimiento(4, 1)]);
+    mockCreditos(500, { historial: [movimiento(4, 1)] });
     vi.mocked(api.patch).mockResolvedValueOnce({});
     vi.mocked(api.post).mockResolvedValue({});
     renderWizard();
@@ -350,9 +399,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("publica: crea cada tanda, publica y muestra los créditos consumidos y el saldo restante", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get)
-      .mockResolvedValueOnce(resumenDe(500)) // saldo al montar
-      .mockResolvedValueOnce([movimiento(4, 1)]); // historial tras publicar
+    mockCreditos(500, { historial: [movimiento(4, 1)] }); // saldo al montar y historial tras publicar
     vi.mocked(api.patch).mockResolvedValueOnce({});
     renderWizard();
     await avanzarAlPaso2(user);
@@ -376,7 +423,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("si la venta cierra el mismo día del evento, cierra a la hora del evento y no a las 23:59", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(resumenDe(500)).mockResolvedValueOnce([movimiento(4, 1)]);
+    mockCreditos(500, { historial: [movimiento(4, 1)] });
     vi.mocked(api.patch).mockResolvedValueOnce({});
     renderWizard();
     await avanzarAlPaso2(user);

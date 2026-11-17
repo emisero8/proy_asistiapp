@@ -2282,6 +2282,7 @@ export interface operations {
                 type?: string;
                 id?: string;
                 topic?: string;
+                ref?: string;
             };
             header?: {
                 "x-signature"?: string;

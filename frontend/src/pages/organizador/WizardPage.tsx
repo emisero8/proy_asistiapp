@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Check, ChevronLeft, ChevronRight, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { hoyLocal } from "../../lib/format";
@@ -7,7 +7,7 @@ import { DatePicker } from "../../components/DatePicker";
 import { TimePicker } from "../../components/TimePicker";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
-import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO } from "../../lib/types";
+import type { CreditosResumenResponseDTO, EstadoCuentaMpResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, PerfilResponseDTO, TandaRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface WizardTanda {
@@ -52,6 +52,22 @@ export function OrganizadorWizardPage() {
   const [movimiento, setMovimiento] = useState<MovimientoCreditoResponseDTO | null>(null);
   const [resumen, setResumen] = useState<CreditosResumenResponseDTO | null>(null);
   const saldo = resumen?.saldo ?? null;
+
+  // Para publicar hace falta la cuenta de Mercado Pago vinculada (8.5) y un contacto de arrepentimiento (8.8).
+  // Se avisa antes de armar las tandas: si recién fallara al publicar, ya estarían creadas. Si la consulta falla
+  // no se bloquea nada: el backend valida igual.
+  const [sinMercadoPago, setSinMercadoPago] = useState(false);
+  const [sinContacto, setSinContacto] = useState(false);
+  useEffect(() => {
+    api
+      .get<EstadoCuentaMpResponseDTO>("/organizador/mercadopago/estado")
+      .then((e) => setSinMercadoPago(e.vinculada === false))
+      .catch(() => undefined);
+    api
+      .get<PerfilResponseDTO>("/organizador/perfil")
+      .then((p) => setSinContacto(p.contactoWhatsapp === null && p.contactoEmail === null))
+      .catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     api
@@ -99,7 +115,9 @@ export function OrganizadorWizardPage() {
     haytandaDeVenta &&
     tandaErrors.every((e) => e === null) &&
     !sinCreditos &&
-    !excedeCreditos;
+    !excedeCreditos &&
+    !sinMercadoPago &&
+    !sinContacto;
 
   async function handleNext() {
     setLoading(true);
@@ -442,6 +460,28 @@ export function OrganizadorWizardPage() {
               <Plus size={15} />
               Agregar tanda
             </button>
+            {(sinMercadoPago || sinContacto) && (
+              <div className="bg-destructive/10 border border-destructive/30 rounded-2xl px-4 py-3 flex gap-3">
+                <AlertCircle size={16} className="text-destructive flex-none mt-0.5" />
+                <div className="text-xs space-y-1">
+                  {sinMercadoPago && (
+                    <p className="text-foreground">
+                      <span className="font-semibold">Vinculá tu cuenta de Mercado Pago para publicar.</span> Es la cuenta donde vas a recibir el
+                      dinero de las entradas.
+                    </p>
+                  )}
+                  {sinContacto && (
+                    <p className="text-foreground">
+                      <span className="font-semibold">Cargá un contacto (WhatsApp o email) para publicar.</span> A ese contacto se deriva a quien
+                      quiera arrepentirse de su compra.
+                    </p>
+                  )}
+                  <Link to="/organizador/perfil" className="inline-block text-primary font-semibold underline">
+                    Ir a Mi perfil
+                  </Link>
+                </div>
+              </div>
+            )}
             {sinCreditos ? (
               <div className="bg-destructive/10 border border-destructive/30 rounded-2xl px-4 py-3 flex gap-3">
                 <AlertCircle size={16} className="text-destructive flex-none mt-0.5" />
