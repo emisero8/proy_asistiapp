@@ -31,4 +31,12 @@ public class StaffVendedor extends Usuario {
      */
     @Column(name = "id_evento")
     private Long idEvento;
+
+    /**
+     * Máximo de entradas que este vendedor puede vender en total (8.3). El Organizador lo fija al
+     * darlo de alta, así un vendedor no puede vender sin límite. Nullable solo por compatibilidad con
+     * vendedores creados antes de la regla (sin tope); el alta nueva siempre lo exige.
+     */
+    @Column(name = "tope_entradas")
+    private Integer topeEntradas;
 }

@@ -556,12 +556,49 @@ class VentaServiceTest {
         verifyNoInteractions(emailService); // la venta manual no envía email de confirmación
     }
 
-    private void vendedorDeLaTanda() {
+    @Test
+    void realizarVentaManual_pasandoElTopeDelVendedor_noGeneraNinguna() {
+        vendedorDeLaTanda().setTopeEntradas(10);
+        when(entradaRepository.countByIdStaffVendedor(1L)).thenReturn(8L);
+
+        assertThatThrownBy(() -> ventaService.realizarVentaManual(ventaManualDto(3), 1L))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("tope")
+                .hasMessageContaining("2");
+
+        verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void realizarVentaManual_justoEnElTopeDelVendedor_vende() {
+        vendedorDeLaTanda().setTopeEntradas(10);
+        when(entradaRepository.countByIdStaffVendedor(1L)).thenReturn(8L);
+        when(tandaRepository.decrementarCupo(tanda.getId(), 2)).thenReturn(1);
+        when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(ventaService.realizarVentaManual(ventaManualDto(2), 1L)).hasSize(2);
+    }
+
+    @Test
+    void realizarVentaManual_vendedorSinTope_noLimita() {
+        vendedorDeLaTanda(); // registro previo a la regla: sin tope
+        when(tandaRepository.decrementarCupo(tanda.getId(), 3)).thenReturn(1);
+        when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(ventaService.realizarVentaManual(ventaManualDto(3), 1L)).hasSize(3);
+        verify(entradaRepository, never()).countByIdStaffVendedor(anyLong());
+    }
+
+    private StaffVendedor vendedorDeLaTanda() {
         StaffVendedor staff = new StaffVendedor();
         staff.setId(1L);
         staff.setIdOrganizador(100L);
         when(staffVendedorRepository.findById(1L)).thenReturn(Optional.of(staff));
         when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+        return staff;
     }
 
     private VentaManualRequestDTO ventaManualDto(int cantidad) {

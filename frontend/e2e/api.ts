@@ -75,7 +75,13 @@ export async function publicarEvento(token: string, nombre: string, cupo: number
 /** Crea un Staff (QR o Vendedor) y le fija una contraseña conocida: el alta solo la manda por mail. */
 export async function crearStaff(token: string, tipo: "qr" | "vendedor", idEvento: number): Promise<{ email: string; password: string; id: number }> {
   const email = emailUnico(`staff-${tipo}`);
-  const staff = await post<Staff>(`/organizador/staff/${tipo}`, token, { nombre: `E2E Staff ${tipo}`, email, idEvento });
+  const staff = await post<Staff>(`/organizador/staff/${tipo}`, token, {
+    nombre: `E2E Staff ${tipo}`,
+    email,
+    idEvento,
+    // El vendedor exige un tope de entradas (8.3); el QR no lo usa.
+    ...(tipo === "vendedor" ? { topeEntradas: 50 } : {}),
+  });
   const { passwordTemporal } = await post<{ passwordTemporal: string }>(`/organizador/staff/${staff.id}/resetear-password`, token);
   return { email, password: passwordTemporal, id: staff.id };
 }

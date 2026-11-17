@@ -175,6 +175,131 @@ describe("OrganizadorStaffMgmtPage — resetear contraseña", () => {
   });
 });
 
+const VENDEDOR: StaffResponseDTO = {
+  id: 11,
+  nombre: "Lucía Vendedora",
+  email: "lucia@test.com",
+  rol: "Staff_Vendedor",
+  estado: "Activo",
+  idEvento: 5,
+  topeEntradas: 30,
+  entradasVendidas: 12,
+  totalRecaudado: 36000,
+};
+
+describe("OrganizadorStaffMgmtPage — tope por vendedor (8.3)", () => {
+  async function llenarAltaDeVendedor(user: ReturnType<typeof userEvent.setup>) {
+    await abrirFormulario(user);
+    await user.type(screen.getByPlaceholderText("Martín Gómez"), "Nuevo Vendedor");
+    await user.type(screen.getByPlaceholderText("martin@mail.com"), "nuevo@test.com");
+    await user.click(screen.getByRole("button", { name: "Staff Vendedor" }));
+    await user.selectOptions(screen.getByRole("combobox"), "5");
+  }
+
+  it("la tarjeta del vendedor muestra cuántas vendió, el tope y cuánto suma", async () => {
+    mockGets([EVENTO], [VENDEDOR]);
+    renderPage();
+
+    expect(await screen.findByText("12 de 30 entradas")).toBeInTheDocument();
+    expect(screen.getByText(/\$\s?36\.000/)).toBeInTheDocument();
+  });
+
+  it("un vendedor anterior a la regla se muestra 'sin tope' y la tarjeta de QR no muestra nada de esto", async () => {
+    mockGets([EVENTO], [{ ...VENDEDOR, topeEntradas: null, entradasVendidas: 4 }, STAFF]);
+    renderPage();
+
+    expect(await screen.findByText(/4 entradas · sin tope/)).toBeInTheDocument();
+    expect(screen.getAllByText(/para rendir/)).toHaveLength(1); // solo el vendedor; la tarjeta del QR no lo muestra
+    expect(screen.getAllByRole("button", { name: "Cambiar tope" })).toHaveLength(1);
+  });
+
+  it("al dar de alta un vendedor el tope es obligatorio: sin tope no llama a la API y avisa", async () => {
+    const user = userEvent.setup();
+    mockGets([EVENTO]);
+    renderPage();
+    await llenarAltaDeVendedor(user);
+
+    await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+    expect(api.post).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Fijá el tope de entradas/)).toBeInTheDocument();
+  });
+
+  it("con el tope cargado manda topeEntradas en el alta del vendedor", async () => {
+    const user = userEvent.setup();
+    mockGets([EVENTO]);
+    vi.mocked(api.post).mockResolvedValueOnce({});
+    renderPage();
+    await llenarAltaDeVendedor(user);
+    await user.type(screen.getByLabelText(/Tope de entradas/), "40");
+
+    await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/organizador/staff/vendedor", {
+        nombre: "Nuevo Vendedor",
+        email: "nuevo@test.com",
+        idEvento: 5,
+        topeEntradas: 40,
+      }),
+    );
+  });
+
+  it("el alta de un Staff QR no pide tope ni lo manda", async () => {
+    const user = userEvent.setup();
+    mockGets([EVENTO]);
+    vi.mocked(api.post).mockResolvedValueOnce({});
+    renderPage();
+    await abrirFormulario(user);
+    await user.type(screen.getByPlaceholderText("Martín Gómez"), "Nuevo QR");
+    await user.type(screen.getByPlaceholderText("martin@mail.com"), "qr@test.com");
+    await user.selectOptions(screen.getByRole("combobox"), "5");
+
+    expect(screen.queryByLabelText(/Tope de entradas/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Agregar" }));
+
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/organizador/staff/qr", { nombre: "Nuevo QR", email: "qr@test.com", idEvento: 5 }),
+    );
+  });
+
+  it("cambiar el tope manda el valor nuevo y actualiza la tarjeta", async () => {
+    const user = userEvent.setup();
+    mockGets([EVENTO], [VENDEDOR]);
+    vi.mocked(api.patch).mockResolvedValueOnce({ ...VENDEDOR, topeEntradas: 80 });
+    renderPage();
+    await screen.findByText("12 de 30 entradas");
+
+    await user.click(screen.getByRole("button", { name: "Cambiar tope" }));
+    const campo = screen.getByLabelText("Nuevo tope de Lucía Vendedora");
+    await user.clear(campo);
+    await user.type(campo, "80");
+    await user.click(screen.getByRole("button", { name: "Guardar tope" }));
+
+    expect(api.patch).toHaveBeenCalledWith("/organizador/staff/11/tope", { topeEntradas: 80 });
+    expect(await screen.findByText("12 de 80 entradas")).toBeInTheDocument();
+  });
+
+  it("si el backend rechaza el tope (menor a lo vendido) muestra el motivo y deja la tarjeta como estaba", async () => {
+    const user = userEvent.setup();
+    mockGets([EVENTO], [VENDEDOR]);
+    vi.mocked(api.patch).mockRejectedValueOnce(
+      new ApiError({ status: 400, error: "Este vendedor ya vendió 12 entradas: el tope no puede ser menor a eso.", path: "/x", timestamp: "2026-01-01T00:00:00" }),
+    );
+    renderPage();
+    await screen.findByText("12 de 30 entradas");
+
+    await user.click(screen.getByRole("button", { name: "Cambiar tope" }));
+    const campo = screen.getByLabelText("Nuevo tope de Lucía Vendedora");
+    await user.clear(campo);
+    await user.type(campo, "5");
+    await user.click(screen.getByRole("button", { name: "Guardar tope" }));
+
+    expect((await screen.findAllByText(/ya vendió 12 entradas/)).length).toBeGreaterThan(0);
+    expect(screen.getByText("12 de 30 entradas")).toBeInTheDocument();
+  });
+});
+
 describe("eventoDisponibleParaStaff", () => {
   function evento(overrides: Partial<EventoResponseDTO>): EventoResponseDTO {
     return { ...EVENTO, ...overrides };

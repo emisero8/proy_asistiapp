@@ -452,6 +452,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizador/staff/{id}/tope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["cambiarTope"];
+        trace?: never;
+    };
     "/organizador/staff/{id}/reactivar": {
         parameters: {
             query?: never;
@@ -1303,6 +1319,8 @@ export interface components {
             email: string;
             /** Format: int64 */
             idEvento: number;
+            /** Format: int32 */
+            topeEntradas: number;
         };
         StaffResponseDTO: {
             /** Format: int64 */
@@ -1315,6 +1333,12 @@ export interface components {
             estado?: "Activo" | "Suspendido" | "Inactivo";
             /** Format: int64 */
             idEvento?: number;
+            /** Format: int32 */
+            topeEntradas?: number;
+            /** Format: int32 */
+            entradasVendidas?: number;
+            /** Format: double */
+            totalRecaudado?: number;
         };
         CrearStaffQRRequestDTO: {
             nombre: string;
@@ -1368,6 +1392,10 @@ export interface components {
         AnuncioEnviadoResponseDTO: {
             /** Format: int32 */
             enviadas?: number;
+        };
+        CambiarTopeVendedorRequestDTO: {
+            /** Format: int32 */
+            topeEntradas: number;
         };
         UsuarioResponseDTO: {
             /** Format: int64 */
@@ -2527,6 +2555,32 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["TandaResponseDTO"];
+                };
+            };
+        };
+    };
+    cambiarTope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CambiarTopeVendedorRequestDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["StaffResponseDTO"];
                 };
             };
         };

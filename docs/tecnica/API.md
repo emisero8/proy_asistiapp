@@ -107,8 +107,9 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `POST /tickets/emision-organizador` | Emite entradas de una de sus tandas: `Cortesia` (se regala) o `Pago_Externo` (cobrada por fuera de la plataforma), de 1 a 100 en una sola operación. Salen del cupo de la tanda, que ya está paga en créditos: no cuestan nada más. Sin tope por comprador ni ventana de venta; el límite es el cupo. Motivo opcional y mail al destinatario opcional (`enviarMail`). |
 | `POST /creditos/comprar` | Inicia la compra de un paquete de créditos (MercadoPago). |
 | `GET /creditos/paquetes`, `/resumen`, `/historial`, `/compras`, `/orden/{externalReference}` | Paquetes disponibles, saldo, movimientos, compras y estado de una orden. |
-| `POST /organizador/staff/qr`, `POST /organizador/staff/vendedor` | Crea un Staff QR o Vendedor asignado a un evento; la contraseña inicial le llega por mail. |
-| `GET /organizador/staff` | Lista su staff. |
+| `POST /organizador/staff/qr`, `POST /organizador/staff/vendedor` | Crea un Staff QR o Vendedor asignado a un evento; la contraseña inicial le llega por mail. **El vendedor exige `topeEntradas` (entero ≥ 1)**: lo máximo que puede vender en total. |
+| `GET /organizador/staff` | Lista su staff. Cada vendedor trae `topeEntradas` (null = anterior a la regla, sin tope), `entradasVendidas` y `totalRecaudado`. |
+| `PATCH /organizador/staff/{id}/tope` | Cambia el tope de un vendedor propio (`{ "topeEntradas": n }`). 409 si `n` es menor a lo que ya vendió; 403 si no es suyo. |
 | `PATCH /organizador/staff/{id}/desactivar`, `/reactivar`, `POST /organizador/staff/{id}/resetear-password` | Gestiona la cuenta de un staff. |
 | `GET/PUT /organizador/perfil`, `POST /organizador/perfil/foto`, `PUT /organizador/perfil/password` | Perfil, foto y cambio de contraseña. |
 
@@ -117,7 +118,7 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | Método y ruta | Rol | Qué hace |
 |---|---|---|
 | `GET /eventos/vendedor` | `Staff_Vendedor` | El evento publicado que puede vender. |
-| `POST /tickets/venta-manual` | `Staff_Vendedor` | Vende 1 a 20 entradas en una sola operación y manda el mail al comprador. |
+| `POST /tickets/venta-manual` | `Staff_Vendedor` | Vende 1 a 20 entradas en una sola operación y manda el mail al comprador. Si se pasa del tope de entradas que le fijó el Organizador, rechaza la venta entera (409). |
 | `GET /tickets/disponibilidad-comprador` | `Staff_Vendedor` | Cuántas entradas más se le pueden vender a ese comprador. |
 | `POST /tickets/validate`, `GET /tickets/validate/{codigo}` | `Staff_QR` | Valida una entrada (la marca como usada) o solo la consulta. |
 

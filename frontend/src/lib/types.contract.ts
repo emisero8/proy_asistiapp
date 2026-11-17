@@ -84,6 +84,7 @@ export type ContratoConElBackend = [
   Afirma<Coincide<T.StaffResponseDTO, S["StaffResponseDTO"]>>,
   Afirma<Coincide<T.CrearStaffQRRequestDTO, S["CrearStaffQRRequestDTO"]>>,
   Afirma<Coincide<T.CrearStaffVendedorRequestDTO, S["CrearStaffVendedorRequestDTO"]>>,
+  Afirma<Coincide<T.CambiarTopeVendedorRequestDTO, S["CambiarTopeVendedorRequestDTO"]>>,
   Afirma<Coincide<T.UsuarioResponseDTO, S["UsuarioResponseDTO"]>>,
   Afirma<Coincide<T.ConfiguracionSistemaResponseDTO, S["ConfiguracionSistemaResponseDTO"]>>,
   Afirma<Coincide<T.ActualizarConfiguracionRequestDTO, S["ActualizarConfiguracionRequestDTO"]>>,

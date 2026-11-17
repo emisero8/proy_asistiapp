@@ -330,6 +330,14 @@ export interface StaffResponseDTO {
   rol: RolUsuario;
   estado: EstadoUsuario;
   idEvento: number | null;
+  /** Solo Staff_Vendedor (8.3): máximo de entradas que puede vender; null = anterior a la regla, sin tope. */
+  topeEntradas?: number | null;
+  entradasVendidas?: number | null;
+  totalRecaudado?: number | null;
+}
+
+export interface CambiarTopeVendedorRequestDTO {
+  topeEntradas: number;
 }
 
 export interface CrearStaffQRRequestDTO {
@@ -342,6 +350,7 @@ export interface CrearStaffVendedorRequestDTO {
   nombre: string;
   email: string;
   idEvento: number;
+  topeEntradas: number;
 }
 
 // ── Admin ─────────────────────────────────────────────

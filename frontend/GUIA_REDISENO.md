@@ -6,7 +6,7 @@ Para quien aplique el nuevo diseño sobre esta base. El comportamiento ya está 
 
 - Base: la rama `feature-mercadopago` (tiene todo lo hecho hasta el 17/11). Crear la rama del rediseño a partir de ella (`git checkout feature-mercadopago && git pull && git checkout -b rediseno`), no de `master`: `master` está varios cambios atrás.
 - Levantar el entorno: ver `frontend/README.md` y `backend/README.md`. El backend tiene que estar corriendo para que cualquier pantalla funcione.
-- Estado de las verificaciones al arrancar: `npx tsc -b`, `npm run lint` y `npm run build` limpios; `npx vitest run` → 25 archivos, 228 tests; `npm run e2e` → 4 tests (ver `e2e/README.md`). Correr vitest desde **PowerShell**, no desde Git Bash.
+- Estado de las verificaciones al arrancar: `npx tsc -b`, `npm run lint` y `npm run build` limpios; `npx vitest run` → 25 archivos, 235 tests; `npm run e2e` → 4 tests (ver `e2e/README.md`). Correr vitest desde **PowerShell**, no desde Git Bash.
 
 ## 2. Dónde está el estilo
 
@@ -41,7 +41,7 @@ Si el diseño nuevo exige cambiar un texto, **cambiarlo también en el test que 
 ## 6. Cómo comprobar que no se rompió nada
 
 1. `cd frontend; npx tsc -b` y `npm run lint` — sin errores nuevos.
-2. `npx vitest run` — debe seguir en 228 tests pasando (o más, si se agregan).
+2. `npx vitest run` — debe seguir en 235 tests pasando (o más, si se agregan).
 3. `npm run build`.
 4. `npm run e2e` — recorre publicación, compra, venta del vendedor y escaneo en el navegador real. Antes de correrlo leer `e2e/README.md` (backend con SMTP apuntado a un puerto vacío, esperar un minuto entre corridas, limpiar con `e2e/limpiar.sql`).
 5. Revisión visual en desktop y mobile, en claro y oscuro, de las pantallas tocadas. No hay tests visuales: lo que se ve no lo verifica ninguna suite.

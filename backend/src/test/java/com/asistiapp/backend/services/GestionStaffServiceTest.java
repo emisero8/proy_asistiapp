@@ -12,6 +12,7 @@ import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
+import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.StaffQRRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
@@ -52,6 +53,8 @@ class GestionStaffServiceTest {
     private StaffQRRepository staffQRRepository;
     @Mock
     private StaffVendedorRepository staffVendedorRepository;
+    @Mock
+    private EntradaRepository entradaRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
@@ -167,8 +170,111 @@ class GestionStaffServiceTest {
 
         assertThat(response.getRol()).isEqualTo(RolUsuario.Staff_Vendedor);
         assertThat(response.getIdEvento()).isEqualTo(10L);
+        assertThat(response.getTopeEntradas()).isEqualTo(50);
+        assertThat(response.getEntradasVendidas()).isZero();
         verify(staffVendedorRepository).save(argThat(s ->
-                s.getIdOrganizador().equals(ID_ORGANIZADOR) && s.getIdEvento().equals(10L)));
+                s.getIdOrganizador().equals(ID_ORGANIZADOR) && s.getIdEvento().equals(10L)
+                        && s.getTopeEntradas().equals(50)));
+    }
+
+    @Test
+    void listarMiStaff_elVendedorTrae_tope_vendidasYRecaudado() {
+        when(eventoRepository.findByIdOrganizador(ID_ORGANIZADOR)).thenReturn(List.of(evento));
+        when(staffQRRepository.findByIdEventoIn(List.of(10L))).thenReturn(List.of());
+        StaffVendedor sv = vendedor(2L, ID_ORGANIZADOR, 30);
+        when(staffVendedorRepository.findByIdOrganizador(ID_ORGANIZADOR)).thenReturn(List.of(sv));
+        when(entradaRepository.resumenPorVendedor(List.of(2L)))
+                .thenReturn(List.<Object[]>of(new Object[]{2L, 12L, 36000.0}));
+
+        StaffResponseDTO dto = gestionStaffService.listarMiStaff(ID_ORGANIZADOR).get(0);
+
+        assertThat(dto.getTopeEntradas()).isEqualTo(30);
+        assertThat(dto.getEntradasVendidas()).isEqualTo(12);
+        assertThat(dto.getTotalRecaudado()).isEqualTo(36000.0);
+    }
+
+    @Test
+    void listarMiStaff_vendedorSinVentas_vieneEnCero() {
+        when(eventoRepository.findByIdOrganizador(ID_ORGANIZADOR)).thenReturn(List.of(evento));
+        when(staffQRRepository.findByIdEventoIn(List.of(10L))).thenReturn(List.of());
+        when(staffVendedorRepository.findByIdOrganizador(ID_ORGANIZADOR))
+                .thenReturn(List.of(vendedor(2L, ID_ORGANIZADOR, 30)));
+        when(entradaRepository.resumenPorVendedor(List.of(2L))).thenReturn(List.of());
+
+        StaffResponseDTO dto = gestionStaffService.listarMiStaff(ID_ORGANIZADOR).get(0);
+
+        assertThat(dto.getEntradasVendidas()).isZero();
+        assertThat(dto.getTotalRecaudado()).isZero();
+    }
+
+    // ─────────────────────────────────────────────
+    // cambiarTopeVendedor
+    // ─────────────────────────────────────────────
+
+    @Test
+    void cambiarTopeVendedor_propio_actualizaElTope() {
+        when(staffVendedorRepository.findById(2L)).thenReturn(Optional.of(vendedor(2L, ID_ORGANIZADOR, 30)));
+        when(entradaRepository.countByIdStaffVendedor(2L)).thenReturn(10L);
+        when(staffVendedorRepository.save(any(StaffVendedor.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        StaffResponseDTO dto = gestionStaffService.cambiarTopeVendedor(2L, 80, ID_ORGANIZADOR);
+
+        assertThat(dto.getTopeEntradas()).isEqualTo(80);
+        assertThat(dto.getEntradasVendidas()).isEqualTo(10);
+        verify(staffVendedorRepository).save(argThat(s -> s.getTopeEntradas().equals(80)));
+    }
+
+    @Test
+    void cambiarTopeVendedor_deOtroOrganizador_lanzaForbiddenActionException() {
+        when(staffVendedorRepository.findById(2L)).thenReturn(Optional.of(vendedor(2L, ID_OTRO_ORGANIZADOR, 30)));
+
+        assertThatThrownBy(() -> gestionStaffService.cambiarTopeVendedor(2L, 80, ID_ORGANIZADOR))
+                .isInstanceOf(ForbiddenActionException.class);
+        verify(staffVendedorRepository, never()).save(any());
+    }
+
+    @Test
+    void cambiarTopeVendedor_inexistente_lanzaResourceNotFoundException() {
+        when(staffVendedorRepository.findById(2L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> gestionStaffService.cambiarTopeVendedor(2L, 80, ID_ORGANIZADOR))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void cambiarTopeVendedor_pordebajoDeLoYaVendido_lanzaBusinessRuleException() {
+        when(staffVendedorRepository.findById(2L)).thenReturn(Optional.of(vendedor(2L, ID_ORGANIZADOR, 30)));
+        when(entradaRepository.countByIdStaffVendedor(2L)).thenReturn(20L);
+
+        assertThatThrownBy(() -> gestionStaffService.cambiarTopeVendedor(2L, 15, ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("20");
+        verify(staffVendedorRepository, never()).save(any());
+    }
+
+    @Test
+    void cambiarTopeVendedor_menorAUno_lanzaBusinessRuleException() {
+        assertThatThrownBy(() -> gestionStaffService.cambiarTopeVendedor(2L, 0, ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class);
+        verifyNoInteractions(staffVendedorRepository);
+    }
+
+    // ─────────────────────────────────────────────
+    // El tope es obligatorio al dar de alta
+    // ─────────────────────────────────────────────
+
+    @Test
+    void altaDeVendedor_sinTopeOConTopeMenorAUno_noValida() {
+        var validator = jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+
+        CrearStaffVendedorRequestDTO sinTope = staffVendedorDto();
+        sinTope.setTopeEntradas(null);
+        CrearStaffVendedorRequestDTO cero = staffVendedorDto();
+        cero.setTopeEntradas(0);
+
+        assertThat(validator.validate(sinTope)).hasSize(1);
+        assertThat(validator.validate(cero)).hasSize(1);
+        assertThat(validator.validate(staffVendedorDto())).isEmpty();
     }
 
     @Test
@@ -316,11 +422,24 @@ class GestionStaffServiceTest {
         return dto;
     }
 
+    private StaffVendedor vendedor(Long id, Long idOrganizador, Integer tope) {
+        StaffVendedor sv = new StaffVendedor();
+        sv.setId(id);
+        sv.setNombre("Vendedor " + id);
+        sv.setEmail("v" + id + "@test.com");
+        sv.setEstado(EstadoUsuario.Activo);
+        sv.setIdOrganizador(idOrganizador);
+        sv.setIdEvento(10L);
+        sv.setTopeEntradas(tope);
+        return sv;
+    }
+
     private CrearStaffVendedorRequestDTO staffVendedorDto() {
         CrearStaffVendedorRequestDTO dto = new CrearStaffVendedorRequestDTO();
         dto.setNombre("Staff Vendedor Nuevo");
         dto.setEmail("vendedor@test.com");
         dto.setIdEvento(10L);
+        dto.setTopeEntradas(50);
         return dto;
     }
 }

@@ -1300,6 +1300,47 @@
         }
       }
     },
+    "/organizador/staff/{id}/tope": {
+      "patch": {
+        "tags": [
+          "gestion-staff-controller"
+        ],
+        "operationId": "cambiarTope",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CambiarTopeVendedorRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/StaffResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/organizador/staff/{id}/reactivar": {
       "patch": {
         "tags": [
@@ -2976,7 +3017,8 @@
         "required": [
           "email",
           "idEvento",
-          "nombre"
+          "nombre",
+          "topeEntradas"
         ],
         "type": "object",
         "properties": {
@@ -2989,6 +3031,11 @@
           "idEvento": {
             "type": "integer",
             "format": "int64"
+          },
+          "topeEntradas": {
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -3025,6 +3072,18 @@
           "idEvento": {
             "type": "integer",
             "format": "int64"
+          },
+          "topeEntradas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "entradasVendidas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalRecaudado": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -3204,6 +3263,19 @@
         "type": "object",
         "properties": {
           "enviadas": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CambiarTopeVendedorRequestDTO": {
+        "required": [
+          "topeEntradas"
+        ],
+        "type": "object",
+        "properties": {
+          "topeEntradas": {
+            "minimum": 1,
             "type": "integer",
             "format": "int32"
           }

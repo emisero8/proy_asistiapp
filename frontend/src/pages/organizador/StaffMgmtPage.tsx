@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { UserPlus, QrCode, Store, BadgeCheck, AlertCircle, KeyRound } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
-import type { CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, RolUsuario, StaffResponseDTO } from "../../lib/types";
+import type { CambiarTopeVendedorRequestDTO, CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, RolUsuario, StaffResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
+import { fmt } from "../../lib/format";
 
 const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: string; icon: typeof QrCode; color: string; bg: string }> = {
   Staff_QR: { label: "Staff QR", desc: "Escanea entradas en la puerta", icon: QrCode, color: "text-primary", bg: "bg-primary/10" },
@@ -33,12 +34,15 @@ export function OrganizadorStaffMgmtPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [form, setForm] = useState<{ nombre: string; email: string; role: "Staff_QR" | "Staff_Vendedor"; idEvento: string }>({
+  const [form, setForm] = useState<{ nombre: string; email: string; role: "Staff_QR" | "Staff_Vendedor"; idEvento: string; tope: string }>({
     nombre: "",
     email: "",
     role: "Staff_QR",
     idEvento: "",
+    tope: "",
   });
+  // Edición inline del tope de un vendedor: qué vendedor y el valor que se está tipeando.
+  const [editandoTope, setEditandoTope] = useState<{ id: number; valor: string } | null>(null);
 
   function cargarStaff() {
     api
@@ -64,6 +68,11 @@ export function OrganizadorStaffMgmtPage() {
 
   async function addStaff() {
     if (!form.nombre.trim() || !form.email.trim() || !form.idEvento) return;
+    const tope = Number(form.tope);
+    if (form.role === "Staff_Vendedor" && (!Number.isInteger(tope) || tope < 1)) {
+      setError("Fijá el tope de entradas que puede vender este vendedor (al menos 1).");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -72,11 +81,11 @@ export function OrganizadorStaffMgmtPage() {
         const dto: CrearStaffQRRequestDTO = { nombre: form.nombre, email: form.email, idEvento: Number(form.idEvento) };
         await api.post("/organizador/staff/qr", dto);
       } else {
-        const dto: CrearStaffVendedorRequestDTO = { nombre: form.nombre, email: form.email, idEvento: Number(form.idEvento) };
+        const dto: CrearStaffVendedorRequestDTO = { nombre: form.nombre, email: form.email, idEvento: Number(form.idEvento), topeEntradas: tope };
         await api.post("/organizador/staff/vendedor", dto);
       }
       toast.success(`${form.nombre} se agregó como ${ROLE_META[form.role].label}`);
-      setForm({ nombre: "", email: "", role: "Staff_QR", idEvento: "" });
+      setForm({ nombre: "", email: "", role: "Staff_QR", idEvento: "", tope: "" });
       setShowForm(false);
       cargarStaff();
     } catch (e: unknown) {
@@ -107,6 +116,31 @@ export function OrganizadorStaffMgmtPage() {
       });
     } catch (e: unknown) {
       const message = e instanceof ApiError ? e.message : "No pudimos resetear la contraseña.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function guardarTope(member: StaffResponseDTO) {
+    if (!editandoTope) return;
+    const topeEntradas = Number(editandoTope.valor);
+    if (!Number.isInteger(topeEntradas) || topeEntradas < 1) {
+      setError("El tope tiene que ser un número entero de al menos 1.");
+      return;
+    }
+    setBusyId(member.id);
+    setError(null);
+    try {
+      const body: CambiarTopeVendedorRequestDTO = { topeEntradas };
+      const updated = await api.patch<StaffResponseDTO>(`/organizador/staff/${member.id}/tope`, body);
+      // La respuesta del tope no trae lo recaudado: se conserva el de la tarjeta.
+      setStaff((s) => s!.map((m) => (m.id === member.id ? { ...updated, totalRecaudado: m.totalRecaudado } : m)));
+      setEditandoTope(null);
+      toast.success(`Tope de ${member.nombre}: ${topeEntradas} entradas`);
+    } catch (e: unknown) {
+      const message = e instanceof ApiError ? e.message : "No pudimos cambiar el tope.";
       setError(message);
       toast.error(message);
     } finally {
@@ -175,7 +209,8 @@ export function OrganizadorStaffMgmtPage() {
                 const inactivo = member.estado === "Inactivo";
                 const eventoAsignado = eventos.find((e) => e.id === member.idEvento)?.nombre;
                 return (
-                  <div key={member.id} className={`bg-card border border-border rounded-2xl px-4 py-3.5 flex items-center justify-between gap-2 ${inactivo ? "opacity-60" : ""}`}>
+                  <div key={member.id} className={`bg-card border border-border rounded-2xl px-4 py-3.5 ${inactivo ? "opacity-60" : ""}`}>
+                    <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-none">
                         {member.nombre.charAt(0)}
@@ -208,6 +243,48 @@ export function OrganizadorStaffMgmtPage() {
                         {inactivo ? "Reactivar" : "Dar de baja"}
                       </button>
                     </div>
+                    </div>
+                    {member.rol === "Staff_Vendedor" && (
+                      <div className="mt-2.5 pt-2.5 border-t border-border flex items-center justify-between gap-2 flex-wrap">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-foreground">
+                            {member.topeEntradas == null
+                              ? `${member.entradasVendidas ?? 0} entradas · sin tope`
+                              : `${member.entradasVendidas ?? 0} de ${member.topeEntradas} entradas`}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">Suman {fmt(member.totalRecaudado ?? 0)} para rendir</p>
+                        </div>
+                        {editandoTope?.id === member.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              min={1}
+                              aria-label={`Nuevo tope de ${member.nombre}`}
+                              value={editandoTope.valor}
+                              onChange={(e) => setEditandoTope({ id: member.id, valor: e.target.value })}
+                              className="w-20 px-2 py-1 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            />
+                            <button
+                              disabled={busyId === member.id}
+                              onClick={() => guardarTope(member)}
+                              className="text-[10px] font-semibold px-2 py-1 rounded-lg text-primary hover:bg-primary/10 disabled:opacity-50"
+                            >
+                              Guardar tope
+                            </button>
+                            <button onClick={() => setEditandoTope(null)} className="text-[10px] font-semibold px-2 py-1 rounded-lg text-muted-foreground hover:bg-muted">
+                              Cancelar
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setEditandoTope({ id: member.id, valor: String(member.topeEntradas ?? "") })}
+                            className="text-[10px] font-semibold px-2 py-1 rounded-lg text-primary hover:bg-primary/10"
+                          >
+                            Cambiar tope
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -287,6 +364,25 @@ export function OrganizadorStaffMgmtPage() {
                   : "Solo va a poder vender entradas de este evento."}
               </p>
             </div>
+            {form.role === "Staff_Vendedor" && (
+              <div>
+                <label htmlFor="tope-vendedor" className="text-xs text-muted-foreground block mb-1">
+                  Tope de entradas
+                </label>
+                <input
+                  id="tope-vendedor"
+                  type="number"
+                  min={1}
+                  value={form.tope}
+                  onChange={(e) => setForm((f) => ({ ...f, tope: e.target.value }))}
+                  placeholder="50"
+                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Es lo máximo que puede vender en total; al llegar, el sistema no le deja vender más. Lo podés ampliar después.
+                </p>
+              </div>
+            )}
             <div className="flex gap-2 pt-1">
               <button
                 onClick={() => setShowForm(false)}

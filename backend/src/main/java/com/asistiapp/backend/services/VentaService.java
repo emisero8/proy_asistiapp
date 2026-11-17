@@ -375,6 +375,7 @@ public class VentaService {
         int cantidad = dto.getCantidad();
         validarTandaDisponible(tanda, cantidad);
         validarLimitePorComprador(tanda, dto.getEmailComprador(), cantidad);
+        validarTopeDelVendedor(staffVendedor, cantidad);
 
         // Decrementar cupo de forma atómica, todo o nada: solo si alcanza para la cantidad completa
         int filasActualizadas = tandaRepository.decrementarCupo(tanda.getId(), cantidad);
@@ -406,6 +407,25 @@ public class VentaService {
 
         avisarVentaAlOrganizador(tanda, cantidad);
         return generadas;
+    }
+
+    /**
+     * El Organizador fija cuántas entradas puede vender cada vendedor: pasarse del tope corta la venta
+     * entera. Un vendedor anterior a la regla no tiene tope. Se evalúa con el bloqueo de la tanda
+     * tomado, así dos ventas simultáneas del mismo vendedor en una tanda no pueden pasarse a la vez.
+     */
+    private void validarTopeDelVendedor(StaffVendedor vendedor, int cantidad) {
+        Integer tope = vendedor.getTopeEntradas();
+        if (tope == null) {
+            return;
+        }
+        long vendidas = entradaRepository.countByIdStaffVendedor(vendedor.getId());
+        long restan = Math.max(0, tope - vendidas);
+        if (cantidad > restan) {
+            throw new BusinessRuleException(restan == 0
+                    ? "Llegaste al tope de entradas que podés vender (" + tope + "). Pedile al organizador que lo amplíe."
+                    : "Te quedan " + restan + " entradas para llegar a tu tope (" + tope + "): no podés vender " + cantidad + ".");
+        }
     }
 
     // ─────────────────────────────────────────────
