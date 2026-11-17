@@ -8,6 +8,7 @@ import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.MovimientoCredito;
 import com.asistiapp.backend.models.entities.Organizador;
 import com.asistiapp.backend.models.entities.Tanda;
+import com.asistiapp.backend.models.enums.EstadoEntrada;
 import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.TipoMovimiento;
 import com.asistiapp.backend.repositories.EntradaRepository;
@@ -118,6 +119,30 @@ class MetricasOrganizadorServiceTest {
         assertThat(m.getTandas().get(0).getIngresos()).isEqualTo(26_000.0);
         assertThat(m.getTandas().get(0).getVendidas()).isEqualTo(30); // las cortesías sí ocupan cupo
         assertThat(m.getEntradasVendidas()).isEqualTo(5);
+    }
+
+    @Test
+    void metricas_lasAnuladasNoSonVentasNiSumanIngresosPeroSiguenOcupandoCupo() {
+        // 8.6: 30 entradas salieron de la tanda ($1000 c/u); 3 se anularon. El lugar no se libera, pero ya no es una venta.
+        Evento publicado = evento(1L, EstadoEvento.Publicado, LocalDate.now().plusDays(10), 100, 70, 1000);
+        Tanda tanda = publicado.getTandas().get(0);
+        Entrada anulada1 = entradaDe(tanda, null);
+        anulada1.setEstado(EstadoEntrada.Anulada);
+        Entrada anulada2 = entradaDe(tanda, null);
+        anulada2.setEstado(EstadoEntrada.Anulada);
+        Entrada anulada3 = entradaDe(tanda, null);
+        anulada3.setEstado(EstadoEntrada.Anulada);
+        Entrada vigente = entradaDe(tanda, null);
+        vigente.setEstado(EstadoEntrada.Pagada);
+        when(eventoRepository.findById(1L)).thenReturn(Optional.of(publicado));
+        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of(anulada1, anulada2, anulada3, vigente));
+
+        EventoMetricasResponseDTO m = metricasService.obtenerMetricas(1L, ID_ORG);
+
+        assertThat(m.getEntradasVendidas()).isEqualTo(1);
+        assertThat(m.getTandas().get(0).getVendidas()).isEqualTo(27); // 30 - 3 anuladas
+        assertThat(m.getIngresosTotales()).isEqualTo(27_000.0);
+        assertThat(m.getCupoDisponible()).isEqualTo(70);
     }
 
     @Test

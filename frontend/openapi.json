@@ -610,6 +610,77 @@
         }
       }
     },
+    "/tickets/{id}/reembolsar": {
+      "post": {
+        "tags": [
+          "reembolso-entrada-controller"
+        ],
+        "operationId": "reembolsar",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntradaResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/{id}/anular": {
+      "post": {
+        "tags": [
+          "reembolso-entrada-controller"
+        ],
+        "operationId": "anular",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnularEntradaRequestDTO"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoAnulacionResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tickets/venta-manual": {
       "post": {
         "tags": [
@@ -666,6 +737,69 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ValidacionQRResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tickets/evento/{eventoId}/reembolsos": {
+      "get": {
+        "tags": [
+          "reembolso-entrada-controller"
+        ],
+        "operationId": "pendientes",
+        "parameters": [
+          {
+            "name": "eventoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EntradaResponseDTO"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "reembolso-entrada-controller"
+        ],
+        "operationId": "reembolsarTodo",
+        "parameters": [
+          {
+            "name": "eventoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultadoReembolsoMasivoResponseDTO"
                 }
               }
             }
@@ -2984,33 +3118,6 @@
           }
         }
       },
-      "VentaManualRequestDTO": {
-        "required": [
-          "cantidad",
-          "emailComprador",
-          "idTanda",
-          "nombreComprador"
-        ],
-        "type": "object",
-        "properties": {
-          "idTanda": {
-            "type": "integer",
-            "format": "int64"
-          },
-          "cantidad": {
-            "maximum": 20,
-            "minimum": 1,
-            "type": "integer",
-            "format": "int32"
-          },
-          "nombreComprador": {
-            "type": "string"
-          },
-          "emailComprador": {
-            "type": "string"
-          }
-        }
-      },
       "EntradaResponseDTO": {
         "type": "object",
         "properties": {
@@ -3049,7 +3156,8 @@
             "type": "string",
             "enum": [
               "Pagada",
-              "Usada"
+              "Usada",
+              "Anulada"
             ]
           },
           "canalVenta": {
@@ -3075,6 +3183,71 @@
             ]
           },
           "motivoEmision": {
+            "type": "string"
+          },
+          "fechaAnulacion": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "motivoAnulacion": {
+            "type": "string"
+          },
+          "reembolsadaEn": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AnularEntradaRequestDTO": {
+        "type": "object",
+        "properties": {
+          "motivo": {
+            "maxLength": 200,
+            "minLength": 0,
+            "type": "string"
+          },
+          "reembolsar": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ResultadoAnulacionResponseDTO": {
+        "type": "object",
+        "properties": {
+          "entrada": {
+            "$ref": "#/components/schemas/EntradaResponseDTO"
+          },
+          "reembolsada": {
+            "type": "boolean"
+          },
+          "avisoReembolso": {
+            "type": "string"
+          }
+        }
+      },
+      "VentaManualRequestDTO": {
+        "required": [
+          "cantidad",
+          "emailComprador",
+          "idTanda",
+          "nombreComprador"
+        ],
+        "type": "object",
+        "properties": {
+          "idTanda": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "cantidad": {
+            "maximum": 20,
+            "minimum": 1,
+            "type": "integer",
+            "format": "int32"
+          },
+          "nombreComprador": {
+            "type": "string"
+          },
+          "emailComprador": {
             "type": "string"
           }
         }
@@ -3119,12 +3292,50 @@
             "type": "string",
             "enum": [
               "Pagada",
-              "Usada"
+              "Usada",
+              "Anulada"
             ]
           },
           "fechaUso": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "Falla": {
+        "type": "object",
+        "properties": {
+          "idEntrada": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nombreComprador": {
+            "type": "string"
+          },
+          "emailComprador": {
+            "type": "string"
+          },
+          "motivo": {
+            "type": "string"
+          }
+        }
+      },
+      "ResultadoReembolsoMasivoResponseDTO": {
+        "type": "object",
+        "properties": {
+          "reembolsadas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "montoReembolsado": {
+            "type": "number",
+            "format": "double"
+          },
+          "fallidas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Falla"
+            }
           }
         }
       },

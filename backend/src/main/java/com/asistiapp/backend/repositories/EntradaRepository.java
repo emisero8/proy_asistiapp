@@ -3,6 +3,7 @@ package com.asistiapp.backend.repositories;
 import com.asistiapp.backend.models.entities.Entrada;
 import com.asistiapp.backend.models.enums.EstadoEntrada;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -32,20 +33,25 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
     @Query("SELECT e FROM Entrada e WHERE e.tanda.evento.id = :eventoId")
     List<Entrada> findByEventoId(@Param("eventoId") Long eventoId);
 
-    /** Cantidad de entradas vendidas para un evento. */
-    @Query("SELECT COUNT(e) FROM Entrada e WHERE e.tanda.evento.id = :eventoId")
+    /** Cantidad de entradas vendidas para un evento. Las anuladas (8.6) ya no cuentan. */
+    @Query("SELECT COUNT(e) FROM Entrada e WHERE e.tanda.evento.id = :eventoId "
+            + "AND e.estado <> com.asistiapp.backend.models.enums.EstadoEntrada.Anulada")
     long countByEventoId(@Param("eventoId") Long eventoId);
 
-    /** Cuántas entradas ya compró un email para un evento — para limitar la compra por persona. */
-    @Query("SELECT COUNT(e) FROM Entrada e WHERE e.tanda.evento.id = :eventoId AND LOWER(e.emailComprador) = LOWER(:email)")
+    /** Cuántas entradas ya compró un email para un evento — para limitar la compra por persona. Una anulada libera su lugar. */
+    @Query("SELECT COUNT(e) FROM Entrada e WHERE e.tanda.evento.id = :eventoId AND LOWER(e.emailComprador) = LOWER(:email) "
+            + "AND e.estado <> com.asistiapp.backend.models.enums.EstadoEntrada.Anulada")
     long countByEventoIdAndEmailComprador(@Param("eventoId") Long eventoId, @Param("email") String email);
 
-    /** Entradas que vendió un Staff Vendedor — para controlar su tope. */
-    long countByIdStaffVendedor(Long idStaffVendedor);
+    /** Entradas que vendió un Staff Vendedor — para controlar su tope. Una anulada libera su lugar. */
+    @Query("SELECT COUNT(e) FROM Entrada e WHERE e.idStaffVendedor = :idStaffVendedor "
+            + "AND e.estado <> com.asistiapp.backend.models.enums.EstadoEntrada.Anulada")
+    long countByIdStaffVendedor(@Param("idStaffVendedor") Long idStaffVendedor);
 
-    /** Por vendedor: [idStaffVendedor, cantidad vendida, total que suman sus entradas]. */
+    /** Por vendedor: [idStaffVendedor, cantidad vendida, total que suman sus entradas]. Sin las anuladas. */
     @Query("SELECT e.idStaffVendedor, COUNT(e), COALESCE(SUM(e.tanda.precio), 0) FROM Entrada e "
-            + "WHERE e.idStaffVendedor IN :ids GROUP BY e.idStaffVendedor")
+            + "WHERE e.idStaffVendedor IN :ids AND e.estado <> com.asistiapp.backend.models.enums.EstadoEntrada.Anulada "
+            + "GROUP BY e.idStaffVendedor")
     List<Object[]> resumenPorVendedor(@Param("ids") List<Long> ids);
 
     /**
@@ -53,6 +59,31 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
      * del Organizador no cobraron nada y no cuentan; el pago externo sí (cobrado, aunque fuera de la plataforma).
      */
     @Query("SELECT COALESCE(SUM(e.tanda.precio), 0) FROM Entrada e "
-            + "WHERE e.tipoEmision IS NULL OR e.tipoEmision <> com.asistiapp.backend.models.enums.TipoEmision.Cortesia")
+            + "WHERE e.estado <> com.asistiapp.backend.models.enums.EstadoEntrada.Anulada "
+            + "AND (e.tipoEmision IS NULL OR e.tipoEmision <> com.asistiapp.backend.models.enums.TipoEmision.Cortesia)")
     Double sumaIngresosTotales();
+
+    /** Entradas vigentes (no anuladas) de todo el sistema, para las métricas globales. */
+    @Query("SELECT COUNT(e) FROM Entrada e WHERE e.estado <> com.asistiapp.backend.models.enums.EstadoEntrada.Anulada")
+    long countVigentes();
+
+    /**
+     * Compras online con precio a las que todavía hay que devolverles el dinero (8.6): las entradas anuladas y, si el
+     * evento se canceló, todas. Las manuales y las emitidas por el Organizador no pasaron por Mercado Pago.
+     */
+    @Query("SELECT e FROM Entrada e WHERE e.tanda.evento.id = :eventoId AND e.idTransaccionPago IS NOT NULL "
+            + "AND e.reembolsadaEn IS NULL AND e.tanda.precio > 0 "
+            + "AND (e.estado = com.asistiapp.backend.models.enums.EstadoEntrada.Anulada "
+            + "OR e.tanda.evento.estado = com.asistiapp.backend.models.enums.EstadoEvento.Cancelado)")
+    List<Entrada> findPendientesDeReembolso(@Param("eventoId") Long eventoId);
+
+    /** Toma el turno para reembolsar una entrada: 1 si lo logró, 0 si otro pedido ya la reembolsó o la está reembolsando. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Entrada e SET e.reembolsoEnCurso = true WHERE e.id = :id AND e.reembolsoEnCurso = false AND e.reembolsadaEn IS NULL")
+    int reservarReembolso(@Param("id") Long id);
+
+    /** Suelta el turno cuando Mercado Pago no pudo devolver el dinero, para poder reintentar. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Entrada e SET e.reembolsoEnCurso = false WHERE e.id = :id")
+    void liberarReembolso(@Param("id") Long id);
 }

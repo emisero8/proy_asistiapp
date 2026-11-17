@@ -13,6 +13,8 @@ import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
 import { EmitirEntradasPanel } from "./EmitirEntradasPanel";
+import { EntradaAcciones } from "./EntradaAcciones";
+import { ReembolsosPanel } from "./ReembolsosPanel";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
 const TANDA_COLORS = ["#4a5d8f", "#9cadd3", "#5b6f9c", "#64748b"];
@@ -26,7 +28,7 @@ function etiquetaCanal(e: EntradaResponseDTO): string {
 
 /** Lo que esa entrada le dejó al Organizador: una cortesía no cobró nada. */
 function importeCobrado(e: EntradaResponseDTO): number {
-  return e.tipoEmision === "Cortesia" ? 0 : (e.precioTanda ?? 0);
+  return e.tipoEmision === "Cortesia" || e.estado === "Anulada" ? 0 : (e.precioTanda ?? 0);
 }
 
 function formatFechaHora(iso: string): string {
@@ -52,7 +54,7 @@ export function OrganizadorEventoDetallePage() {
   const { confirm } = useDialog();
 
   const [q, setQ] = useState("");
-  const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Online" | "Manual">("todas");
+  const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Anulada" | "Online" | "Manual">("todas");
 
   function cargar() {
     if (!id) return;
@@ -294,6 +296,7 @@ export function OrganizadorEventoDetallePage() {
         filtro === "todas" ||
         (filtro === "Pagada" && e.estado === "Pagada") ||
         (filtro === "Usada" && e.estado === "Usada") ||
+        (filtro === "Anulada" && e.estado === "Anulada") ||
         (filtro === "Online" && e.canalVenta === "Online") ||
         (filtro === "Manual" && e.canalVenta === "Manual");
       return matchQ && matchF;
@@ -500,6 +503,8 @@ export function OrganizadorEventoDetallePage() {
 
           <EmitirEntradasPanel evento={evento} onEmitidas={cargar} />
 
+          {evento.estado === "Cancelado" && <ReembolsosPanel idEvento={evento.id} onCambio={cargar} />}
+
           {/* Compradores */}
           <section className="rounded-2xl border border-border bg-card overflow-hidden">
             <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border">
@@ -534,7 +539,7 @@ export function OrganizadorEventoDetallePage() {
 
             {(entradas?.length ?? 0) > 0 && (
               <div className="flex gap-1.5 px-4 py-2.5 border-b border-border overflow-x-auto hide-scrollbar">
-                {(["todas", "Pagada", "Usada", "Online", "Manual"] as const).map((f) => (
+                {(["todas", "Pagada", "Usada", "Anulada", "Online", "Manual"] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setFiltro(f)}
@@ -580,10 +585,17 @@ export function OrganizadorEventoDetallePage() {
                       {e.motivoEmision && (
                         <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Motivo: {e.motivoEmision}</p>
                       )}
+                      {e.motivoAnulacion && (
+                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Anulada: {e.motivoAnulacion}</p>
+                      )}
                     </div>
                     <div className="flex-none text-right">
                       <p className="text-sm font-bold text-foreground">{e.tipoEmision === "Cortesia" ? "—" : fmt(e.precioTanda)}</p>
-                      {e.estado === "Usada" ? (
+                      {e.estado === "Anulada" ? (
+                        <span className="text-[11px] font-bold text-destructive">
+                          {e.reembolsadaEn ? "Anulada · reembolsada" : "Anulada"}
+                        </span>
+                      ) : e.estado === "Usada" ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
                           <CheckCircle2 size={11} />
                           Usada
@@ -591,6 +603,7 @@ export function OrganizadorEventoDetallePage() {
                       ) : (
                         <span className="text-[11px] font-bold text-green-400">Pagada</span>
                       )}
+                      <EntradaAcciones entrada={e} onCambio={cargar} />
                     </div>
                   </div>
                 ))}

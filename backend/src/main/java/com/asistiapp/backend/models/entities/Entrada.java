@@ -95,6 +95,26 @@ public class Entrada {
     @Column(name = "fecha_uso")
     private LocalDateTime fechaUso;
 
+    /** Cuándo el Organizador la anuló (8.6). Null si no está anulada. */
+    @Column(name = "fecha_anulacion")
+    private LocalDateTime fechaAnulacion;
+
+    /** Nota interna del Organizador sobre la anulación; no se le muestra a quien tenía la entrada. */
+    @Column(name = "motivo_anulacion", length = 200)
+    private String motivoAnulacion;
+
+    /** Cuándo se le devolvió el dinero al comprador desde la cuenta de Mercado Pago del Organizador (8.6). */
+    @Column(name = "reembolsada_en")
+    private LocalDateTime reembolsadaEn;
+
+    /** Hay un reembolso a Mercado Pago en curso: evita que dos pedidos simultáneos devuelvan el dinero dos veces. */
+    @Column(name = "reembolso_en_curso", nullable = false, columnDefinition = "boolean not null default false")
+    private boolean reembolsoEnCurso;
+
+    /** Ya se le devolvió al Organizador el crédito de esta entrada (por anulada o reembolsada): una sola vez. */
+    @Column(name = "credito_devuelto", nullable = false, columnDefinition = "boolean not null default false")
+    private boolean creditoDevuelto;
+
     @PrePersist
     protected void onCreate() {
         this.fechaCompra = LocalDateTime.now();

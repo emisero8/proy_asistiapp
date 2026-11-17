@@ -233,6 +233,30 @@ public class MercadoPagoService {
         }
     }
 
+    /**
+     * Devuelve parte de un pago (una entrada de una orden de varias) desde la cuenta que lo cobró.
+     * Mercado Pago rechaza el reembolso si el monto supera lo que queda sin devolver del pago.
+     *
+     * @param accessToken token de la cuenta del Organizador: de ahí sale el dinero
+     * @throws PasarelaPagoException si Mercado Pago no lo acepta (por ejemplo, saldo insuficiente) o no responde
+     */
+    public void reembolsarParcial(Long paymentId, BigDecimal monto, String accessToken) {
+        try {
+            if (accessToken == null) {
+                paymentRefundClient.refund(paymentId, monto);
+            } else {
+                paymentRefundClient.refund(paymentId, monto, opciones(accessToken));
+            }
+            log.info("Pago MP {} reembolsado parcialmente: {}", paymentId, monto);
+        } catch (MPApiException e) {
+            log.error("MercadoPago rechazó el reembolso parcial del pago {} ({}): {}", paymentId, e.getStatusCode(), e.getApiResponse().getContent());
+            throw new PasarelaPagoException("Mercado Pago no pudo devolver el dinero (por ejemplo, por saldo insuficiente en tu cuenta)");
+        } catch (MPException e) {
+            log.error("Error de comunicación con MercadoPago al reembolsar parcialmente el pago {}", paymentId, e);
+            throw new PasarelaPagoException("No pudimos comunicarnos con Mercado Pago");
+        }
+    }
+
     /** Fecha de vencimiento de una orden creada ahora (misma zona horaria que el resto de las fechas de la app). */
     public LocalDateTime calcularVencimiento() {
         return LocalDateTime.now().plusMinutes(config.getMinutosVencimientoOrden());

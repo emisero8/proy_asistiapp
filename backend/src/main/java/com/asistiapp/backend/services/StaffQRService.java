@@ -67,6 +67,21 @@ public class StaffQRService {
                     "Esta entrada pertenece a un evento diferente al que tenés asignado");
         }
 
+        // ── Paso 2b: una entrada anulada por el Organizador no vale (8.6) ─
+        if (entrada.getEstado() == EstadoEntrada.Anulada) {
+            log.warn("Intento de usar una entrada anulada. QR={}, entrada={}", dto.getCodigoQr(), entrada.getId());
+            return ValidacionQRResponseDTO.builder()
+                    .valido(false)
+                    .mensaje("❌ ENTRADA ANULADA — El organizador la dejó sin efecto")
+                    .idEntrada(entrada.getId())
+                    .nombreComprador(entrada.getNombreComprador())
+                    .emailComprador(entrada.getEmailComprador())
+                    .nombreEvento(nombreEvento)
+                    .nombreTanda(nombreTanda)
+                    .estadoAnterior(EstadoEntrada.Anulada)
+                    .build();
+        }
+
         // ── Paso 3: Verificar que la entrada NO esté ya Usada ────────────
         if (entrada.getEstado() == EstadoEntrada.Usada) {
             log.warn("Intento de re-uso de entrada ya utilizada. QR={}, entrada={}",
@@ -135,7 +150,9 @@ public class StaffQRService {
         boolean esValida = entrada.getEstado() == EstadoEntrada.Pagada;
         String mensaje = esValida
                 ? "✅ Entrada disponible para validar"
-                : "❌ Entrada ya utilizada el " + entrada.getFechaUso();
+                : entrada.getEstado() == EstadoEntrada.Anulada
+                        ? "❌ Entrada anulada por el organizador"
+                        : "❌ Entrada ya utilizada el " + entrada.getFechaUso();
 
         return ValidacionQRResponseDTO.builder()
                 .valido(esValida)

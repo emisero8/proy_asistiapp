@@ -35,4 +35,10 @@ public class EntradaResponseDTO {
     private TipoEmision tipoEmision;
     /** Nota interna del Organizador: solo se completa en lo que ve el Organizador, nunca para quien tiene la entrada. */
     private String motivoEmision;
+    /** Cuándo se anuló (8.6); null si no está anulada. */
+    private LocalDateTime fechaAnulacion;
+    /** Nota interna del Organizador sobre la anulación: solo se completa en lo que ve el Organizador. */
+    private String motivoAnulacion;
+    /** Cuándo se le devolvió el dinero al comprador; null si no se reembolsó. */
+    private LocalDateTime reembolsadaEn;
 }

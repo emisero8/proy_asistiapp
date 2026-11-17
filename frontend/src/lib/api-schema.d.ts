@@ -164,6 +164,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tickets/{id}/reembolsar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reembolsar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}/anular": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["anular"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tickets/venta-manual": {
         parameters: {
             query?: never;
@@ -190,6 +222,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["validarQR"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/evento/{eventoId}/reembolsos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["pendientes"];
+        put?: never;
+        post: operations["reembolsarTodo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1349,14 +1397,6 @@ export interface components {
             /** Format: int64 */
             idAdministrador?: number;
         };
-        VentaManualRequestDTO: {
-            /** Format: int64 */
-            idTanda: number;
-            /** Format: int32 */
-            cantidad: number;
-            nombreComprador: string;
-            emailComprador: string;
-        };
         EntradaResponseDTO: {
             /** Format: int64 */
             id?: number;
@@ -1372,7 +1412,7 @@ export interface components {
             nombreComprador?: string;
             emailComprador?: string;
             /** @enum {string} */
-            estado?: "Pagada" | "Usada";
+            estado?: "Pagada" | "Usada" | "Anulada";
             /** @enum {string} */
             canalVenta?: "Online" | "Manual";
             /** Format: date-time */
@@ -1382,6 +1422,28 @@ export interface components {
             /** @enum {string} */
             tipoEmision?: "Cortesia" | "Pago_Externo";
             motivoEmision?: string;
+            /** Format: date-time */
+            fechaAnulacion?: string;
+            motivoAnulacion?: string;
+            /** Format: date-time */
+            reembolsadaEn?: string;
+        };
+        AnularEntradaRequestDTO: {
+            motivo?: string;
+            reembolsar?: boolean;
+        };
+        ResultadoAnulacionResponseDTO: {
+            entrada?: components["schemas"]["EntradaResponseDTO"];
+            reembolsada?: boolean;
+            avisoReembolso?: string;
+        };
+        VentaManualRequestDTO: {
+            /** Format: int64 */
+            idTanda: number;
+            /** Format: int32 */
+            cantidad: number;
+            nombreComprador: string;
+            emailComprador: string;
         };
         ValidacionQRRequestDTO: {
             codigoQr: string;
@@ -1396,9 +1458,23 @@ export interface components {
             nombreEvento?: string;
             nombreTanda?: string;
             /** @enum {string} */
-            estadoAnterior?: "Pagada" | "Usada";
+            estadoAnterior?: "Pagada" | "Usada" | "Anulada";
             /** Format: date-time */
             fechaUso?: string;
+        };
+        Falla: {
+            /** Format: int64 */
+            idEntrada?: number;
+            nombreComprador?: string;
+            emailComprador?: string;
+            motivo?: string;
+        };
+        ResultadoReembolsoMasivoResponseDTO: {
+            /** Format: int32 */
+            reembolsadas?: number;
+            /** Format: double */
+            montoReembolsado?: number;
+            fallidas?: components["schemas"]["Falla"][];
         };
         EmisionOrganizadorRequestDTO: {
             /** Format: int64 */
@@ -2179,6 +2255,54 @@ export interface operations {
             };
         };
     };
+    reembolsar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EntradaResponseDTO"];
+                };
+            };
+        };
+    };
+    anular: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AnularEntradaRequestDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultadoAnulacionResponseDTO"];
+                };
+            };
+        };
+    };
     ventaManual: {
         parameters: {
             query?: never;
@@ -2223,6 +2347,50 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ValidacionQRResponseDTO"];
+                };
+            };
+        };
+    };
+    pendientes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventoId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["EntradaResponseDTO"][];
+                };
+            };
+        };
+    };
+    reembolsarTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                eventoId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ResultadoReembolsoMasivoResponseDTO"];
                 };
             };
         };

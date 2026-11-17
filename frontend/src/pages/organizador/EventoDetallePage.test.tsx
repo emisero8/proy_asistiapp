@@ -71,6 +71,9 @@ function entrada(id: number, nombre: string, extra: Partial<EntradaResponseDTO> 
     fechaUso: null,
     tipoEmision: null,
     motivoEmision: null,
+    fechaAnulacion: null,
+    motivoAnulacion: null,
+    reembolsadaEn: null,
     ...extra,
   };
 }

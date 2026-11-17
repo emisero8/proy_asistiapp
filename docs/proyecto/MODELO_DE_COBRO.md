@@ -55,7 +55,7 @@ Lo que sí se construye, para que el Organizador lo tenga fácil:
 | C | Cobro de entradas con el token del Organizador (preferencia, consulta, webhook, reconciliación); bloqueo de publicar sin cuenta (código listo en 8.5; falta probar un pago real) | B |
 | D | Entradas manuales del Organizador (cortesía / pago externo) y trazabilidad de quién emitió cada entrada | — |
 | E | Tope por vendedor y resumen por vendedor | D |
-| F | Anular entrada y reembolsar desde el panel; reembolso masivo al cancelar; devolución de créditos de entradas anuladas | C |
+| F | Anular entrada y reembolsar desde el panel; reembolso masivo al cancelar; devolución de créditos de entradas anuladas (código listo en 8.6; falta probar un reembolso real) | C |
 | G | Botón de arrepentimiento que deriva al WhatsApp o mail del Organizador (contacto por cuenta; sin contacto no se publica) | ✅ hecho (8.8) |
 
 ## 6. Riesgos conocidos

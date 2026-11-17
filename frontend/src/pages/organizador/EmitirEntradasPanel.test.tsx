@@ -44,6 +44,9 @@ function entradaEmitida(id: number): EntradaResponseDTO {
     fechaUso: null,
     tipoEmision: "Cortesia",
     motivoEmision: null,
+    fechaAnulacion: null,
+    motivoAnulacion: null,
+    reembolsadaEn: null,
   };
 }
 

@@ -10,7 +10,7 @@
 export type RolUsuario = "Administrador" | "Organizador" | "Staff_QR" | "Staff_Vendedor";
 export type EstadoUsuario = "Activo" | "Suspendido" | "Inactivo";
 export type EstadoEvento = "Borrador" | "Publicado" | "Cancelado";
-export type EstadoEntrada = "Pagada" | "Usada";
+export type EstadoEntrada = "Pagada" | "Usada" | "Anulada";
 export type CanalVenta = "Online" | "Manual";
 /** Por qué el Organizador emitió él mismo una entrada: regalada, o cobrada por fuera de la plataforma. */
 export type TipoEmision = "Cortesia" | "Pago_Externo";
@@ -228,6 +228,40 @@ export interface EntradaResponseDTO {
   tipoEmision: TipoEmision | null;
   /** Nota interna del Organizador: solo viene en lo que ve el Organizador, nunca en lo que ve quien tiene la entrada. */
   motivoEmision: string | null;
+  /** Cuándo el Organizador la anuló (8.6); null si no está anulada. */
+  fechaAnulacion: string | null;
+  /** Nota interna del Organizador sobre la anulación: solo viene en lo que ve el Organizador. */
+  motivoAnulacion: string | null;
+  /** Cuándo se le devolvió el dinero al comprador; null si no se reembolsó. */
+  reembolsadaEn: string | null;
+}
+
+/** POST /tickets/{id}/anular */
+export interface AnularEntradaRequestDTO {
+  motivo: string | null;
+  /** Además de anularla, devolverle el dinero al comprador desde la cuenta de Mercado Pago del Organizador. */
+  reembolsar: boolean;
+}
+
+export interface ResultadoAnulacionResponseDTO {
+  entrada: EntradaResponseDTO;
+  reembolsada: boolean;
+  /** Si se pidió el reembolso y falló: por qué. La entrada queda anulada y el reembolso se puede reintentar. */
+  avisoReembolso: string | null;
+}
+
+export interface FallaReembolsoDTO {
+  idEntrada: number;
+  nombreComprador: string | null;
+  emailComprador: string | null;
+  motivo: string;
+}
+
+/** POST /tickets/evento/{id}/reembolsos: reembolsa todas las compras de un evento cancelado. */
+export interface ResultadoReembolsoMasivoResponseDTO {
+  reembolsadas: number;
+  montoReembolsado: number;
+  fallidas: FallaReembolsoDTO[];
 }
 
 /** GET /tickets/orden/{ref}: estado de una compra de entradas, para /pago/resultado. */

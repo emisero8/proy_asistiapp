@@ -56,6 +56,19 @@ public class CuentaCobroService {
         }
     }
 
+    /** Token para devolver dinero desde la cuenta del Organizador (8.6). El mensaje le habla a él, no al comprador. */
+    public String tokenParaReembolsar(Long idOrganizador) {
+        if (!config.isExigirCuentaVinculada() && cuentaRepository.findByIdOrganizador(idOrganizador).isEmpty()) {
+            return null;
+        }
+        try {
+            return vinculacionService.obtenerAccessToken(idOrganizador);
+        } catch (BusinessRuleException e) {
+            throw new BusinessRuleException(
+                    "Tu cuenta de Mercado Pago no está vinculada o perdió el acceso: vinculala de nuevo en Mi perfil para poder reembolsar.");
+        }
+    }
+
     /**
      * Token de la cuenta a la que se cobró una orden, para consultar el pago o reembolsarlo. Null si la
      * orden no es de entradas (por ejemplo, créditos) o si no hay cuenta del Organizador (modo sin exigirla).

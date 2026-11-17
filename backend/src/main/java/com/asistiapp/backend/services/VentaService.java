@@ -676,11 +676,12 @@ public class VentaService {
     private EntradaResponseDTO toResponseDTO(Entrada entrada) {
         EntradaResponseDTO dto = construirResponseDTO(entrada);
         dto.setMotivoEmision(null);
+        dto.setMotivoAnulacion(null);
         return dto;
     }
 
     /** Para lo que ve el Organizador: incluye el motivo con el que emitió la entrada. */
-    private EntradaResponseDTO toResponseDTOParaOrganizador(Entrada entrada) {
+    public EntradaResponseDTO toResponseDTOParaOrganizador(Entrada entrada) {
         return construirResponseDTO(entrada);
     }
 
@@ -702,6 +703,9 @@ public class VentaService {
                 .fechaUso(entrada.getFechaUso())
                 .tipoEmision(entrada.getTipoEmision())
                 .motivoEmision(entrada.getMotivoEmision())
+                .fechaAnulacion(entrada.getFechaAnulacion())
+                .motivoAnulacion(entrada.getMotivoAnulacion())
+                .reembolsadaEn(entrada.getReembolsadaEn())
                 .build();
     }
 

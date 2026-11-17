@@ -93,6 +93,35 @@ class StaffQRServiceTest {
     }
 
     @Test
+    void validarQR_entradaAnulada_devuelveInvalidoYNoLaMarcaComoUsada() {
+        // 8.6: una entrada que el Organizador anuló no vale en la puerta.
+        entrada.setEstado(EstadoEntrada.Anulada);
+        when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
+
+        ValidacionQRRequestDTO dto = new ValidacionQRRequestDTO();
+        dto.setCodigoQr(entrada.getCodigoQr());
+
+        ValidacionQRResponseDTO response = staffQRService.validarQR(dto, staffQR);
+
+        assertThat(response.isValido()).isFalse();
+        assertThat(response.getMensaje()).contains("ANULADA");
+        assertThat(response.getEstadoAnterior()).isEqualTo(EstadoEntrada.Anulada);
+        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Anulada);
+        verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void consultarEstadoQR_entradaAnulada_noEsValidaYLoDiceSinDecirQueSeUso() {
+        entrada.setEstado(EstadoEntrada.Anulada);
+        when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
+
+        ValidacionQRResponseDTO response = staffQRService.consultarEstadoQR(entrada.getCodigoQr(), staffQR);
+
+        assertThat(response.isValido()).isFalse();
+        assertThat(response.getMensaje()).contains("anulada").doesNotContain("utilizada");
+    }
+
+    @Test
     void validarQR_entradaYaUsada_devuelveInvalidoSinLanzarExcepcion() {
         entrada.setEstado(EstadoEntrada.Usada);
         entrada.setFechaUso(LocalDateTime.now().minusMinutes(5));

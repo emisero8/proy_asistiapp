@@ -99,7 +99,12 @@ public class MetricasOrganizadorService {
             throw new ForbiddenActionException("No tenés permiso para ver las métricas de este evento");
         }
 
-        List<Entrada> entradas = entradaRepository.findByEventoId(idEvento);
+        // Las anuladas (8.6) ya no son ventas: ni cuentan ni suman ingresos. Siguen ocupando cupo en la tanda.
+        List<Entrada> todas = entradaRepository.findByEventoId(idEvento);
+        List<Entrada> entradas = todas.stream().filter(e -> e.getEstado() != EstadoEntrada.Anulada).toList();
+        Map<Long, Long> anuladasPorTanda = todas.stream()
+                .filter(e -> e.getEstado() == EstadoEntrada.Anulada)
+                .collect(Collectors.groupingBy(e -> e.getTanda().getId(), Collectors.counting()));
         int entradasValidadas = (int) entradas.stream()
                 .filter(e -> e.getEstado() == EstadoEntrada.Usada)
                 .count();
@@ -114,7 +119,8 @@ public class MetricasOrganizadorService {
         int cupoDisponible = 0;
         double ingresosTotales = 0;
         List<TandaMetricasDTO> tandasMetricas = evento.getTandas().stream()
-                .map(t -> toTandaMetricasDTO(t, cortesiasPorTanda.getOrDefault(t.getId(), 0L).intValue()))
+                .map(t -> toTandaMetricasDTO(t, cortesiasPorTanda.getOrDefault(t.getId(), 0L).intValue(),
+                        anuladasPorTanda.getOrDefault(t.getId(), 0L).intValue()))
                 .toList();
 
         for (Tanda tanda : evento.getTandas()) {
@@ -137,8 +143,8 @@ public class MetricasOrganizadorService {
                 .build();
     }
 
-    private TandaMetricasDTO toTandaMetricasDTO(Tanda tanda, int cortesias) {
-        int vendidas = tanda.getCupoMaximo() - tanda.getCupoDisponible();
+    private TandaMetricasDTO toTandaMetricasDTO(Tanda tanda, int cortesias, int anuladas) {
+        int vendidas = tanda.getCupoMaximo() - tanda.getCupoDisponible() - anuladas;
         return TandaMetricasDTO.builder()
                 .idTanda(tanda.getId())
                 .nombre(tanda.getNombre())

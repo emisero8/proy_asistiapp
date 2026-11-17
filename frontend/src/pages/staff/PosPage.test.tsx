@@ -82,6 +82,9 @@ function entrada(id: number, codigoQr: string): EntradaResponseDTO {
     fechaUso: null,
     tipoEmision: null,
     motivoEmision: null,
+    fechaAnulacion: null,
+    motivoAnulacion: null,
+    reembolsadaEn: null,
   };
 }
 

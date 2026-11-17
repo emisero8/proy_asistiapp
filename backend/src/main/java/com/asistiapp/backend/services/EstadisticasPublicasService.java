@@ -30,7 +30,7 @@ public class EstadisticasPublicasService {
                 .filter(u -> u.getEstado() == EstadoUsuario.Activo)
                 .count();
         long eventosPublicados = eventoRepository.findByEstado(EstadoEvento.Publicado).size();
-        long entradasVendidas = entradaRepository.count();
+        long entradasVendidas = entradaRepository.countVigentes();
 
         return EstadisticasPublicasResponseDTO.builder()
                 .organizadoresActivos(organizadoresActivos)

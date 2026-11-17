@@ -254,6 +254,57 @@ public class EmailService {
     }
 
     /**
+     * Avisa a quien tenía una entrada que el Organizador la anuló (8.6). No dice el motivo: es una nota interna.
+     * Si hubo reembolso va en otro mail ({@link #enviarNotificacionReembolsoOrganizador}).
+     */
+    @Async
+    public void enviarNotificacionEntradaAnulada(String emailDestino, String nombreComprador, String nombreEvento) {
+        try {
+            SimpleMailMessage mensaje = new SimpleMailMessage();
+            mensaje.setTo(emailDestino);
+            mensaje.setSubject("Tu entrada fue anulada — " + nombreEvento + " — AsistíAPP");
+            mensaje.setText(String.format("""
+                    Hola %s,
+
+                    El organizador de "%s" anuló tu entrada, por lo que ya no tiene validez para
+                    ingresar al evento.
+
+                    Si tenés dudas, comunicate directamente con el organizador del evento.
+
+                    El equipo de AsistíAPP
+                    """,
+                    nombreComprador, nombreEvento));
+            mailSender.send(mensaje);
+            log.info("Aviso de entrada anulada enviado a: {} para el evento: {}", emailDestino, nombreEvento);
+        } catch (Exception e) {
+            log.error("Error al enviar el aviso de entrada anulada a {}: {}", emailDestino, e.getMessage());
+        }
+    }
+
+    /** Avisa que el Organizador le devolvió el dinero de su compra (anulación o evento cancelado), ya hecho en Mercado Pago (8.6). */
+    @Async
+    public void enviarNotificacionReembolsoOrganizador(String emailDestino, String nombreComprador, String nombreEvento, double monto) {
+        try {
+            SimpleMailMessage mensaje = new SimpleMailMessage();
+            mensaje.setTo(emailDestino);
+            mensaje.setSubject("Te devolvimos tu dinero — " + nombreEvento + " — AsistíAPP");
+            mensaje.setText(String.format(java.util.Locale.forLanguageTag("es-AR"), """
+                    Hola %s,
+
+                    El organizador de "%s" te devolvió $%,.2f de tu compra, a través de Mercado Pago.
+                    Deberías verlo reflejado en los próximos días según el medio de pago que hayas usado.
+
+                    El equipo de AsistíAPP
+                    """,
+                    nombreComprador, nombreEvento, monto));
+            mailSender.send(mensaje);
+            log.info("Aviso de reembolso enviado a: {} para el evento: {}", emailDestino, nombreEvento);
+        } catch (Exception e) {
+            log.error("Error al enviar el aviso de reembolso a {}: {}", emailDestino, e.getMessage());
+        }
+    }
+
+    /**
      * Avisa al Organizador que se le devolvió el dinero de una compra de créditos que no se
      * pudo acreditar. El reembolso en sí ya se hizo contra la API de MP antes de llamar a
      * este método — esto es solo la notificación.
