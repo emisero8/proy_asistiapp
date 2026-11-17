@@ -47,6 +47,8 @@ export function OrganizadorWizardPage() {
   const topRef = useRef<HTMLDivElement>(null);
   const [published, setPublished] = useState(false);
   const [eventoId, setEventoId] = useState<number | null>(null);
+  // Tandas ya creadas en el servidor: si publicar falla y se reintenta, no se vuelven a crear (quedarían duplicadas).
+  const tandasCreadas = useRef<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [movimiento, setMovimiento] = useState<MovimientoCreditoResponseDTO | null>(null);
@@ -151,6 +153,7 @@ export function OrganizadorWizardPage() {
     setError(null);
     try {
       for (const t of tandas) {
+        if (tandasCreadas.current.has(t.id)) continue;
         // Si el "hasta" cae el mismo día del evento, la venta cierra cuando
         // empieza el evento (no a las 23:59) para no chocar con la validación.
         const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
@@ -163,6 +166,7 @@ export function OrganizadorWizardPage() {
           fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
         };
         await api.post(`/eventos/${eventoId}/tandas`, dto);
+        tandasCreadas.current.add(t.id);
       }
       await api.patch(`/eventos/${eventoId}/publicar`);
       const historial = await api.get<MovimientoCreditoResponseDTO[]>("/creditos/historial");

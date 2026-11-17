@@ -452,4 +452,23 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     expect(screen.queryByText("¡Evento publicado!")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Publicar evento" })).toBeEnabled());
   });
+
+  it("si la publicación falla y se reintenta, no vuelve a crear las tandas que ya se crearon", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500, { historial: [movimiento(4, 1)] });
+    vi.mocked(api.patch).mockRejectedValueOnce(apiError("Créditos insuficientes", 402)).mockResolvedValueOnce({});
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user);
+    vi.mocked(api.post).mockResolvedValue({});
+
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+    await screen.findByText("Créditos insuficientes");
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    expect(await screen.findByText("¡Evento publicado!")).toBeInTheDocument();
+    const creaciones = vi.mocked(api.post).mock.calls.filter(([ruta]) => String(ruta).endsWith("/tandas"));
+    expect(creaciones).toHaveLength(1);
+    expect(api.patch).toHaveBeenCalledTimes(2);
+  });
 });

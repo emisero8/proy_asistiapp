@@ -339,6 +339,46 @@ describe("OrganizadorEventoDetallePage — cancelar el evento", () => {
   });
 });
 
+describe("OrganizadorEventoDetallePage — publicar un borrador", () => {
+  it("un evento publicado no ofrece publicar", async () => {
+    mockGets();
+    renderPage();
+    await screen.findByRole("heading", { name: "Festival de Jazz" });
+
+    expect(screen.queryByRole("button", { name: "Publicar evento" })).not.toBeInTheDocument();
+  });
+
+  it("un borrador ofrece publicar: lo publica, avisa con un toast y recarga ya como publicado", async () => {
+    const user = userEvent.setup();
+    mockGets({ ...EVENTO, estado: "Borrador" });
+    vi.mocked(api.patch).mockResolvedValueOnce({});
+    renderPage();
+    await screen.findByText("Este evento todavía está en borrador");
+
+    mockGets(); // desde ahora el backend lo devuelve publicado
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    expect(api.patch).toHaveBeenCalledWith("/eventos/5/publicar");
+    expect(await screen.findByText("Evento publicado")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Este evento todavía está en borrador")).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Publicar evento" })).not.toBeInTheDocument();
+  });
+
+  it("si el backend no deja publicar (ej. falta vincular Mercado Pago) muestra su mensaje y el botón sigue disponible", async () => {
+    const user = userEvent.setup();
+    mockGets({ ...EVENTO, estado: "Borrador" });
+    vi.mocked(api.patch).mockRejectedValueOnce(apiError("Para publicar tenés que vincular tu cuenta de Mercado Pago"));
+    renderPage();
+    await screen.findByText("Este evento todavía está en borrador");
+
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Para publicar tenés que vincular tu cuenta de Mercado Pago");
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeEnabled();
+    expect(screen.getByText("Este evento todavía está en borrador")).toBeInTheDocument();
+  });
+});
+
 describe("OrganizadorEventoDetallePage — eliminar un borrador", () => {
   it("un evento publicado no ofrece eliminar", async () => {
     mockGets();

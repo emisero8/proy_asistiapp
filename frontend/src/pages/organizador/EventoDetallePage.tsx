@@ -49,6 +49,8 @@ export function OrganizadorEventoDetallePage() {
   const [error, setError] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState(false);
   const [eliminando, setEliminando] = useState(false);
+  const [publicando, setPublicando] = useState(false);
+  const [errorPublicar, setErrorPublicar] = useState<string | null>(null);
 
   useDocumentTitle(evento?.nombre);
   const { confirm } = useDialog();
@@ -97,6 +99,21 @@ export function OrganizadorEventoDetallePage() {
       toast.error(e instanceof ApiError ? e.message : "No pudimos cancelar el evento.");
     } finally {
       setCancelando(false);
+    }
+  }
+
+  async function publicarEvento() {
+    if (!evento) return;
+    setPublicando(true);
+    setErrorPublicar(null);
+    try {
+      await api.patch(`/eventos/${evento.id}/publicar`);
+      toast.success("Evento publicado");
+      cargar();
+    } catch (e: unknown) {
+      setErrorPublicar(e instanceof ApiError ? e.message : "No pudimos publicar el evento.");
+    } finally {
+      setPublicando(false);
     }
   }
 
@@ -421,6 +438,18 @@ export function OrganizadorEventoDetallePage() {
         <div className="rounded-2xl border border-dashed border-border bg-card/60 text-center py-12 px-6">
           <p className="text-sm font-semibold text-foreground mb-1">Este evento todavía está en borrador</p>
           <p className="text-xs text-muted-foreground">Publicalo para empezar a vender entradas y ver las métricas acá.</p>
+          {errorPublicar && (
+            <p role="alert" className="text-xs text-destructive mt-3">
+              {errorPublicar}
+            </p>
+          )}
+          <button
+            onClick={publicarEvento}
+            disabled={publicando}
+            className="mt-4 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {publicando ? "Publicando..." : "Publicar evento"}
+          </button>
         </div>
       )}
 
