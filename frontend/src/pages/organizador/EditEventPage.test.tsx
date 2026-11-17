@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizadorEditEventPage } from "./EditEventPage";
 import { DialogProvider } from "../../components/DialogProvider";
 import { api, ApiError } from "../../lib/api";
+import { elegirFecha, elegirHora } from "../../testing/pickers";
 
 /** GET /creditos/resumen: siempre responde el saldo; el resto de los GET consume la cola de cada test. */
 const RESUMEN_CREDITOS = { saldo: 500, costoPublicacion: 1, disponibleParaEntradas: 499 };
@@ -95,6 +96,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.mocked(api.get).mockReset();
   vi.mocked(api.post).mockReset();
   vi.mocked(api.put).mockReset();
@@ -110,7 +112,8 @@ describe("OrganizadorEditEventPage — carga", () => {
     expect(api.get).toHaveBeenCalledWith("/eventos/5");
     expect(screen.getByDisplayValue("Una descripción")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Club Demo")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("21:00")).toBeInTheDocument(); // sin los segundos
+    expect(screen.getByRole("button", { name: /21:00 hs/ })).toBeInTheDocument(); // hora sin los segundos
+    expect(screen.getByRole("button", { name: /31 dic.* 2099/ })).toBeInTheDocument(); // fecha del evento
     expect(screen.getByDisplayValue("General")).toBeInTheDocument();
     expect(screen.getByText(/3 vendidas · 7 disponibles/)).toBeInTheDocument();
     expect(screen.getByText(/evento está publicado y en venta/i)).toBeInTheDocument();
@@ -171,15 +174,32 @@ describe("OrganizadorEditEventPage — datos del evento", () => {
     expect(screen.getByDisplayValue("Nombre Nuevo")).toBeInTheDocument(); // refleja lo que devolvió el backend
   });
 
-  it("con la fecha en el pasado avisa y deshabilita 'Guardar datos'", async () => {
-    responderGets(EVENTO);
-    const { container } = renderPage();
+  it("un evento con la fecha en el pasado avisa y deshabilita 'Guardar datos'", async () => {
+    responderGets({ ...EVENTO, fechaEvento: "2020-01-01" });
+    renderPage();
     await cargado();
-
-    fireEvent.change(container.querySelector<HTMLInputElement>('input[type="date"]')!, { target: { value: "2020-01-01" } });
 
     expect(screen.getByText("La fecha no puede estar en el pasado.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Guardar datos" })).toBeDisabled();
+  });
+
+  it("cambia la fecha y la hora con los selectores y las manda al guardar", async () => {
+    // Reloj congelado (solo Date): el calendario abre en el mes de la fecha del evento y no hay que recorrer años.
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date(2030, 5, 15, 12) });
+    const user = userEvent.setup();
+    const evento = { ...EVENTO, fechaEvento: "2030-06-28" };
+    responderGets(evento);
+    vi.mocked(api.put).mockResolvedValueOnce({ ...evento, fechaEvento: "2030-07-05", horaEvento: "22:30:00" });
+    renderPage();
+    await cargado();
+
+    await elegirFecha(user, screen.getByRole("button", { name: /28 jun 2030/ }), "2030-07-05");
+    await elegirHora(user, screen.getByRole("button", { name: /21:00 hs/ }), "22:30");
+    await user.click(screen.getByRole("button", { name: "Guardar datos" }));
+
+    expect(await screen.findByText("Datos del evento guardados.")).toBeInTheDocument();
+    expect(api.put).toHaveBeenCalledWith("/eventos/5", expect.objectContaining({ fechaEvento: "2030-07-05", horaEvento: "22:30:00" }));
+    expect(screen.getByRole("button", { name: /22:30 hs/ })).toBeInTheDocument();
   });
 
   it("si el backend rechaza el guardado muestra su mensaje", async () => {

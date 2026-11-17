@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
-import { MESES, DIAS, toISO, buildGrid } from "../lib/calendar";
+import { MESES, DIAS, toISO, buildGrid, fechaLarga } from "../lib/calendar";
 import { formatFecha } from "../lib/format";
 
 type Props = {
@@ -17,9 +17,8 @@ type Props = {
 /**
  * Selector de fecha con el mismo lenguaje visual que `DateRangeFilter` (popover propio,
  * nada del calendario nativo del navegador, que no se puede restylear más allá del
- * color-scheme). Mantiene un `<input type="date">` real pero visualmente oculto,
- * sincronizado con el mismo value/onChange, para que los tests existentes que lo buscan
- * por `input[type="date"]` y disparan `fireEvent.change` sigan funcionando sin tocarlos.
+ * color-scheme). Cada día es un botón con su fecha completa como nombre accesible
+ * ("28 de junio de 2030"); los tests lo usan con `elegirFecha` de `src/testing/pickers.ts`.
  */
 export function DatePicker({ value, onChange, min, max, error, placeholder = "Elegí una fecha", allowClear }: Props) {
   const [open, setOpen] = useState(false);
@@ -61,22 +60,11 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
 
   return (
     <div className="relative" ref={ref}>
-      {/* Puente para los tests existentes — nunca visible ni interactuable por mouse/teclado. */}
-      <input
-        type="date"
-        value={value}
-        min={min}
-        max={max}
-        readOnly
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={(e) => onChange(e.target.value)}
-        className="sr-only"
-      />
-
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         className={`w-full flex items-center justify-between gap-2 px-3 py-3 bg-card border rounded-xl text-sm text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 ${
           error ? "border-red-500/60" : "border-border"
         } ${value ? "text-foreground" : "text-muted-foreground"}`}
@@ -132,6 +120,8 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
                     <button
                       type="button"
                       disabled={!!disabled}
+                      aria-label={fechaLarga(d)}
+                      aria-pressed={esElegido}
                       onClick={() => elegir(iso)}
                       className={`w-8 h-8 rounded-full text-xs font-semibold transition-all duration-150 flex items-center justify-center ${
                         disabled
