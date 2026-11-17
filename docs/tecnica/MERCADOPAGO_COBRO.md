@@ -2,7 +2,7 @@
 
 > Guía única para quien trabaje en el cobro (personas y agentes de código). Cubre la **Etapa 8** de `docs/proyecto/PLAN_MEJORAS.md`: cada Organizador vincula su cuenta de Mercado Pago y el dinero de las entradas va directo a ella; la plataforma cobra solo créditos. La especificación del modelo está en [`../proyecto/MODELO_DE_COBRO.md`](../proyecto/MODELO_DE_COBRO.md); las decisiones, en [`../proyecto/DECISIONES.md`](../proyecto/DECISIONES.md).
 >
-> Estado al 2026-11-17: el cobro y el reembolso **están probados de punta a punta con dinero real** (un pago de $10 y su reembolso). **No se pueden probar con usuarios de prueba del sandbox** con la aplicación OAuth (ver sección 7). Para desarrollar sin dinero real hay un modo que cobra con la cuenta de la plataforma (sección 4).
+> Estado al 2026-11-17: el cobro y el reembolso **están probados de punta a punta con dinero real** (un pago de $10, su reembolso individual y un reembolso masivo). **No se pueden probar con usuarios de prueba del sandbox** con la aplicación OAuth (ver sección 7). Para desarrollar sin dinero real hay un modo que cobra con la cuenta de la plataforma (sección 4).
 
 ## 1. El modelo en una página
 
@@ -77,7 +77,7 @@ En el modo de desarrollo, **el reembolso a través de Mercado Pago no es represe
 3. **Compra con una cuenta de Mercado Pago distinta del vendedor** (Mercado Pago no deja pagarse a uno mismo), en ventana de incógnito, con dinero disponible.
 4. Verificá: aviso del webhook en `http://127.0.0.1:4040` (panel de ngrok), orden confirmada en el log del backend, entrada **Pagada** en Detalle del evento, mail con el QR.
 5. **Reembolso:** Detalle del evento → **Anular** → tildar "Devolverle el dinero" → debe quedar "Anulada · reembolsada", el crédito vuelve al saldo y llega un mail. Confirmá la devolución en la actividad de tu cuenta de Mercado Pago (el log del backend no imprime la respuesta de Mercado Pago).
-6. **Reembolso masivo:** otra compra, cancelar el evento, en su Detalle → "Reembolsar todas". *(Pendiente de probar con dinero real.)*
+6. **Reembolso masivo:** otra compra, cancelar el evento, en su Detalle → "Reembolsar todas". *(Probado con dinero real el 17/11: pago de $10 reembolsado, entrada reembolsada, mail al comprador; al cancelar el evento también volvieron los créditos de las entradas sin vender.)*
 
 Costo de la prueba real del 17/11: comisión de Mercado Pago de $0,42 sobre $10. Mercado Pago puede no devolverla al reembolsar.
 
@@ -123,5 +123,5 @@ Costo de la prueba real del 17/11: comisión de Mercado Pago de $0,42 sobre $10.
 - Activar `MP_VALIDAR_FIRMA=true` con la **clave secreta de Webhooks de la aplicación OAuth** (en la prueba real el log dijo "la firma del webhook no coincide"; puede que la clave configurada sea la de la otra aplicación). Hay que verificar el panel: la notificación de pagos de cuentas vinculadas por OAuth se firma con la clave de la aplicación que cobra.
 - `MP_TOKEN_ENCRYPTION_KEY` real y secreta (`openssl rand -base64 32`); la de desarrollo es pública.
 - Rotar las credenciales del sandbox que pasaron por chats; dominio propio con SPF/DKIM/DMARC; aplicar las migraciones en las bases que no sean la local.
-- Probar con dinero real el **reembolso masivo** y la **revocación de la cuenta** (hoy cubierta solo por tests).
+- Probar con dinero real la **revocación de la cuenta** (hoy cubierta solo por tests) y un reembolso masivo con **varias** compras y una que falle (por ejemplo, por saldo insuficiente).
 - Términos y privacidad son **borradores** (8.7): revisarlos con un abogado.
