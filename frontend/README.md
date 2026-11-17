@@ -33,7 +33,6 @@ SPA de AsistíAPP. React 19 + TypeScript + Vite + Tailwind CSS v4 + react-router
 - `src/lib/auth.tsx` — contexto de sesión (`useAuth`) y guard de rutas por rol (`RequireRole`).
 - `src/lib/types.ts` — espejo a mano de los DTOs del backend, con la nulabilidad real de cada campo. Se verifica contra el contrato del backend (ver "Contrato con el backend" más abajo).
 - `src/lib/types.contract.ts`, `src/lib/api-schema.d.ts` y `openapi.json` — la guardia de desfasajes de `types.ts`; los dos últimos son generados, no se editan a mano.
-- `figma-reference/` — export crudo del mockup original de Figma Make. Solo material de consulta de diseño — **nunca se edita ni se shipea**.
 
 Las páginas de cada rol están separadas por rutas y cargadas con `React.lazy()` (ver `src/App.tsx`) — las que traen dependencias pesadas (`recharts` en el dashboard del Organizador, `html5-qrcode` en el scanner de Staff) quedan en su propio chunk, que solo se descarga al entrar a esa pantalla.
 
@@ -67,7 +66,7 @@ Vitest + React Testing Library, con `jsdom`. Cubren lógica con más superficie 
 - `src/lib/auth.test.tsx` — `RequireRole` (redirige según sesión/rol) y `AuthProvider` (persiste/limpia la sesión en `localStorage`).
 - Un componente de login (`StaffLoginPage`) y una pantalla de listado con mutaciones (`AdminUsersPage`) como representantes de esos dos patrones, que se repiten en el resto de los roles.
 
-No hay tests end-to-end en el repo — la verificación end-to-end (Playwright contra un backend real) se corre a mano al cerrar cada fase del `frontend_implementation_plan.md`, no queda como suite versionada.
+Las pruebas de punta a punta (Playwright contra el backend real) están en `e2e/` y se corren con `npm run e2e`; ver [`e2e/README.md`](e2e/README.md).
 
 CI configurado en `.github/workflows/frontend-tests.yml` (typecheck + lint + tests + build en cada push/PR).
 

@@ -19,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Rate limiting en memoria por IP para los endpoints públicos más sensibles
- * a fuerza bruta y abuso (SECURITY.md §5: login, recuperación de contraseña,
+ * a fuerza bruta y abuso (docs/tecnica/SECURITY.md §5: login, recuperación de contraseña,
  * transacciones de pago). El resto de la API no pasa por este filtro.
  *
  * Limitación conocida: al vivir en memoria, el límite no se comparte entre

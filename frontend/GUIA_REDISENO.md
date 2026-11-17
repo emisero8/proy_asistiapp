@@ -12,7 +12,7 @@ Para quien aplique el nuevo diseño sobre esta base. El comportamiento ya está 
 
 - Tailwind v4 con tokens de color en `src/styles/theme.css` (`:root` para claro, `.dark` para oscuro; se exponen como `bg-background`, `text-foreground`, `bg-primary`, `bg-card`, `border-border`, etc.). Las pantallas usan esos tokens, **no** `dark:`: cambiar la paleta ahí cambia todo.
 - El tema claro/oscuro lo maneja `src/lib/theme.tsx` (`ThemeProvider` agrega/saca la clase `dark` en `<html>`). El nuevo diseño tiene que seguir funcionando en los dos temas, o decidir explícitamente quedarse con uno (en ese caso avisar: hay que sacar `ThemeToggle`).
-- Fuentes en `src/styles/fonts.css`. `figma-reference/` es solo consulta, no se edita.
+- Fuentes en `src/styles/fonts.css`.
 
 ## 3. Lo que NO hay que cambiar (es la lógica, no el diseño)
 
@@ -33,7 +33,7 @@ Si el diseño nuevo exige cambiar un texto, **cambiarlo también en el test que 
 
 ## 5. Reglas que ya se resolvieron y conviene mantener
 
-- **Botón de tema:** no es flotante. Cada pantalla lo pone en su propio header con `<ThemeToggle />` (variantes `normal`, `sobre-imagen` y `esquina` solo para pantallas sin header: login y registro). El escáner QR no lo lleva a propósito. Detalle en `DECISIONES.md` (2026-11-17). Si el nuevo header cambia, mover el toggle ahí; no volver a hacerlo `fixed` global (ya causó dos bugs).
+- **Botón de tema:** no es flotante. Cada pantalla lo pone en su propio header con `<ThemeToggle />` (variantes `normal`, `sobre-imagen` y `esquina` solo para pantallas sin header: login y registro). El escáner QR no lo lleva a propósito. Detalle en `docs/proyecto/DECISIONES.md` (2026-11-17). Si el nuevo header cambia, mover el toggle ahí; no volver a hacerlo `fixed` global (ya causó dos bugs).
 - **`useTheme` exige `ThemeProvider`:** todo test que renderice una página con `ThemeToggle` tiene que envolverla en `<ThemeProvider>`.
 - **Mobile y desktop:** toda pantalla nueva se revisa en los dos (hay navegación inferior en mobile para Organizador y Admin).
 - **Pickers de fecha y hora:** son componentes propios (`DatePicker`, `TimePicker`) con tests propios; no se reemplazan por `<input type="date">` sin reescribir esos tests.

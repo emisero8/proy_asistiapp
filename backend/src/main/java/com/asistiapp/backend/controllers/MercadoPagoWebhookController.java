@@ -48,7 +48,7 @@ public class MercadoPagoWebhookController {
         // viejo IPN (?id=…&topic=payment). Las dos van firmadas y se tratan igual.
         String idQuery = dataIdQuery != null ? dataIdQuery : idIpnQuery;
 
-        // Diagnóstico de la firma (ver "Pendiente de la firma" en backend_implementation_plan.md):
+        // Diagnóstico de la firma (ver "Pendiente de la firma" en docs/tecnica/backend_implementation_plan.md):
         // deja registrado por qué vía llegó cada aviso, para poder distinguir si lo que no valida
         // es el webhook (?data.id=) o el formato IPN (?id=). Solo datos no secretos.
         log.info("Aviso de MercadoPago: formato={}, tipo={}, id={}, x-signature={}, x-request-id={}",

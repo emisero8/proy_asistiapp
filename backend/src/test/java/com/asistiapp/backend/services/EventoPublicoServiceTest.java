@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 /**
  * Un evento Publicado que ya pasó su fecha y hora no es parte del catálogo que ve el
  * Comprador — el catálogo no es un archivo histórico (encontrado probando el sistema:
- * eventos vencidos seguían listados y se podía entrar a comprarles, ver DECISIONES.md).
+ * eventos vencidos seguían listados y se podía entrar a comprarles, ver docs/proyecto/DECISIONES.md).
  */
 @ExtendWith(MockitoExtension.class)
 class EventoPublicoServiceTest {

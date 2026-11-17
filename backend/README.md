@@ -137,7 +137,7 @@ Si el envío falla (MailHog caído, credenciales mal puestas, límite excedido),
 
 ## Pagos con MercadoPago (Checkout Pro)
 
-El cobro de entradas y de créditos usa MercadoPago Checkout Pro. El detalle del diseño, las decisiones y el estado están en la **Fase 21** de `../backend_implementation_plan.md`.
+El cobro de entradas y de créditos usa MercadoPago Checkout Pro. El detalle del diseño, las decisiones y el estado están en la **Fase 21** de `../docs/tecnica/backend_implementation_plan.md`.
 
 **Configuración mínima (todo por variable de entorno, nunca en el repo). Alcanza para pagar en local, sin túnel:**
 1. Crear una aplicación en el [panel de desarrolladores de MercadoPago](https://www.mercadopago.com.ar/developers/panel/app) y copiar el **Access Token de las credenciales de prueba** a `MP_ACCESS_TOKEN`. Reiniciar el backend (y reabrir la terminal / VS Code si la variable es de usuario de Windows).
