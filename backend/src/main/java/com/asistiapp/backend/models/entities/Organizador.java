@@ -37,4 +37,11 @@ public class Organizador extends Usuario {
 
     @Column(name = "contacto_email", length = 200)
     private String contactoEmail;
+
+    /** Cuándo y con qué versión de los términos se registró (8.7). Nulo en cuentas anteriores a ese cambio. */
+    @Column(name = "terminos_aceptados_en")
+    private java.time.LocalDateTime terminosAceptadosEn;
+
+    @Column(name = "terminos_version", length = 40)
+    private String terminosVersion;
 }

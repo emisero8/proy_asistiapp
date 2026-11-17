@@ -71,7 +71,7 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 
 | Método y ruta | Qué hace |
 |---|---|
-| `POST /auth/register` | Registra un Organizador y lo deja con sesión iniciada; recibe los créditos de bienvenida. |
+| `POST /auth/register` | Registra un Organizador y lo deja con sesión iniciada; recibe los créditos de bienvenida. Exige `aceptaTerminos: true` (400 si falta o es `false`) y guarda cuándo y con qué versión de los términos se registró. |
 | `POST /auth/login` | Inicia sesión (cualquier rol) y devuelve el JWT. |
 | `POST /auth/recuperar-password` | Envía por mail un enlace para restablecer la contraseña (responde igual exista o no el email). |
 | `POST /auth/restablecer-password` | Fija la contraseña nueva con el token recibido por mail. |
@@ -85,7 +85,7 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `GET /public/estadisticas` | Cifras generales para la portada. |
 | `GET /public/paquetes-credito` | Paquetes de créditos activos (se muestran en la portada). |
 | `GET /public/soporte` | Contacto de soporte configurado por el Admin. |
-| `POST /tickets/comprar-online` | Crea la orden y la preferencia de pago de MercadoPago; devuelve `urlPago` y `ordenId`. |
+| `POST /tickets/comprar-online` | Crea la orden y la preferencia de pago de MercadoPago; devuelve `urlPago` y `ordenId`. Exige `aceptaTerminos: true` (400 si falta o es `false`). |
 | `GET /tickets/orden/{externalReference}` | Estado de una orden de entradas (y las entradas, si ya se pagó). |
 | `GET /tickets/by-codigo` | Datos de una entrada a partir de su código. |
 | `GET /tickets/{id}/qr-image` | Imagen PNG del QR de una entrada. |

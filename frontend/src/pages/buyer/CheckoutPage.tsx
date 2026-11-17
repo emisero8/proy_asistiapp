@@ -1,3 +1,4 @@
+import { AceptaTerminos } from "../../components/AceptaTerminos";
 import { useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
 import { useLocation, useNavigate } from "react-router";
@@ -29,6 +30,7 @@ export function CheckoutPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [confirmarEmail, setConfirmarEmail] = useState("");
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +49,7 @@ export function CheckoutPage() {
   const total = tanda.precio * qty;
   const emailsNoCoinciden = confirmarEmail.length > 0 && email !== confirmarEmail;
   const valid =
-    name.trim().length > 1 && email.length > 4 && email.includes("@") && email === confirmarEmail;
+    name.trim().length > 1 && email.length > 4 && email.includes("@") && email === confirmarEmail && aceptaTerminos;
 
   async function handleConfirm() {
     setLoading(true);
@@ -67,6 +69,7 @@ export function CheckoutPage() {
             cantidad: qty,
             nombreComprador: name,
             emailComprador: email,
+            aceptaTerminos,
           } satisfies CompraOnlineRequestDTO,
           { skipAuth: true },
         ),
@@ -155,6 +158,8 @@ export function CheckoutPage() {
               </button>
             </form>
           </div>
+
+          <AceptaTerminos aceptado={aceptaTerminos} onCambio={setAceptaTerminos} />
 
           <div>
             <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Método de pago</p>

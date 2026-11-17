@@ -1495,6 +1495,7 @@ export interface components {
             cantidad: number;
             nombreComprador: string;
             emailComprador: string;
+            aceptaTerminos: boolean;
         };
         IniciarCompraResponseDTO: {
             ordenId?: string;
@@ -1557,6 +1558,7 @@ export interface components {
             nombre: string;
             email: string;
             password: string;
+            aceptaTerminos: boolean;
         };
         AuthResponseDTO: {
             token?: string;

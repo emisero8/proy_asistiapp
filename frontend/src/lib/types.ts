@@ -105,6 +105,8 @@ export interface RegisterRequestDTO {
   nombre: string;
   email: string;
   password: string;
+  /** Tiene que ser true: aceptó los Términos y Condiciones y la Política de Privacidad. */
+  aceptaTerminos: boolean;
 }
 
 export interface SolicitarRecuperacionRequestDTO {
@@ -286,6 +288,8 @@ export interface CompraOnlineRequestDTO {
   cantidad: number;
   nombreComprador: string;
   emailComprador: string;
+  /** Tiene que ser true: aceptó los Términos y Condiciones y la Política de Privacidad. */
+  aceptaTerminos: boolean;
 }
 
 export interface IniciarCompraResponseDTO {

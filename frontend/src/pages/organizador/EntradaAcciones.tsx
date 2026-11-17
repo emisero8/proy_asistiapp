@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { fmt } from "../../lib/format";
@@ -7,7 +7,7 @@ import type { AnularEntradaRequestDTO, EntradaResponseDTO, ResultadoAnulacionRes
 const boton = "px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors disabled:opacity-50";
 
 /** Una compra online (la pagó el comprador por Mercado Pago): las emitidas por el Organizador o vendidas en puerta no tienen pago que devolver. */
-export function esCompraOnline(e: EntradaResponseDTO): boolean {
+function esCompraOnline(e: EntradaResponseDTO): boolean {
   return e.canalVenta === "Online" && !e.tipoEmision;
 }
 

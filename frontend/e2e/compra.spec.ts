@@ -17,6 +17,7 @@ test("un comprador elige una tanda, completa sus datos y se abre el pago de Merc
   await page.getByPlaceholder("María García").fill("Comprador E2E");
   await page.getByPlaceholder("maria@ejemplo.com").fill("comprador.e2e@asistiapp.test");
   await page.getByPlaceholder("Repetí tu email").fill("comprador.e2e@asistiapp.test");
+  await page.getByRole("checkbox", { name: /Acepto los Términos/ }).check();
   const pestanaPago = context.waitForEvent("page");
   await page.getByRole("button", { name: /Confirmar compra/ }).first().click();
 

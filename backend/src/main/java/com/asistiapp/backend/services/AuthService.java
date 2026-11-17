@@ -103,6 +103,8 @@ public class AuthService {
         organizador.setRol(RolUsuario.Organizador);
         organizador.setEstado(EstadoUsuario.Activo);
         organizador.setSaldoCreditos(0);
+        organizador.setTerminosAceptadosEn(java.time.LocalDateTime.now());
+        organizador.setTerminosVersion(com.asistiapp.backend.models.entities.TerminosLegales.VERSION);
 
         Organizador saved = organizadorRepository.save(organizador);
         int creditosBienvenida = configuracionService.obtenerEntero(

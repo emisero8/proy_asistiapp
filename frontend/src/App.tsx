@@ -1,3 +1,5 @@
+import { TerminosPage } from "./pages/legal/TerminosPage";
+import { PrivacidadPage } from "./pages/legal/PrivacidadPage";
 import { lazy, Suspense, useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
@@ -86,6 +88,8 @@ function AnimatedRoutes() {
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/ticket/:id" element={<TicketPage />} />
         <Route path="/mi-entrada" element={<MiEntradaPage />} />
+        <Route path="/terminos" element={<TerminosPage />} />
+        <Route path="/privacidad" element={<PrivacidadPage />} />
         <Route path="/pago/resultado" element={<PagoResultadoPage />} />
 
         {/* Organizador */}

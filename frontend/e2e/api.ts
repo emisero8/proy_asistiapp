@@ -40,7 +40,7 @@ export function emailUnico(rol: string) {
 
 export async function registrarOrganizador(): Promise<Auth> {
   const email = emailUnico("organizador");
-  const r = await post<Auth>("/auth/register", undefined, { nombre: "E2E Organizador", email, password: PASSWORD });
+  const r = await post<Auth>("/auth/register", undefined, { nombre: "E2E Organizador", email, password: PASSWORD, aceptaTerminos: true });
   // Para publicar hace falta un contacto del arrepentimiento (8.8).
   await put("/organizador/perfil/contacto", r.token, { contactoEmail: email });
   return { token: r.token, id: r.id, email };

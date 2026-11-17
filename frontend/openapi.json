@@ -3388,6 +3388,7 @@
       },
       "CompraOnlineRequestDTO": {
         "required": [
+          "aceptaTerminos",
           "cantidad",
           "emailComprador",
           "idTanda",
@@ -3410,6 +3411,9 @@
           },
           "emailComprador": {
             "type": "string"
+          },
+          "aceptaTerminos": {
+            "type": "boolean"
           }
         }
       },
@@ -3585,6 +3589,7 @@
       },
       "RegisterRequestDTO": {
         "required": [
+          "aceptaTerminos",
           "email",
           "nombre",
           "password"
@@ -3603,6 +3608,9 @@
             "maxLength": 2147483647,
             "minLength": 8,
             "type": "string"
+          },
+          "aceptaTerminos": {
+            "type": "boolean"
           }
         }
       },

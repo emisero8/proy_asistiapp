@@ -78,3 +78,20 @@ describe("CheckoutPage — email y confirmación", () => {
     expect(screen.queryByText("Los emails no coinciden.")).not.toBeInTheDocument();
   });
 });
+
+describe("CheckoutPage — términos y condiciones", () => {
+  it("no se puede confirmar la compra hasta aceptar los términos", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.type(screen.getByPlaceholderText("María García"), "María García");
+    await user.type(screen.getByPlaceholderText("maria@ejemplo.com"), "maria@ejemplo.com");
+    await user.type(screen.getByPlaceholderText("Repetí tu email"), "maria@ejemplo.com");
+
+    const confirmar = screen.getAllByRole("button", { name: /Confirmar compra/ })[0];
+    expect(confirmar).toBeDisabled();
+
+    await user.click(screen.getByRole("checkbox", { name: /Acepto los Términos y Condiciones/ }));
+
+    expect(confirmar).toBeEnabled();
+  });
+});
