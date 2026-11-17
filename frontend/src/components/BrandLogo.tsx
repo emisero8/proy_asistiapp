@@ -2,13 +2,15 @@ import { Link } from "react-router";
 import { cn } from "../lib/cn";
 
 interface BrandLogoProps {
+  /** Destino del link (default `/`). Los paneles internos lo apuntan a su inicio (dashboard). */
+  to?: string;
   /** Clases de layout (margen, posición, visibilidad). No pisar colores/tamaño: usar `tone`/`size`. */
   className?: string;
   onClick?: () => void;
   ariaLabel?: string;
   /** Clase de display del Link (default `flex`). Para esconderlo en mobile: `"hidden sm:flex"`. */
   display?: string;
-  /** `onDark`: variante para fondos siempre oscuros (panel de marca de Auth). */
+  /** `onDark`: variante para fondos siempre oscuros (el Scanner del Staff, siempre negro). */
   tone?: "default" | "onDark";
   /** Tamaño de la tipografía del wordmark (default `text-lg`, como Home/PublicHeader). */
   size?: "lg" | "xl";
@@ -20,14 +22,15 @@ interface BrandLogoProps {
  * Home, el header público del comprador y las pantallas de acceso — así el logo es idéntico en
  * todas. Siempre enlaza al inicio.
  */
-export function BrandLogo({ className, onClick, ariaLabel = "AsistíAPP — inicio", display = "flex", tone = "default", size = "lg" }: BrandLogoProps) {
+export function BrandLogo({ to = "/", className, onClick, ariaLabel = "AsistíAPP — inicio", display = "flex", tone = "default", size = "lg" }: BrandLogoProps) {
   const onDark = tone === "onDark";
-  // En el panel oscuro de Auth la perforación/borde del ticket va en el color del fondo para que
-  // el isotipo lima lea igual sin depender del tema activo (el panel es oscuro en ambos temas).
-  const trazo = onDark ? "#0c0b0a" : "var(--foreground)";
+  // Trazo, muescas y perforación del ticket SIEMPRE en carbón (#141311): sobre el relleno lima se
+  // leen nítidos en los dos temas. Con var(--foreground) el trazo quedaba blanco (e invisible
+  // sobre el lima) en modo oscuro. Es un valor de marca fijo (excepción documentada en DESIGN.md).
+  const trazo = "#141311";
   return (
     <Link
-      to="/"
+      to={to}
       onClick={onClick}
       aria-label={ariaLabel}
       className={cn(

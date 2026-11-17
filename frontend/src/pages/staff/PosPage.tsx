@@ -3,6 +3,7 @@ import { CalendarX, CheckCircle2, Copy, LogOut, QrCode, RotateCcw, Share2 } from
 import { toast } from "sonner";
 import { api, ApiError, API_BASE_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { BrandLogo } from "../../components/BrandLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Alert, Button, Card, EmptyState, ErrorState, Field, IconButton, Input, QuantityStepper, RadioCardGroup, SelectMenu, Skeleton, StickyActionBar } from "../../components/ui";
 import { fmt } from "../../lib/format";
@@ -408,9 +409,12 @@ function PosHeader({ nombre, vendidas, onLogout }: PosHeaderProps) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 lg:px-8">
-        <div className="min-w-0">
-          <p className="font-mono text-2xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Punto de venta</p>
-          <p className="truncate text-sm font-bold text-foreground">{nombre}</p>
+        <div className="flex min-w-0 items-center gap-3">
+          <BrandLogo />
+          <div className="hidden min-w-0 border-l border-border pl-3 sm:block">
+            <p className="font-mono text-2xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Punto de venta</p>
+            <p className="truncate text-sm font-bold text-foreground">{nombre}</p>
+          </div>
         </div>
         <div className="flex flex-none items-center gap-2">
           <div className="mr-1 text-right">

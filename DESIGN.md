@@ -58,7 +58,7 @@ Cada uno tiene su `-foreground` para cuando se usa como **relleno sólido** (`bg
 - **Fondo suave (badges, avisos):** `bg-success/12 text-success` (+ `border-success/25` si lleva borde).
 - **Relleno sólido:** `bg-destructive text-destructive-foreground`. **Nunca `text-white`** sobre un relleno semántico: en modo oscuro los rellenos son pasteles y el texto va oscuro.
 
-> Las clases literales de Tailwind (`text-emerald-400`, `bg-red-400/15`, `text-amber-400`, `text-violet-400`…) **ya no se usan** para estados: no se adaptan al tema y en modo claro daban 1,6–1,9:1 de contraste. Desde 13.9 no queda ninguna en la app. **Excepciones:** el Scanner y el panel de marca de los accesos (siempre oscuros, ver abajo y "Scanner del Staff QR").
+> Las clases literales de Tailwind (`text-emerald-400`, `bg-red-400/15`, `text-amber-400`, `text-violet-400`…) **ya no se usan** para estados: no se adaptan al tema y en modo claro daban 1,6–1,9:1 de contraste. Desde 13.9 no queda ninguna en la app. **Excepción:** el Scanner del Staff QR (siempre negro, ver abajo).
 
 ### Superficies y neutros
 
@@ -83,9 +83,11 @@ De la más baja a la más alta — cada nivel tiene que distinguirse del anterio
 
 `--chart-1` (= primary), `--chart-2` (= secondary), `--chart-3` (= accent), `--chart-4` (neutro), `--chart-5` (= destructive). Los `fill`/`contentStyle` de recharts son estilos inline de JS: se pasan como `"var(--chart-1)"`, `"var(--popover)"`, nunca hex.
 
-### Excepción documentada
+### Excepciones documentadas
 
-El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, recupero) es **siempre oscuro, independiente del tema**: usa hex literal (`#0c0b0a` casi-negro + acento lavanda `#c6c2ff` + detalle lima `#b6f24a`, la paleta editorial en sus valores oscuros) a propósito, centralizado en `components/AuthLayout.tsx` (constantes `MARCA_FONDO`/`MARCA_ACENTO`/`MARCA_LIMA`); las pantallas destacan una palabra del título con `<MarcaAcento>`, nunca con el hex. Antes de la Fase 14.6 el acento era navy `#9cadd3`.
+- **Isotipo del `BrandLogo`:** el trazo, las muescas y la perforación del ticket van siempre en carbón **`#141311`** (hex fijo, los dos temas) para que se lean nítidos sobre el relleno lima (`var(--accent)`, adaptado al tema) tanto en claro como en oscuro — con `var(--foreground)` el trazo quedaba blanco e invisible en modo oscuro. Es el **único componente de marca** de la app (sidebar/headers de Organizador, Admin y Staff, Home, `PublicHeader`, `AuthLayout`, footer); siempre enlaza al inicio del contexto.
+- **Scanner del Staff QR:** única pantalla **siempre negra**, independiente del tema (ver "Scanner del Staff QR"); usa blanco con opacidad y verde/rojo fijos. Su logo usa `BrandLogo tone="onDark"`.
+- **Panel de marca de los accesos (`AuthLayout`):** desde la Fase 14.6 **ya NO es siempre oscuro** — adapta al tema con tokens (`bg-surface-sunken` + `border-border`, `text-foreground`, acento lavanda `text-secondary`, y el lima lo aporta el isotipo del `BrandLogo`). Las pantallas destacan una palabra del título con `<MarcaAcento>` (lavanda). Antes era `#0c0b0a` fijo con lavanda `#c6c2ff` y lima `#b6f24a`.
 
 ---
 
@@ -141,7 +143,7 @@ El panel de marca de las pantallas de acceso de Organizador (ingreso, registro, 
 | Estructura | Dónde | Qué resuelve |
 |---|---|---|
 | `AppShell` (`components/AppShell.tsx`) | Organizador y Admin (vía `OrganizadorLayout`/`AdminLayout`, que solo lo configuran) | Sidebar de 208 px en desktop (logo + campanita, navegación, usuario, tema, "Salir"); barra superior + pestañas inferiores en mobile; link "Saltar al contenido". |
-| `AuthLayout` + `AuthHeader` (`components/AuthLayout.tsx`) | Ingreso de Organizador/Admin/Staff, registro, recupero | Header con logo y tema, tarjeta sobre el fondo de marca, panel de marca oscuro opcional (desktop). |
+| `AuthLayout` + `AuthHeader` (`components/AuthLayout.tsx`) | Ingreso de Organizador/Admin/Staff, registro, recupero | Header con logo y tema, tarjeta sobre el fondo de marca, panel de marca editorial **adaptable al tema** opcional (desktop). |
 | `PublicHeader` (`components/PublicHeader.tsx`) | `/eventos` y flujo de compra: detalle, checkout, resultado del pago, mi entrada (la Home tiene su propio header, transparente sobre el hero) | Header sticky: "Volver" (atrás si hay historial en la app, si no a `/eventos`), logo, link a Eventos y tema. |
 | `AnimatedOutlet` (`components/AnimatedOutlet.tsx`) | Dentro de cada layout | Transición de página, `Suspense` y `RouteErrorBoundary` por ruta: si una pantalla falla, el shell sigue funcionando. |
 

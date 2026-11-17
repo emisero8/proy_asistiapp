@@ -89,8 +89,12 @@ export function OrganizadorWalletPage() {
             <Skeleton className="h-32 rounded-2xl" />
           ) : (
             <section aria-label="Saldo" className="rounded-3xl bg-primary p-5 text-primary-foreground shadow-hard md:p-6">
-              <p className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground/75">
-                <Wallet size={14} aria-hidden="true" className="text-accent" />
+              <p className="flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground/75">
+                {/* Tile carbón fijo en ambos temas: en oscuro el hero pasa a papel y el ícono lima
+                    perdía contraste; sobre carbón se lee nítido siempre. */}
+                <span aria-hidden="true" className="flex size-5 flex-none items-center justify-center rounded-md bg-[#141311] text-accent">
+                  <Wallet size={12} />
+                </span>
                 Saldo disponible
               </p>
               <p className="mt-2 font-display text-4xl font-extrabold tabular-nums">

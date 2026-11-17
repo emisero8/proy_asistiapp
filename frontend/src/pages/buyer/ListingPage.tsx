@@ -643,9 +643,7 @@ export function ListingPage() {
         <div className="mx-auto max-w-7xl px-4 py-12 lg:px-8 lg:py-14">
           <div className="mb-10 grid grid-cols-2 gap-8 sm:grid-cols-3 lg:gap-10">
             <div className="col-span-2 sm:col-span-1 sm:max-w-xs">
-              <p className="mb-3 text-base font-extrabold text-foreground">
-                Asistí<span className="text-primary">APP</span>
-              </p>
+              <BrandLogo className="mb-3" />
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Plataforma de ticketing y control de accesos para organizadores independientes de Argentina.
               </p>

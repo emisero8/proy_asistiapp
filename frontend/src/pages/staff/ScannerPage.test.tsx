@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StaffScannerPage } from "./ScannerPage";
 import { api, ApiError } from "../../lib/api";
@@ -54,7 +55,11 @@ describe("StaffScannerPage", () => {
       estadoAnterior: "Pagada",
       fechaUso: null,
     });
-    render(<StaffScannerPage />);
+    render(
+      <MemoryRouter>
+        <StaffScannerPage />
+      </MemoryRouter>,
+    );
 
     await validarManual(user, "ast-abc123");
 
@@ -68,7 +73,11 @@ describe("StaffScannerPage", () => {
     vi.mocked(api.post).mockRejectedValueOnce(
       new ApiError({ status: 409, error: "Esta entrada ya fue usada", path: "/tickets/validate", timestamp: "2026-01-01T00:00:00" }),
     );
-    render(<StaffScannerPage />);
+    render(
+      <MemoryRouter>
+        <StaffScannerPage />
+      </MemoryRouter>,
+    );
 
     await validarManual(user, "AST-USADA1");
 

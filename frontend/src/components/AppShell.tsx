@@ -1,8 +1,9 @@
 import type { CSSProperties } from "react";
-import { Link, NavLink } from "react-router";
+import { NavLink } from "react-router";
 import { LogOut, type LucideIcon } from "lucide-react";
 import { cn } from "../lib/cn";
 import { AnimatedOutlet } from "./AnimatedOutlet";
+import { BrandLogo } from "./BrandLogo";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button, IconButton } from "./ui";
@@ -28,14 +29,6 @@ interface AppShellProps {
     perfilTo?: string;
   };
   onLogout: () => void;
-}
-
-function Logo({ to }: { to: string }) {
-  return (
-    <Link to={to} className="rounded-md text-lg font-extrabold tracking-tight text-foreground">
-      Asistí<span className="text-primary">APP</span>
-    </Link>
-  );
 }
 
 function Avatar({ nombre, foto, className }: { nombre: string; foto?: string | null; className?: string }) {
@@ -86,7 +79,7 @@ export function AppShell({ nav, mobileNav, usuario, onLogout }: AppShellProps) {
       {/* Sidebar — desktop */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-52 flex-col border-r border-border bg-card md:flex">
         <div className="flex h-16 flex-none items-center justify-between gap-2 pl-5 pr-3">
-          <Logo to={inicio} />
+          <BrandLogo to={inicio} />
           <NotificationBell placement="bottom-start" />
         </div>
 
@@ -139,7 +132,7 @@ export function AppShell({ nav, mobileNav, usuario, onLogout }: AppShellProps) {
 
       {/* Barra superior — mobile */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-background/90 pl-4 pr-2 backdrop-blur-md md:hidden">
-        <Logo to={inicio} />
+        <BrandLogo to={inicio} />
         <div className="flex items-center gap-0.5">
           <NotificationBell placement="bottom-end" />
           <ThemeToggle />

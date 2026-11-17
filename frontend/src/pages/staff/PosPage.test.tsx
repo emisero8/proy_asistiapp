@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StaffPosPage } from "./PosPage";
 import { api } from "../../lib/api";
@@ -32,9 +33,11 @@ describe("StaffPosPage", () => {
       path === "/eventos/vendedor" ? [EVENTO] : { limite: 6, yaCompradas: 0, disponible: 6 },
     );
     render(
-      <ThemeProvider>
-        <StaffPosPage />
-      </ThemeProvider>,
+      <MemoryRouter>
+        <ThemeProvider>
+          <StaffPosPage />
+        </ThemeProvider>
+      </MemoryRouter>,
     );
 
     expect((await screen.findAllByText("1 × General")).length).toBeGreaterThan(0);

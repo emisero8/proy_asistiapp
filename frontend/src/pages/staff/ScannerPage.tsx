@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Html5Qrcode, Html5QrcodeScannerState } from "html5-qrcode";
 import { CameraOff, ChevronDown, CircleX, Flashlight, FlashlightOff, Hash, LogOut, UserCheck } from "lucide-react";
+import { BrandLogo } from "../../components/BrandLogo";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { cn } from "../../lib/cn";
@@ -178,9 +179,13 @@ export function StaffScannerPage() {
         </p>
 
         <header className="relative z-10 flex flex-none items-center justify-between bg-gradient-to-b from-black/80 to-transparent px-5 pb-3 pt-[calc(1rem+env(safe-area-inset-top))] lg:pt-7">
-          <div className="min-w-0">
-            <p className="truncate text-2xs uppercase tracking-[0.14em] text-white/60">Staff QR · {session?.nombre}</p>
-            <h1 className="text-base font-bold leading-tight text-white">Escaneo de entradas</h1>
+          <div className="flex min-w-0 items-center gap-2.5">
+            {/* Siempre negro (excepción documentada) → logo en variante onDark. */}
+            <BrandLogo tone="onDark" />
+            <div className="min-w-0 border-l border-white/20 pl-2.5">
+              <p className="hidden truncate text-2xs uppercase tracking-[0.14em] text-white/60 sm:block">Staff QR · {session?.nombre}</p>
+              <h1 className="truncate text-base font-bold leading-tight text-white">Escaneo de entradas</h1>
+            </div>
           </div>
           <div className="flex flex-none items-center gap-2">
             <button

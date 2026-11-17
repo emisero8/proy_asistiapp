@@ -546,7 +546,7 @@ Los +6,8 kB de JS inicial son lo que se decidió poner en la primera carga: el *
 
 ---
 
-## Fase 14: Rediseño editorial "ticket troquelado" de toda la app (rama `redesign-frontend`)
+## Fase 14: Rediseño editorial "ticket troquelado" de toda la app (rama `redesign-frontend`) ✅ (14.1–14.6 completas y commiteadas)
 
 > **Origen:** pedido del usuario (2026-11-16) de adoptar una estética **editorial minimalista + "ticket físico moderno"** (blanco papel / carbón / verde lima, líneas de 1px, muescas troqueladas, tipografía de impacto + monoespaciada tabular). Se validó primero con un **prototipo de la Landing** (artifact HTML con datos de ejemplo) iterado con el usuario hasta su OK: tickets **todos negros** que se "parten" en la perforación al hover (una sola muesca del lado izquierdo), fondo sutil de `ticket2.webp`, hero con movimiento, buscador segmentado, tarjetas de tamaño fijo. Decisión registrada en `DECISIONES.md` (2026-11-16): aplica a **toda la app** (Comprador, Organizador, Admin, Staff), se sigue en Vite, y lo que el backend no tiene (categoría, ciudad, butacas) no se inventa.
 
@@ -574,7 +574,7 @@ Los +6,8 kB de JS inicial son lo que se decidió poner en la primera carga: el *
 
 **Componentes compartidos a migrar:** `components/ui/` (Button, Card, Badge, Field, Selection, Menu, Alert, States, StatCard, PageHeader, Purchase, Tooltip, Spinner, PasswordInput) · `PublicHeader` · `AppShell` · `AuthLayout` · `EventCard` · `DialogProvider` · `NotificationBell` · `EventoImagen` · `DatePicker`/`TimePicker` · toasts (`sonner`) · skeletons · empty/error states.
 
-### 14.1 — Fundamentos globales ✅ (sin commitear)
+### 14.1 — Fundamentos globales ✅ (commit `d641f30`)
 Consolidación del sistema de diseño (paso 1 del pedido), **sin tocar componentes todavía** — solo tokens/fuentes/base, para que toda la app herede la identidad nueva al instante y se refine por bloque.
 - **`theme.css`:** retune de todos los tokens, **preservando el rol semántico de cada uno** (nada de consumidores rotos): `primary` pasa de azul marino a **carbón** `#141311` (papel `#f2f1ec` en oscuro) — sigue siendo "lo interactivo/sólido/precios"; `accent` pasa a **lima** `#9fe02a`; `secondary` a **lavanda profundo** `#5b54c7` (el pastel `#b8b5ff` sería ilegible como texto, y `text-secondary` se usa 16 veces); `info` a **azul eléctrico** `#1746c4` (ya no alias de primary); superficies a papel/casi-negro; bordes más oscuros (1px crisp); charts a tonos de viz propios. Modo oscuro = editorial casi-negro + lima (la "superficie de checkout oscura" del brief, ya es el default de la app).
 - **Fuentes (`fonts.css` + tokens):** `font-display` Anybody → **Archivo**; `font-mono` JetBrains → **IBM Plex Mono** (igual que el prototipo). `font-sans` sigue **Inter** (legibilidad en tablas/formularios).
@@ -582,7 +582,7 @@ Consolidación del sistema de diseño (paso 1 del pedido), **sin tocar component
 - **`DESIGN.md`:** actualizadas las secciones Color (Marca, Semánticos, Superficies) y Tipografía con la paleta y familias nuevas.
 - **Verificación:** `npm run build` OK; **209/209 tests** OK (desde PowerShell). Cambio de solo-tokens → ningún test ni tipo se rompe. *Nota:* el panel de marca oscuro de `AuthLayout` (`#09090b` + acento navy `#9cadd3`) queda con su hex viejo hasta el bloque de Accesos. **Falta verificación visual (Playwright) de que la recoloración global se ve bien** — se hace junto con el primer bloque de pantallas.
 
-### 14.2 — Catálogo (Home + `/eventos`) ✅ (sin commitear; va junto con 14.1 en un único commit)
+### 14.2 — Catálogo (Home + `/eventos`) ✅ (commit `d641f30`, junto con 14.1)
 
 **Gap de backend corregido (no parcheado en el front):** `EventoPublicoListItemDTO` ahora trae `cantidadTandas`, `cupoDisponibleTotal` y `cupoTotal`, calculados en `EventoPublicoService.toListItemDTO` desde las tandas de la entidad (sin SQL nuevo). Test agregado (`listarPublicados_calculaPrecioCupoYTandas`); **6/6 de `EventoPublicoServiceTest`** OK. Con esos datos reales la tarjeta muestra "Agotado" (cupo 0), "Últimas entradas" (<15 % del cupo) o la cantidad de tandas.
 
@@ -625,7 +625,7 @@ Consolidación del sistema de diseño (paso 1 del pedido), **sin tocar component
 
 **Verificación:** `npm run lint` (solo warnings viejos), `npm run build` OK, **209/209 tests** OK, backend 6/6. **Playwright:** `/eventos` desktop (ticket horizontal + **hover con corte diagonal y sombra lima**), Home **mobile 390 px** (hamburguesa abierta/cerrada, ticket vertical, nav no se rompe), claro/oscuro, **0 errores de consola**, capturas revisadas.
 
-### 14.3 — Detalle de evento (`/eventos/:url`) ✅ (sin commitear; pendiente OK del usuario)
+### 14.3 — Detalle de evento (`/eventos/:url`) ✅ (commit `3ebcef9`)
 
 `DetailPage` rediseñada con el sistema editorial, **sin tocar lógica/estados/endpoints**: carga, selección de tanda (`RadioCardGroup`), cantidad (`QuantityStepper`), validaciones de cupo/agotado/finalizado, cálculo de total y navegación a `/checkout` con el mismo `state {evento, tanda, qty}`. Los 4 tests de `DetailPage.test` pasan sin cambios (roles de radio, "Agregar una entrada", "Comprar/Entradas agotadas", alerts, empty state).
 
@@ -678,16 +678,16 @@ Mi Entrada (pase digital) se hizo junto con el checkout y el resultado de pago e
 - **`AuthLayout` / `AuthHeader`** (cubren las 6 pantallas de acceso): tarjeta focal pasa de `rounded-3xl` difusa/blur a **papel crisp con `border-foreground` + `.shadow-hard`**; título `font-display` (Archivo); tile de ícono carbón con `.shadow-hard-sm`. **Panel de marca** (siempre oscuro, excepción de `DESIGN.md`): acento navy `#9cadd3` → **lavanda `#c6c2ff` + detalle lima `#b6f24a`** (la paleta editorial en oscuro), eyebrow mono "✦ AsistíAPP para organizadores", título Archivo, features con líneas de 1px. `DESIGN.md` actualizado.
 - **`PageHeader`** (cubre todas las pantallas internas de Organizador y Admin): título `font-display`, eyebrow `font-mono`.
 
-### 14.6 — Accesos (logins/registro/recupero) ✅ (sin commitear; pendiente OK — entregado como "14.5")
+### 14.5.a — Accesos (logins/registro/recupero) ✅ (commit `d7e06ea`, dentro de "14.5")
 `AuthLayout`/`AuthHeader` rediseñados (ver arriba). Pantallas tocadas solo en sus `<h1>` inline de éxito (`font-display`): `organizador/LoginPage` ("Revisá tu email"), `RegisterPage` ("¡Bienvenido/a!"), `ResetPasswordPage` ("¡Contraseña actualizada!"). `admin/LoginPage` y `staff/LoginPage` sin cambios propios (todo viene del layout). **Verificado con Playwright:** login de organizador (con panel de marca) en claro/oscuro/mobile, registro (md) y login de admin — tarjeta focal con sombra dura, eyebrow lima, título lavanda, 0 errores.
 
-### 14.7 — Organizador (dashboard, wizard, detalle, editar, wallet, staff, perfil) ✅ (sin commitear; pendiente OK)
+### 14.5.b — Organizador (dashboard, wizard, detalle, editar, wallet, staff, perfil) ✅ (commit `d7e06ea`)
 Títulos de sección (`<h2>`) → **Archivo** en todas las pantallas; focales con su tratamiento: el **hero de saldo** de `WalletPage` pasa a `rounded-3xl` + `.shadow-hard` + cifra Archivo + eyebrow mono; el nombre del evento publicado del `WizardPage` en Archivo + eyebrow "¡Evento publicado!" mono. `DashboardPage`/`EventoDetallePage`/`EditEventPage`/`StaffMgmtPage`/`PerfilPage` con sus secciones en Archivo (el resto ya era editorial por tokens/primitivas/`PageHeader`). **Verificado con Playwright:** dashboard (desktop + mobile), wallet (hero de saldo), perfil — 0 errores.
 
-### 14.8 — Admin (dashboard, usuarios, eventos, config, auditoría) ✅ (sin commitear; pendiente OK)
+### 14.5.c — Admin (dashboard, usuarios, eventos, config, auditoría) ✅ (commit `d7e06ea`)
 Todo el panel hereda el `PageHeader` editorial (título Archivo + eyebrow mono). Secciones con `<h2>` (dashboard "Actividad reciente", config "Paquetes/Parámetros/Anuncio") → Archivo. Tablas (`usuarios`, `eventos`, `auditoría`) ya en el patrón de una sola `<table>` responsive con encabezado `surface-sunken` — sin cambios de markup. **Verificado con Playwright:** dashboard (claro), usuarios (tabla, oscuro), config — 0 errores.
 
-### 14.9 — Staff (scanner, POS) ✅ (sin commitear; pendiente OK)
+### 14.5.d — Staff (scanner, POS) ✅ (commit `d7e06ea`)
 **POS** (`PosPage`): eyebrows mono ("Punto de venta", "Evento", "Resumen"), nombre del evento y título de éxito en Archivo; el resto ya editorial (radios, stepper, QR sobre blanco, barra sticky). **Scanner** (`ScannerPage`): **se deja como está a propósito** — es la pantalla "siempre negra" documentada como excepción en `DESIGN.md` (blanco con opacidad + verde/rojo fijos, prioridad velocidad/claridad), fuera del sistema de tokens; solo hereda lo global, no lleva repaint editorial. **Verificado con Playwright:** POS en desktop/mobile, claro/oscuro — 0 errores.
 
 **Verificación del bloque (gate completo):** `npm run lint` (solo los 4 warnings viejos), `npm run build` OK, **223/223 tests** OK (sin cambios — es refactor visual), **Playwright** sobre pantallas representativas de los 4 roles (auth con panel de marca, dashboards de Organizador y Admin, wallet, usuarios, POS) en **claro/oscuro × desktop 1440 / mobile 390**, **0 errores de consola/página**, capturas revisadas.
@@ -701,7 +701,7 @@ Cuatro detalles vistos en el navegador por el usuario, corregidos sobre la Home 
 
 **Commit:** `d7e06ea` — bloque "14.5" completo (Auth + Organizador + Admin + Staff + pulido del hero y marca), autor local del repo (**Facundo Riffel**), sin trailer de Claude.
 
-### 14.6 — Pulido final: combobox editorial y consistencia global ✅ (sin commitear; pendiente OK)
+### 14.6 — Pulido final: combobox editorial, consistencia global y acentos lima ✅ (commit `a2998f0`)
 Cierre de la Fase 14. El gap real de consistencia que quedaba era el **`<select>` nativo**: su disparador se podía estilar (`appearance-none`) pero **el desplegable que abre es el del sistema operativo**, imposible de restylear y fuera de la estética editorial.
 
 **`SelectMenu` (nuevo, `components/ui/SelectMenu.tsx`):** combobox de selección única con el patrón WAI-ARIA (`role="combobox"` + `aria-expanded`/`aria-controls`, panel `role="listbox"` con `option`s, `aria-activedescendant`, teclado ↑/↓/Inicio/Fin/Enter/Esc/Tab + type-ahead). El **disparador reusa el mismo estilo que los inputs** (consts `CONTROL`/`SUPERFICIES`/`ALTOS` movidas a `controlStyles.ts` para no romper el fast-refresh de `Field.tsx`) y el **panel es editorial** (borde 1px `border-border-strong` + `.shadow-hard`, opción activa `bg-muted`, seleccionada en carbón `bg-primary` + check). Va en **portal con `position: fixed`** (no lo recorta el `overflow` de una tarjeta/tabla) y se da vuelta hacia arriba si abajo no entra; se integra con `<Field>` (toma id/label/ayuda/error/`aria-invalid`) o suelto con `aria-label`.
@@ -726,3 +726,16 @@ El `Select` nativo sigue existiendo como primitiva (y su test), pero **`SelectMe
 **Verificación (gate completo):** `npm run lint` (solo los 4 warnings viejos de fast-refresh), `npm run build` OK, **223/223 tests** OK, **Playwright** sobre el combobox abierto en **Admin → Usuarios** (claro/oscuro/mobile, filtrado real), **Organizador → Dashboard** (claro/oscuro) y **Organizador → Staff** (abrir + elegir evento) + el catálogo de diseño, y los **acentos lima** en Admin (eventos/usuarios) y Organizador (dashboard con "Publicado", wallet) en **claro/oscuro**, **0 errores de consola/página**, capturas revisadas.
 
 **Commit:** bloque "14.6" completo (combobox editorial + acentos lima), autor local del repo (**Facundo Riffel**), sin trailer de Claude.
+
+### 14.6.1 — Marca unificada en toda la app, contraste en oscuro y panel de accesos adaptable al tema ✅ (sin commitear)
+Cuatro detalles finales vistos en el navegador:
+1. **`BrandLogo` en absolutamente toda la app:** se reemplazaron los últimos logos de solo texto por el componente `BrandLogo` (isotipo del ticket + wordmark + animación de hover): sidebar y header mobile de Organizador/Admin (`AppShell`), header del **POS** y del **Scanner** del Staff, y el footer de la Home. `BrandLogo` ganó un prop `to` (los paneles internos apuntan a su inicio, no a `/`); el Scanner (siempre negro) usa `tone="onDark"`.
+2. **Trazo del isotipo en carbón fijo (`#141311`) en ambos temas:** antes el trazo/perforación usaba `var(--foreground)` → en modo oscuro quedaba blanco e invisible sobre el relleno lima. Ahora es carbón fijo (excepción de marca documentada en `DESIGN.md`), nítido en claro y oscuro.
+3. **Ícono Wallet del hero de "Saldo disponible" con tile carbón fijo:** en oscuro el hero pasa a papel y el ícono lima perdía contraste; ahora el ícono va en un tile `bg-[#141311]` fijo → se lee en los dos temas.
+4. **Panel de marca de `AuthLayout` adaptable al tema:** dejó de ser "siempre oscuro" (se eliminó la excepción). Ahora usa tokens (`bg-surface-sunken` + `border-border`, `text-foreground`, eyebrow/acento `text-secondary` lavanda, patrón de puntos con `var(--foreground)`) y el lima lo aporta el isotipo del `BrandLogo`. `DESIGN.md` actualizado (excepciones y tabla de estructuras).
+
+**Tests:** `ScannerPage.test` y `PosPage.test` ahora envuelven el render en `<MemoryRouter>` (el `BrandLogo` nuevo usa `<Link>`); sin cambios de lógica ni de cobertura.
+
+**Verificación (gate completo):** `npm run lint` (solo los 4 warnings viejos), `npm run build` OK, **223/223 tests** OK, **Playwright** en **claro y oscuro**: logo en Organizador/Admin (sidebar), Auth (panel adaptable), POS, Scanner y footer; contraste del trazo del isotipo en oscuro; ícono Wallet de Créditos en oscuro — **0 errores de consola/página**, capturas revisadas.
+
+> **Limpieza del plan (en este mismo commit):** se corrigieron etiquetas viejas ("sin commitear / pendiente OK") en bloques ya commiteados y la numeración duplicada: los sub-bloques del batch "14.5" (antes 14.6–14.9) pasaron a **14.5.a–d** con su hash (`d7e06ea`); 14.1/14.2 (`d641f30`), 14.3 (`3ebcef9`), 14.4 (`6348506`), 14.6 (`a2998f0`). La Fase 14 queda marcada como cerrada.

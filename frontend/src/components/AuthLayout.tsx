@@ -5,19 +5,12 @@ import { AuthBackground } from "./AuthBackground";
 import { BrandLogo } from "./BrandLogo";
 import { ThemeToggle } from "./ThemeToggle";
 
-/*
- * Panel de marca: SIEMPRE oscuro, independiente del tema (excepción documentada en
- * DESIGN.md). Por eso usa colores literales, centralizados acá en vez de repetidos en cada
- * pantalla de acceso. Acento = lavanda editorial (`#c6c2ff`, identidad de apoyo) + detalle
- * lima para la energía "en vivo".
+/**
+ * Palabra destacada en el título del panel de marca: lavanda (`secondary`), la identidad de
+ * apoyo. Adapta al tema igual que el resto del panel (ya no es un hex fijo).
  */
-const MARCA_FONDO = "bg-[#0c0b0a]";
-const MARCA_ACENTO = "text-[#c6c2ff]";
-const MARCA_LIMA = "text-[#b6f24a]";
-
-/** Palabra destacada en el título del panel de marca (siempre oscuro): usa el acento de la marca. */
 export function MarcaAcento({ children }: { children: ReactNode }) {
-  return <span className={MARCA_ACENTO}>{children}</span>;
+  return <span className="text-secondary">{children}</span>;
 }
 
 export interface AuthBrand {
@@ -46,31 +39,34 @@ export function AuthLayout({ brand, size = "sm", children }: AuthLayoutProps) {
   return (
     <div className={cn("relative min-h-dvh bg-background", brand && "lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]")}>
       {brand && (
-        <aside className={cn("relative z-10 hidden flex-col justify-between overflow-hidden p-12 text-white lg:flex xl:p-16", MARCA_FONDO)}>
+        // Panel de marca editorial, adaptable al tema: papel hundido + carbón en claro, carbón
+        // profundo + papel en oscuro (token `surface-sunken`), con borde de 1px. El acento lima
+        // lo aporta el isotipo del ticket (`BrandLogo`); el lavanda (`secondary`), la identidad.
+        <aside className="relative z-10 hidden flex-col justify-between overflow-hidden border-r border-border bg-surface-sunken p-12 text-foreground lg:flex xl:p-16">
           <div
             aria-hidden="true"
-            className="absolute inset-0 opacity-[0.06]"
-            style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "22px 22px" }}
+            className="absolute inset-0 opacity-[0.05]"
+            style={{ backgroundImage: "radial-gradient(circle, var(--foreground) 1px, transparent 1px)", backgroundSize: "22px 22px" }}
           />
-          <BrandLogo tone="onDark" size="xl" className="relative w-fit" />
+          <BrandLogo size="xl" className="relative w-fit" />
           <div className="relative max-w-md">
-            <p className={cn("mb-4 font-mono text-xs font-semibold uppercase tracking-[0.2em]", MARCA_LIMA)}>
+            <p className="mb-4 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-secondary">
               <span aria-hidden="true">✦</span> AsistíAPP para organizadores
             </p>
             <p className="font-display text-4xl font-extrabold leading-[1.05] tracking-tight">{brand.title}</p>
-            <p className="mt-4 text-base leading-relaxed text-white/70">{brand.description}</p>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">{brand.description}</p>
             <ul className="mt-10 space-y-3">
               {brand.features.map(({ icon: Icono, text }) => (
-                <li key={text} className="flex items-center gap-3 border-t border-white/10 pt-3 text-sm font-medium text-white/90 first:border-t-0 first:pt-0">
-                  <span className="flex size-9 flex-none items-center justify-center rounded-lg border border-white/15 bg-white/5">
-                    <Icono size={16} aria-hidden="true" className={MARCA_ACENTO} />
+                <li key={text} className="flex items-center gap-3 border-t border-border pt-3 text-sm font-medium text-foreground first:border-t-0 first:pt-0">
+                  <span className="flex size-9 flex-none items-center justify-center rounded-lg border border-border bg-muted">
+                    <Icono size={16} aria-hidden="true" className="text-secondary" />
                   </span>
                   {text}
                 </li>
               ))}
             </ul>
           </div>
-          <p className="relative font-mono text-xs text-white/40">© {new Date().getFullYear()} AsistíAPP</p>
+          <p className="relative font-mono text-xs text-muted-foreground">© {new Date().getFullYear()} AsistíAPP</p>
         </aside>
       )}
 
