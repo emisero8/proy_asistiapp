@@ -292,7 +292,7 @@ function FilaEvento({ evento: ev, cancelando, onEditar, onVerPublica, onCancelar
         cancelando && "opacity-50",
       )}
     >
-      <EventoImagen src={ev.imagenPortadaUrl} alt="" className="size-12 flex-none rounded-lg object-cover" iconSize={16} />
+      <EventoImagen src={ev.imagenPortadaUrl} alt="" nombre={ev.nombre} className="size-12 flex-none rounded-lg object-cover" />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
           <Link

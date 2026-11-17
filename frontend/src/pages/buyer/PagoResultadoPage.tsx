@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { AlertCircle, CheckCircle2, ChevronRight, CircleX, Clock3, QrCode, RotateCcw, type LucideIcon } from "lucide-react";
 import { PublicHeader } from "../../components/PublicHeader";
-import { Button, Card, ErrorState, Spinner } from "../../components/ui";
+import { Button, ErrorState, Spinner } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import type { EstadoOrdenCreditoResponseDTO, EstadoOrdenEntradasResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -182,21 +182,22 @@ export function PagoResultadoPage() {
                 titulo="¡Pago aprobado!"
                 texto={`Ya tenés ${ordenEntradas.cantidad > 1 ? `tus ${ordenEntradas.cantidad} entradas` : "tu entrada"} para ${ordenEntradas.nombreEvento}. También te mandamos un mail con el código QR de cada una.`}
               >
-                <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border text-left">
+                <ul className="divide-y divide-dashed divide-border-strong overflow-hidden rounded-xl border border-border-strong text-left">
                   {ordenEntradas.entradas.map((entrada, i) => (
                     <li key={entrada.id}>
                       <Link
                         to={`/mi-entrada?codigoQr=${encodeURIComponent(entrada.codigoQr)}`}
-                        className="flex items-center gap-3 px-4 py-3 transition-colors duration-(--duration-fast) hover:bg-muted"
+                        className="group flex items-center gap-3 px-4 py-3 transition-colors duration-(--duration-fast) hover:bg-muted"
                       >
-                        <span className="flex size-8 flex-none items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-accent text-accent-foreground">
                           <QrCode size={16} aria-hidden="true" />
                         </span>
-                        <span className="flex-1 text-sm font-medium text-foreground">
+                        <span className="flex-1 font-mono text-sm font-medium tabular-nums text-foreground">
                           Entrada {i + 1} de {ordenEntradas.cantidad}
                         </span>
-                        <span className="flex items-center gap-0.5 text-xs font-semibold text-primary">
-                          Ver QR <ChevronRight size={14} aria-hidden="true" />
+                        <span className="flex items-center gap-0.5 text-xs font-semibold text-foreground">
+                          Ver QR
+                          <ChevronRight size={14} aria-hidden="true" className="transition-transform duration-(--duration-base) group-hover:translate-x-0.5" />
                         </span>
                       </Link>
                     </li>
@@ -247,18 +248,18 @@ interface EstadoCardProps {
 
 function EstadoCard({ tono, icono: Icono, titulo, texto, consultando = false, children }: EstadoCardProps) {
   return (
-    <Card className="flex flex-col items-center gap-3 px-6 py-8 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-border-strong bg-card px-6 py-9 text-center shadow-hard">
       <span className={`flex size-14 items-center justify-center rounded-2xl ${TONOS[tono]}`}>
         <Icono size={26} aria-hidden="true" />
       </span>
-      <h1 className="text-lg font-extrabold text-foreground">{titulo}</h1>
+      <h1 className="font-display text-xl font-extrabold tracking-tight text-foreground">{titulo}</h1>
       <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{texto}</p>
       {consultando && (
-        <span className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="flex items-center gap-2 font-mono text-2xs uppercase tracking-[0.1em] text-muted-foreground">
           <Spinner size={12} /> Consultando…
         </span>
       )}
       {children && <div className="mt-2 w-full">{children}</div>}
-    </Card>
+    </div>
   );
 }

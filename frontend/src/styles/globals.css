@@ -6,15 +6,18 @@
   display: none;
 }
 
-/* Ticker infinito (listado del comprador) — el contenido se duplica una vez
-   en el componente y esto desplaza esa copia exactamente a la mitad, así el
-   loop no se nota. */
+/* Ticker infinito (listado del comprador) — el contenido se duplica EXACTAMENTE una vez
+   en el componente (dos mitades idénticas) y esto desplaza el track la mitad justa: al
+   llegar a -50% la 2.ª mitad ocupa el lugar de la 1.ª, idéntica, y el reinicio a 0 es
+   invisible (loop continuo, sin saltos ni huecos). Cada mitad repite los ítems para ser
+   más ancha que la pantalla (ver TICKER_SECUENCIA); la duración acompaña ese ancho para
+   mantener la misma velocidad de desplazamiento. */
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
 .marquee-track {
-  animation: marquee 26s linear infinite;
+  animation: marquee 78s linear infinite;
 }
 
 /* ---------------------------------------------------------------------
@@ -126,23 +129,36 @@
   color: var(--ticket-fg);
   transition: transform var(--duration-slow) var(--ease-emphasized), box-shadow var(--duration-slow) var(--ease-emphasized);
 }
-.tkt-stub { border-bottom: 0; border-radius: 14px 14px 0 0; overflow: hidden; background: var(--ticket-bg2); }
+.tkt-stub { border-bottom: 0; border-radius: 14px 14px 0 0; background: var(--ticket-bg2); }
 .tkt-body { flex: 1 1 auto; border-top: 1.5px dashed var(--ticket-line); border-radius: 0 0 14px 14px; }
 
-/* muescas de papel en los dos extremos de la perforación (esquinas superiores del cuerpo) */
+/* El zoom de la portada al hover se recorta en una capa propia (no en .tkt-stub): así la
+   pieza NO lleva overflow:hidden y las muescas pueden pintar por encima del borde. */
+.tkt-stub-media { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+
+/* Muescas de papel en los dos extremos de la perforación: un círculo completo del color del
+   fondo centrado en cada esquina de la perforación (radio 9px, z sobre el borde). Unidas, las
+   dos piezas comparten el mismo centro → cada extremo queda como un semicírculo limpio del
+   tamaño original. Al separarse en hover, cada círculo viaja con su pieza y solo muerde su
+   propia esquina → dos cuartos limpios del mismo radio, sin líneas residuales del borde
+   (las piezas ya no recortan: el círculo cubre el borde entero). */
+.tkt-stub::before,
+.tkt-stub::after,
 .tkt-body::before,
 .tkt-body::after {
   content: "";
   position: absolute;
-  top: -10px;
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: var(--background);
   z-index: 4;
 }
-.tkt-body::before { left: -10px; }
-.tkt-body::after { right: -10px; }
+/* Mobile: perforación horizontal (talón arriba, cuerpo abajo). */
+.tkt-stub::before { bottom: -9px; left: -9px; }
+.tkt-stub::after { bottom: -9px; right: -9px; }
+.tkt-body::before { top: -9px; left: -9px; }
+.tkt-body::after { top: -9px; right: -9px; }
 
 /* corte al hover (vertical): el talón sube, el cuerpo baja → se abre la perforación. */
 @media (hover: hover) and (max-width: 1023.98px) {
@@ -155,9 +171,12 @@
   .tkt { flex-direction: row-reverse; }
   .tkt-stub { border: 1px solid var(--ticket-edge); border-left: 0; border-radius: 0 14px 14px 0; }
   .tkt-body { border: 1px solid var(--ticket-edge); border-right: 1.5px dashed var(--ticket-line); border-radius: 14px 0 0 14px; }
-  /* muescas en los extremos de la perforación vertical (borde derecho del cuerpo) */
-  .tkt-body::before { top: -10px; left: auto; right: -10px; }
-  .tkt-body::after { top: auto; bottom: -10px; left: auto; right: -10px; }
+  /* Muescas en los extremos de la perforación vertical: el cuerpo las recorta en su borde
+     derecho y el talón en su borde izquierdo (simétricas al separarse en diagonal). */
+  .tkt-stub::before { top: -9px; bottom: auto; left: -9px; right: auto; }
+  .tkt-stub::after { top: auto; bottom: -9px; left: -9px; right: auto; }
+  .tkt-body::before { top: -9px; bottom: auto; left: auto; right: -9px; }
+  .tkt-body::after { top: auto; bottom: -9px; left: auto; right: -9px; }
 }
 /* corte al hover (horizontal): se separan en diagonal con una leve inclinación. */
 @media (min-width: 1024px) and (hover: hover) {
@@ -179,8 +198,25 @@
   display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px;
   border: 1px solid #0d1403; background: var(--accent); color: var(--accent-foreground);
   font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.04em; white-space: nowrap;
+  transition: transform var(--duration-base) var(--ease-standard);
 }
 .tkt-badge.is-sold { transform: rotate(-3deg); background: var(--ticket-bg); color: var(--ticket-fg); border-color: var(--ticket-line); }
+
+/* Micro-detalles del hover: el título del evento gana un subrayado lima que crece desde la
+   izquierda, y el badge "disponible" da un pop. (El corte troquelado + la sombra lima ya están
+   arriba.) prefers-reduced-motion deja las transiciones instantáneas (global en theme.css). */
+.tkt-title {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0% 2px;
+  transition: background-size var(--duration-base) var(--ease-standard);
+}
+.tkt-link:focus-visible .tkt-title { background-size: 100% 2px; }
+@media (hover: hover) {
+  .tkt-link:hover .tkt-title { background-size: 100% 2px; }
+  .tkt-link:not(.tkt-sold):hover .tkt-badge { transform: rotate(6deg) scale(1.07); }
+}
 
 /* Sello rotativo del hero (Fase 14.2) — giro lento continuo. prefers-reduced-motion
    se resuelve global en theme.css (queda quieto). */

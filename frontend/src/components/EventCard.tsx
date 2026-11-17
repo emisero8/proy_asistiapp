@@ -45,20 +45,22 @@ export function EventCard({ evento, etiqueta, prioridad = false, className, styl
       <div className="tkt">
         {/* Talón: portada real del evento + badge dinámico. Vertical en mobile, a la derecha en desktop. */}
         <div className="tkt-stub aspect-[16/10] lg:aspect-auto lg:w-[42%] lg:flex-none">
-          <EventoImagen
-            src={evento.imagenPortadaUrl}
-            alt=""
-            loading={prioridad ? "eager" : "lazy"}
-            className="size-full object-cover transition-transform duration-300 ease-standard group-hover:scale-[1.04]"
-            iconSize={22}
-          />
+          <div className="tkt-stub-media">
+            <EventoImagen
+              src={evento.imagenPortadaUrl}
+              alt=""
+              nombre={evento.nombre}
+              loading={prioridad ? "eager" : "lazy"}
+              className="size-full object-cover transition-transform duration-300 ease-standard group-hover:scale-[1.04]"
+            />
+          </div>
           {badge && <span className={cn("tkt-badge", agotado && "is-sold")}>{badge}</span>}
         </div>
 
         {/* Cuerpo: datos de la entrada */}
         <div className="tkt-body flex min-w-0 flex-col gap-2 p-3.5 lg:p-5">
           <h3 className="line-clamp-2 font-display text-sm font-bold leading-snug tracking-tight sm:text-base lg:text-lg">
-            {evento.nombre}
+            <span className="tkt-title">{evento.nombre}</span>
           </h3>
 
           <div className="flex flex-wrap gap-1.5">
@@ -99,7 +101,7 @@ export function EventCardSkeleton() {
   return (
     <div aria-hidden="true" className="tkt">
       <div className="tkt-stub aspect-[16/10] lg:aspect-auto lg:w-[42%] lg:flex-none">
-        <div className="size-full animate-pulse bg-[var(--ticket-bg2)]" />
+        <div className="tkt-stub-media animate-pulse bg-[var(--ticket-bg2)]" />
       </div>
       <div className="tkt-body flex min-w-0 flex-col gap-2 p-3.5 lg:p-5">
         <div className="h-4 w-4/5 animate-pulse rounded bg-[var(--ticket-line)]" />

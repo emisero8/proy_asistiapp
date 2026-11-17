@@ -8,6 +8,7 @@ import { Alert, Button, EmptyState, ErrorState, QuantityStepper, RadioCardGroup,
 import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
+import { estadoVentaTanda, mensajeSinVenta, ventanaVentaTexto } from "../../lib/tandas";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import type { EventoPublicoDetalleDTO } from "../../lib/types";
 
@@ -28,9 +29,10 @@ export function DetailPage() {
       .get<EventoPublicoDetalleDTO>(`/public/eventos/${urlPublica}`, { skipAuth: true })
       .then((data) => {
         setEvento(data);
-        // Arranca elegida la primera tanda CON cupo: antes se elegía la primera aunque estuviera
-        // agotada, y el botón de compra quedaba deshabilitado sin explicar por qué.
-        setSelId((data.tandas.find((t) => t.cupoDisponible > 0) ?? data.tandas[0])?.id ?? null);
+        // Arranca elegida la primera tanda realmente comprable (dentro de su ventana de venta y
+        // con cupo): antes se elegía la primera aunque estuviera agotada/fuera de fecha, y el
+        // botón de compra quedaba deshabilitado sin explicar por qué.
+        setSelId((data.tandas.find((t) => estadoVentaTanda(t) === "abierta") ?? data.tandas[0])?.id ?? null);
       })
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar el evento."));
   }, [urlPublica]);
@@ -103,16 +105,25 @@ export function DetailPage() {
   // El backend ya rechaza la compra de un evento vencido (VentaService.validarTandaDisponible);
   // acá solo evitamos que el comprador llegue a intentarlo.
   const eventoFinalizado = new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
-  const agotado = evento.tandas.every((t) => t.cupoDisponible <= 0);
-  const puedeComprar = !eventoFinalizado && sel.cupoDisponible > 0;
+  const estadoSel = estadoVentaTanda(sel);
+  const hayDisponibles = !eventoFinalizado && evento.tandas.some((t) => estadoVentaTanda(t) === "abierta");
+  const puedeComprar = !eventoFinalizado && estadoSel === "abierta";
   const total = sel.precio * qtyEfectivo;
-  const textoBoton = eventoFinalizado ? "Evento finalizado" : agotado ? "Entradas agotadas" : "Comprar entradas";
+  const textoBoton = eventoFinalizado
+    ? "Evento finalizado"
+    : estadoSel === "abierta"
+      ? "Comprar entradas"
+      : estadoSel === "proximamente"
+        ? "La venta aún no abrió"
+        : estadoSel === "cerrada"
+          ? "Venta cerrada"
+          : "Entradas agotadas";
 
   function comprar() {
     navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } });
   }
 
-  const estadoChip = eventoFinalizado ? "Evento finalizado" : agotado ? "Entradas agotadas" : "Entradas disponibles";
+  const estadoChip = eventoFinalizado ? "Evento finalizado" : hayDisponibles ? "Entradas disponibles" : "Sin entradas disponibles";
 
   return (
     <div className="min-h-dvh bg-background">
@@ -125,9 +136,9 @@ export function DetailPage() {
             <EventoImagen
               src={evento.imagenPortadaUrl}
               alt={evento.nombre}
+              nombre={evento.nombre}
               loading="eager"
               className="aspect-[16/9] w-full object-cover"
-              iconSize={32}
             />
           </div>
 
@@ -136,10 +147,10 @@ export function DetailPage() {
             <span
               className={cn(
                 "inline-flex h-7 items-center gap-1.5 rounded-full px-3 font-mono text-2xs font-semibold uppercase tracking-[0.1em]",
-                !eventoFinalizado && !agotado ? "bg-accent text-accent-foreground" : "border border-border-strong text-muted-foreground",
+                hayDisponibles ? "bg-accent text-accent-foreground" : "border border-border-strong text-muted-foreground",
               )}
             >
-              {!eventoFinalizado && !agotado && <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-foreground" />}
+              {hayDisponibles && <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-foreground" />}
               {estadoChip}
             </span>
             <h1 className="mt-3 font-display text-3xl font-extrabold leading-[1.02] tracking-[-0.03em] text-foreground sm:text-4xl lg:text-5xl">
@@ -162,7 +173,7 @@ export function DetailPage() {
           </header>
 
           {eventoFinalizado && <Alert tone="warning">Este evento ya finalizó: no se pueden comprar entradas.</Alert>}
-          {!eventoFinalizado && agotado && <Alert tone="warning">Las entradas para este evento están agotadas.</Alert>}
+          {!eventoFinalizado && !hayDisponibles && <Alert tone="warning">{mensajeSinVenta(evento.tandas)}</Alert>}
 
           {evento.descripcion && (
             <section>
@@ -177,13 +188,30 @@ export function DetailPage() {
               label="Elegí tu tanda"
               value={sel.id}
               onChange={(id) => setSelId(id)}
-              options={evento.tandas.map((t) => ({
-                value: t.id,
-                label: t.nombre,
-                description: t.cupoDisponible > 0 ? `${t.cupoDisponible} disponibles` : "Agotada",
-                aside: fmt(t.precio),
-                disabled: eventoFinalizado || t.cupoDisponible <= 0,
-              }))}
+              options={evento.tandas.map((t) => {
+                const est = estadoVentaTanda(t);
+                const ventana = ventanaVentaTexto(t);
+                const disponibilidad =
+                  est === "abierta"
+                    ? `${t.cupoDisponible} disponibles`
+                    : est === "proximamente"
+                      ? "Próximamente"
+                      : est === "cerrada"
+                        ? "Venta cerrada"
+                        : "Agotada";
+                return {
+                  value: t.id,
+                  label: t.nombre,
+                  description: (
+                    <>
+                      <span className={est === "abierta" ? undefined : "font-medium text-warning"}>{disponibilidad}</span>
+                      {ventana && <span className="mt-0.5 block font-mono text-2xs tabular-nums">{ventana}</span>}
+                    </>
+                  ),
+                  aside: fmt(t.precio),
+                  disabled: eventoFinalizado || est !== "abierta",
+                };
+              })}
             />
             <div className="flex items-center justify-between gap-4 border-t border-border pt-5">
               <div>

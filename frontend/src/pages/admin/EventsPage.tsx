@@ -142,7 +142,7 @@ export function AdminEventsPage() {
                   >
                     <td className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] lg:px-5 lg:py-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <EventoImagen src={e.imagenPortadaUrl} alt="" className="aspect-[3/4] w-8 flex-none rounded-md object-cover" iconSize={12} />
+                        <EventoImagen src={e.imagenPortadaUrl} alt="" nombre={e.nombre} className="aspect-[3/4] w-8 flex-none rounded-md object-cover" />
                         <div className="min-w-0">
                           <p className="truncate font-semibold text-foreground lg:max-w-64">{e.nombre}</p>
                           <p className="truncate text-xs text-muted-foreground lg:hidden">

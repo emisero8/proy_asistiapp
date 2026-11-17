@@ -62,6 +62,13 @@ const TICKER_ITEMS = [
   "Sin filas, sin papel",
 ];
 
+/**
+ * El loop continuo anima el track `translateX(0) → -50%`: para que no haya saltos ni huecos, cada
+ * una de las dos mitades (duplicadas exactamente al 100%) tiene que ser más ancha que la pantalla.
+ * Con 4 ítems cortos eso no pasa en desktop, así que se repite la secuencia dentro de cada mitad.
+ */
+const TICKER_SECUENCIA = Array.from({ length: 3 }, () => TICKER_ITEMS).flat();
+
 const FEATURES = [
   { icon: Zap, title: "Entrega instantánea", desc: "La entrada llega a tu email al toque, con su QR único." },
   { icon: ShieldCheck, title: "Acceso verificado", desc: "Cada QR se valida una sola vez en la puerta, sin reventa." },
@@ -85,7 +92,7 @@ const ORG_STEPS = [
 const NAV_LINKS = [
   { label: "Para organizadores", href: "#para-organizadores" },
   { label: "Cómo funciona", href: "#como-funciona" },
-  { label: "Precios", href: "#precios" },
+  { label: "Empezar", href: "#empezar" },
 ];
 
 /** Link de nav con subrayado animado que crece desde la izquierda (como el prototipo). */
@@ -378,9 +385,9 @@ export function ListingPage() {
           <div className="flex w-max marquee-track">
             {[0, 1].map((copia) => (
               <div key={copia} className="flex flex-none items-center">
-                {TICKER_ITEMS.map((item) => (
+                {TICKER_SECUENCIA.map((item, i) => (
                   <span
-                    key={item}
+                    key={`${copia}-${i}`}
                     className="flex items-center gap-2 whitespace-nowrap px-6 font-mono text-2xs font-medium uppercase tracking-[0.16em]"
                   >
                     <span className="text-accent">✦</span>
@@ -607,7 +614,7 @@ export function ListingPage() {
         </section>
 
         {/* CTA final para organizadores */}
-        <section aria-labelledby="cta-titulo" className="border-t border-border px-4 py-16 lg:px-8 lg:py-24">
+        <section id="empezar" aria-labelledby="cta-titulo" className="scroll-mt-20 border-t border-border px-4 py-16 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-4xl rounded-3xl border border-foreground bg-card p-8 shadow-hard sm:p-10 lg:p-14">
             <p className="mb-4 font-mono text-2xs font-semibold uppercase tracking-[0.2em] text-secondary">Empezá hoy</p>
             <h2 id="cta-titulo" className="mb-6 font-display text-4xl font-extrabold leading-[0.95] tracking-[-0.03em] text-foreground sm:text-5xl lg:text-6xl">
@@ -620,10 +627,11 @@ export function ListingPage() {
             </p>
             <Link
               to="/organizador/registro"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-8 font-display text-base font-bold text-primary-foreground shadow-hard-sm transition-[filter,transform] duration-(--duration-fast) hover:brightness-110 active:translate-y-px"
+              className="group/btn inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-8 font-display text-base font-bold text-primary-foreground shadow-hard-sm transition-colors duration-(--duration-base) hover:bg-accent hover:text-accent-foreground active:translate-y-0.5"
             >
+              <Sparkles size={16} aria-hidden="true" className="transition-transform duration-(--duration-base) ease-emphasized group-hover/btn:-translate-y-px group-hover/btn:scale-110" />
               Crear cuenta gratis
-              <ArrowRight size={16} aria-hidden="true" />
+              <ArrowRight size={16} aria-hidden="true" className="w-0 -translate-x-1 opacity-0 transition-all duration-(--duration-base) ease-emphasized group-hover/btn:w-4 group-hover/btn:translate-x-0 group-hover/btn:opacity-100" />
             </Link>
             {/* Solo afirmaciones que el producto cumple (antes: "Soporte 24/7", "Cancelá cuando quieras") */}
             <ul className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-3">

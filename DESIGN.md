@@ -37,7 +37,7 @@ Todos los colores son **tokens con valor por modo** (claro en `:root`, oscuro en
 | `highlight` | = `secondary` | = `secondary` | Alias por compatibilidad (`Badge tone="highlight"`, `StatCard`). |
 
 **Reglas:**
-- Un botón o link es **siempre** `primary` (carbón). `secondary` y `accent` nunca indican que algo se puede tocar.
+- Un botón o link es por defecto `primary` (carbón). `secondary` nunca indica que algo se puede tocar. **Excepción:** el CTA de "energía en vivo" —hoy solo el botón **"Pagar"** del checkout— va en lima (`Button variant="accent"`): es el único caso donde `accent` es interactivo, reservado para el momento de conversión. El resto de las acciones siguen en carbón.
 - Ninguno de los tres se usa para estados (para eso están los semánticos), fondos grandes ni degradés.
 - `accent` (lima): **como mucho uno o dos por vista.** Nunca como **texto sobre papel** (bajo contraste): solo como relleno (`bg-accent` + `text-accent-foreground` oscuro) o como `text-accent` sobre una superficie oscura (el ✦ del ticker).
 - `secondary` en suave: `bg-secondary/12 text-secondary` (tiles de íconos), igual que los semánticos.
@@ -261,6 +261,7 @@ Resueltos en la capa base de `theme.css` — **no se repiten clase por clase**:
 Tamaños: `h-9 px-3 text-xs` (chico, filas/tablas) · `h-11 px-5 text-sm` (estándar) · `h-12 px-6 text-base` (CTA de pantalla, ancho completo en mobile).
 
 En código se usa `<Button variant size loading>` / `<IconButton label>` de `components/ui` (las recetas de arriba son lo que generan). Además:
+- **`variant="accent"`** (lima): el CTA de conversión (botón "Pagar" del checkout), `bg-accent text-accent-foreground` + `active:scale`. Único botón lima de la app (ver la excepción en Reglas de Color).
 - **`variant="danger-subtle"`**: acción destructiva secundaria dentro de una lista ("Dar de baja"): texto `destructive`, sin relleno. El relleno `danger` queda para confirmar.
 - **Link que se ve como botón:** `<Link className={claseBoton("secondary", "sm")}>` (`ui/buttonStyles.ts`). Lo que navega es un link (se abre en otra pestaña); no un `<Button onClick={navigate}>`.
 - **No pisar el color de una variante con `className`**: sin tailwind-merge, la clase de la variante puede ganar. Si hace falta otro color, es otra variante.
@@ -395,7 +396,7 @@ Mismo patrón con `warning`, `success` o `info` (`primary`).
 
 ### Ticker / marquee
 
-Contenido duplicado dos veces en el componente; `.marquee-track` lo desplaza exactamente `-50%` en 26 s lineal infinito. Con reduced-motion queda quieto (regla global).
+Dos mitades idénticas en el componente (el track duplicado exactamente al 100%); `.marquee-track` lo desplaza `translateX(0) → -50%` lineal infinito, así el reinicio es invisible (loop continuo sin saltos). Cada mitad repite los ítems (`TICKER_SECUENCIA`) para ser más ancha que la pantalla —si no, en desktop se abriría un hueco antes de reiniciar— y la duración (78 s) acompaña ese ancho para mantener la velocidad. Con reduced-motion queda quieto (regla global).
 
 ### Scanner del Staff QR
 

@@ -452,7 +452,7 @@ export function OrganizadorEventoDetallePage() {
           {tieneLateral && (
             <Card as="section" padding="none" aria-label="Portada y ubicación" className="self-start overflow-hidden">
               {evento.imagenPortadaUrl && (
-                <EventoImagen src={evento.imagenPortadaUrl} alt={`Portada de ${evento.nombre}`} className="aspect-[16/9] w-full object-cover" iconSize={24} />
+                <EventoImagen src={evento.imagenPortadaUrl} alt={`Portada de ${evento.nombre}`} nombre={evento.nombre} className="aspect-[16/9] w-full object-cover" />
               )}
               {tieneMapa && (
                 <div className="p-3">

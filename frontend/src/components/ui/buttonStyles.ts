@@ -5,7 +5,7 @@ import { cn } from "../../lib/cn";
  * (fast refresh) y para que `claseBoton` las reutilice en links.
  */
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "danger-subtle" | "link";
+export type ButtonVariant = "primary" | "accent" | "secondary" | "ghost" | "danger" | "danger-subtle" | "link";
 export type ButtonSize = "sm" | "md" | "lg";
 
 export const BASE_BOTON =
@@ -15,6 +15,8 @@ export const BASE_BOTON =
 
 export const VARIANTES_BOTON: Record<ButtonVariant, string> = {
   primary: "bg-primary text-primary-foreground enabled:hover:bg-primary/90 enabled:active:scale-[0.98]",
+  /** CTA de "energía en vivo" (ej. pagar): bloque lima con texto carbón y pulsación táctil. */
+  accent: "bg-accent text-accent-foreground enabled:hover:brightness-95 enabled:active:scale-[0.98]",
   secondary: "bg-card text-foreground border border-border-strong enabled:hover:bg-muted",
   ghost: "text-foreground enabled:hover:bg-muted",
   danger: "bg-destructive text-destructive-foreground enabled:hover:bg-destructive/90",
@@ -40,6 +42,7 @@ export const TAMANOS_LINK: Record<ButtonSize, string> = { sm: "text-xs", md: "te
 export function claseBoton(variant: Exclude<ButtonVariant, "link"> = "primary", size: ButtonSize = "md", block = false): string {
   const hover: Record<Exclude<ButtonVariant, "link">, string> = {
     primary: "hover:bg-primary/90 active:scale-[0.98]",
+    accent: "hover:brightness-95 active:scale-[0.98]",
     secondary: "hover:bg-muted",
     ghost: "hover:bg-muted",
     danger: "hover:bg-destructive/90",

@@ -32,6 +32,18 @@ export function formatHora(horaEvento: string): string {
   return `${horaEvento.slice(0, 5)} hs`;
 }
 
+/**
+ * LocalDateTime del backend (sin zona, hora local) → `"10 nov 12:00"`. Para la ventana de
+ * venta de las tandas. Se arma en dos pasos para que no aparezca la coma de `Intl` (día/mes
+ * + hora juntos la meten como "10 nov, 12:00").
+ */
+export function formatFechaHoraCorta(fechaIso: string): string {
+  const d = new Date(fechaIso);
+  const fecha = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short" }).format(d).replace(".", "");
+  const hora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  return `${fecha} ${hora}`;
+}
+
 /** Timestamp ISO (LocalDateTime del backend, sin zona) → `"hace 3 min"` / `"hace 2 h"` / `"hace 5 d"`. */
 export function formatRelativo(fechaIso: string): string {
   const diffMs = Date.now() - new Date(fechaIso).getTime();
