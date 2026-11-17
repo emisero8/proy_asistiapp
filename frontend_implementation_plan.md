@@ -625,8 +625,19 @@ Consolidación del sistema de diseño (paso 1 del pedido), **sin tocar component
 
 **Verificación:** `npm run lint` (solo warnings viejos), `npm run build` OK, **209/209 tests** OK, backend 6/6. **Playwright:** `/eventos` desktop (ticket horizontal + **hover con corte diagonal y sombra lima**), Home **mobile 390 px** (hamburguesa abierta/cerrada, ticket vertical, nav no se rompe), claro/oscuro, **0 errores de consola**, capturas revisadas.
 
-### 14.3 — Detalle de evento ⏳ (próximo bloque)
-### 14.4 — Selección de tanda + checkout + resultado de pago ⏳
+### 14.3 — Detalle de evento (`/eventos/:url`) ✅ (sin commitear; pendiente OK del usuario)
+
+`DetailPage` rediseñada con el sistema editorial, **sin tocar lógica/estados/endpoints**: carga, selección de tanda (`RadioCardGroup`), cantidad (`QuantityStepper`), validaciones de cupo/agotado/finalizado, cálculo de total y navegación a `/checkout` con el mismo `state {evento, tanda, qty}`. Los 4 tests de `DetailPage.test` pasan sin cambios (roles de radio, "Agregar una entrada", "Comprar/Entradas agotadas", alerts, empty state).
+
+**Qué cambió (solo visual/layout):**
+- **Cabecera editorial:** chip de estado (**lima "Entradas disponibles"** / outline "agotadas"/"finalizado"), título `Archivo` grande, **metadatos en pills mono** (fecha/hora/lugar) con íconos lavanda. Portada 16:9 con borde 1px.
+- **Selección** dentro de un panel con borde 1px; separador antes de "Cantidad".
+- **Módulo de compra = talón de ticket troquelado** (panel sticky en desktop): borde fuerte + `.shadow-hard`, **perforación punteada con muescas** entre el total y el CTA. En mobile sigue la `StickyActionBar` inferior.
+- `EmptyState`/`ErrorState`/`Alert` ya editoriales (de 14.2). No se inventó el organizador (el `EventoPublicoDetalleDTO` no lo expone).
+
+**Verificación:** `npm run lint` (solo warnings viejos), `npm run build` OK, **209/209 tests** OK. **Playwright** (build en :3000): detalle **disponible y agotado** × **desktop 1440 / mobile 390** × **claro/oscuro**, **0 errores de consola/página**, capturas revisadas (chip lima, talón troquelado con muescas, agotado con radios/stepper/CTA deshabilitados y barra fija en mobile).
+
+### 14.4 — Selección de tanda + checkout + resultado de pago ⏳ (próximo bloque)
 ### 14.5 — Mi Entrada (pase digital) ⏳
 ### 14.6 — Accesos (logins/registro/recupero) + perfil ⏳
 ### 14.7 — Organizador (dashboard, wizard, detalle, editar, wallet, staff) ⏳
