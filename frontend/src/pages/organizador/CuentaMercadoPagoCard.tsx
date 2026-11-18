@@ -1,16 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Wallet } from "lucide-react";
+import { BadgePercent, CheckCircle2, Wallet } from "lucide-react";
 import { Alert, Button, Card, Skeleton } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { redirigirA } from "../../lib/navegacion";
+import { InfoComisionesMp } from "./ComisionMpPanel";
+import { EncabezadoTarjeta } from "./EncabezadoTarjeta";
 import type { EstadoCuentaMpResponseDTO, IniciarVinculacionResponseDTO } from "../../lib/types";
 
 /**
  * Cuenta de Mercado Pago del Organizador (8.4): el dinero de sus entradas cae directo en ella. Mercado Pago vuelve a
  * esta pantalla con `?mp=ok|cancelado|error`, que se avisa una vez y se saca de la dirección.
+ *
+ * `children`: la preferencia de quién paga la comisión (`ComisionMpPanel`), que vive en el perfil y la pasa Mi perfil.
  */
-export function CuentaMercadoPagoCard() {
+export function CuentaMercadoPagoCard({ children }: { children?: ReactNode }) {
   const [estado, setEstado] = useState<EstadoCuentaMpResponseDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -66,11 +70,20 @@ export function CuentaMercadoPagoCard() {
   if (revocada) textoVincular = "Volver a vincular";
 
   return (
-    <Card as="section" aria-labelledby="mp-titulo" className="space-y-4">
-      <h2 id="mp-titulo" className="flex items-center gap-2 font-display text-base font-bold tracking-tight text-foreground">
-        <Wallet size={16} aria-hidden="true" className="text-secondary" />
+    <Card as="section" variant="editorial" aria-labelledby="mp-titulo" className="space-y-5">
+      <EncabezadoTarjeta id="mp-titulo" indice="02" eyebrow="Cobros" icon={Wallet}>
         Cuenta de Mercado Pago
-      </h2>
+      </EncabezadoTarjeta>
+
+      <div className="flex items-start gap-3 rounded-xl border border-border-strong bg-surface-sunken px-4 py-3">
+        <span aria-hidden="true" className="flex size-7 flex-none items-center justify-center rounded-md bg-accent text-accent-foreground">
+          <BadgePercent size={15} />
+        </span>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          <strong className="font-semibold text-foreground">AsistíAPP no cobra comisión por venta de entradas.</strong> La única comisión es la de
+          Mercado Pago, según el plazo de liberación del dinero que tengas configurado en tu cuenta.
+        </p>
+      </div>
 
       {!estado && !error && (
         <>
@@ -81,11 +94,11 @@ export function CuentaMercadoPagoCard() {
 
       {estado?.vinculada && (
         <>
-          <div className="flex items-start gap-3 rounded-xl border border-success/25 bg-success/10 px-4 py-3">
+          <div className="flex items-start gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3">
             <CheckCircle2 size={18} aria-hidden="true" className="mt-0.5 flex-none text-success" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">Cuenta vinculada</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="mt-0.5 font-mono text-2xs text-muted-foreground">
                 Usuario de Mercado Pago: {estado.mpUserId ?? "—"}
                 {estado.vinculadaEn && ` · desde el ${new Date(estado.vinculadaEn).toLocaleDateString("es-AR")}`}
               </p>
@@ -105,7 +118,7 @@ export function CuentaMercadoPagoCard() {
               </div>
             </div>
           ) : (
-            <Button variant="ghost" block className="text-muted-foreground" onClick={() => setConfirmando(true)}>
+            <Button variant="ghost" size="sm" block className="text-muted-foreground" onClick={() => setConfirmando(true)}>
               Desvincular
             </Button>
           )}
@@ -125,13 +138,17 @@ export function CuentaMercadoPagoCard() {
               toca ni cobra comisión.
             </p>
           )}
-          <Button block onClick={vincular} loading={ocupado} loadingText="Redirigiendo a Mercado Pago…">
+          <Button block tactil onClick={vincular} loading={ocupado} loadingText="Redirigiendo a Mercado Pago…">
             {textoVincular}
           </Button>
         </>
       )}
 
       {error && <Alert tone="danger">{error}</Alert>}
+
+      {children && <div className="border-t border-border pt-5">{children}</div>}
+
+      <InfoComisionesMp />
     </Card>
   );
 }

@@ -17,6 +17,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   block?: boolean;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
+  /**
+   * Microinteracción "táctil" del sistema editorial (`.btn-tactil` en globals.css): sombra dura que se levanta al
+   * pasar el mouse y se hunde al presionar. Para las acciones de tarjetas editoriales; no en tablas ni barras.
+   */
+  tactil?: boolean;
   ref?: Ref<HTMLButtonElement>;
 }
 
@@ -32,6 +37,7 @@ export function Button({
   block = false,
   leftIcon,
   rightIcon,
+  tactil = false,
   disabled,
   className,
   children,
@@ -50,6 +56,7 @@ export function Button({
         VARIANTES_BOTON[variant],
         variant === "link" ? TAMANOS_LINK[size] : TAMANOS_BOTON[size],
         block && "w-full",
+        tactil && variant !== "link" && "btn-tactil",
         className,
       )}
       {...rest}

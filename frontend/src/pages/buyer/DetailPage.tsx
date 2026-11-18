@@ -8,6 +8,7 @@ import { MapView } from "../../components/EventMap";
 import { Alert, Button, EmptyState, ErrorState, QuantityStepper, RadioCardGroup, Skeleton, StickyActionBar } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
+import { desglosePedido } from "../../lib/comisionesMp";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { estadoVentaTanda, mensajeSinVenta, ventanaVentaTexto } from "../../lib/tandas";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -109,7 +110,8 @@ export function DetailPage() {
   const estadoSel = estadoVentaTanda(sel);
   const hayDisponibles = !eventoFinalizado && evento.tandas.some((t) => estadoVentaTanda(t) === "abierta");
   const puedeComprar = !eventoFinalizado && estadoSel === "abierta";
-  const total = sel.precio * qtyEfectivo;
+  // Con la comisión de Mercado Pago trasladada al comprador, el total ya incluye el cargo (desglosado en el checkout).
+  const { cargo, total } = desglosePedido(sel.precio, sel.cargoServicio, qtyEfectivo);
   const textoBoton = eventoFinalizado
     ? "Evento finalizado"
     : estadoSel === "abierta"
@@ -248,6 +250,11 @@ export function DetailPage() {
                 {qtyEfectivo} × {sel.nombre}
               </p>
               <p className="mt-1 font-display text-4xl font-extrabold tabular-nums leading-none text-foreground">{fmt(total)}</p>
+              {cargo > 0 && (
+                <p className="mt-2 font-mono text-2xs leading-relaxed text-muted-foreground">
+                  Incluye {fmt(cargo)} de cargo por procesamiento de pago (Mercado Pago)
+                </p>
+              )}
             </div>
             {/* Perforación con muescas */}
             <div className="relative h-0 border-t border-dashed border-border-strong">

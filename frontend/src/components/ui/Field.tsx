@@ -13,6 +13,8 @@ interface FieldProps {
   required?: boolean;
   /** Oculta el label visualmente (sigue disponible para lectores de pantalla). */
   labelHidden?: boolean;
+  /** `mono`: etiqueta editorial en IBM Plex Mono, mayúsculas con tracking (formularios de tarjetas editoriales). */
+  labelVariant?: "default" | "mono";
   className?: string;
   children: ReactNode;
 }
@@ -22,7 +24,7 @@ interface FieldProps {
  * apunta al control, y la ayuda y el error quedan asociados con `aria-describedby`). El control
  * de adentro (`Input`, `Textarea`, `Select`) toma el `id` del contexto, no hace falta pasarlo.
  */
-export function Field({ label, hint, error, required, labelHidden, className, children }: FieldProps) {
+export function Field({ label, hint, error, required, labelHidden, labelVariant = "default", className, children }: FieldProps) {
   const id = useId();
   const hintId = `${id}-ayuda`;
   const errorId = `${id}-error`;
@@ -32,7 +34,12 @@ export function Field({ label, hint, error, required, labelHidden, className, ch
   return (
     <FieldContext.Provider value={{ id, labelId: `${id}-label`, describedBy, invalid: Boolean(error), required }}>
       <div className={cn("space-y-1.5", className)}>
-        <label id={`${id}-label`} htmlFor={id} className={cn("block text-xs font-medium text-muted-foreground", labelHidden && "sr-only")}>
+        <label id={`${id}-label`} htmlFor={id} className={cn(
+            "block text-muted-foreground",
+            labelVariant === "mono" ? "font-mono text-2xs font-semibold uppercase tracking-[0.12em]" : "text-xs font-medium",
+            labelHidden && "sr-only",
+          )}
+        >
           {label}
           {required && (
             <span aria-hidden="true" className="text-destructive">

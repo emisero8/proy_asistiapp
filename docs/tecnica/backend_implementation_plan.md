@@ -481,3 +481,18 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 - **Usuarios/tarjetas de prueba:** panel de la app → *Cuentas de prueba* y *Tarjetas de prueba*. Pagar con el usuario comprador de prueba (idealmente en ventana de incógnito). Con "Dinero disponible" o la tarjeta de prueba con titular `APRO` el pago se aprueba.
 - **`mvn test` falla con "Unresolved compilation problems"/errores de contexto:** la extensión de Java de VS Code deja clases mal compiladas (sin procesar Lombok) en `target/classes`. Correr `mvn clean test`.
 - **Datos de prueba en la base local de desarrollo:** organizador `org.prueba.mp@example.com`, paquete de créditos "Prueba MP" (10 créditos, $100) y 3 órdenes de crédito (#1 y #3 `Aprobada`, #2 `Pendiente`). Limpiar al terminar las pruebas.
+
+---
+
+## Fase 22: Cargo por procesamiento de Mercado Pago trasladado al comprador ✅ (2026-11-17, sin commitear)
+
+Pedido desde Mi perfil (frontend, Fase 15): el Organizador elige si absorbe la comisión de Mercado Pago (por defecto) o si se le suma al comprador. AsistíAPP no cobra comisión en ningún caso.
+
+- **Modelo:** `Organizador.trasladarCargoMp` (boolean, default false), `plazoLiberacionMp` (`PlazoLiberacionMp`: `AlInstante`, `Dias10`, `Dias18`, `Dias35`, con las tasas sin IVA) y `zonaComisionMp` (`ZonaComisionMp`: `General`, `BuenosAiresEntreRiosChubut`). `TransaccionPago.cargoServicioUnitario` fija el cargo por entrada de cada orden. Migración: `db/migraciones/2026-11-25-cargo-servicio-mercadopago.sql`.
+- **Cálculo (`CargoServicioMp`):** `t = % × 1,21 / 100`; `cargo = precio × t / (1 − t)` al centavo (HALF_UP), **por entrada**. Así, después de la comisión de Mercado Pago (que se aplica sobre todo lo cobrado), al Organizador le queda el precio de la entrada (± 1 centavo).
+- **Endpoint:** `PUT /organizador/perfil/comision-mp` (`ComisionMpRequestDTO`: `trasladarAlComprador`, `plazoLiberacion`, `zona`). `PerfilResponseDTO` suma `trasladarCargoMp`, `plazoLiberacionMp`, `zonaComisionMp` y `porcentajeCargoComprador`.
+- **Público:** `TandaResponseDTO.cargoServicio` (solo en el detalle público: el monto exacto por entrada) y `EventoPublicoDetalleDTO.porcentajeCargoServicio` (null si lo absorbe el Organizador).
+- **Cobro (`VentaService.iniciarCompraOnline`):** `montoTotal = (precio + cargo) × cantidad`; la preferencia lleva un **segundo ítem** "Cargo por procesamiento de pago (Mercado Pago)" con la misma cantidad (`OrdenACobrar.cargoServicioUnitario`; constructor sin cargo para créditos). El webhook sigue validando el monto pagado contra `montoTotal`.
+- **Reembolsos:** el reembolso parcial de una entrada devuelve precio + su cargo (`AnulacionEntradaService.prepararReembolso`), y el mail y el total del reembolso masivo informan ese monto.
+- **Tests (+17):** `CargoServicioMpTest` (vectores de las 8 combinaciones, propiedad "el Organizador recibe el precio", defaults), `VentaServiceTest` (compra con y sin cargo, confirmación con el total con cargo), `MercadoPagoServiceTest` (dos ítems / uno), `AnulacionEntradaServiceTest` (reembolso con cargo), `PerfilServiceTest`, `EventoPublicoServiceTest`. Suite completa: **568 tests, 0 fallos**.
+

@@ -25,6 +25,10 @@ const PERFIL: PerfilResponseDTO = {
   maxEntradasPorCompradorPlataforma: 6,
   contactoWhatsapp: null,
   contactoEmail: null,
+  trasladarCargoMp: false,
+  plazoLiberacionMp: "AlInstante",
+  zonaComisionMp: "General",
+  porcentajeCargoComprador: 8.24,
 };
 
 beforeEach(() => {

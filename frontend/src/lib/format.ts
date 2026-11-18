@@ -1,6 +1,11 @@
-/** Formatea un monto en pesos argentinos, ej. `$12.000`. */
+/**
+ * Formatea un monto en pesos argentinos: `$12.000`, o con centavos si los tiene: `$1.977,10` (siempre dos
+ * decimales, para que un cargo por procesamiento no se lea como `$1.977,1`).
+ */
 export function fmt(n: number): string {
-  return `$${Math.abs(n).toLocaleString("es-AR")}`;
+  const abs = Math.abs(n);
+  const conCentavos = Math.round(abs * 100) % 100 !== 0;
+  return `$${abs.toLocaleString("es-AR", conCentavos ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
 }
 
 /**

@@ -36,4 +36,10 @@ public class EventoPublicoDetalleDTO {
      */
     private String contactoWhatsapp;
     private String contactoEmail;
+
+    /**
+     * Recargo por procesamiento de pago (comisión de Mercado Pago) que paga el comprador, en porcentaje sobre el
+     * precio (ej. 8.24). Null si el Organizador absorbe la comisión. El monto exacto por entrada está en cada tanda.
+     */
+    private Double porcentajeCargoServicio;
 }

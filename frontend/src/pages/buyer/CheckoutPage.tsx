@@ -7,6 +7,7 @@ import { PublicHeader } from "../../components/PublicHeader";
 import { Alert, Button, Card, EmptyState, Field, Input, StickyActionBar } from "../../components/ui";
 import { api } from "../../lib/api";
 import { fmt, formatFecha } from "../../lib/format";
+import { desglosePedido, textoPorcentaje } from "../../lib/comisionesMp";
 import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/pago";
 import { estadoVentaTanda } from "../../lib/tandas";
 import type {
@@ -58,7 +59,10 @@ export function CheckoutPage() {
   }
 
   const { evento, tanda, qty } = state;
-  const total = tanda.precio * qty;
+  // Si el Organizador traslada la comisión de Mercado Pago, cada entrada lleva un cargo que fija el backend
+  // (tanda.cargoServicio): se muestra desglosado y el total es exactamente lo que se cobra.
+  const { subtotal, cargo, total } = desglosePedido(tanda.precio, tanda.cargoServicio, qty);
+  const desglose = { subtotal, cargo, porcentajeCargo: evento.porcentajeCargoServicio ?? null };
 
   // Validación temprana (espeja al backend): si la tanda llegó fuera de su ventana de venta o el
   // evento ya pasó, se avisa apenas se entra, sin obligar a llenar el formulario para enterarse
@@ -152,7 +156,7 @@ export function CheckoutPage() {
           )}
 
           {/* Resumen del pedido como recibo troquelado — también en mobile (la barra fija solo lleva el total). */}
-          <ReciboPedido evento={evento} tanda={tanda} qty={qty} etiqueta={etiquetaCantidad} total={total} className="lg:hidden" />
+          <ReciboPedido evento={evento} tanda={tanda} qty={qty} etiqueta={etiquetaCantidad} total={total} {...desglose} className="lg:hidden" />
 
           <Card as="section" aria-labelledby="checkout-datos-titulo">
             <h2 id="checkout-datos-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
@@ -225,7 +229,7 @@ export function CheckoutPage() {
 
         {/* Recibo + pago — panel sticky en desktop */}
         <aside className="hidden lg:sticky lg:top-24 lg:block">
-          <ReciboPedido evento={evento} tanda={tanda} qty={qty} etiqueta={etiquetaCantidad} total={total}>
+          <ReciboPedido evento={evento} tanda={tanda} qty={qty} etiqueta={etiquetaCantidad} total={total} {...desglose}>
             {botonPagar}
             <NotaPago />
           </ReciboPedido>
@@ -245,6 +249,11 @@ interface ReciboPedidoProps {
   qty: number;
   etiqueta: string;
   total: number;
+  /** Precio de las entradas (precio × cantidad). */
+  subtotal: number;
+  /** Cargo por procesamiento de pago de Mercado Pago; 0 si lo absorbe el Organizador. */
+  cargo: number;
+  porcentajeCargo: number | null;
   className?: string;
   /** Acciones bajo el total (botón de pago + nota), solo en el panel de desktop. */
   children?: ReactNode;
@@ -255,7 +264,7 @@ interface ReciboPedidoProps {
  * sombra dura, perforación punteada con muescas entre el desglose y el total, y precios
  * en `IBM Plex Mono` tabular. El `aria-label="Tu pedido"` lo mantiene como región localizable.
  */
-function ReciboPedido({ evento, tanda, qty, etiqueta, total, className, children }: ReciboPedidoProps) {
+function ReciboPedido({ evento, tanda, qty, etiqueta, total, subtotal, cargo, porcentajeCargo, className, children }: ReciboPedidoProps) {
   return (
     <section aria-label="Tu pedido" className={["relative rounded-2xl border border-foreground bg-card shadow-hard", className].filter(Boolean).join(" ")}>
       <div className="space-y-4 p-5">
@@ -294,7 +303,25 @@ function ReciboPedido({ evento, tanda, qty, etiqueta, total, className, children
             <dt className="text-muted-foreground">Cantidad</dt>
             <dd className="flex-none tabular-nums text-foreground">× {qty}</dd>
           </div>
+          {cargo > 0 && (
+            <>
+              <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-border pt-2">
+                <dt className="text-muted-foreground">Entradas</dt>
+                <dd className="flex-none tabular-nums text-foreground">{fmt(subtotal)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="min-w-0 text-muted-foreground">Cargo por procesamiento de pago (Mercado Pago)</dt>
+                <dd className="flex-none tabular-nums text-foreground">{fmt(cargo)}</dd>
+              </div>
+            </>
+          )}
         </dl>
+        {cargo > 0 && (
+          <p className="text-2xs leading-relaxed text-muted-foreground">
+            El organizador trasladó al precio la comisión de Mercado Pago
+            {porcentajeCargo != null && ` (${textoPorcentaje(porcentajeCargo)})`}. AsistíAPP no cobra comisión.
+          </p>
+        )}
       </div>
 
       {/* Perforación con muescas */}

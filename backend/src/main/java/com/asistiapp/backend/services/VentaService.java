@@ -15,6 +15,7 @@ import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.repositories.OrganizadorRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
 import com.asistiapp.backend.repositories.TandaRepository;
 import com.asistiapp.backend.repositories.TransaccionPagoRepository;
@@ -76,6 +77,7 @@ public class VentaService {
     private final CuentaCobroService cuentaCobroService;
     private final NotificacionService notificacionService;
     private final LimiteCompradorService limiteCompradorService;
+    private final OrganizadorRepository organizadorRepository;
 
     private static final int TAMANO_QR_DEFAULT_PX = 300;
 
@@ -109,12 +111,21 @@ public class VentaService {
 
         // 8.5: el dinero cae en la cuenta de Mercado Pago del Organizador. Se pide antes de crear la orden:
         // si no puede cobrar, el comprador lo sabe ya y no queda una orden huérfana.
-        String tokenCobro = cuentaCobroService.tokenParaCobrar(tanda.getEvento().getIdOrganizador());
+        Long idOrganizador = tanda.getEvento().getIdOrganizador();
+        String tokenCobro = cuentaCobroService.tokenParaCobrar(idOrganizador);
+
+        // Si el Organizador traslada la comisión de Mercado Pago, el comprador paga un cargo por entrada
+        // (CargoServicioMp). Se fija ahora en la orden: el webhook valida el monto contra este total.
+        BigDecimal precio = BigDecimal.valueOf(tanda.getPrecio());
+        BigDecimal cargoUnitario = CargoServicioMp.cargoUnitarioPara(
+                organizadorRepository.findById(idOrganizador).orElse(null), tanda.getPrecio());
+        BigDecimal total = precio.add(cargoUnitario).multiply(BigDecimal.valueOf(cantidad));
 
         TransaccionPago transaccion = new TransaccionPago();
         transaccion.setIdTanda(tanda.getId());
         transaccion.setCantidad(cantidad);
-        transaccion.setMontoTotal(tanda.getPrecio() * cantidad);
+        transaccion.setMontoTotal(total.doubleValue());
+        transaccion.setCargoServicioUnitario(cargoUnitario.signum() > 0 ? cargoUnitario.doubleValue() : null);
         transaccion.setNombreComprador(dto.getNombreComprador());
         transaccion.setEmailComprador(dto.getEmailComprador());
         transaccion.setEstado(EstadoTransaccion.Pendiente);
@@ -129,15 +140,16 @@ public class VentaService {
                         tanda.getEvento().getNombre() + " — " + tanda.getNombre(),
                         "Entrada(s) para " + tanda.getEvento().getNombre(),
                         cantidad,
-                        BigDecimal.valueOf(tanda.getPrecio()),
+                        precio,
                         saved.getExternalReference(),
                         MercadoPagoService.TIPO_ENTRADAS,
                         dto.getEmailComprador(),
-                        saved.getFechaVencimiento()),
+                        saved.getFechaVencimiento(),
+                        cargoUnitario),
                 tokenCobro);
 
-        log.info("Compra iniciada: transaccionId={}, ref={}, tanda={}, cantidad={}, comprador={}",
-                saved.getId(), saved.getExternalReference(), dto.getIdTanda(), cantidad, dto.getEmailComprador());
+        log.info("Compra iniciada: transaccionId={}, ref={}, tanda={}, cantidad={}, cargoPorEntrada={}, total={}, comprador={}",
+                saved.getId(), saved.getExternalReference(), dto.getIdTanda(), cantidad, cargoUnitario, total, dto.getEmailComprador());
 
         return IniciarCompraResponseDTO.builder()
                 .ordenId(saved.getExternalReference())

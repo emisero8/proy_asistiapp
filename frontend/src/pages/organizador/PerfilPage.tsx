@@ -1,11 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { KeyRound, MessageCircle, Save, Users } from "lucide-react";
+import { KeyRound, MessageCircle, Save, UserRound, Users } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
 import { Alert, Button, Card, ErrorState, Field, Input, PageHeader, PasswordInput, Skeleton } from "../../components/ui";
+import { ComisionMpPanel } from "./ComisionMpPanel";
 import { CuentaMercadoPagoCard } from "./CuentaMercadoPagoCard";
+import { EncabezadoTarjeta } from "./EncabezadoTarjeta";
 import type { CambiarPasswordRequestDTO, ContactoRequestDTO, PerfilRequestDTO, PerfilResponseDTO, TopeCompradorRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
@@ -150,114 +152,128 @@ export function OrganizadorPerfilPage() {
       {loadError && <ErrorState title="No pudimos cargar tu perfil" description={loadError} />}
 
       {!perfil && !loadError && (
-        <div className="grid gap-6 md:grid-cols-2" aria-busy="true">
+        <div className="flex flex-col gap-6 md:flex-row md:items-start" aria-busy="true">
           <span className="sr-only">Cargando tu perfil…</span>
-          <Skeleton className="h-96 rounded-2xl" />
-          <Skeleton className="h-80 rounded-2xl" />
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Skeleton className="h-96 rounded-2xl" />
+            <Skeleton className="h-72 rounded-2xl" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Skeleton className="h-64 rounded-2xl" />
+            <Skeleton className="h-80 rounded-2xl" />
+          </div>
         </div>
       )}
 
       {perfil && (
-        <div className="grid gap-6 md:grid-cols-2 md:items-start">
-          <Card as="form" onSubmit={guardarPerfil} aria-labelledby="perfil-titulo" className="space-y-5">
-            <h2 id="perfil-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
-              Datos del perfil
-            </h2>
+        // Dos columnas flex independientes (no una grilla de filas): cada tarjeta ocupa su altura natural y una
+        // tarjeta alta no deja un hueco al lado de la más baja. En mobile es una sola columna en el mismo orden.
+        <div className="flex flex-col gap-6 md:flex-row md:items-start">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Card as="form" variant="editorial" onSubmit={guardarPerfil} aria-labelledby="perfil-titulo" className="space-y-5">
+              <EncabezadoTarjeta id="perfil-titulo" indice="01" eyebrow="Identidad" icon={UserRound}>
+                Datos del perfil
+              </EncabezadoTarjeta>
 
-            <ImagenPortadaField variant="avatar" value={foto} onChange={setFoto} endpoint="/organizador/perfil/foto" />
+              <ImagenPortadaField variant="avatar" value={foto} onChange={setFoto} endpoint="/organizador/perfil/foto" />
 
-            <Field label="Nombre">
-              <Input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={150} autoComplete="name" />
-            </Field>
+              <Field label="Nombre" labelVariant="mono">
+                <Input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={150} autoComplete="name" />
+              </Field>
 
-            <Field label="Email" hint="El email no se puede cambiar.">
-              <Input value={perfil.email} disabled readOnly />
-            </Field>
+              <Field label="Email" labelVariant="mono" hint="El email no se puede cambiar.">
+                <Input value={perfil.email} disabled readOnly className="font-mono" />
+              </Field>
 
-            {errorPerfil && <Alert tone="danger">{errorPerfil}</Alert>}
+              {errorPerfil && <Alert tone="danger">{errorPerfil}</Alert>}
 
-            <Button type="submit" block leftIcon={<Save size={16} />} loading={guardandoPerfil} loadingText="Guardando…">
-              Guardar cambios
-            </Button>
-          </Card>
+              <Button type="submit" block tactil leftIcon={<Save size={16} />} loading={guardandoPerfil} loadingText="Guardando…">
+                Guardar cambios
+              </Button>
+            </Card>
 
-          <CuentaMercadoPagoCard />
+            <CuentaMercadoPagoCard>
+              <ComisionMpPanel perfil={perfil} onGuardado={setPerfil} />
+            </CuentaMercadoPagoCard>
+          </div>
 
-          <Card as="form" onSubmit={guardarTope} noValidate aria-labelledby="tope-titulo" className="space-y-5">
-            <h2 id="tope-titulo" className="flex items-center gap-2 font-display text-base font-bold tracking-tight text-foreground">
-              <Users size={16} aria-hidden="true" className="text-secondary" />
-              Entradas por persona
-            </h2>
-            <Field
-              label="Máximo de entradas por persona"
-              hint="Cuántas entradas puede tener una misma persona (mismo email) en cada uno de tus eventos, online y en las ventas del staff. Vacío: rige el de la plataforma."
-              error={errorTope ?? undefined}
-            >
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                inputMode="numeric"
-                value={tope}
-                onChange={(e) => setTope(e.target.value)}
-                placeholder={String(perfil.maxEntradasPorCompradorPlataforma)}
-              />
-            </Field>
-            <p className="text-xs font-semibold text-foreground">
-              {perfil.maxEntradasPorComprador == null
-                ? `Hoy rige el de la plataforma: ${perfil.maxEntradasPorCompradorPlataforma}.`
-                : `Tu tope es de ${perfil.maxEntradasPorComprador} entradas por persona.`}
-            </p>
-            <Button type="submit" block variant="secondary" leftIcon={<Save size={16} />} loading={guardandoTope} loadingText="Guardando…">
-              Guardar tope
-            </Button>
-          </Card>
-
-          <Card as="form" onSubmit={guardarContacto} noValidate aria-labelledby="contacto-titulo" className="space-y-5">
-            <div>
-              <h2 id="contacto-titulo" className="flex items-center gap-2 font-display text-base font-bold tracking-tight text-foreground">
-                <MessageCircle size={16} aria-hidden="true" className="text-secondary" />
-                Contacto para el arrepentimiento
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Quien quiera arrepentirse de una compra es derivado a este contacto: el pedido lo resolvés vos. Necesitás al menos uno para
-                publicar un evento.
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Card as="form" variant="editorial" onSubmit={guardarTope} noValidate aria-labelledby="tope-titulo" className="space-y-5">
+              <EncabezadoTarjeta id="tope-titulo" indice="03" eyebrow="Compradores" icon={Users}>
+                Entradas por persona
+              </EncabezadoTarjeta>
+              <Field
+                label="Máximo de entradas por persona"
+                labelVariant="mono"
+                hint="Cuántas entradas puede tener una misma persona (mismo email) en cada uno de tus eventos, online y en las ventas del staff. Vacío: rige el de la plataforma."
+                error={errorTope ?? undefined}
+              >
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  inputMode="numeric"
+                  value={tope}
+                  onChange={(e) => setTope(e.target.value)}
+                  placeholder={String(perfil.maxEntradasPorCompradorPlataforma)}
+                  className="font-mono tabular-nums"
+                />
+              </Field>
+              <p className="flex items-center gap-2 font-mono text-xs font-semibold text-foreground">
+                <span aria-hidden="true" className="size-1.5 flex-none rounded-full bg-secondary" />
+                {perfil.maxEntradasPorComprador == null
+                  ? `Hoy rige el de la plataforma: ${perfil.maxEntradasPorCompradorPlataforma}.`
+                  : `Tu tope es de ${perfil.maxEntradasPorComprador} entradas por persona.`}
               </p>
-            </div>
-            <Field label="WhatsApp de contacto">
-              <Input type="tel" autoComplete="tel" value={contactoWa} onChange={(e) => setContactoWa(e.target.value)} placeholder="+54 9 11 5555-1234" />
-            </Field>
-            <Field label="Email de contacto">
-              <Input type="email" autoComplete="email" value={contactoMail} onChange={(e) => setContactoMail(e.target.value)} placeholder="contacto@tuevento.com" />
-            </Field>
-            {errorContacto && <Alert tone="danger">{errorContacto}</Alert>}
-            <Button type="submit" block variant="secondary" leftIcon={<Save size={16} />} loading={guardandoContacto} loadingText="Guardando…">
-              Guardar contacto
-            </Button>
-          </Card>
+              <Button type="submit" block variant="secondary" tactil leftIcon={<Save size={16} />} loading={guardandoTope} loadingText="Guardando…">
+                Guardar tope
+              </Button>
+            </Card>
 
-          <Card as="form" onSubmit={cambiarPassword} aria-labelledby="password-titulo" className="space-y-5">
-            <h2 id="password-titulo" className="flex items-center gap-2 font-display text-base font-bold tracking-tight text-foreground">
-              <KeyRound size={16} aria-hidden="true" className="text-secondary" />
-              Cambiar contraseña
-            </h2>
+            <Card as="form" variant="editorial" onSubmit={guardarContacto} noValidate aria-labelledby="contacto-titulo" className="space-y-5">
+              <EncabezadoTarjeta
+                id="contacto-titulo"
+                indice="04"
+                eyebrow="Arrepentimiento"
+                icon={MessageCircle}
+                descripcion="Quien quiera arrepentirse de una compra es derivado a este contacto: el pedido lo resolvés vos. Necesitás al menos uno para publicar un evento."
+              >
+                Contacto para el arrepentimiento
+              </EncabezadoTarjeta>
+              <Field label="WhatsApp de contacto" labelVariant="mono">
+                <Input type="tel" autoComplete="tel" value={contactoWa} onChange={(e) => setContactoWa(e.target.value)} placeholder="+54 9 11 5555-1234" />
+              </Field>
+              <Field label="Email de contacto" labelVariant="mono">
+                <Input type="email" autoComplete="email" value={contactoMail} onChange={(e) => setContactoMail(e.target.value)} placeholder="contacto@tuevento.com" />
+              </Field>
+              {errorContacto && <Alert tone="danger">{errorContacto}</Alert>}
+              <Button type="submit" block variant="secondary" tactil leftIcon={<Save size={16} />} loading={guardandoContacto} loadingText="Guardando…">
+                Guardar contacto
+              </Button>
+            </Card>
 
-            <Field label="Contraseña actual">
-              <PasswordInput autoComplete="current-password" value={actual} onChange={(e) => setActual(e.target.value)} />
-            </Field>
-            <Field label="Nueva contraseña" hint="Mínimo 8 caracteres.">
-              <PasswordInput autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} toggleLabel="nueva contraseña" />
-            </Field>
-            <Field label="Repetir la nueva contraseña">
-              <PasswordInput autoComplete="new-password" value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} toggleLabel="confirmación" />
-            </Field>
+            <Card as="form" variant="editorial" onSubmit={cambiarPassword} aria-labelledby="password-titulo" className="space-y-5">
+              <EncabezadoTarjeta id="password-titulo" indice="05" eyebrow="Seguridad" icon={KeyRound}>
+                Cambiar contraseña
+              </EncabezadoTarjeta>
 
-            {errorPassword && <Alert tone="danger">{errorPassword}</Alert>}
+              <Field label="Contraseña actual" labelVariant="mono">
+                <PasswordInput autoComplete="current-password" value={actual} onChange={(e) => setActual(e.target.value)} />
+              </Field>
+              <Field label="Nueva contraseña" labelVariant="mono" hint="Mínimo 8 caracteres.">
+                <PasswordInput autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} toggleLabel="nueva contraseña" />
+              </Field>
+              <Field label="Repetir la nueva contraseña" labelVariant="mono">
+                <PasswordInput autoComplete="new-password" value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} toggleLabel="confirmación" />
+              </Field>
 
-            <Button type="submit" block variant="secondary" loading={guardandoPassword} loadingText="Cambiando…">
-              Cambiar contraseña
-            </Button>
-          </Card>
+              {errorPassword && <Alert tone="danger">{errorPassword}</Alert>}
+
+              <Button type="submit" block variant="secondary" tactil loading={guardandoPassword} loadingText="Cambiando…">
+                Cambiar contraseña
+              </Button>
+            </Card>
+          </div>
         </div>
       )}
     </div>

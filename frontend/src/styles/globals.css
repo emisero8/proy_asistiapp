@@ -92,6 +92,27 @@
   box-shadow: 6px 7px 0 0 var(--accent);
 }
 
+/* Botón táctil (`<Button tactil>`): sombra dura chica que se levanta un poco al pasar el mouse y desaparece al
+   presionar, como un sello que se aprieta contra el papel. Usa `translate` (no `transform`) para convivir con el
+   `active:scale` de las variantes; reduced-motion lo vuelve instantáneo por la regla global de theme.css. */
+.btn-tactil {
+  box-shadow: 3px 3px 0 0 var(--foreground);
+  transition-property: background-color, border-color, color, box-shadow, translate, scale;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.btn-tactil:disabled {
+  box-shadow: none;
+}
+.btn-tactil:not(:disabled):hover {
+  translate: -1px -1px;
+  box-shadow: 4px 4px 0 0 var(--foreground);
+}
+.btn-tactil:not(:disabled):active {
+  translate: 3px 3px;
+  box-shadow: 0 0 0 0 var(--foreground);
+}
+
 /* =====================================================================
    TicketCard (Fase 14.2) — tarjeta de evento como entrada troquelada.
    Dos piezas (talón/poster arriba + cuerpo abajo) con borde propio cada

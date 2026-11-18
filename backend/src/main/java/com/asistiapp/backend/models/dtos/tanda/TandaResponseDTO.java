@@ -25,4 +25,11 @@ public class TandaResponseDTO {
     private boolean soloEmision;
     private LocalDateTime fechaInicioVigencia;
     private LocalDateTime fechaFinVigencia;
+
+    /**
+     * Solo en el detalle público: cargo por procesamiento de pago (Mercado Pago) que se suma por entrada cuando el
+     * Organizador traslada la comisión al comprador. 0 si la absorbe; null fuera del detalle público. Lo calcula
+     * el backend (CargoServicioMp) para que el checkout muestre exactamente lo que se va a cobrar.
+     */
+    private Double cargoServicio;
 }

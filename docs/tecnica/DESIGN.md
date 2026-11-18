@@ -273,6 +273,8 @@ Resueltos en la capa base de `theme.css` — **no se repiten clase por clase**:
 ```
 Tamaños: `h-9 px-3 text-xs` (chico, filas/tablas) · `h-11 px-5 text-sm` (estándar) · `h-12 px-6 text-base` (CTA de pantalla, ancho completo en mobile).
 
+**Botón táctil (`<Button tactil>`, Fase 15):** sombra dura chica (`.btn-tactil` en `globals.css`) que se levanta 1 px al hover y se hunde al presionar; sin sombra si está deshabilitado. Para las acciones de tarjetas editoriales (Mi perfil), no en tablas ni barras fijas.
+
 En código se usa `<Button variant size loading>` / `<IconButton label>` de `components/ui` (las recetas de arriba son lo que generan). Además:
 - **`variant="accent"`** (lima): el CTA de conversión (botón "Pagar" del checkout), `bg-accent text-accent-foreground` + `active:scale`. Único botón lima de la app (ver la excepción en Reglas de Color).
 - **`variant="danger-subtle"`**: acción destructiva secundaria dentro de una lista ("Dar de baja"): texto `destructive`, sin relleno. El relleno `danger` queda para confirmar.
@@ -294,6 +296,7 @@ En código se usa `<Button variant size loading>` / `<IconButton label>` de `com
 </div>
 ```
 - **Todo `<label>` va conectado** (`htmlFor` + `id`). Todo campo de datos personales lleva `autoComplete` (`name`, `email`, `current-password`, `new-password`).
+- **Etiqueta editorial:** `<Field labelVariant="mono">` pone el label en IBM Plex Mono, `text-2xs` mayúsculas con tracking (formularios dentro de tarjetas editoriales, ej. Mi perfil).
 - **Ayuda y error:** con `<Field hint error>`, el error **reemplaza** a la ayuda mientras exista (no se muestran los dos: suelen decir lo mismo). Validar al salir del campo o al enviar, no mientras se escribe; al enviar con errores, llevar el foco al primer campo inválido (ver `organizador/RegisterPage`).
 - **Placeholders:** solo como ejemplo de formato ("maria@ejemplo.com"), nunca en lugar del label. Van en `muted-foreground` completo (≥ 6:1): en 13.4 se habían bajado al 60 % para que no parecieran un valor cargado, pero así no llegaban a 4,5:1 (lo marcó axe en 13.9). El valor cargado se distingue igual: va en `foreground`, casi negro.
 - **Contraseñas:** `<PasswordInput>` (mostrar/ocultar con `aria-pressed`, alcanzable con teclado).
@@ -314,6 +317,7 @@ En código se usa `<Button variant size loading>` / `<IconButton label>` de `com
 ```tsx
 <div className="bg-card border border-border rounded-2xl p-5">…</div>
 ```
+- **`<Card variant="editorial">`** (Fase 15): borde `foreground` + `.shadow-hard`, para las tarjetas protagonistas de una pantalla editorial (Mi perfil, con encabezado `EncabezadoTarjeta`: eyebrow numerado en mono + título Archivo). El default sigue sin sombra.
 - Tarjeta clickeable entera: un único `<button>`/`<a>` como elemento principal (patrón "enlace extendido" con `after:absolute after:inset-0` si tiene acciones secundarias encima, ver `organizador/DashboardPage`). **Nunca** controles interactivos anidados dentro de otro control.
 - **No todo es una tarjeta:** listas, tablas y secciones pueden separarse con `divide-y divide-border` o espacio, sin caja propia.
 

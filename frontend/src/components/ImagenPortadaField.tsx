@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ImagePlus, Loader2, CircleX, UserRound } from "lucide-react";
 import { api, ApiError } from "../lib/api";
+import { claseBoton } from "./ui/buttonStyles";
 import type { ImagenSubidaResponseDTO } from "../lib/types";
 
 const TIPOS_ACEPTADOS = "image/jpeg,image/png,image/webp";
@@ -71,7 +72,11 @@ export function ImagenPortadaField({
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={subiendo}
-        className="inline-flex items-center gap-2 px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className={
+          esAvatar
+            ? `${claseBoton("secondary", "sm")} btn-tactil border-foreground`
+            : "inline-flex items-center gap-2 px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        }
       >
         {subiendo ? <Loader2 size={15} className="animate-spin" /> : <ImagePlus size={15} />}
         {botonLabel}
@@ -100,7 +105,9 @@ export function ImagenPortadaField({
 
   const mensajes = (
     <>
-      <p className="text-xs text-muted-foreground mt-1.5">JPG, PNG o WEBP de hasta {TAMANO_MAXIMO_MB} MB.</p>
+      <p className={esAvatar ? "mt-2 font-mono text-2xs text-muted-foreground" : "text-xs text-muted-foreground mt-1.5"}>
+        JPG, PNG o WEBP de hasta {TAMANO_MAXIMO_MB} MB.
+      </p>
       {error && <p className="text-xs text-destructive mt-1.5">{error}</p>}
     </>
   );
@@ -108,11 +115,11 @@ export function ImagenPortadaField({
   if (esAvatar) {
     return (
       <div className="flex items-center gap-4">
-        <div className="w-20 h-20 rounded-full overflow-hidden bg-muted border border-border flex items-center justify-center flex-none">
+        <div className="flex size-20 flex-none items-center justify-center overflow-hidden rounded-full border border-foreground bg-surface-sunken shadow-hard-sm">
           {value ? (
-            <img src={value} alt="Foto de perfil" className="w-full h-full object-cover" />
+            <img src={value} alt="Foto de perfil" className="size-full object-cover" />
           ) : (
-            <UserRound size={28} className="text-muted-foreground" />
+            <UserRound size={28} aria-hidden="true" className="text-secondary" />
           )}
         </div>
         <div className="min-w-0">

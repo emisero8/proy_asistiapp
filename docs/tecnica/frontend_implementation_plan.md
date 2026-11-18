@@ -783,3 +783,24 @@ Cuatro detalles finales vistos en el navegador:
 
 ### Pendiente
 - Pasar al sistema editorial los componentes de master que funcionan pero conservan la estética anterior: `EmitirEntradasPanel`, `ReembolsosPanel`, `EntradaAcciones`, `BotonArrepentimiento` y el contenido de las páginas legales (anotado como deuda técnica en DECISIONES).
+
+---
+
+## Fase 15: Mi perfil del Organizador — layout, estética editorial y comisión de Mercado Pago ✅ (2026-11-17, sin commitear)
+
+**Pedido del usuario (4 puntos):** sacar los huecos verticales de Mi perfil, pasar todas sus tarjetas al sistema editorial, explicar en la tarjeta de Mercado Pago que AsistíAPP no cobra comisión (tabla de comisiones por plazo + cómo cambiar el plazo) y dejar elegir quién paga la comisión de Mercado Pago, con el cargo cobrado de verdad y desglosado en el checkout.
+
+### Qué se hizo
+1. **Layout sin huecos (`PerfilPage`):** la grilla de 2 columnas (filas rígidas) se reemplazó por **dos columnas flex independientes** (`flex-col gap-6` cada una, `md:flex-row md:items-start`): izquierda *Datos del perfil* + *Cuenta de Mercado Pago*; derecha *Entradas por persona* + *Contacto para el arrepentimiento* + *Cambiar contraseña*. Cada tarjeta ocupa su altura natural (medido con Playwright: 24 px exactos entre tarjetas de una columna; las columnas terminan a 28 px una de otra). En mobile es una sola columna con el mismo orden de lectura que el DOM (no se usó `order` para no desacoplar el orden del foco).
+2. **Estética editorial:** `Card variant="editorial"` (borde `foreground` + `.shadow-hard`) en las 5 tarjetas; encabezado común `EncabezadoTarjeta` (tile de ícono con borde carbón, eyebrow numerado `01 · Identidad`… en IBM Plex Mono, título Archivo); etiquetas de campo en mono (`<Field labelVariant="mono">`); email, tope y estado del tope en mono; botones con `<Button tactil>` (`.btn-tactil`: sombra dura que se levanta y se hunde al presionar; sin sombra si está deshabilitado); avatar de `ImagenPortadaField variant="avatar"` con borde carbón + sombra dura y su botón "Subir foto" como botón del sistema. Las tres piezas nuevas se agregaron a los componentes (`Card`, `Button`, `Field`) y a `DESIGN.md`, no como clases sueltas.
+3. **Tarjeta de Mercado Pago:** aviso destacado "AsistíAPP no cobra comisión por venta de entradas…" y desplegable **"Ver comisiones y plazos de Mercado Pago"** (`InfoComisionesMp`, `aria-expanded`/`aria-controls`) con la tabla por plazo (general y Buenos Aires/Entre Ríos/Chubut, + IVA) y el paso a paso para cambiar el plazo de liberación. *Adaptación:* desplegable y no modal — no hay un modal genérico en el sistema (solo `confirm/alert/prompt`) y el pedido admitía cualquiera de los dos.
+4. **Quién paga la comisión (`ComisionMpPanel`, dentro de la tarjeta de Mercado Pago):** `RadioCardGroup` "La absorbo yo" (por defecto) / "La paga el comprador"; con la segunda, plazo de liberación y zona (`SelectMenu`) y un ejemplo en vivo sobre $10.000. Se guarda con `PUT /organizador/perfil/comision-mp`.
+5. **Checkout y detalle:** `CheckoutPage` muestra en el recibo *Entradas $X* + *Cargo por procesamiento de pago (Mercado Pago) $Y* y el botón "Pagar" con el total; `DetailPage` aclara "Incluye $Y de cargo…" en el panel de compra. El monto por entrada viene del backend (`tanda.cargoServicio`); el front solo multiplica, en centavos (`desglosePedido`, `lib/comisionesMp.ts`).
+6. **`fmt`** muestra dos decimales cuando el monto tiene centavos (`$1.977,10`, antes `$1.977,1`); los montos enteros siguen igual.
+
+### Gap de backend corregido (no parcheado en el front)
+No existía ninguna noción de cargo al comprador: se agregó en el backend (ver `backend_implementation_plan.md`, Fase 22) y se regeneró el contrato (`openapi.json` + `api-schema.d.ts`; `ComisionMpRequestDTO` sumado a `types.contract.ts`).
+
+### Verificación
+`npx tsc -b` limpio · `npm run lint` (solo los 4 warnings viejos de fast-refresh) · `npx vitest run` **46 archivos / 419 tests** (nuevos: `comisionesMp.test.ts`, `ComisionMpPanel.test.tsx`, 2 casos de `CheckoutPage.test.tsx`) · `npm run build` OK · backend `mvn test` **568 tests** · `npm run e2e` **4/4** contra el backend nuevo. **Playwright** contra el backend real (puerto 8081, build en 3000): Mi perfil en claro/oscuro × 1440/390, desplegable abierto, guardar la preferencia (PUT real), detalle y checkout con el cargo en claro/oscuro × 1440/390, y `comprar-online` real: orden de $1.584,15 (=$1.500 + $84,15, 10 días/general) y **Mercado Pago sandbox aceptó la preferencia con los dos ítems**. 0 errores de consola. Datos de prueba borrados con `e2e/limpiar.sql`.
+

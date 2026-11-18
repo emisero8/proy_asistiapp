@@ -50,6 +50,28 @@ describe("CheckoutPage", () => {
     expect(within(resumenes[0]).getByText("2 entradas · General")).toBeInTheDocument();
   });
 
+  it("si el organizador traslada la comisión de Mercado Pago, desglosa entradas + cargo y cobra el total", () => {
+    // 12.000 al instante, tasa general: el backend informa 988,55 de cargo por entrada.
+    renderCheckout({
+      evento: { ...evento, porcentajeCargoServicio: 8.24 },
+      tanda: { ...tanda, cargoServicio: 988.55 },
+      qty: 2,
+    });
+    const resumen = screen.getAllByRole("region", { name: "Tu pedido" })[0];
+
+    expect(within(resumen).getByText("Entradas").nextSibling).toHaveTextContent("$24.000");
+    expect(within(resumen).getByText("Cargo por procesamiento de pago (Mercado Pago)").nextSibling).toHaveTextContent("$1.977,10");
+    expect(within(resumen).getByText(/AsistíAPP no cobra comisión/)).toHaveTextContent("8,24 %");
+    expect(screen.getAllByRole("button", { name: "Pagar $25.977,10" }).length).toBeGreaterThan(0);
+  });
+
+  it("si el organizador absorbe la comisión no muestra ningún cargo: se paga el precio exacto", () => {
+    renderCheckout({ evento: { ...evento, porcentajeCargoServicio: null }, tanda: { ...tanda, cargoServicio: 0 }, qty: 2 });
+
+    expect(screen.queryByText("Cargo por procesamiento de pago (Mercado Pago)")).not.toBeInTheDocument();
+    expect(botonPagar()).toBeInTheDocument();
+  });
+
   it("no inicia el pago con datos inválidos: marca los errores y enfoca el primero", async () => {
     const user = userEvent.setup();
     const post = vi.spyOn(api, "post");

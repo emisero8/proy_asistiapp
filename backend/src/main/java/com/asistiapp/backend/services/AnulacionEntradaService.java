@@ -106,7 +106,16 @@ public class AnulacionEntradaService {
         if (entradaRepository.reservarReembolso(idEntrada) == 0) {
             throw new BusinessRuleException("El reembolso de esta entrada ya está en curso o ya se hizo");
         }
-        return new PlanReembolso(datos(entrada), paymentId, BigDecimal.valueOf(entrada.getTanda().getPrecio()));
+        // Se devuelve lo que el comprador pagó por esta entrada: el precio y, si el Organizador le trasladó la
+        // comisión de Mercado Pago, el cargo por entrada que quedó fijado en la orden.
+        BigDecimal monto = BigDecimal.valueOf(entrada.getTanda().getPrecio());
+        if (orden.getCargoServicioUnitario() != null && orden.getCargoServicioUnitario() > 0) {
+            monto = monto.add(BigDecimal.valueOf(orden.getCargoServicioUnitario()));
+        }
+        DatosEntrada base = datos(entrada);
+        DatosEntrada conMonto = new DatosEntrada(base.idEntrada(), base.idEvento(), base.idOrganizador(), base.nombreComprador(),
+                base.emailComprador(), base.nombreEvento(), monto.doubleValue());
+        return new PlanReembolso(conMonto, paymentId, monto);
     }
 
     /** Mercado Pago no devolvió el dinero: se suelta el turno para poder reintentar. */

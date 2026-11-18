@@ -7,6 +7,8 @@ import com.asistiapp.backend.models.dtos.perfil.PerfilRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilResponseDTO;
 import com.asistiapp.backend.models.entities.Usuario;
 import com.asistiapp.backend.models.entities.Organizador;
+import com.asistiapp.backend.models.enums.PlazoLiberacionMp;
+import com.asistiapp.backend.models.enums.ZonaComisionMp;
 import com.asistiapp.backend.repositories.OrganizadorRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
@@ -91,6 +93,26 @@ public class PerfilService {
         return toResponseDTO(organizador);
     }
 
+    /**
+     * Quién paga la comisión de Mercado Pago de las entradas. Se guardan el plazo y la zona aunque el Organizador
+     * la absorba, para no perderlos si la traslada más adelante. Las órdenes ya creadas no cambian: cada una
+     * guarda su propio cargo.
+     */
+    @Transactional
+    public PerfilResponseDTO cambiarComisionMp(Long idUsuario, boolean trasladarAlComprador,
+                                               PlazoLiberacionMp plazo, ZonaComisionMp zona) {
+        if (plazo == null || zona == null) {
+            throw new BusinessRuleException("Elegí el plazo de liberación y la zona de tu cuenta de Mercado Pago");
+        }
+        Organizador organizador = organizadorRepository.findById(idUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        organizador.setTrasladarCargoMp(trasladarAlComprador);
+        organizador.setPlazoLiberacionMp(plazo);
+        organizador.setZonaComisionMp(zona);
+        organizadorRepository.save(organizador);
+        return toResponseDTO(organizador);
+    }
+
     @Transactional
     public void cambiarPassword(Long idUsuario, CambiarPasswordRequestDTO dto) {
         Usuario usuario = getUsuarioOrThrow(idUsuario);
@@ -117,6 +139,8 @@ public class PerfilService {
 
     private PerfilResponseDTO toResponseDTO(Usuario usuario) {
         Organizador org = organizadorRepository.findById(usuario.getId()).orElse(null);
+        PlazoLiberacionMp plazo = org == null ? PlazoLiberacionMp.AlInstante : CargoServicioMp.plazoDe(org);
+        ZonaComisionMp zona = org == null ? ZonaComisionMp.General : CargoServicioMp.zonaDe(org);
         return PerfilResponseDTO.builder()
                 .id(usuario.getId())
                 .nombre(usuario.getNombre())
@@ -126,6 +150,10 @@ public class PerfilService {
                 .contactoWhatsapp(org == null ? null : org.getContactoWhatsapp())
                 .contactoEmail(org == null ? null : org.getContactoEmail())
                 .maxEntradasPorCompradorPlataforma(limiteCompradorService.limiteGlobal())
+                .trasladarCargoMp(org != null && org.isTrasladarCargoMp())
+                .plazoLiberacionMp(plazo)
+                .zonaComisionMp(zona)
+                .porcentajeCargoComprador(CargoServicioMp.porcentajeRecargo(plazo, zona).doubleValue())
                 .build();
     }
 }

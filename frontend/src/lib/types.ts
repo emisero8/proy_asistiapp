@@ -61,6 +61,24 @@ export interface PerfilResponseDTO {
   /** Contacto al que deriva el botón de arrepentimiento (8.8): WhatsApp solo con dígitos y/o email; null si no cargó. */
   contactoWhatsapp: string | null;
   contactoEmail: string | null;
+  /** Quién paga la comisión de Mercado Pago: false = el Organizador (por defecto), true = se le suma al comprador. */
+  trasladarCargoMp: boolean;
+  /** Plazo de liberación y zona con que se calcula el cargo (valores por defecto si nunca los eligió). */
+  plazoLiberacionMp: PlazoLiberacionMp;
+  zonaComisionMp: ZonaComisionMp;
+  /** Recargo sobre el precio que pagaría el comprador con ese plazo y zona, en porcentaje (ej. 8.24). */
+  porcentajeCargoComprador: number;
+}
+
+/** Plazo en que Mercado Pago libera el dinero de una venta (lo elige el Organizador en su cuenta de Mercado Pago). */
+export type PlazoLiberacionMp = "AlInstante" | "Dias10" | "Dias18" | "Dias35";
+/** Zona fiscal para la tasa de Mercado Pago: Buenos Aires, Entre Ríos y Chubut tienen una tasa un poco mayor. */
+export type ZonaComisionMp = "General" | "BuenosAiresEntreRiosChubut";
+
+export interface ComisionMpRequestDTO {
+  trasladarAlComprador: boolean;
+  plazoLiberacion: PlazoLiberacionMp;
+  zona: ZonaComisionMp;
 }
 
 export interface ContactoRequestDTO {
@@ -133,6 +151,11 @@ export interface TandaResponseDTO {
   soloEmision: boolean;
   fechaInicioVigencia: string | null;
   fechaFinVigencia: string | null;
+  /**
+   * Solo en el detalle público: cargo por procesamiento de pago (Mercado Pago) que se suma por entrada cuando el
+   * Organizador traslada la comisión al comprador; 0 si la absorbe. Lo calcula el backend: es lo que se cobra.
+   */
+  cargoServicio?: number | null;
 }
 
 export interface TandaRequestDTO {
@@ -216,6 +239,8 @@ export interface EventoPublicoDetalleDTO {
   /** Contacto del Organizador para el botón de arrepentimiento (8.8); null si no cargó. */
   contactoWhatsapp: string | null;
   contactoEmail: string | null;
+  /** Recargo por procesamiento de pago (Mercado Pago) que paga el comprador, en % sobre el precio; null si lo absorbe el Organizador. */
+  porcentajeCargoServicio: number | null;
 }
 
 // ── Entradas / Ventas ─────────────────────────────────
