@@ -5,7 +5,8 @@ import { cn } from "../../lib/cn";
 export type AlertTone = "info" | "success" | "warning" | "danger";
 
 const ESTILOS: Record<AlertTone, { caja: string; icono: string; Icono: LucideIcon }> = {
-  info: { caja: "border-info/25 bg-info/8", icono: "text-info", Icono: Info },
+  // Neutro, como las tarjetas del panel: un aviso informativo no necesita color de marca.
+  info: { caja: "border-border bg-card", icono: "text-muted-foreground", Icono: Info },
   success: { caja: "border-success/25 bg-success/10", icono: "text-success", Icono: CheckCircle2 },
   warning: { caja: "border-warning/30 bg-warning/10", icono: "text-warning", Icono: TriangleAlert },
   danger: { caja: "border-destructive/30 bg-destructive/10", icono: "text-destructive", Icono: AlertCircle },
