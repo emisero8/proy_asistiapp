@@ -27,16 +27,6 @@ public interface TandaRepository extends JpaRepository<Tanda, Long> {
     Optional<Tanda> findByIdWithLock(@Param("id") Long id);
 
     /**
-     * Decrementa el cupo disponible de forma atómica.
-     * Solo ejecuta si cupo_disponible > 0 (previene negativos).
-     * Retorna el número de filas afectadas (0 = cupo agotado).
-     */
-    @Modifying
-    @Query("UPDATE Tanda t SET t.cupoDisponible = t.cupoDisponible - 1 " +
-           "WHERE t.id = :id AND t.cupoDisponible > 0")
-    int decrementarCupo(@Param("id") Long id);
-
-    /**
      * Decrementa el cupo en `cantidad` de forma atómica, todo o nada: solo ejecuta si
      * alcanza el cupo para la cantidad completa. Retorna 0 si no alcanza.
      */
@@ -44,4 +34,11 @@ public interface TandaRepository extends JpaRepository<Tanda, Long> {
     @Query("UPDATE Tanda t SET t.cupoDisponible = t.cupoDisponible - :cantidad " +
            "WHERE t.id = :id AND t.cupoDisponible >= :cantidad")
     int decrementarCupo(@Param("id") Long id, @Param("cantidad") int cantidad);
+
+    /**
+     * Cupo que queda ahora, leído de la base. Hace falta porque {@link #decrementarCupo} actualiza por
+     * consulta y deja desactualizada la {@code Tanda} que ya estaba cargada en la sesión.
+     */
+    @Query("SELECT t.cupoDisponible FROM Tanda t WHERE t.id = :id")
+    int cupoDisponibleActual(@Param("id") Long id);
 }

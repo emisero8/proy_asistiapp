@@ -4,10 +4,12 @@ import com.asistiapp.backend.models.dtos.entrada.*;
 import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.models.enums.EstadoTransaccion;
 import com.asistiapp.backend.security.SecurityUtils;
+import com.asistiapp.backend.services.EmailService;
 import com.asistiapp.backend.services.PagoWebhookService;
 import com.asistiapp.backend.services.VentaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +26,12 @@ import java.util.List;
  *   (la confirmación del pago llega por POST /payments/mercadopago/webhook)
  *
  * Endpoints exclusivos Staff_Vendedor:
- *   POST /tickets/venta-manual         → Venta manual directa (CU-019)
+ *   POST /tickets/venta-manual         → Venta manual directa de 1..20 entradas, todo o nada (CU-019)
  *
  * Endpoints para Organizador (reportes):
  *   GET  /tickets/evento/{eventoId}    → Listar entradas de un evento
  */
+@Slf4j
 @RestController
 @RequestMapping("/tickets")
 @RequiredArgsConstructor
@@ -37,6 +40,7 @@ public class VentaController {
     private final VentaService ventaService;
     private final SecurityUtils securityUtils;
     private final PagoWebhookService pagoWebhookService;
+    private final EmailService emailService;
 
     // ─────────────────────────────────────────────
     // FLUJO ONLINE (CU-017)
@@ -59,13 +63,13 @@ public class VentaController {
      * (a la que MercadoPago devuelve al comprador tras pagar).
      *
      * Si la orden sigue `Pendiente`, reconcilia contra MercadoPago antes de responder —
-     * no depende solo de que el webhook haya llegado (ver DECISIONES.md).
+     * no depende solo de que el webhook haya llegado (ver docs/proyecto/DECISIONES.md).
      */
     @GetMapping("/orden/{externalReference}")
     public ResponseEntity<EstadoOrdenEntradasResponseDTO> obtenerEstadoOrden(
             @PathVariable String externalReference) {
         if (ventaService.estadoActual(externalReference).filter(e -> e == EstadoTransaccion.Pendiente).isPresent()) {
-            pagoWebhookService.reconciliar(externalReference);
+            pagoWebhookService.reconciliarSiCorresponde(externalReference);
         }
         return ResponseEntity.ok(ventaService.obtenerEstadoOrden(externalReference));
     }
@@ -75,16 +79,37 @@ public class VentaController {
     // ─────────────────────────────────────────────
 
     /**
-     * Venta manual de entrada — exclusivo para Staff_Vendedor.
-     * Genera QR y marca la entrada como Pagada de forma inmediata.
+     * Venta manual de una o más entradas — exclusivo para Staff_Vendedor.
+     * Genera un QR por entrada y las marca como Pagadas de forma inmediata; es todo o nada.
+     * Después de confirmada la venta, el comprador recibe un solo mail con todas sus entradas.
      */
     @PostMapping("/venta-manual")
     @PreAuthorize("hasRole('Staff_Vendedor')")
-    public ResponseEntity<EntradaResponseDTO> ventaManual(
+    public ResponseEntity<List<EntradaResponseDTO>> ventaManual(
             @Valid @RequestBody VentaManualRequestDTO dto) {
         StaffVendedor staff = securityUtils.getStaffVendedorAutenticado();
-        EntradaResponseDTO entrada = ventaService.realizarVentaManual(dto, staff.getId());
-        return ResponseEntity.status(HttpStatus.CREATED).body(entrada);
+        List<EntradaResponseDTO> entradas = ventaService.realizarVentaManual(dto, staff.getId());
+        enviarMailAlDestinatario(dto.getEmailComprador(), dto.getNombreComprador(), entradas);
+        return ResponseEntity.status(HttpStatus.CREATED).body(entradas);
+    }
+
+    /**
+     * El mail sale acá, ya con la venta o emisión confirmada (igual que en PagoWebhookService). Si algo
+     * falla al encolarlo se loguea y se sigue: devolver un error con todo ya guardado haría que quien
+     * operó lo reintente y se duplique.
+     */
+    private void enviarMailAlDestinatario(String email, String nombre, List<EntradaResponseDTO> entradas) {
+        try {
+            EntradaResponseDTO primera = entradas.get(0);
+            emailService.enviarConfirmacionCompra(
+                    email,
+                    nombre,
+                    primera.getNombreEvento(),
+                    primera.getNombreTanda(),
+                    entradas.stream().map(EntradaResponseDTO::getCodigoQr).toList());
+        } catch (RuntimeException e) {
+            log.error("Las entradas se confirmaron pero no se pudo mandar el mail a {}: {}", email, e.getMessage());
+        }
     }
 
     /**
@@ -101,6 +126,27 @@ public class VentaController {
     }
 
     // ─────────────────────────────────────────────
+    // EMISIÓN DEL ORGANIZADOR — cortesía o pago por fuera de la plataforma
+    // ─────────────────────────────────────────────
+
+    /**
+     * El Organizador emite él mismo entradas de una de sus tandas (cortesía o pago externo).
+     * Salen del cupo de la tanda, ya paga en créditos. Todo o nada. El mail al destinatario es
+     * opcional ({@code enviarMail}) y sale ya con la emisión confirmada.
+     */
+    @PostMapping("/emision-organizador")
+    @PreAuthorize("hasRole('Organizador')")
+    public ResponseEntity<List<EntradaResponseDTO>> emitirEntradasOrganizador(
+            @Valid @RequestBody EmisionOrganizadorRequestDTO dto) {
+        Long idOrganizador = securityUtils.getOrganizadorAutenticado().getId();
+        List<EntradaResponseDTO> entradas = ventaService.emitirEntradasOrganizador(dto, idOrganizador);
+        if (dto.isEnviarMail()) {
+            enviarMailAlDestinatario(dto.getEmailDestinatario(), dto.getNombreDestinatario(), entradas);
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(entradas);
+    }
+
+    // ─────────────────────────────────────────────
     // REPORTES — Solo Organizador
     // ─────────────────────────────────────────────
 
@@ -112,7 +158,8 @@ public class VentaController {
     @PreAuthorize("hasRole('Organizador')")
     public ResponseEntity<List<EntradaResponseDTO>> listarEntradasPorEvento(
             @PathVariable Long eventoId) {
-        return ResponseEntity.ok(ventaService.listarEntradasPorEvento(eventoId));
+        Long idOrganizador = securityUtils.getOrganizadorAutenticado().getId();
+        return ResponseEntity.ok(ventaService.listarEntradasPorEvento(eventoId, idOrganizador));
     }
 
     // ─────────────────────────────────────────────

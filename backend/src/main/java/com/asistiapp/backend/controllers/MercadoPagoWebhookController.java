@@ -42,11 +42,22 @@ public class MercadoPagoWebhookController {
             @RequestParam(value = "type", required = false) String typeQuery,
             @RequestParam(value = "id", required = false) String idIpnQuery,
             @RequestParam(value = "topic", required = false) String topicIpnQuery,
+            @RequestParam(value = "ref", required = false) String referencia,
             @RequestBody(required = false) JsonNode body) {
 
         // MP manda cada pago por dos vías: Webhooks (?data.id=…&type=payment) y el formato
         // viejo IPN (?id=…&topic=payment). Las dos van firmadas y se tratan igual.
         String idQuery = dataIdQuery != null ? dataIdQuery : idIpnQuery;
+
+        // Diagnóstico de la firma (ver "Pendiente de la firma" en docs/tecnica/backend_implementation_plan.md):
+        // deja registrado por qué vía llegó cada aviso, para poder distinguir si lo que no valida
+        // es el webhook (?data.id=) o el formato IPN (?id=). Solo datos no secretos.
+        log.info("Aviso de MercadoPago: formato={}, tipo={}, id={}, x-signature={}, x-request-id={}",
+                dataIdQuery != null ? "webhook" : idIpnQuery != null ? "ipn" : "sin-id",
+                MercadoPagoFirmaValidator.paraLog(typeQuery != null ? typeQuery : topicIpnQuery),
+                MercadoPagoFirmaValidator.paraLog(idQuery),
+                xSignature != null ? "presente" : "ausente",
+                xRequestId != null ? "presente" : "ausente");
 
         // La firma se calcula con el id de la query string, tal como lo manda MP.
         if (!firmaValidator.esValida(xSignature, xRequestId, idQuery)) {
@@ -69,8 +80,21 @@ public class MercadoPagoWebhookController {
             return ResponseEntity.badRequest().build();
         }
 
-        pagoWebhookService.procesarNotificacionPago(paymentId);
+        pagoWebhookService.procesarNotificacionPago(paymentId, referencia, vendedorMp(body));
         return ResponseEntity.ok().build();
+    }
+
+    /** Vendedor de Mercado Pago que cobró el pago (`user_id` del aviso); null si no viene o no es un número. */
+    private static Long vendedorMp(JsonNode body) {
+        String texto = texto(body, "user_id");
+        if (texto == null) {
+            return null;
+        }
+        try {
+            return Long.valueOf(texto);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static String texto(JsonNode nodo, String campo) {

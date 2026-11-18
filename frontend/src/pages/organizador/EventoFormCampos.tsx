@@ -4,7 +4,7 @@ import { DatePicker } from "../../components/DatePicker";
 import { TimePicker } from "../../components/TimePicker";
 import { MapPicker, type Coords } from "../../components/EventMap";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
-import { Card, Field, IconButton, Input, Textarea } from "../../components/ui";
+import { Card, Checkbox, Field, IconButton, Input, Textarea } from "../../components/ui";
 import { cn } from "../../lib/cn";
 
 /**
@@ -84,10 +84,21 @@ interface TandaCardProps {
   detalle?: ReactNode;
   /** Acciones de la tarjeta (ej. "Guardar tanda" en Editar). */
   pie?: ReactNode;
+  /**
+   * Tanda de cortesía (8.10): no se vende ni se muestra al público, solo la emite el Organizador y
+   * no tiene precio. Sin esta prop no se ofrece la opción.
+   */
+  cortesia?: {
+    marcada: boolean;
+    onCambio: (marcada: boolean) => void;
+    /** Ya tiene entradas emitidas o vendidas: no se puede cambiar. */
+    bloqueada?: boolean;
+  };
 }
 
 /** Tarjeta de una tanda: nombre, precio, cupo y ventana de venta. */
-export function TandaCard({ titulo, valores, onCambio, fechaEvento, error, onEliminar, etiquetaEliminar, eliminarDeshabilitado, detalle, pie }: TandaCardProps) {
+export function TandaCard({ titulo, valores, onCambio, fechaEvento, error, onEliminar, etiquetaEliminar, eliminarDeshabilitado, detalle, pie, cortesia }: TandaCardProps) {
+  const esCortesia = cortesia?.marcada ?? false;
   return (
     <Card as="article" padding="none" className={cn("space-y-4 p-4 md:p-5", error && "border-destructive/50")}>
       <div className="flex items-center justify-between gap-3">
@@ -109,14 +120,35 @@ export function TandaCard({ titulo, valores, onCambio, fechaEvento, error, onEli
           <Input surface="sunken" value={valores.nombre} onChange={(e) => onCambio("nombre", e.target.value)} placeholder="Anticipada 1" />
         </Field>
         <div className="grid grid-cols-2 gap-3 sm:contents">
-          <Field label="Precio ($)" required>
-            <Input surface="sunken" value={valores.precio} onChange={(e) => onCambio("precio", e.target.value)} placeholder="12000" inputMode="numeric" />
+          <Field label="Precio ($)" required={!esCortesia} hint={esCortesia ? "Sin precio (cortesía)." : undefined}>
+            <Input
+              surface="sunken"
+              value={esCortesia ? "0" : valores.precio}
+              onChange={(e) => onCambio("precio", e.target.value)}
+              placeholder="12000"
+              inputMode="numeric"
+              disabled={esCortesia}
+            />
           </Field>
           <Field label="Cupo" required>
             <Input surface="sunken" value={valores.cupoMaximo} onChange={(e) => onCambio("cupoMaximo", e.target.value)} placeholder="200" inputMode="numeric" />
           </Field>
         </div>
       </div>
+
+      {cortesia && (
+        <Checkbox
+          checked={cortesia.marcada}
+          disabled={cortesia.bloqueada}
+          onChange={(e) => cortesia.onCambio(e.target.checked)}
+          label={<span className="font-semibold">Tanda de cortesía</span>}
+          description={
+            cortesia.bloqueada
+              ? "No se puede cambiar: ya tiene entradas emitidas o vendidas."
+              : "No se vende ni se muestra al público: solo vos emitís entradas de ella, sin precio."
+          }
+        />
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Venta desde">

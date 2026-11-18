@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Calendar, Clock, MapPin, ShieldCheck, Ticket } from "lucide-react";
 import { EventoImagen } from "../../components/EventoImagen";
+import { BotonArrepentimiento } from "../../components/BotonArrepentimiento";
 import { PublicHeader } from "../../components/PublicHeader";
 import { MapView } from "../../components/EventMap";
 import { Alert, Button, EmptyState, ErrorState, QuantityStepper, RadioCardGroup, Skeleton, StickyActionBar } from "../../components/ui";
@@ -230,6 +231,12 @@ export function DetailPage() {
               </div>
             </section>
           )}
+
+          <BotonArrepentimiento
+            nombreEvento={evento.nombre}
+            contactoWhatsapp={evento.contactoWhatsapp}
+            contactoEmail={evento.contactoEmail}
+          />
         </article>
 
         {/* Resumen de compra — talón de ticket troquelado, sticky en desktop */}

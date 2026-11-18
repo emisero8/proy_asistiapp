@@ -12,6 +12,7 @@ function tanda(p: Partial<TandaResponseDTO>): TandaResponseDTO {
     precio: 10000,
     cupoMaximo: 100,
     cupoDisponible: 50,
+    soloEmision: false,
     fechaInicioVigencia: null,
     fechaFinVigencia: null,
     ...p,

@@ -71,6 +71,9 @@ describe("OrganizadorWalletPage", () => {
     vi.mocked(api.post).mockRejectedValueOnce(
       new ApiError({ status: 503, error: "El cobro con MercadoPago no está configurado", path: "/creditos/comprar", timestamp: "2026-01-01T00:00:00" }),
     );
+    // En http (como jsdom) el pago se abre en otra pestaña (lib/pago.ts): se simula la pestaña.
+    const pestana = { document: window.document.implementation.createHTMLDocument(), close: vi.fn(), location: {} };
+    const abrir = vi.spyOn(window, "open").mockReturnValue(pestana as unknown as Window);
     renderWallet();
     const grupo = await screen.findByRole("radiogroup", { name: "Paquetes de créditos" });
     await user.click(within(grupo).getByRole("radio", { name: /10 créditos/ }));
@@ -78,6 +81,9 @@ describe("OrganizadorWalletPage", () => {
 
     expect(api.post).toHaveBeenCalledWith("/creditos/comprar", { idPaquete: 1 });
     expect(await screen.findByText("El cobro con MercadoPago no está configurado")).toBeInTheDocument();
+    // Si el backend rechaza, la pestaña de pago que se había abierto se cierra.
+    expect(pestana.close).toHaveBeenCalled();
+    abrir.mockRestore();
   });
 
   it("el historial alterna entre movimientos y compras", async () => {

@@ -56,7 +56,7 @@ describe("OrganizadorRegisterPage", () => {
     await user.click(screen.getByRole("button", { name: "Crear cuenta gratis" }));
     expect(post).toHaveBeenCalledWith(
       "/auth/register",
-      { nombre: "María García", email: "maria@test.com", password: "segura123" },
+      { nombre: "María García", email: "maria@test.com", password: "segura123", aceptaTerminos: true },
       { skipAuth: true },
     );
     expect(await screen.findByRole("heading", { name: "¡Bienvenido/a, María!" })).toBeInTheDocument();

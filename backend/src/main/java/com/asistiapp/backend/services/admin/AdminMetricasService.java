@@ -24,7 +24,7 @@ public class AdminMetricasService {
     public AdminMetricasResponseDTO obtenerMetricasGlobales() {
         long eventosActivos = eventoRepository.findByEstado(EstadoEvento.Publicado).size();
         long eventosTotales = eventoRepository.count();
-        long entradasVendidas = entradaRepository.count();
+        long entradasVendidas = entradaRepository.countVigentes();
         double ingresosTotales = entradaRepository.sumaIngresosTotales();
         long organizadoresActivos = usuarioRepository.findByRol(RolUsuario.Organizador).stream()
                 .filter(u -> u.getEstado() == EstadoUsuario.Activo)

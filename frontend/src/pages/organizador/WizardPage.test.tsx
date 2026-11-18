@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizadorWizardPage, validarTandaContraEvento } from "./WizardPage";
 import { api, ApiError } from "../../lib/api";
 import type { MovimientoCreditoResponseDTO } from "../../lib/types";
+import { elegirFecha, elegirHora } from "../../testing/pickers";
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
@@ -24,18 +25,39 @@ vi.mock("../../components/EventMap", () => ({
   ),
 }));
 
+/** Para las pruebas de la función pura, que solo compara textos. */
 const FUTURO = "2099-12-31";
+
+/**
+ * Para las pantallas: el reloj se congela en el 15/06/2030 (solo `Date`) y el evento cae el 28/06, el mismo mes.
+ * Los selectores de fecha son reales y cada mes de distancia es un clic, así que las fechas tienen que estar cerca.
+ */
+const HOY = new Date(2030, 5, 15, 12);
+const FECHA_EVENTO = "2030-06-28";
 
 /** Respuesta de GET /creditos/resumen con la regla real: se reserva 1 crédito para publicar. */
 function resumenDe(saldo: number) {
   return { saldo, costoPublicacion: 1, disponibleParaEntradas: Math.max(0, saldo - 1) };
 }
 
-/** Saldo del Organizador: /creditos/resumen para el armado y /creditos/historial para el resto. */
-function mockCreditos(saldo: number) {
-  vi.mocked(api.get).mockImplementation(async (path: string) =>
-    path === "/creditos/resumen" ? resumenDe(saldo) : [movimiento(saldo)],
-  );
+/**
+ * Saldo del Organizador: /creditos/resumen para el armado y /creditos/historial para el resto. Por defecto el
+ * Organizador tiene la cuenta de Mercado Pago vinculada y un contacto cargado: lo que hace falta para publicar.
+ */
+function mockCreditos(
+  saldo: number,
+  requisitos: { mpVinculada?: boolean; mpObligatoria?: boolean; contacto?: boolean; historial?: MovimientoCreditoResponseDTO[] } = {},
+) {
+  const { mpVinculada = true, mpObligatoria = true, contacto = true, historial } = requisitos;
+  vi.mocked(api.get).mockImplementation(async (path: string) => {
+    if (path === "/creditos/resumen") return resumenDe(saldo);
+    if (path === "/organizador/mercadopago/estado") return { vinculada: mpVinculada, estado: mpVinculada ? "Vinculada" : null, mpUserId: null, vinculadaEn: null, obligatoria: mpObligatoria };
+    if (path === "/organizador/perfil") {
+      return { id: 1, nombre: "Ana", email: "ana@demo.com", fotoPerfilUrl: null, maxEntradasPorComprador: null, maxEntradasPorCompradorPlataforma: 6,
+        contactoWhatsapp: null, contactoEmail: contacto ? "contacto@demo.com" : null };
+    }
+    return historial ?? [movimiento(saldo)];
+  });
 }
 
 function movimiento(saldoResultante: number, monto = 0): MovimientoCreditoResponseDTO {
@@ -54,21 +76,20 @@ function renderWizard() {
   );
 }
 
-/** Los `<input type="date">` de este formulario no tienen label asociado: se los toma por tipo, en orden de aparición. */
-const fechas = (container: HTMLElement) => container.querySelectorAll<HTMLInputElement>('input[type="date"]');
-const hora = (container: HTMLElement) => container.querySelector<HTMLInputElement>('input[type="time"]')!;
+/** Los selectores de fecha de las tandas ("Venta desde" y "Venta hasta") arrancan con el mismo texto: se toman en orden. */
+const selectoresDeFecha = () => screen.getAllByRole("button", { name: /Elegí una fecha/ });
 
-/** Completa el paso 1 con datos válidos. */
-async function completarPaso1(container: HTMLElement, user: ReturnType<typeof userEvent.setup>, fecha = FUTURO) {
+/** Completa el paso 1 con datos válidos, usando los selectores de fecha y hora como los usa una persona. */
+async function completarPaso1(user: ReturnType<typeof userEvent.setup>, fecha = FECHA_EVENTO) {
   await user.type(screen.getByPlaceholderText("Festival de Jazz al Aire Libre"), "Mi Recital");
-  fireEvent.change(fechas(container)[0], { target: { value: fecha } });
-  fireEvent.change(hora(container), { target: { value: "21:00" } });
+  await elegirFecha(user, screen.getByRole("button", { name: /Elegí una fecha/ }), fecha);
+  await elegirHora(user, screen.getByRole("button", { name: /Elegí un horario/ }), "21:00");
   await user.type(screen.getByTestId("map-picker"), "Club Demo");
 }
 
-async function avanzarAlPaso2(container: HTMLElement, user: ReturnType<typeof userEvent.setup>, fecha = FUTURO) {
+async function avanzarAlPaso2(user: ReturnType<typeof userEvent.setup>, fecha = FECHA_EVENTO) {
   vi.mocked(api.post).mockResolvedValueOnce({ id: 77 });
-  await completarPaso1(container, user, fecha);
+  await completarPaso1(user, fecha);
   await user.click(screen.getByRole("button", { name: /Siguiente: configurar tandas/ }));
   await screen.findByText("Tanda 1");
 }
@@ -82,7 +103,12 @@ async function completarTanda(user: ReturnType<typeof userEvent.setup>, nombre =
   await user.type(screen.getByPlaceholderText("200"), cupo);
 }
 
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"], now: HOY });
+});
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.mocked(api.get).mockReset();
   vi.mocked(api.post).mockReset();
   vi.mocked(api.put).mockReset();
@@ -131,39 +157,41 @@ describe("validarTandaContraEvento", () => {
 });
 
 describe("OrganizadorWizardPage — paso 1", () => {
-  it("con una fecha en el pasado avisa y no deja avanzar", async () => {
+  it("no deja elegir un día pasado en el calendario: hoy y los siguientes sí, los anteriores no", async () => {
     const user = userEvent.setup();
     mockCreditos(500);
-    const { container } = renderWizard();
+    renderWizard();
 
-    await completarPaso1(container, user, "2020-01-01");
+    await user.click(screen.getByRole("button", { name: /Elegí una fecha/ }));
 
-    expect(screen.getByText("La fecha no puede estar en el pasado.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "14 de junio de 2030" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "15 de junio de 2030" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "16 de junio de 2030" })).toBeEnabled();
     expect(screen.getByRole("button", { name: /Siguiente: configurar tandas/ })).toBeDisabled();
   });
 
   it("con los datos obligatorios completos habilita el botón; sin ellos no", async () => {
     const user = userEvent.setup();
     mockCreditos(500);
-    const { container } = renderWizard();
+    renderWizard();
     const siguiente = screen.getByRole("button", { name: /Siguiente: configurar tandas/ });
 
     expect(siguiente).toBeDisabled();
-    await completarPaso1(container, user);
+    await completarPaso1(user);
     expect(siguiente).toBeEnabled();
   });
 
   it("crea el borrador con los datos del formulario y pasa al paso 2", async () => {
     const user = userEvent.setup();
     mockCreditos(500);
-    const { container } = renderWizard();
+    renderWizard();
 
-    await avanzarAlPaso2(container, user);
+    await avanzarAlPaso2(user);
 
     expect(api.post).toHaveBeenCalledWith("/eventos", {
       nombre: "Mi Recital",
       descripcion: undefined,
-      fechaEvento: FUTURO,
+      fechaEvento: FECHA_EVENTO,
       horaEvento: "21:00:00",
       lugar: "Club Demo",
       latitud: null,
@@ -176,9 +204,9 @@ describe("OrganizadorWizardPage — paso 1", () => {
     const user = userEvent.setup();
     mockCreditos(500);
     vi.mocked(api.post).mockRejectedValueOnce(apiError("Ya existe un evento con ese nombre"));
-    const { container } = renderWizard();
+    renderWizard();
 
-    await completarPaso1(container, user);
+    await completarPaso1(user);
     await user.click(screen.getByRole("button", { name: /Siguiente: configurar tandas/ }));
 
     expect(await screen.findByText("Ya existe un evento con ese nombre")).toBeInTheDocument();
@@ -189,9 +217,9 @@ describe("OrganizadorWizardPage — paso 1", () => {
     const user = userEvent.setup();
     mockCreditos(500);
     vi.mocked(api.put).mockResolvedValueOnce({ id: 77 });
-    const { container } = renderWizard();
+    renderWizard();
 
-    await avanzarAlPaso2(container, user);
+    await avanzarAlPaso2(user);
     await user.click(screen.getByRole("button", { name: "Volver al paso anterior" }));
     await user.click(screen.getByRole("button", { name: /Siguiente: configurar tandas/ }));
 
@@ -205,8 +233,8 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
   it("'Publicar evento' queda deshabilitado hasta completar nombre, precio y cupo de la tanda", async () => {
     const user = userEvent.setup();
     mockCreditos(500);
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
 
     const publicar = screen.getByRole("button", { name: "Publicar evento" });
     expect(publicar).toBeDisabled();
@@ -214,24 +242,42 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     expect(publicar).toBeEnabled();
   });
 
-  it("muestra el aviso y bloquea publicar si la venta cierra después de la fecha del evento", async () => {
+  it("el calendario de la venta no deja pasarse de la fecha del evento", async () => {
     const user = userEvent.setup();
     mockCreditos(500);
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user); // el evento es el 28/06
     await completarTanda(user);
 
-    fireEvent.change(fechas(container)[1], { target: { value: "2100-01-01" } }); // "Venta hasta"
+    await user.click(selectoresDeFecha()[1]); // "Venta hasta"
 
-    expect(screen.getByText("La venta no puede cerrar después de la fecha del evento.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "28 de junio de 2030" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "29 de junio de 2030" })).toBeDisabled();
+  });
+
+  it("si después de elegir el cierre de la venta se adelanta el evento, avisa y bloquea publicar", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    vi.mocked(api.put).mockResolvedValueOnce({ id: 77 });
+    renderWizard();
+    await avanzarAlPaso2(user); // el evento es el 28/06
+    await completarTanda(user);
+    await elegirFecha(user, selectoresDeFecha()[1], FECHA_EVENTO); // "Venta hasta" = 28/06
+
+    // La única forma de llegar a una venta que cierra después del evento: volver y adelantar el evento.
+    await user.click(screen.getByRole("button", { name: "Volver al paso anterior" }));
+    await elegirFecha(user, screen.getByRole("button", { name: /28 jun 2030/ }), "2030-06-20");
+    await user.click(screen.getByRole("button", { name: /Siguiente: configurar tandas/ }));
+
+    expect(await screen.findByText("La venta no puede cerrar después de la fecha del evento.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
   });
 
   it("sin créditos avisa cuánto saldo hay, ofrece comprarlos y bloquea publicar", async () => {
     const user = userEvent.setup();
     mockCreditos(0);
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user);
 
     expect(screen.getByText("No te alcanzan los créditos para publicar.")).toBeInTheDocument();
@@ -240,22 +286,120 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
   });
 
+  it("sin la cuenta de Mercado Pago vinculada avisa, manda a Mi perfil y bloquea publicar (8.5)", async () => {
+    const user = userEvent.setup();
+    mockCreditos(10, { mpVinculada: false });
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user);
+
+    expect(await screen.findByText(/Vinculá tu cuenta de Mercado Pago/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ir a Mi perfil/ })).toHaveAttribute("href", "/organizador/perfil");
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
+  });
+
+  it("sin cuenta de Mercado Pago pero con la exigencia apagada en el backend (desarrollo), deja publicar", async () => {
+    const user = userEvent.setup();
+    mockCreditos(10, { mpVinculada: false, mpObligatoria: false });
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user, "Anticipada", "12000", "5");
+
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith("/organizador/mercadopago/estado"));
+    expect(screen.queryByText(/Vinculá tu cuenta de Mercado Pago/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeEnabled();
+  });
+
+  it("sin contacto para el arrepentimiento avisa, manda a Mi perfil y bloquea publicar (8.8)", async () => {
+    const user = userEvent.setup();
+    mockCreditos(10, { contacto: false });
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user);
+
+    expect(await screen.findByText(/Cargá un contacto/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ir a Mi perfil/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
+  });
+
+  it("con la cuenta vinculada y el contacto cargado no muestra ningún aviso de requisitos", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user);
+
+    expect(screen.queryByText(/Vinculá tu cuenta de Mercado Pago/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Cargá un contacto/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeEnabled();
+  });
+
   it("las entradas no pueden superar los créditos disponibles para entradas (se reserva el costo de publicar)", async () => {
     const user = userEvent.setup();
     mockCreditos(50); // disponible para entradas: 49
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user, "Anticipada", "12000", "200");
 
     expect(screen.getByText("Excedés el límite en 151 entradas")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
   });
 
+  it("una tanda de cortesía no lleva precio: queda en 0 y deshabilitado", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    renderWizard();
+    await avanzarAlPaso2(user);
+
+    await user.click(screen.getByLabelText(/Tanda de cortesía/));
+
+    const precio = screen.getByPlaceholderText("12000");
+    expect(precio).toBeDisabled();
+    expect(precio).toHaveValue("0");
+    await user.click(screen.getByLabelText(/Tanda de cortesía/));
+    expect(screen.getByPlaceholderText("12000")).toBeEnabled();
+    expect(screen.getByPlaceholderText("12000")).toHaveValue("");
+  });
+
+  it("con todas las tandas de cortesía no deja publicar: falta una de venta", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500);
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await user.click(screen.getByLabelText(/Tanda de cortesía/));
+    await user.type(screen.getByPlaceholderText("Anticipada 1"), " Prensa");
+    await user.type(screen.getByPlaceholderText("200"), "5");
+
+    expect(screen.getByRole("button", { name: "Publicar evento" })).toBeDisabled();
+    expect(screen.getByText(/al menos una tanda de venta/)).toBeInTheDocument();
+  });
+
+  it("publica una tanda de venta y una de cortesía: la de cortesía va con soloEmision y precio 0", async () => {
+    const user = userEvent.setup();
+    mockCreditos(500, { historial: [movimiento(4, 1)] });
+    vi.mocked(api.patch).mockResolvedValueOnce({});
+    vi.mocked(api.post).mockResolvedValue({});
+    renderWizard();
+    await avanzarAlPaso2(user);
+    await completarTanda(user, "General", "5000", "100");
+    await user.click(screen.getByRole("button", { name: "Agregar tanda" }));
+    const tarjeta2 = screen.getByText("Tanda 2").closest("article") as HTMLElement;
+    await user.click(within(tarjeta2).getByLabelText(/Tanda de cortesía/));
+    await user.type(within(tarjeta2).getByPlaceholderText("Anticipada 1"), "Prensa");
+    await user.type(within(tarjeta2).getByPlaceholderText("200"), "10");
+
+    await user.click(screen.getByRole("button", { name: "Publicar evento" }));
+
+    expect(await screen.findByText("¡Evento publicado!")).toBeInTheDocument();
+    expect(api.post).toHaveBeenCalledWith("/eventos/77/tandas", expect.objectContaining({ nombre: "Prensa", precio: 0, cupoMaximo: 10, soloEmision: true }));
+    expect(api.post).toHaveBeenCalledWith("/eventos/77/tandas", expect.not.objectContaining({ soloEmision: true }));
+  });
+
   it("agregar y eliminar tandas: solo se puede eliminar si queda más de una", async () => {
     const user = userEvent.setup();
     mockCreditos(500);
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
 
     expect(screen.queryByRole("button", { name: /^Eliminar la tanda/ })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Agregar tanda" }));
@@ -268,12 +412,10 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("publica: crea cada tanda, publica y muestra los créditos consumidos y el saldo restante", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get)
-      .mockResolvedValueOnce(resumenDe(500)) // saldo al montar
-      .mockResolvedValueOnce([movimiento(4, 1)]); // historial tras publicar
+    mockCreditos(500, { historial: [movimiento(4, 1)] }); // saldo al montar y historial tras publicar
     vi.mocked(api.patch).mockResolvedValueOnce({});
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user, "Anticipada", "12000", "200");
     vi.mocked(api.post).mockResolvedValueOnce({}); // POST de la tanda
 
@@ -294,26 +436,26 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("si la venta cierra el mismo día del evento, cierra a la hora del evento y no a las 23:59", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(resumenDe(500)).mockResolvedValueOnce([movimiento(4, 1)]);
+    mockCreditos(500, { historial: [movimiento(4, 1)] });
     vi.mocked(api.patch).mockResolvedValueOnce({});
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user);
-    fireEvent.change(fechas(container)[1], { target: { value: FUTURO } }); // "Venta hasta" = día del evento
+    await elegirFecha(user, selectoresDeFecha()[1], FECHA_EVENTO); // "Venta hasta" = día del evento
     vi.mocked(api.post).mockResolvedValueOnce({});
 
     await user.click(screen.getByRole("button", { name: "Publicar evento" }));
 
     await screen.findByText("¡Evento publicado!");
-    expect(api.post).toHaveBeenLastCalledWith("/eventos/77/tandas", expect.objectContaining({ fechaFinVigencia: `${FUTURO}T21:00:00` }));
+    expect(api.post).toHaveBeenLastCalledWith("/eventos/77/tandas", expect.objectContaining({ fechaFinVigencia: `${FECHA_EVENTO}T21:00:00` }));
   });
 
   it("si la publicación falla (ej. saldo insuficiente en el backend) muestra el error y no muestra éxito", async () => {
     const user = userEvent.setup();
     mockCreditos(500);
     vi.mocked(api.patch).mockRejectedValueOnce(apiError("Créditos insuficientes", 402));
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user);
     vi.mocked(api.post).mockResolvedValueOnce({});
 
@@ -326,18 +468,18 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
 
   it("la pantalla de éxito muestra la fecha formateada, no la cruda del input (bug 6)", async () => {
     const user = userEvent.setup();
-    vi.mocked(api.get).mockResolvedValueOnce(resumenDe(500)).mockResolvedValueOnce([movimiento(4, 1)]);
+    mockCreditos(500, { historial: [movimiento(4, 1)] });
     vi.mocked(api.patch).mockResolvedValueOnce({});
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user);
     vi.mocked(api.post).mockResolvedValueOnce({ id: 501 });
 
     await user.click(screen.getByRole("button", { name: "Publicar evento" }));
 
     await screen.findByText("¡Evento publicado!");
-    expect(screen.queryByText(/2099-12-31/)).not.toBeInTheDocument();
-    expect(screen.getByText(/31 dic 2099/)).toBeInTheDocument();
+    expect(screen.queryByText(/2030-06-28/)).not.toBeInTheDocument();
+    expect(screen.getByText(/28 jun 2030/)).toBeInTheDocument();
   });
 });
 
@@ -346,8 +488,8 @@ describe("OrganizadorWizardPage — reintento de publicación (bug 1)", () => {
     const user = userEvent.setup();
     mockCreditos(500);
     vi.mocked(api.patch).mockRejectedValueOnce(apiError("Error temporal", 500)).mockResolvedValueOnce({});
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user);
     vi.mocked(api.post).mockResolvedValueOnce({ id: 501 });
 
@@ -367,8 +509,8 @@ describe("OrganizadorWizardPage — reintento de publicación (bug 1)", () => {
     const user = userEvent.setup();
     mockCreditos(500);
     vi.mocked(api.patch).mockRejectedValueOnce(apiError("Error temporal", 500)).mockResolvedValueOnce({});
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user, "Anticipada", "12000", "200");
     vi.mocked(api.post).mockResolvedValueOnce({ id: 501 });
 
@@ -389,8 +531,8 @@ describe("OrganizadorWizardPage — reintento de publicación (bug 1)", () => {
     const user = userEvent.setup();
     mockCreditos(500);
     vi.mocked(api.patch).mockRejectedValueOnce(apiError("Error temporal", 500)).mockResolvedValueOnce({});
-    const { container } = renderWizard();
-    await avanzarAlPaso2(container, user);
+    renderWizard();
+    await avanzarAlPaso2(user);
     await completarTanda(user);
     await user.click(screen.getByRole("button", { name: "Agregar tanda" }));
     await user.type(screen.getAllByPlaceholderText("Anticipada 1")[1], "General");

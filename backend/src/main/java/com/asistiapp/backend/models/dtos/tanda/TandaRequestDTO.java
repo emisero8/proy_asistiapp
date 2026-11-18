@@ -31,6 +31,12 @@ public class TandaRequestDTO {
     @Min(value = 1, message = "El cupo máximo debe ser al menos 1")
     private Integer cupoMaximo;
 
+    /**
+     * Tanda de cortesía: solo el Organizador emite entradas de ella; no se vende ni se muestra al público,
+     * y su precio es siempre 0. Opcional (por defecto, una tanda de venta normal).
+     */
+    private Boolean soloEmision;
+
     /** Fecha desde la cual la tanda está disponible para venta. Opcional. */
     private LocalDateTime fechaInicioVigencia;
 

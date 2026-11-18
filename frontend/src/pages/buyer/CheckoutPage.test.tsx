@@ -30,6 +30,14 @@ function renderCheckout(state: unknown = { evento, tanda, qty: 2 }) {
 
 /** Hay un botón de pagar en el panel de desktop y otro en la barra de mobile: los dos envían el mismo form. */
 const botonPagar = () => screen.getAllByRole("button", { name: "Pagar $24.000" })[0];
+const casillaTerminos = () => screen.getByRole("checkbox", { name: /Acepto los Términos y Condiciones/ });
+
+async function completarDatos(user: ReturnType<typeof userEvent.setup>, { terminos = true } = {}) {
+  await user.type(screen.getByLabelText("Nombre y apellido"), "María García");
+  await user.type(screen.getByLabelText("Email"), "maria@test.com");
+  await user.type(screen.getByLabelText("Confirmar email"), "maria@test.com");
+  if (terminos) await user.click(casillaTerminos());
+}
 
 describe("CheckoutPage", () => {
   afterEach(() => vi.restoreAllMocks());
@@ -52,26 +60,116 @@ describe("CheckoutPage", () => {
     await vi.waitFor(() => expect(screen.getByLabelText("Nombre y apellido")).toHaveFocus());
   });
 
-  it("con datos válidos inicia la compra con el contrato de siempre", async () => {
+  it("con datos válidos inicia la compra con el contrato de siempre, más la aceptación de términos (8.7)", async () => {
     const user = userEvent.setup();
     const post = vi.spyOn(api, "post").mockRejectedValue(new ApiError({ status: 409, error: "Tanda agotada", path: "", timestamp: "" }));
+    // En http (como jsdom) el pago se abre en otra pestaña (lib/pago.ts): se simula la pestaña.
+    const pestana = { document: window.document.implementation.createHTMLDocument(), close: vi.fn(), location: {} };
+    vi.spyOn(window, "open").mockReturnValue(pestana as unknown as Window);
     renderCheckout();
-    await user.type(screen.getByLabelText("Nombre y apellido"), "María García");
-    await user.type(screen.getByLabelText("Email"), "maria@test.com");
+    await completarDatos(user);
     await user.click(botonPagar());
     expect(post).toHaveBeenCalledWith(
       "/tickets/comprar-online",
-      { idTanda: 7, cantidad: 2, nombreComprador: "María García", emailComprador: "maria@test.com" },
+      { idTanda: 7, cantidad: 2, nombreComprador: "María García", emailComprador: "maria@test.com", aceptaTerminos: true },
       { skipAuth: true },
     );
-    // Si el backend rechaza, se muestra su mensaje y se puede reintentar
+    // Si el backend rechaza, se cierra la pestaña de pago, se muestra su mensaje y se puede reintentar
     expect(await screen.findByText("Tanda agotada")).toBeInTheDocument();
+    expect(pestana.close).toHaveBeenCalled();
     expect(botonPagar()).toBeEnabled();
+  });
+
+  it("si el navegador bloquea la pestaña de pago, lo avisa y no crea la orden", async () => {
+    const user = userEvent.setup();
+    const post = vi.spyOn(api, "post");
+    vi.spyOn(window, "open").mockReturnValue(null);
+    renderCheckout();
+    await completarDatos(user);
+    await user.click(botonPagar());
+
+    expect(post).not.toHaveBeenCalled();
+    expect(await screen.findByText(/bloqueó la ventana de pago/)).toBeInTheDocument();
   });
 
   it("sin compra en curso ofrece ir a los eventos", () => {
     renderCheckout(null);
     expect(screen.getByText("No hay ninguna compra en curso")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ver eventos" })).toBeInTheDocument();
+  });
+});
+
+describe("CheckoutPage — email y confirmación", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("se puede pegar en 'Confirmar email' (no se bloquea el portapapeles)", async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+    const confirmar = screen.getByLabelText("Confirmar email");
+
+    await user.click(confirmar);
+    await user.paste("maria@ejemplo.com");
+
+    expect(confirmar).toHaveValue("maria@ejemplo.com");
+  });
+
+  it("si los dos emails no coinciden avisa al salir del campo, aunque se hayan pegado", async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+
+    await user.type(screen.getByLabelText("Email"), "maria@ejemplo.com");
+    await user.click(screen.getByLabelText("Confirmar email"));
+    await user.paste("mario@ejemplo.com");
+    await user.tab();
+
+    expect(screen.getByText("Los emails no coinciden.")).toBeInTheDocument();
+  });
+
+  it("si coinciden no muestra el aviso", async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+
+    await user.type(screen.getByLabelText("Email"), "maria@ejemplo.com");
+    await user.click(screen.getByLabelText("Confirmar email"));
+    await user.paste("maria@ejemplo.com");
+    await user.tab();
+
+    expect(screen.queryByText("Los emails no coinciden.")).not.toBeInTheDocument();
+  });
+
+  it("si los emails no coinciden no inicia el pago", async () => {
+    const user = userEvent.setup();
+    const post = vi.spyOn(api, "post");
+    renderCheckout();
+    await user.type(screen.getByLabelText("Nombre y apellido"), "María García");
+    await user.type(screen.getByLabelText("Email"), "maria@test.com");
+    await user.type(screen.getByLabelText("Confirmar email"), "mario@test.com");
+    await user.click(casillaTerminos());
+    await user.click(botonPagar());
+
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getByText("Los emails no coinciden.")).toBeInTheDocument();
+  });
+});
+
+describe("CheckoutPage — términos y condiciones (8.7)", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("sin aceptar los términos no inicia el pago, lo avisa y enfoca la casilla", async () => {
+    const user = userEvent.setup();
+    const post = vi.spyOn(api, "post");
+    renderCheckout();
+    await completarDatos(user, { terminos: false });
+    await user.click(botonPagar());
+
+    expect(post).not.toHaveBeenCalled();
+    expect(screen.getByText(/tenés que aceptar los Términos/)).toBeInTheDocument();
+    await vi.waitFor(() => expect(casillaTerminos()).toHaveFocus());
+  });
+
+  it("los Términos y la Política de Privacidad se abren en otra pestaña (no se pierde lo cargado)", () => {
+    renderCheckout();
+    expect(screen.getByRole("link", { name: "Términos y Condiciones" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "Política de Privacidad" })).toHaveAttribute("href", "/privacidad");
   });
 });

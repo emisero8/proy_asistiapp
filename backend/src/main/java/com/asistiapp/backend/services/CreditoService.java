@@ -202,6 +202,12 @@ public class CreditoService {
         log.info("Créditos acreditados: organizador={}, cantidad={}, saldoResultante={}, pago MP={}",
                 organizador.getId(), paquete.getCantidadCreditos(), movimiento.getSaldoResultante(), paymentId);
 
+        notificacionService.crear(organizador.getId(),
+                "Se acreditaron tus créditos",
+                "Tu compra de " + paquete.getCantidadCreditos() + " créditos fue aprobada. Tu saldo ahora es de "
+                        + movimiento.getSaldoResultante() + ".",
+                "TransaccionCredito", transaccion.getId());
+
         return ResultadoPago.CONFIRMADA;
     }
 

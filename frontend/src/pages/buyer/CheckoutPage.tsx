@@ -1,13 +1,20 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Calendar, MapPin, ShieldCheck, ShoppingBag } from "lucide-react";
+import { AceptaTerminos } from "../../components/AceptaTerminos";
 import { EventoImagen } from "../../components/EventoImagen";
 import { PublicHeader } from "../../components/PublicHeader";
 import { Alert, Button, Card, EmptyState, Field, Input, StickyActionBar } from "../../components/ui";
-import { api, ApiError } from "../../lib/api";
+import { api } from "../../lib/api";
 import { fmt, formatFecha } from "../../lib/format";
+import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/pago";
 import { estadoVentaTanda } from "../../lib/tandas";
-import type { EventoPublicoDetalleDTO, IniciarCompraResponseDTO, TandaResponseDTO } from "../../lib/types";
+import type {
+  CompraOnlineRequestDTO,
+  EventoPublicoDetalleDTO,
+  IniciarCompraResponseDTO,
+  TandaResponseDTO,
+} from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface CheckoutState {
@@ -26,9 +33,11 @@ export function CheckoutPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [confirmarEmail, setConfirmarEmail] = useState("");
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tocados, setTocados] = useState({ name: false, email: false });
+  const [tocados, setTocados] = useState({ name: false, email: false, confirmar: false });
   const [intento, setIntento] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -69,7 +78,11 @@ export function CheckoutPage() {
 
   const errorNombre = name.trim().length > 1 ? undefined : "Ingresá tu nombre y apellido.";
   const errorEmail = email.length > 4 && email.includes("@") ? undefined : "Ingresá un email válido: ahí te llegan las entradas.";
-  const valid = !errorNombre && !errorEmail;
+  // Confirmación de email y aceptación de términos (8.7): el backend también exige aceptaTerminos.
+  const errorConfirmar =
+    confirmarEmail.trim() === "" ? "Repetí tu email para confirmarlo." : confirmarEmail !== email ? "Los emails no coinciden." : undefined;
+  const errorTerminos = aceptaTerminos ? undefined : "Para comprar tenés que aceptar los Términos y la Política de Privacidad.";
+  const valid = !errorNombre && !errorEmail && !errorConfirmar && !errorTerminos;
 
   async function handleConfirm() {
     setLoading(true);
@@ -78,16 +91,27 @@ export function CheckoutPage() {
       // Una sola orden para las "qty" entradas: el backend genera una Entrada (con
       // su propio QR) por cada unidad al confirmarse el pago, pero la cobra en una
       // sola preferencia de MercadoPago.
-      const orden = await api.post<IniciarCompraResponseDTO>(
-        "/tickets/comprar-online",
-        { idTanda: tanda.id, cantidad: qty, nombreComprador: name, emailComprador: email },
-        { skipAuth: true },
+      // El pago se confirma por el webhook de MercadoPago (o la reconciliación), no acá.
+      // Con HTTPS MercadoPago vuelve solo a /pago/resultado; en local se paga en otra
+      // pestaña y esta se queda esperando ahí (ver lib/pago.ts).
+      const { orden, enPestanaNueva } = await iniciarPago(() =>
+        api.post<IniciarCompraResponseDTO>(
+          "/tickets/comprar-online",
+          {
+            idTanda: tanda.id,
+            cantidad: qty,
+            nombreComprador: name,
+            emailComprador: email,
+            aceptaTerminos,
+          } satisfies CompraOnlineRequestDTO,
+          { skipAuth: true },
+        ),
       );
-      // Redirección real a Checkout Pro — el pago se confirma por el webhook de
-      // MercadoPago, no acá. MercadoPago vuelve a /pago/resultado cuando termina.
-      window.location.href = orden.urlPago;
+      if (enPestanaNueva) {
+        navigate(rutaResultadoPago(orden.ordenId, "entradas"), { state: { urlPago: orden.urlPago } });
+      }
     } catch (e: unknown) {
-      setError(e instanceof ApiError ? e.message : "No pudimos iniciar el pago. Intentá de nuevo.");
+      setError(mensajeDeErrorDePago(e, "No pudimos iniciar el pago. Intentá de nuevo."));
       setLoading(false);
     }
   }
@@ -174,6 +198,25 @@ export function CheckoutPage() {
                   placeholder="maria@ejemplo.com"
                 />
               </Field>
+              <Field
+                label="Confirmar email"
+                error={intento || tocados.confirmar ? errorConfirmar : undefined}
+              >
+                <Input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={confirmarEmail}
+                  onChange={(e) => setConfirmarEmail(e.target.value)}
+                  onBlur={() => setTocados((t) => ({ ...t, confirmar: true }))}
+                  placeholder="Repetí tu email"
+                />
+              </Field>
+              <AceptaTerminos
+                aceptado={aceptaTerminos}
+                onCambio={setAceptaTerminos}
+                error={intento ? errorTerminos : undefined}
+              />
             </form>
           </Card>
 

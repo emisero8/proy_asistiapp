@@ -1,13 +1,19 @@
 // Espejo de los DTOs reales del backend (ver `backend/src/main/java/.../models/dtos`
-// y `backend/src/main/java/.../models/enums`). Fuente de verdad: Swagger en
-// http://localhost:8080/v3/api-docs con el backend corriendo. Mantener sincronizado
-// a mano — no hay generación automática de tipos desde el OpenAPI todavía.
+// y `backend/src/main/java/.../models/enums`). Fuente de verdad: el OpenAPI del backend.
+//
+// Se escribe a mano a propósito: el backend no declara qué campos de respuesta son obligatorios ni cuáles
+// pueden ser null, así que los tipos generados (`api-schema.d.ts`) salen con TODO opcional, y acá sí se sabe.
+// Lo que evita que se desfase es `types.contract.ts`, que compara este archivo con el contrato generado y
+// hace fallar `tsc -b` si el backend cambia (ver `npm run types:api`). Al agregar un DTO nuevo acá, sumarlo
+// también a ese archivo (un test avisa si se olvida).
 
 export type RolUsuario = "Administrador" | "Organizador" | "Staff_QR" | "Staff_Vendedor";
 export type EstadoUsuario = "Activo" | "Suspendido" | "Inactivo";
 export type EstadoEvento = "Borrador" | "Publicado" | "Cancelado";
-export type EstadoEntrada = "Pagada" | "Usada";
+export type EstadoEntrada = "Pagada" | "Usada" | "Anulada";
 export type CanalVenta = "Online" | "Manual";
+/** Por qué el Organizador emitió él mismo una entrada: regalada, o cobrada por fuera de la plataforma. */
+export type TipoEmision = "Cortesia" | "Pago_Externo";
 export type TipoMovimiento = "Bienvenida" | "Recarga" | "Consumo_Publicacion" | "Consumo_Tanda" | "Devolucion_Tanda";
 
 /** GET /eventos/resumen: métricas generales del Organizador (todos sus eventos). */
@@ -49,6 +55,37 @@ export interface PerfilResponseDTO {
   nombre: string;
   email: string;
   fotoPerfilUrl: string | null;
+  /** Tope de entradas por comprador que fijó el Organizador; null = rige el de la plataforma (8.9). */
+  maxEntradasPorComprador: number | null;
+  maxEntradasPorCompradorPlataforma: number;
+  /** Contacto al que deriva el botón de arrepentimiento (8.8): WhatsApp solo con dígitos y/o email; null si no cargó. */
+  contactoWhatsapp: string | null;
+  contactoEmail: string | null;
+}
+
+export interface ContactoRequestDTO {
+  contactoWhatsapp: string | null;
+  contactoEmail: string | null;
+}
+
+export type EstadoCuentaMp = "Vinculada" | "Revocada";
+
+/** Cuenta de Mercado Pago del Organizador (8.4). `estado` null = nunca vinculó. */
+export interface EstadoCuentaMpResponseDTO {
+  vinculada: boolean;
+  estado: EstadoCuentaMp | null;
+  mpUserId: number | null;
+  vinculadaEn: string | null;
+  /** Si hace falta la cuenta vinculada para publicar (en desarrollo se puede apagar con MP_EXIGIR_CUENTA_VINCULADA=false). */
+  obligatoria: boolean;
+}
+
+export interface IniciarVinculacionResponseDTO {
+  urlAutorizacion: string;
+}
+
+export interface TopeCompradorRequestDTO {
+  maxEntradasPorComprador: number | null;
 }
 
 export interface PerfilRequestDTO {
@@ -70,6 +107,17 @@ export interface RegisterRequestDTO {
   nombre: string;
   email: string;
   password: string;
+  /** Tiene que ser true: aceptó los Términos y Condiciones y la Política de Privacidad. */
+  aceptaTerminos: boolean;
+}
+
+export interface SolicitarRecuperacionRequestDTO {
+  email: string;
+}
+
+export interface RestablecerPasswordRequestDTO {
+  token: string;
+  nuevaPassword: string;
 }
 
 // ── Eventos / Tandas ──────────────────────────────────
@@ -81,6 +129,8 @@ export interface TandaResponseDTO {
   precio: number;
   cupoMaximo: number;
   cupoDisponible: number;
+  /** Tanda de cortesía (8.10): solo el Organizador emite entradas de ella; no se vende ni se muestra al público. */
+  soloEmision: boolean;
   fechaInicioVigencia: string | null;
   fechaFinVigencia: string | null;
 }
@@ -89,6 +139,7 @@ export interface TandaRequestDTO {
   nombre: string;
   precio: number;
   cupoMaximo: number;
+  soloEmision?: boolean | null;
   fechaInicioVigencia?: string | null;
   fechaFinVigencia?: string | null;
 }
@@ -109,6 +160,8 @@ export interface EventoResponseDTO {
   fechaCreacion: string;
   fechaPublicacion: string | null;
   fechaCancelacion: string | null;
+  /** El backend es la única fuente de "ya finalizó": el inicio del evento quedó atrás. */
+  finalizado: boolean;
   tandas: TandaResponseDTO[];
 }
 
@@ -160,6 +213,9 @@ export interface EventoPublicoDetalleDTO {
   urlPublica: string;
   tandas: TandaResponseDTO[];
   maxEntradasPorCompra: number;
+  /** Contacto del Organizador para el botón de arrepentimiento (8.8); null si no cargó. */
+  contactoWhatsapp: string | null;
+  contactoEmail: string | null;
 }
 
 // ── Entradas / Ventas ─────────────────────────────────
@@ -178,6 +234,44 @@ export interface EntradaResponseDTO {
   canalVenta: CanalVenta;
   fechaCompra: string;
   fechaUso: string | null;
+  /** Solo en las entradas que emitió el Organizador; null en las compradas online y en las del POS. */
+  tipoEmision: TipoEmision | null;
+  /** Nota interna del Organizador: solo viene en lo que ve el Organizador, nunca en lo que ve quien tiene la entrada. */
+  motivoEmision: string | null;
+  /** Cuándo el Organizador la anuló (8.6); null si no está anulada. */
+  fechaAnulacion: string | null;
+  /** Nota interna del Organizador sobre la anulación: solo viene en lo que ve el Organizador. */
+  motivoAnulacion: string | null;
+  /** Cuándo se le devolvió el dinero al comprador; null si no se reembolsó. */
+  reembolsadaEn: string | null;
+}
+
+/** POST /tickets/{id}/anular */
+export interface AnularEntradaRequestDTO {
+  motivo: string | null;
+  /** Además de anularla, devolverle el dinero al comprador desde la cuenta de Mercado Pago del Organizador. */
+  reembolsar: boolean;
+}
+
+export interface ResultadoAnulacionResponseDTO {
+  entrada: EntradaResponseDTO;
+  reembolsada: boolean;
+  /** Si se pidió el reembolso y falló: por qué. La entrada queda anulada y el reembolso se puede reintentar. */
+  avisoReembolso: string | null;
+}
+
+export interface FallaReembolsoDTO {
+  idEntrada: number;
+  nombreComprador: string | null;
+  emailComprador: string | null;
+  motivo: string;
+}
+
+/** POST /tickets/evento/{id}/reembolsos: reembolsa todas las compras de un evento cancelado. */
+export interface ResultadoReembolsoMasivoResponseDTO {
+  reembolsadas: number;
+  montoReembolsado: number;
+  fallidas: FallaReembolsoDTO[];
 }
 
 /** GET /tickets/orden/{ref}: estado de una compra de entradas, para /pago/resultado. */
@@ -198,8 +292,12 @@ export interface EstadoOrdenCreditoResponseDTO {
 
 export interface CompraOnlineRequestDTO {
   idTanda: number;
+  /** 1 a 20: una sola orden y un solo pago de MercadoPago por compra, aunque sean varias entradas. */
+  cantidad: number;
   nombreComprador: string;
   emailComprador: string;
+  /** Tiene que ser true: aceptó los Términos y Condiciones y la Política de Privacidad. */
+  aceptaTerminos: boolean;
 }
 
 export interface IniciarCompraResponseDTO {
@@ -210,8 +308,24 @@ export interface IniciarCompraResponseDTO {
 
 export interface VentaManualRequestDTO {
   idTanda: number;
+  /** 1..20 entradas en una sola operación: se generan todas o ninguna. */
+  cantidad: number;
   nombreComprador: string;
   emailComprador: string;
+}
+
+/** POST /tickets/emision-organizador: el Organizador emite entradas de una de sus tandas (cortesía o pago externo). */
+export interface EmisionOrganizadorRequestDTO {
+  idTanda: number;
+  /** 1..100 entradas en una sola operación: se generan todas o ninguna. Sin tope por comprador. */
+  cantidad: number;
+  tipo: TipoEmision;
+  nombreDestinatario: string;
+  emailDestinatario: string;
+  /** Nota interna, hasta 200 caracteres. */
+  motivo?: string;
+  /** Si es true se le manda al destinatario el mail con las entradas. */
+  enviarMail: boolean;
 }
 
 /** GET /tickets/disponibilidad-comprador: cuánto más se le puede vender a este comprador (CU-019). */
@@ -268,8 +382,12 @@ export interface SoporteResponseDTO {
   whatsappSoporte: string | null;
 }
 
+export interface IniciarCompraCreditoRequestDTO {
+  idPaquete: number;
+}
+
 export interface IniciarCompraCreditoResponseDTO {
-  ordenId: number;
+  ordenId: string;
   urlPago: string;
   mensaje: string;
 }
@@ -293,6 +411,14 @@ export interface StaffResponseDTO {
   rol: RolUsuario;
   estado: EstadoUsuario;
   idEvento: number | null;
+  /** Solo Staff_Vendedor (8.3): máximo de entradas que puede vender; null = anterior a la regla, sin tope. */
+  topeEntradas?: number | null;
+  entradasVendidas?: number | null;
+  totalRecaudado?: number | null;
+}
+
+export interface CambiarTopeVendedorRequestDTO {
+  topeEntradas: number;
 }
 
 export interface CrearStaffQRRequestDTO {
@@ -305,6 +431,7 @@ export interface CrearStaffVendedorRequestDTO {
   nombre: string;
   email: string;
   idEvento: number;
+  topeEntradas: number;
 }
 
 // ── Admin ─────────────────────────────────────────────

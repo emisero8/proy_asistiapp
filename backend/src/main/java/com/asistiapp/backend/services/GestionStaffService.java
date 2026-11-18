@@ -10,8 +10,10 @@ import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.StaffQR;
 import com.asistiapp.backend.models.entities.StaffVendedor;
 import com.asistiapp.backend.models.entities.Usuario;
+import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.models.enums.EstadoUsuario;
 import com.asistiapp.backend.models.enums.RolUsuario;
+import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.StaffQRRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
@@ -22,7 +24,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -40,6 +44,7 @@ public class GestionStaffService {
     private final EventoRepository eventoRepository;
     private final StaffQRRepository staffQRRepository;
     private final StaffVendedorRepository staffVendedorRepository;
+    private final EntradaRepository entradaRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
@@ -51,6 +56,7 @@ public class GestionStaffService {
         if (!evento.getIdOrganizador().equals(idOrganizador)) {
             throw new ForbiddenActionException("No podés asignar Staff a un evento que no te pertenece");
         }
+        verificarEventoAsignable(evento);
 
         verificarEmailDisponible(dto.getEmail());
 
@@ -81,6 +87,7 @@ public class GestionStaffService {
         if (!evento.getIdOrganizador().equals(idOrganizador)) {
             throw new ForbiddenActionException("No podés asignar un vendedor a un evento que no te pertenece");
         }
+        verificarEventoAsignable(evento);
 
         verificarEmailDisponible(dto.getEmail());
 
@@ -95,14 +102,49 @@ public class GestionStaffService {
         staff.setCreadoPor(idOrganizador);
         staff.setIdOrganizador(idOrganizador);
         staff.setIdEvento(dto.getIdEvento());
+        staff.setTopeEntradas(dto.getTopeEntradas());
 
         StaffVendedor saved = staffVendedorRepository.save(staff);
         log.info("Staff Vendedor creado: id={}, evento={}, organizador={}", saved.getId(), dto.getIdEvento(), idOrganizador);
 
         emailService.enviarCredencialesStaff(saved.getEmail(), saved.getNombre(), "Staff Vendedor", passwordTemporal);
 
-        return toResponseDTO(saved.getId(), saved.getNombre(), saved.getEmail(), RolUsuario.Staff_Vendedor,
-                saved.getEstado(), saved.getIdEvento());
+        return toVendedorResponseDTO(saved, 0, 0.0);
+    }
+
+    /**
+     * El Organizador cambia el tope de entradas de uno de sus vendedores (8.3): sube el tope si necesita
+     * que venda más, o se lo fija a uno anterior a la regla. No puede quedar por debajo de lo que ya vendió.
+     */
+    @Transactional
+    public StaffResponseDTO cambiarTopeVendedor(Long idStaff, int nuevoTope, Long idOrganizador) {
+        if (nuevoTope < 1) {
+            throw new BusinessRuleException("El tope de entradas tiene que ser al menos 1");
+        }
+        StaffVendedor sv = staffVendedorRepository.findById(idStaff)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff Vendedor no encontrado con id: " + idStaff));
+        if (!sv.getIdOrganizador().equals(idOrganizador)) {
+            throw new ForbiddenActionException("No podés modificar un miembro de staff que no te pertenece");
+        }
+        long vendidas = entradaRepository.countByIdStaffVendedor(idStaff);
+        if (nuevoTope < vendidas) {
+            throw new BusinessRuleException("Este vendedor ya vendió " + vendidas
+                    + " entradas: el tope no puede ser menor a eso.");
+        }
+        sv.setTopeEntradas(nuevoTope);
+        StaffVendedor saved = staffVendedorRepository.save(sv);
+        log.info("Tope del Staff Vendedor id={} fijado en {} por el organizador id={}", idStaff, nuevoTope, idOrganizador);
+        return toVendedorResponseDTO(saved, (int) vendidas, null);
+    }
+
+    /** Solo se asigna staff a eventos Publicados que todavía no finalizaron: no tiene qué hacer en otro caso. */
+    private void verificarEventoAsignable(Evento evento) {
+        if (evento.getEstado() != EstadoEvento.Publicado) {
+            throw new BusinessRuleException("Solo se puede asignar staff a un evento Publicado. Estado actual: " + evento.getEstado());
+        }
+        if (evento.yaFinalizo()) {
+            throw new BusinessRuleException("El evento \"" + evento.getNombre() + "\" ya finalizó: no se le puede asignar staff.");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -115,8 +157,19 @@ public class GestionStaffService {
                 .map(s -> toResponseDTO(s.getId(), s.getNombre(), s.getEmail(), RolUsuario.Staff_QR, s.getEstado(), s.getIdEvento()))
                 .toList();
 
-        List<StaffResponseDTO> staffVendedores = staffVendedorRepository.findByIdOrganizador(idOrganizador).stream()
-                .map(s -> toResponseDTO(s.getId(), s.getNombre(), s.getEmail(), RolUsuario.Staff_Vendedor, s.getEstado(), s.getIdEvento()))
+        List<StaffVendedor> vendedores = staffVendedorRepository.findByIdOrganizador(idOrganizador);
+        Map<Long, Object[]> resumen = new HashMap<>();
+        if (!vendedores.isEmpty()) {
+            entradaRepository.resumenPorVendedor(vendedores.stream().map(StaffVendedor::getId).toList())
+                    .forEach(fila -> resumen.put((Long) fila[0], fila));
+        }
+        List<StaffResponseDTO> staffVendedores = vendedores.stream()
+                .map(s -> {
+                    Object[] fila = resumen.get(s.getId());
+                    return toVendedorResponseDTO(s,
+                            fila == null ? 0 : ((Number) fila[1]).intValue(),
+                            fila == null ? 0.0 : ((Number) fila[2]).doubleValue());
+                })
                 .toList();
 
         return Stream.concat(staffQR.stream(), staffVendedores.stream()).toList();
@@ -212,6 +265,20 @@ public class GestionStaffService {
     /** Contraseña temporal legible, enviada por email — el Staff puede cambiarla luego. */
     private String generarPasswordTemporal() {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+    }
+
+    private StaffResponseDTO toVendedorResponseDTO(StaffVendedor s, int vendidas, Double recaudado) {
+        return StaffResponseDTO.builder()
+                .id(s.getId())
+                .nombre(s.getNombre())
+                .email(s.getEmail())
+                .rol(RolUsuario.Staff_Vendedor)
+                .estado(s.getEstado())
+                .idEvento(s.getIdEvento())
+                .topeEntradas(s.getTopeEntradas())
+                .entradasVendidas(vendidas)
+                .totalRecaudado(recaudado)
+                .build();
     }
 
     private StaffResponseDTO toResponseDTO(Long id, String nombre, String email, RolUsuario rol,

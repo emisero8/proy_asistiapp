@@ -33,6 +33,10 @@ class PerfilServiceTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private ImagenService imagenService;
+    @Mock
+    private com.asistiapp.backend.repositories.OrganizadorRepository organizadorRepository;
+    @Mock
+    private LimiteCompradorService limiteCompradorService;
     @InjectMocks
     private PerfilService perfilService;
 
@@ -45,7 +49,7 @@ class PerfilServiceTest {
         usuario.setNombre("Nombre viejo");
         usuario.setEmail("organizador@demo.com");
         usuario.setPasswordHash("hash-actual");
-        when(usuarioRepository.findById(ID)).thenReturn(Optional.of(usuario));
+        lenient().when(usuarioRepository.findById(ID)).thenReturn(Optional.of(usuario));
     }
 
     private PerfilRequestDTO perfil(String nombre, String foto) {
@@ -60,6 +64,127 @@ class PerfilServiceTest {
         dto.setPasswordActual(actual);
         dto.setPasswordNueva(nueva);
         return dto;
+    }
+
+    // ── Tope de entradas por comprador (8.9) ────────────────
+
+    private com.asistiapp.backend.models.entities.Organizador organizador(Integer tope) {
+        var o = new com.asistiapp.backend.models.entities.Organizador();
+        o.setId(ID);
+        o.setMaxEntradasPorComprador(tope);
+        return o;
+    }
+
+    @Test
+    void obtenerPerfil_traeElTopePropioYElDeLaPlataforma() {
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(organizador(4)));
+        when(limiteCompradorService.limiteGlobal()).thenReturn(6);
+
+        var response = perfilService.obtenerPerfil(ID);
+
+        assertThat(response.getMaxEntradasPorComprador()).isEqualTo(4);
+        assertThat(response.getMaxEntradasPorCompradorPlataforma()).isEqualTo(6);
+    }
+
+    @Test
+    void obtenerPerfil_sinTopePropio_viene_null() {
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(organizador(null)));
+
+        assertThat(perfilService.obtenerPerfil(ID).getMaxEntradasPorComprador()).isNull();
+    }
+
+    @Test
+    void cambiarTopeComprador_guardaElValor() {
+        var org = organizador(null);
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = perfilService.cambiarTopeComprador(ID, 10);
+
+        assertThat(org.getMaxEntradasPorComprador()).isEqualTo(10);
+        assertThat(response.getMaxEntradasPorComprador()).isEqualTo(10);
+    }
+
+    @Test
+    void cambiarTopeComprador_conNull_vuelveAlDeLaPlataforma() {
+        var org = organizador(4);
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        perfilService.cambiarTopeComprador(ID, null);
+
+        assertThat(org.getMaxEntradasPorComprador()).isNull();
+    }
+
+    @Test
+    void cambiarTopeComprador_fueraDeRango_lanzaBusinessRuleExceptionYNoGuarda() {
+        assertThatThrownBy(() -> perfilService.cambiarTopeComprador(ID, 0)).isInstanceOf(BusinessRuleException.class);
+        assertThatThrownBy(() -> perfilService.cambiarTopeComprador(ID, 101)).isInstanceOf(BusinessRuleException.class);
+        verify(organizadorRepository, never()).save(any());
+    }
+
+    // ── Contacto para el arrepentimiento (8.8) ──────────────
+
+    @Test
+    void cambiarContacto_guardaWhatsappSoloConDigitos_yEmail() {
+        var org = organizador(null);
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = perfilService.cambiarContacto(ID, "+54 9 11 5555-1234", " Hola@Evento.com ");
+
+        assertThat(org.getContactoWhatsapp()).isEqualTo("5491155551234");
+        assertThat(org.getContactoEmail()).isEqualTo("hola@evento.com");
+        assertThat(response.getContactoWhatsapp()).isEqualTo("5491155551234");
+        assertThat(response.getContactoEmail()).isEqualTo("hola@evento.com");
+    }
+
+    @Test
+    void cambiarContacto_conUnSoloMedio_alcanza() {
+        var org = organizador(null);
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        perfilService.cambiarContacto(ID, "", "hola@evento.com");
+
+        assertThat(org.getContactoWhatsapp()).isNull();
+        assertThat(org.getContactoEmail()).isEqualTo("hola@evento.com");
+    }
+
+    @Test
+    void cambiarContacto_vacioEnAmbos_loBorra() {
+        var org = organizador(null);
+        org.setContactoWhatsapp("5491155551234");
+        org.setContactoEmail("hola@evento.com");
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        perfilService.cambiarContacto(ID, null, "  ");
+
+        assertThat(org.getContactoWhatsapp()).isNull();
+        assertThat(org.getContactoEmail()).isNull();
+    }
+
+    @Test
+    void cambiarContacto_whatsappInvalido_lanzaBusinessRuleExceptionYNoGuarda() {
+        assertThatThrownBy(() -> perfilService.cambiarContacto(ID, "12345", null)).isInstanceOf(BusinessRuleException.class);
+        assertThatThrownBy(() -> perfilService.cambiarContacto(ID, "abc", null)).isInstanceOf(BusinessRuleException.class);
+        verify(organizadorRepository, never()).save(any());
+    }
+
+    @Test
+    void cambiarContacto_emailInvalido_lanzaBusinessRuleExceptionYNoGuarda() {
+        assertThatThrownBy(() -> perfilService.cambiarContacto(ID, null, "no-es-un-mail")).isInstanceOf(BusinessRuleException.class);
+        verify(organizadorRepository, never()).save(any());
+    }
+
+    @Test
+    void obtenerPerfil_traeElContacto() {
+        var org = organizador(null);
+        org.setContactoWhatsapp("5491155551234");
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+
+        assertThat(perfilService.obtenerPerfil(ID).getContactoWhatsapp()).isEqualTo("5491155551234");
     }
 
     // ── Perfil: validación de la foto ───────────────────────

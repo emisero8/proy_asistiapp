@@ -1,14 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Check, ChevronLeft, ChevronRight, PartyPopper, Plus } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { formatFecha, hoyLocal } from "../../lib/format";
 import type { Coords } from "../../components/EventMap";
-import { Alert, Button, Card, IconButton, PageHeader } from "../../components/ui";
+import { Alert, Button, Card, IconButton, PageHeader, claseBoton } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { comportamientoScroll } from "../../lib/motion";
 import { DatosEventoCampos, TandaCard } from "./EventoFormCampos";
-import type { CreditosResumenResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, TandaRequestDTO, TandaResponseDTO } from "../../lib/types";
+import type {
+  CreditosResumenResponseDTO,
+  EstadoCuentaMpResponseDTO,
+  EventoRequestDTO,
+  EventoResponseDTO,
+  MovimientoCreditoResponseDTO,
+  PerfilResponseDTO,
+  TandaRequestDTO,
+  TandaResponseDTO,
+} from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface WizardTanda {
@@ -18,6 +27,8 @@ interface WizardTanda {
   cupoMaximo: string;
   desde: string;
   hasta: string;
+  /** Tanda de cortesía (8.10): no se vende, solo la emite el Organizador; el precio queda en 0. */
+  soloEmision: boolean;
 }
 
 /**
@@ -54,6 +65,23 @@ export function OrganizadorWizardPage() {
   const tandasCreadasRef = useRef(new Map<number, { tandaId: number; firma: string }>());
   const saldo = resumen?.saldo ?? null;
 
+  // Para publicar hace falta la cuenta de Mercado Pago vinculada (8.5) y un contacto de arrepentimiento (8.8).
+  // Se avisa antes de armar las tandas: si recién fallara al publicar, ya estarían creadas. Si la consulta falla
+  // no se bloquea nada: el backend valida igual.
+  const [sinMercadoPago, setSinMercadoPago] = useState(false);
+  const [sinContacto, setSinContacto] = useState(false);
+  useEffect(() => {
+    api
+      .get<EstadoCuentaMpResponseDTO>("/organizador/mercadopago/estado")
+      // Solo bloquea si el backend exige la cuenta (en desarrollo se apaga con MP_EXIGIR_CUENTA_VINCULADA=false).
+      .then((e) => setSinMercadoPago(e.obligatoria && !e.vinculada))
+      .catch(() => undefined);
+    api
+      .get<PerfilResponseDTO>("/organizador/perfil")
+      .then((p) => setSinContacto(p.contactoWhatsapp === null && p.contactoEmail === null))
+      .catch(() => undefined);
+  }, []);
+
   useEffect(() => {
     api
       .get<CreditosResumenResponseDTO>("/creditos/resumen")
@@ -73,12 +101,15 @@ export function OrganizadorWizardPage() {
   const [venue, setVenue] = useState("");
   const [coords, setCoords] = useState<Coords | null>(null);
   const [img, setImg] = useState("");
-  const [tandas, setTandas] = useState<WizardTanda[]>([{ id: 1, nombre: "Anticipada", precio: "", cupoMaximo: "", desde: "", hasta: "" }]);
+  const [tandas, setTandas] = useState<WizardTanda[]>([{ id: 1, nombre: "Anticipada", precio: "", cupoMaximo: "", desde: "", hasta: "", soloEmision: false }]);
 
-  const addTanda = () => setTandas((t) => [...t, { id: Date.now(), nombre: "", precio: "", cupoMaximo: "", desde: "", hasta: "" }]);
+  const addTanda = () => setTandas((t) => [...t, { id: Date.now(), nombre: "", precio: "", cupoMaximo: "", desde: "", hasta: "", soloEmision: false }]);
   const removeTanda = (id: number) => setTandas((t) => t.filter((x) => x.id !== id));
-  const updateTanda = (id: number, field: keyof WizardTanda, val: string) =>
+  const updateTanda = (id: number, field: Exclude<keyof WizardTanda, "soloEmision">, val: string) =>
     setTandas((t) => t.map((x) => (x.id === id ? { ...x, [field]: val } : x)));
+  // Una tanda de cortesía no tiene precio: queda en 0 y se vuelve a pedir si se desmarca.
+  const toggleCortesia = (id: number, marcada: boolean) =>
+    setTandas((t) => t.map((x) => (x.id === id ? { ...x, soloEmision: marcada, precio: marcada ? "0" : "" } : x)));
 
   const hoyStr = hoyLocal();
   const fechaEnPasado = date !== "" && date < hoyStr;
@@ -91,11 +122,15 @@ export function OrganizadorWizardPage() {
   const disponibleEntradas = resumen?.disponibleParaEntradas ?? null;
   const totalEntradas = tandas.reduce((suma, t) => suma + (Number(t.cupoMaximo) || 0), 0);
   const excedeCreditos = disponibleEntradas !== null && totalEntradas > disponibleEntradas;
+  const haytandaDeVenta = tandas.some((t) => !t.soloEmision);
   const step2Valid =
     tandas.every((t) => t.nombre && t.precio && t.cupoMaximo) &&
+    haytandaDeVenta &&
     tandaErrors.every((e) => e === null) &&
     !sinCreditos &&
-    !excedeCreditos;
+    !excedeCreditos &&
+    !sinMercadoPago &&
+    !sinContacto;
 
   async function handleNext() {
     setLoading(true);
@@ -143,8 +178,9 @@ export function OrganizadorWizardPage() {
         const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
         const dto: TandaRequestDTO = {
           nombre: t.nombre,
-          precio: Number(t.precio),
+          precio: t.soloEmision ? 0 : Number(t.precio),
           cupoMaximo: Number(t.cupoMaximo),
+          ...(t.soloEmision ? { soloEmision: true } : {}),
           fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
           fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
         };
@@ -285,6 +321,31 @@ export function OrganizadorWizardPage() {
               </p>
             </div>
 
+            {(sinMercadoPago || sinContacto) && (
+              <Alert
+                tone="danger"
+                title="Antes de publicar, completá tu perfil"
+                action={
+                  <Link to="/organizador/perfil" className={claseBoton("secondary", "sm")}>
+                    Ir a Mi perfil
+                  </Link>
+                }
+              >
+                {sinMercadoPago && (
+                  <p>
+                    <span className="font-semibold">Vinculá tu cuenta de Mercado Pago.</span> Es la cuenta donde vas a recibir el dinero de las
+                    entradas.
+                  </p>
+                )}
+                {sinContacto && (
+                  <p>
+                    <span className="font-semibold">Cargá un contacto (WhatsApp o email).</span> A ese contacto se deriva a quien quiera
+                    arrepentirse de su compra.
+                  </p>
+                )}
+              </Alert>
+            )}
+
             {resumen && disponibleEntradas !== null && (
               <ContadorCreditos usadas={totalEntradas} disponibles={disponibleEntradas} reservados={resumen.costoPublicacion} excede={excedeCreditos} />
             )}
@@ -299,8 +360,15 @@ export function OrganizadorWizardPage() {
                 error={tandaErrors[i]}
                 onEliminar={tandas.length > 1 ? () => removeTanda(t.id) : undefined}
                 etiquetaEliminar={`Eliminar la tanda ${t.nombre || i + 1}`}
+                cortesia={{ marcada: t.soloEmision, onCambio: (v) => toggleCortesia(t.id, v) }}
               />
             ))}
+
+            {!haytandaDeVenta && (
+              <p role="alert" className="text-xs font-medium text-destructive">
+                Necesitás al menos una tanda de venta: las de cortesía no se venden.
+              </p>
+            )}
 
             <button
               type="button"

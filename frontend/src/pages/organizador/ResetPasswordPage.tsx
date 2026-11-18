@@ -4,6 +4,7 @@ import { CheckCircle2, Clock, KeyRound, ShieldCheck } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { AuthHeader, AuthLayout, type AuthBrand, MarcaAcento } from "../../components/AuthLayout";
 import { Alert, Button, Field, PasswordInput } from "../../components/ui";
+import type { RestablecerPasswordRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 const MARCA: AuthBrand = {
@@ -48,7 +49,11 @@ export function OrganizadorResetPasswordPage() {
     setLoading(true);
     setError(null);
     try {
-      await api.post("/auth/restablecer-password", { token, nuevaPassword: pass }, { skipAuth: true });
+      await api.post(
+        "/auth/restablecer-password",
+        { token, nuevaPassword: pass } satisfies RestablecerPasswordRequestDTO,
+        { skipAuth: true },
+      );
       setSuccess(true);
     } catch (e: unknown) {
       setError(e instanceof ApiError ? e.message : "No pudimos restablecer la contraseña. El enlace puede haber expirado.");

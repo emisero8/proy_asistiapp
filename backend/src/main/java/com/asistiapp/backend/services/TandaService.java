@@ -139,6 +139,12 @@ public class TandaService {
             creditoLedgerService.registrarDevolucionTanda(organizador, -deltaMaximo, idEvento);
         }
 
+        boolean soloEmision = Boolean.TRUE.equals(dto.getSoloEmision());
+        if (soloEmision != tanda.isSoloEmision() && tanda.getCupoMaximo() > tanda.getCupoDisponible()) {
+            throw new BusinessRuleException(
+                    "No podés cambiar si la tanda es de cortesía: ya tiene entradas emitidas o vendidas.");
+        }
+
         mapDtoToTanda(dto, tanda);
         tanda.setCupoDisponible(nuevoCupoDisponible);
 
@@ -171,11 +177,12 @@ public class TandaService {
                     "Entradas vendidas: " + entradasVendidas);
         }
 
-        // Un evento publicado no puede quedarse sin ninguna tanda que vender.
-        if (evento.getEstado() == EstadoEvento.Publicado
-                && tandaRepository.findByEventoId(idEvento).size() <= 1) {
+        // Un evento publicado no puede quedarse sin ninguna tanda que vender (las de cortesía no se venden).
+        if (evento.getEstado() == EstadoEvento.Publicado && !tanda.isSoloEmision()
+                && tandaRepository.findByEventoId(idEvento).stream()
+                        .noneMatch(t -> !t.getId().equals(tanda.getId()) && !t.isSoloEmision())) {
             throw new BusinessRuleException(
-                    "Un evento publicado necesita al menos una tanda. " +
+                    "Un evento publicado necesita al menos una tanda de venta. " +
                     "No podés eliminar la última — cancelá el evento si querés bajarlo.");
         }
 
@@ -248,7 +255,10 @@ public class TandaService {
 
     private void mapDtoToTanda(TandaRequestDTO dto, Tanda tanda) {
         tanda.setNombre(dto.getNombre());
-        tanda.setPrecio(dto.getPrecio());
+        boolean soloEmision = Boolean.TRUE.equals(dto.getSoloEmision());
+        tanda.setSoloEmision(soloEmision);
+        // Una tanda de cortesía no cobra nada: el precio que llegue se ignora.
+        tanda.setPrecio(soloEmision ? 0.0 : dto.getPrecio());
         tanda.setCupoMaximo(dto.getCupoMaximo());
         tanda.setFechaInicioVigencia(dto.getFechaInicioVigencia());
         tanda.setFechaFinVigencia(dto.getFechaFinVigencia());
@@ -281,6 +291,7 @@ public class TandaService {
                 .precio(tanda.getPrecio())
                 .cupoMaximo(tanda.getCupoMaximo())
                 .cupoDisponible(tanda.getCupoDisponible())
+                .soloEmision(tanda.isSoloEmision())
                 .fechaInicioVigencia(tanda.getFechaInicioVigencia())
                 .fechaFinVigencia(tanda.getFechaFinVigencia())
                 .build();

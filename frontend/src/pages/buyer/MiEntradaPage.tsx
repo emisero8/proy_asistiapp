@@ -86,12 +86,20 @@ export function MiEntradaPage() {
 
   const qrImageUrl = `${API_BASE_URL}/tickets/${entrada.id}/qr-image?codigoQr=${encodeURIComponent(entrada.codigoQr)}`;
   const usada = entrada.estado === "Usada";
+  // Anulada por el Organizador (8.6): ya no sirve para entrar, aunque el QR siga existiendo.
+  const anulada = entrada.estado === "Anulada";
 
   return (
     <div className="min-h-dvh bg-background">
       <PublicHeader />
 
       <main className="mx-auto max-w-md space-y-5 px-4 py-8">
+        {anulada && (
+          <Alert tone="danger" title="Esta entrada fue anulada">
+            El Organizador la anuló{entrada.motivoAnulacion ? ` (${entrada.motivoAnulacion})` : ""}: ya no sirve para entrar al evento.
+            {entrada.reembolsadaEn ? " Te devolvimos el pago con Mercado Pago." : ""}
+          </Alert>
+        )}
         {usada && (
           <Alert tone="warning" title="Esta entrada ya fue utilizada">
             Se validó en la puerta {entrada.fechaUso ? formatRelativo(entrada.fechaUso) : "anteriormente"}.
@@ -103,7 +111,7 @@ export function MiEntradaPage() {
           {/* Banda superior */}
           <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-3">
             <p className="font-mono text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pase digital</p>
-            {usada ? <Badge tone="warning">Usada</Badge> : <Badge tone="success">Válida</Badge>}
+            <EstadoBadge usada={usada} anulada={anulada} />
           </div>
 
           {/* Datos del evento y del titular */}
@@ -131,7 +139,7 @@ export function MiEntradaPage() {
 
           {/* Talón: QR de alta legibilidad, siempre sobre blanco en los dos temas */}
           <div className="flex flex-col items-center gap-4 bg-surface-sunken px-6 py-7">
-            <div className={`rounded-2xl bg-white p-4 shadow-raised ${usada ? "opacity-40 grayscale" : ""}`}>
+            <div className={`rounded-2xl bg-white p-4 shadow-raised ${usada || anulada ? "opacity-40 grayscale" : ""}`}>
               <img src={qrImageUrl} alt="Código QR de tu entrada" width={232} height={232} className="block size-[min(232px,60vw)]" />
             </div>
             <div className="flex items-center gap-2">
@@ -181,4 +189,10 @@ function Campo({ label, children, full, mono }: { label: string; children: React
       <dd className={`mt-1 truncate font-semibold text-foreground ${mono ? "font-mono tabular-nums" : ""}`}>{children}</dd>
     </div>
   );
+}
+
+function EstadoBadge({ usada, anulada }: { usada: boolean; anulada: boolean }) {
+  if (anulada) return <Badge tone="danger">Anulada</Badge>;
+  if (usada) return <Badge tone="warning">Usada</Badge>;
+  return <Badge tone="success">Válida</Badge>;
 }

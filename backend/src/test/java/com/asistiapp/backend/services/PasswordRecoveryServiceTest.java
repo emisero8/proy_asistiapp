@@ -25,7 +25,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * CU-003. Dos garantías de seguridad puntuales a cubrir (ver SECURITY.md):
+ * CU-003. Dos garantías de seguridad puntuales a cubrir (ver docs/tecnica/SECURITY.md):
  * no revelar si un email existe, y que un token sea de un solo uso y con
  * vencimiento real — no solo "un uso lógico" sino que expirado también corte.
  */

@@ -4,10 +4,14 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.LocalTime;
 
 /**
  * Documentación interactiva de la API (Swagger UI en /swagger-ui.html,
@@ -23,6 +27,13 @@ import org.springframework.context.annotation.Configuration;
 public class OpenApiConfig {
 
     private static final String BEARER_SCHEME_NAME = "bearerAuth";
+
+    static {
+        // Sin esto springdoc documenta LocalTime como un objeto {hour, minute, second, nano}, pero Jackson lo
+        // manda y lo recibe como texto "HH:mm:ss" (horaEvento). El Swagger UI invitaba a enviar un objeto y los
+        // tipos generados para el frontend salían mal.
+        SpringDocUtils.getConfig().replaceWithSchema(LocalTime.class, new StringSchema().format("time").example("21:00:00"));
+    }
 
     @Bean
     public OpenAPI asistiAppOpenAPI() {

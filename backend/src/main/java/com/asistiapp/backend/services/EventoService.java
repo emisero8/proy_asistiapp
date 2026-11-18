@@ -49,6 +49,7 @@ public class EventoService {
     private final ConfiguracionService configuracionService;
     private final EmailService emailService;
     private final ImagenService imagenService;
+    private final CuentaCobroService cuentaCobroService;
 
     // ─────────────────────────────────────────────
     // Consultas
@@ -79,8 +80,8 @@ public class EventoService {
     public List<EventoResponseDTO> listarEventosPublicadosDeOrganizador(Long idOrganizador) {
         return eventoRepository.findByIdOrganizadorAndEstado(idOrganizador, EstadoEvento.Publicado)
                 .stream()
-                .filter(e -> !yaFinalizo(e))
-                .map(this::toResponseDTO)
+                .filter(e -> !e.yaFinalizo())
+                .map(this::toResponseDTOSoloTandasDeVenta)
                 .toList();
     }
 
@@ -96,13 +97,9 @@ public class EventoService {
         return eventoRepository.findById(idEvento)
                 .filter(e -> e.getIdOrganizador().equals(idOrganizador))
                 .filter(e -> e.getEstado() == EstadoEvento.Publicado)
-                .filter(e -> !yaFinalizo(e))
-                .map(e -> List.of(toResponseDTO(e)))
+                .filter(e -> !e.yaFinalizo())
+                .map(e -> List.of(toResponseDTOSoloTandasDeVenta(e)))
                 .orElseGet(List::of);
-    }
-
-    private boolean yaFinalizo(Evento evento) {
-        return !LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento()).isAfter(LocalDateTime.now());
     }
 
     // ─────────────────────────────────────────────
@@ -200,6 +197,10 @@ public class EventoService {
             throw new BusinessRuleException(
                     "El evento debe tener al menos una tanda configurada antes de publicarse");
         }
+        if (evento.getTandas().stream().allMatch(Tanda::isSoloEmision)) {
+            throw new BusinessRuleException(
+                    "El evento necesita al menos una tanda de venta (las de cortesía no se venden) antes de publicarse");
+        }
 
         // El evento no puede publicarse si ya pasó, ni con tandas cuya venta
         // cierre después de que arranca.
@@ -218,6 +219,20 @@ public class EventoService {
         // Verificar y descontar créditos del organizador
         Organizador organizador = organizadorRepository.findById(idOrganizador)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+
+        // 8.5: las entradas se cobran con la cuenta de Mercado Pago del Organizador, sin ella no hay a dónde cobrar.
+        if (!cuentaCobroService.puedeCobrar(idOrganizador)) {
+            throw new BusinessRuleException(
+                    "Vinculá tu cuenta de Mercado Pago en Mi perfil antes de publicar: " +
+                    "es la cuenta donde vas a recibir el dinero de las entradas");
+        }
+
+        // 8.8: el botón de arrepentimiento deriva a este contacto; sin él no hay a dónde derivar.
+        if (organizador.getContactoWhatsapp() == null && organizador.getContactoEmail() == null) {
+            throw new BusinessRuleException(
+                    "Cargá un contacto (WhatsApp o email) en Mi perfil antes de publicar: " +
+                    "ahí se deriva a quien quiera pedir el arrepentimiento de su compra");
+        }
 
         int costoPublicacion = configuracionService.obtenerEntero(
                 CLAVE_CREDITOS_POR_PUBLICACION, CREDITOS_POR_PUBLICACION_DEFAULT);
@@ -267,6 +282,25 @@ public class EventoService {
         notificarCancelacionACompradores(saved);
         log.info("Evento cancelado: id={}", idEvento);
         return toResponseDTO(saved);
+    }
+
+    /**
+     * Elimina un evento propio que todavía es Borrador (nunca se publicó, así que no tiene ventas
+     * ni órdenes). Las tandas ya habían consumido créditos al crearse: se devuelven los de las
+     * entradas sin vender, igual que al cancelar. Publicados y cancelados no se borran: se cancelan
+     * o quedan como registro.
+     */
+    @Transactional
+    public void eliminarBorrador(Long idEvento, Long idOrganizador) {
+        Evento evento = getEventoOrThrow(idEvento);
+        verificarPropietario(evento, idOrganizador);
+        verificarEstadoBorrador(evento, "eliminar");
+
+        devolverCreditosDeEntradasSinVender(evento);
+        String imagen = evento.getImagenPortadaUrl();
+        eventoRepository.delete(evento);
+        log.info("Borrador eliminado: id={}", idEvento);
+        imagenService.eliminarSiEsNuestra(imagen);
     }
 
     /**
@@ -356,7 +390,17 @@ public class EventoService {
     }
 
     public EventoResponseDTO toResponseDTO(Evento evento) {
+        return toResponseDTO(evento, false);
+    }
+
+    /** Lo que ve el Staff Vendedor: las tandas de cortesía son internas del Organizador (8.10). */
+    private EventoResponseDTO toResponseDTOSoloTandasDeVenta(Evento evento) {
+        return toResponseDTO(evento, true);
+    }
+
+    private EventoResponseDTO toResponseDTO(Evento evento, boolean soloTandasDeVenta) {
         List<TandaResponseDTO> tandaResponses = evento.getTandas().stream()
+                .filter(t -> !soloTandasDeVenta || !t.isSoloEmision())
                 .map(t -> TandaResponseDTO.builder()
                         .id(t.getId())
                         .idEvento(evento.getId())
@@ -364,6 +408,7 @@ public class EventoService {
                         .precio(t.getPrecio())
                         .cupoMaximo(t.getCupoMaximo())
                         .cupoDisponible(t.getCupoDisponible())
+                        .soloEmision(t.isSoloEmision())
                         .fechaInicioVigencia(t.getFechaInicioVigencia())
                         .fechaFinVigencia(t.getFechaFinVigencia())
                         .build())
@@ -385,6 +430,7 @@ public class EventoService {
                 .fechaCreacion(evento.getFechaCreacion())
                 .fechaPublicacion(evento.getFechaPublicacion())
                 .fechaCancelacion(evento.getFechaCancelacion())
+                .finalizado(evento.yaFinalizo())
                 .tandas(tandaResponses)
                 .build();
     }

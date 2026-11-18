@@ -21,3 +21,8 @@ export function buildGrid(year: number, month: number): Date[] {
   const inicio = new Date(year, month, 1 - offset);
   return Array.from({ length: 42 }, (_, i) => new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i));
 }
+
+/** `2030-06-28` → `"28 de junio de 2030"`: el nombre accesible de cada día del calendario. */
+export function fechaLarga(d: Date): string {
+  return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric" }).format(d);
+}

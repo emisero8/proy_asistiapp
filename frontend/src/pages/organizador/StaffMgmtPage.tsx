@@ -5,9 +5,10 @@ import { api, ApiError } from "../../lib/api";
 import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader, RadioCardGroup, SelectMenu, Skeleton } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { ETIQUETA_ROL, TONO_ROL } from "../../lib/estados";
-import type { CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, StaffResponseDTO } from "../../lib/types";
+import type { CambiarTopeVendedorRequestDTO, CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, StaffResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
+import { fmt } from "../../lib/format";
 
 const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: string }> = {
   Staff_QR: { label: "Staff QR", desc: "Escanea las entradas en la puerta" },
@@ -22,9 +23,8 @@ const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: st
  * a eventos viejos, y a esa sí hay que mostrarle todo).
  */
 export function eventoDisponibleParaStaff(ev: EventoResponseDTO): boolean {
-  if (ev.estado !== "Publicado") return false;
-  // Sin "Z": se interpreta en hora local, igual que fechaEvento/horaEvento (LocalDate/LocalTime del backend).
-  return new Date(`${ev.fechaEvento}T${ev.horaEvento}`) > new Date();
+  // "Finalizado" lo decide el backend (EventoResponseDTO.finalizado): acá no se recalcula con la hora del navegador.
+  return ev.estado === "Publicado" && !ev.finalizado;
 }
 
 export function OrganizadorStaffMgmtPage() {
@@ -37,12 +37,15 @@ export function OrganizadorStaffMgmtPage() {
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [form, setForm] = useState<{ nombre: string; email: string; role: "Staff_QR" | "Staff_Vendedor"; idEvento: string }>({
+  const [form, setForm] = useState<{ nombre: string; email: string; role: "Staff_QR" | "Staff_Vendedor"; idEvento: string; tope: string }>({
     nombre: "",
     email: "",
     role: "Staff_QR",
     idEvento: "",
+    tope: "",
   });
+  // Edición inline del tope de un vendedor: qué vendedor y el valor que se está tipeando.
+  const [editandoTope, setEditandoTope] = useState<{ id: number; valor: string } | null>(null);
 
   function cargarStaff() {
     api
@@ -68,6 +71,11 @@ export function OrganizadorStaffMgmtPage() {
 
   async function addStaff() {
     if (!form.nombre.trim() || !form.email.trim() || !form.idEvento) return;
+    const tope = Number(form.tope);
+    if (form.role === "Staff_Vendedor" && (!Number.isInteger(tope) || tope < 1)) {
+      setError("Fijá el tope de entradas que puede vender este vendedor (al menos 1).");
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -76,11 +84,11 @@ export function OrganizadorStaffMgmtPage() {
         const dto: CrearStaffQRRequestDTO = { nombre: form.nombre, email: form.email, idEvento: Number(form.idEvento) };
         await api.post("/organizador/staff/qr", dto);
       } else {
-        const dto: CrearStaffVendedorRequestDTO = { nombre: form.nombre, email: form.email, idEvento: Number(form.idEvento) };
+        const dto: CrearStaffVendedorRequestDTO = { nombre: form.nombre, email: form.email, idEvento: Number(form.idEvento), topeEntradas: tope };
         await api.post("/organizador/staff/vendedor", dto);
       }
       toast.success(`${form.nombre} se agregó como ${ROLE_META[form.role].label}`);
-      setForm({ nombre: "", email: "", role: "Staff_QR", idEvento: "" });
+      setForm({ nombre: "", email: "", role: "Staff_QR", idEvento: "", tope: "" });
       setShowForm(false);
       cargarStaff();
     } catch (e: unknown) {
@@ -111,6 +119,31 @@ export function OrganizadorStaffMgmtPage() {
       });
     } catch (e: unknown) {
       const message = e instanceof ApiError ? e.message : "No pudimos resetear la contraseña.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function guardarTope(member: StaffResponseDTO) {
+    if (!editandoTope) return;
+    const topeEntradas = Number(editandoTope.valor);
+    if (!Number.isInteger(topeEntradas) || topeEntradas < 1) {
+      setError("El tope tiene que ser un número entero de al menos 1.");
+      return;
+    }
+    setBusyId(member.id);
+    setError(null);
+    try {
+      const body: CambiarTopeVendedorRequestDTO = { topeEntradas };
+      const updated = await api.patch<StaffResponseDTO>(`/organizador/staff/${member.id}/tope`, body);
+      // La respuesta del tope no trae lo recaudado: se conserva el de la tarjeta.
+      setStaff((s) => s!.map((m) => (m.id === member.id ? { ...updated, totalRecaudado: m.totalRecaudado } : m)));
+      setEditandoTope(null);
+      toast.success(`Tope de ${member.nombre}: ${topeEntradas} entradas`);
+    } catch (e: unknown) {
+      const message = e instanceof ApiError ? e.message : "No pudimos cambiar el tope.";
       setError(message);
       toast.error(message);
     } finally {
@@ -180,7 +213,8 @@ export function OrganizadorStaffMgmtPage() {
                 const eventoAsignado = eventos.find((e) => e.id === member.idEvento)?.nombre;
                 const ocupado = busyId === member.id;
                 return (
-                  <li key={member.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center md:px-5">
+                  <li key={member.id} className="px-4 py-3.5 md:px-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                       <span
                         aria-hidden="true"
@@ -219,6 +253,49 @@ export function OrganizadorStaffMgmtPage() {
                         {inactivo ? "Reactivar" : "Dar de baja"}
                       </Button>
                     </div>
+                    </div>
+
+                    {/* Vendedor (8.3): lo vendido contra su tope y lo que tiene que rendir. */}
+                    {member.rol === "Staff_Vendedor" && (
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-border-strong pt-3 sm:ml-13">
+                        <div className="min-w-0">
+                          <p className="font-mono text-xs font-semibold tabular-nums text-foreground">
+                            {member.topeEntradas == null
+                              ? `${member.entradasVendidas ?? 0} entradas · sin tope`
+                              : `${member.entradasVendidas ?? 0} de ${member.topeEntradas} entradas`}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Suman {fmt(member.totalRecaudado ?? 0)} para rendir</p>
+                        </div>
+                        {editandoTope?.id === member.id ? (
+                          <div className="flex items-center gap-2">
+                            <Input
+                              surface="sunken"
+                              type="number"
+                              min={1}
+                              inputMode="numeric"
+                              aria-label={`Nuevo tope de ${member.nombre}`}
+                              value={editandoTope.valor}
+                              onChange={(e) => setEditandoTope({ id: member.id, valor: e.target.value })}
+                              className="w-24"
+                            />
+                            <Button size="sm" loading={ocupado} onClick={() => guardarTope(member)}>
+                              Guardar tope
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditandoTope(null)}>
+                              Cancelar
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => setEditandoTope({ id: member.id, valor: String(member.topeEntradas ?? "") })}
+                          >
+                            Cambiar tope
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -281,6 +358,23 @@ export function OrganizadorStaffMgmtPage() {
                 options={eventosDisponibles.map((ev) => ({ value: String(ev.id), label: ev.nombre }))}
               />
             </Field>
+            {form.role === "Staff_Vendedor" && (
+              <Field
+                label="Tope de entradas"
+                required
+                hint="Lo máximo que puede vender en total; al llegar, el sistema no le deja vender más. Lo podés ampliar después."
+              >
+                <Input
+                  surface="sunken"
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={form.tope}
+                  onChange={(e) => setForm((f) => ({ ...f, tope: e.target.value }))}
+                  placeholder="50"
+                />
+              </Field>
+            )}
             {errorEventos && (
               <p role="alert" className="flex flex-wrap items-center gap-x-2 text-xs font-medium text-destructive">
                 No pudimos cargar tus eventos, y sin elegir uno no se puede agregar staff.

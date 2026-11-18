@@ -21,6 +21,8 @@ public class TandaResponseDTO {
     private Double precio;
     private Integer cupoMaximo;
     private Integer cupoDisponible;
+    /** Tanda de cortesía: no se vende ni se muestra al público (8.10). */
+    private boolean soloEmision;
     private LocalDateTime fechaInicioVigencia;
     private LocalDateTime fechaFinVigencia;
 }

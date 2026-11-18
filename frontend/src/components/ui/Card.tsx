@@ -8,6 +8,8 @@ const PADDINGS: Record<Padding, string> = { none: "", sm: "p-4", md: "p-5" };
 interface CardProps extends HTMLAttributes<HTMLElement> {
   as?: "div" | "section" | "article" | "form";
   padding?: Padding;
+  /** Solo con `as="form"`: deja la validación a la pantalla (mensajes propios) en vez de la nativa del navegador. */
+  noValidate?: boolean;
 }
 
 /** Superficie de tarjeta. Sin sombra: el borde y el contraste con el fondo alcanzan. */

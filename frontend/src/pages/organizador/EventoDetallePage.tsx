@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
 import { Link, useNavigate, useParams } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { Ban, CreditCard, Download, ExternalLink, FilePen, Pencil, Search, ShieldCheck, Store, Ticket, TrendingUp, Users } from "lucide-react";
+import { Ban, CreditCard, Download, ExternalLink, FilePen, Gift, Pencil, Search, ShieldCheck, Store, Ticket, Trash2, TrendingUp, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, Button, Card, EmptyState, ErrorState, Input, PageHeader, Skeleton, StatCard, StatusBadge, claseBoton } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
@@ -11,10 +11,25 @@ import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
+import { EmitirEntradasPanel } from "./EmitirEntradasPanel";
+import { EntradaAcciones } from "./EntradaAcciones";
+import { ReembolsosPanel } from "./ReembolsosPanel";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
 /** Barras del gráfico por tanda: tokens de gráficos (se adaptan al tema), nunca hex. */
 const COLORES_TANDA = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
+
+/** Cómo llegó la entrada, para mostrarlo y exportarlo: lo que emitió el Organizador se distingue de Online/Manual. */
+function etiquetaCanal(e: EntradaResponseDTO): string {
+  if (e.tipoEmision === "Cortesia") return "Cortesía";
+  if (e.tipoEmision === "Pago_Externo") return "Pago externo";
+  return e.canalVenta;
+}
+
+/** Lo que esa entrada le dejó al Organizador: una cortesía no cobró nada. */
+function importeCobrado(e: EntradaResponseDTO): number {
+  return e.tipoEmision === "Cortesia" || e.estado === "Anulada" ? 0 : (e.precioTanda ?? 0);
+}
 
 function formatFechaHora(iso: string): string {
   const d = new Date(iso);
@@ -33,12 +48,15 @@ export function OrganizadorEventoDetallePage() {
   const [entradas, setEntradas] = useState<EntradaResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cancelando, setCancelando] = useState(false);
+  const [eliminando, setEliminando] = useState(false);
+  const [publicando, setPublicando] = useState(false);
+  const [errorPublicar, setErrorPublicar] = useState<string | null>(null);
 
   useDocumentTitle(evento?.nombre);
   const { confirm } = useDialog();
 
   const [q, setQ] = useState("");
-  const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Online" | "Manual">("todas");
+  const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Anulada" | "Online" | "Manual">("todas");
   // Generar el Excel tarda (se descarga ExcelJS la primera vez): el botón muestra que está trabajando.
   const [exportando, setExportando] = useState(false);
 
@@ -77,7 +95,7 @@ export function OrganizadorEventoDetallePage() {
     if (!evento) return;
     const ok = await confirm({
       titulo: "Cancelar evento",
-      mensaje: `¿Cancelar "${evento.nombre}"? Se avisa por email a los compradores y no se devuelven créditos.`,
+      mensaje: `¿Cancelar "${evento.nombre}"? Se avisa por email a los compradores y se devuelven los créditos de las entradas sin vender (el costo de publicar no se devuelve).`,
       confirmarTexto: "Cancelar evento",
       cancelarTexto: "No, volver",
       variante: "destructiva",
@@ -92,6 +110,42 @@ export function OrganizadorEventoDetallePage() {
       toast.error(e instanceof ApiError ? e.message : "No pudimos cancelar el evento.");
     } finally {
       setCancelando(false);
+    }
+  }
+
+  async function publicarEvento() {
+    if (!evento) return;
+    setPublicando(true);
+    setErrorPublicar(null);
+    try {
+      await api.patch(`/eventos/${evento.id}/publicar`);
+      toast.success("Evento publicado");
+      cargar();
+    } catch (e: unknown) {
+      setErrorPublicar(e instanceof ApiError ? e.message : "No pudimos publicar el evento.");
+    } finally {
+      setPublicando(false);
+    }
+  }
+
+  async function eliminarBorrador() {
+    if (!evento) return;
+    const ok = await confirm({
+      titulo: "Eliminar borrador",
+      mensaje: `¿Eliminar "${evento.nombre}"? Se borra para siempre y se devuelven los créditos de sus tandas.`,
+      confirmarTexto: "Eliminar borrador",
+      cancelarTexto: "No, volver",
+      variante: "destructiva",
+    });
+    if (!ok) return;
+    setEliminando(true);
+    try {
+      await api.delete(`/eventos/${evento.id}`);
+      toast.success("Borrador eliminado");
+      navigate("/organizador/dashboard");
+    } catch (e: unknown) {
+      toast.error(e instanceof ApiError ? e.message : "No pudimos eliminar el borrador.");
+      setEliminando(false);
     }
   }
 
@@ -120,10 +174,11 @@ export function OrganizadorEventoDetallePage() {
         { header: "Email",        key: "email",       width: 34 },
         { header: "Tanda",        key: "tanda",       width: 22 },
         { header: "Precio",       key: "precio",      width: 14, style: { numFmt: '"$"#,##0' } },
-        { header: "Canal",        key: "canal",       width: 12 },
+        { header: "Canal",        key: "canal",       width: 14 },
         { header: "Estado",       key: "estado",      width: 13 },
         { header: "Fecha Compra", key: "fechaCompra", width: 20, style: { numFmt: "dd/mm/yyyy hh:mm" } },
         { header: "Fecha Uso",    key: "fechaUso",    width: 20, style: { numFmt: "dd/mm/yyyy hh:mm" } },
+        { header: "Motivo",       key: "motivo",      width: 28 },
       ];
 
       // ── Cabecera ─────────────────────────────────────────────
@@ -143,11 +198,12 @@ export function OrganizadorEventoDetallePage() {
           comprador:   e.nombreComprador,
           email:       e.emailComprador,
           tanda:       e.nombreTanda,
-          precio:      e.precioTanda ?? 0,
-          canal:       e.canalVenta,
+          precio:      importeCobrado(e),
+          canal:       etiquetaCanal(e),
           estado:      e.estado,
           fechaCompra: new Date(e.fechaCompra),
           fechaUso:    e.fechaUso ? new Date(e.fechaUso) : "",
+          motivo:      e.motivoEmision ?? "",
         });
         row.height = 22;
         row.eachCell({ includeEmpty: true }, (cell) => {
@@ -158,10 +214,10 @@ export function OrganizadorEventoDetallePage() {
 
       // Autofiltro sobre encabezado + datos, sin la fila de TOTAL (si se incluyera, Excel
       // la trataría como una fila más para filtrar/ordenar, rompiendo el resumen).
-      ws.autoFilter = { from: "A1", to: `I${1 + entradasFiltradas.length}` };
+      ws.autoFilter = { from: "A1", to: `J${1 + entradasFiltradas.length}` };
 
       // ── Fila de totales ──────────────────────────────────────
-      const totalIngresos = entradasFiltradas.reduce((sum, e) => sum + (e.precioTanda ?? 0), 0);
+      const totalIngresos = entradasFiltradas.reduce((sum, e) => sum + importeCobrado(e), 0);
       const totalRow = ws.addRow({
         id:          "TOTAL",
         comprador:   `${entradasFiltradas.length} entr.`,
@@ -172,6 +228,7 @@ export function OrganizadorEventoDetallePage() {
         estado:      "",
         fechaCompra: "",
         fechaUso:    "",
+        motivo:      "",
       });
       totalRow.height = 28;
       totalRow.eachCell({ includeEmpty: true }, (cell) => {
@@ -194,14 +251,14 @@ export function OrganizadorEventoDetallePage() {
           const k = clave(e);
           const actual = mapa.get(k) ?? { cantidad: 0, ingresos: 0 };
           actual.cantidad += 1;
-          actual.ingresos += e.precioTanda ?? 0;
+          actual.ingresos += importeCobrado(e);
           mapa.set(k, actual);
         }
         return [...mapa.entries()].map(([nombre, v]) => ({ nombre, ...v }));
       }
 
       const porTanda = agrupar((e) => e.nombreTanda);
-      const porCanal = agrupar((e) => e.canalVenta);
+      const porCanal = agrupar((e) => etiquetaCanal(e));
 
       const wsResumen = wb.addWorksheet("Resumen");
       wsResumen.columns = [
@@ -267,6 +324,7 @@ export function OrganizadorEventoDetallePage() {
         filtro === "todas" ||
         (filtro === "Pagada" && e.estado === "Pagada") ||
         (filtro === "Usada" && e.estado === "Usada") ||
+        (filtro === "Anulada" && e.estado === "Anulada") ||
         (filtro === "Online" && e.canalVenta === "Online") ||
         (filtro === "Manual" && e.canalVenta === "Manual");
       return matchQ && matchF;
@@ -313,6 +371,10 @@ export function OrganizadorEventoDetallePage() {
   const tieneMapa = evento.latitud != null && evento.longitud != null;
   const tieneLateral = tieneMapa || Boolean(evento.imagenPortadaUrl);
   const puedeExportar = (entradas?.length ?? 0) > 0;
+  const precioDeTanda = (idTanda: number) => {
+    const precio = evento.tandas.find((x) => x.id === idTanda)?.precio;
+    return precio == null ? "—" : fmt(precio);
+  };
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6 lg:space-y-8 lg:px-8 lg:py-8">
@@ -336,6 +398,11 @@ export function OrganizadorEventoDetallePage() {
               <Button variant="secondary" size="sm" leftIcon={<Ban size={15} />} loading={cancelando} onClick={cancelarEvento}>
                 Cancelar evento
               </Button>
+              {evento.estado === "Borrador" && (
+                <Button variant="danger-subtle" size="sm" leftIcon={<Trash2 size={15} />} loading={eliminando} onClick={eliminarBorrador}>
+                  Eliminar borrador
+                </Button>
+              )}
             </div>
           )
         }
@@ -344,11 +411,19 @@ export function OrganizadorEventoDetallePage() {
       {error && <Alert tone="danger">{error}</Alert>}
 
       {evento.estado === "Borrador" && (
-        <EmptyState
-          icon={FilePen}
-          title="Este evento todavía está en borrador"
-          description="Publicalo para empezar a vender entradas y ver las métricas acá."
-        />
+        <div className="space-y-3">
+          <EmptyState
+            icon={FilePen}
+            title="Este evento todavía está en borrador"
+            description="Publicalo para empezar a vender entradas y ver las métricas acá."
+            action={
+              <Button loading={publicando} loadingText="Publicando…" onClick={publicarEvento}>
+                Publicar evento
+              </Button>
+            }
+          />
+          {errorPublicar && <Alert tone="danger">{errorPublicar}</Alert>}
+        </div>
       )}
 
       {metricas && (
@@ -426,7 +501,10 @@ export function OrganizadorEventoDetallePage() {
                     {metricas.tandas.map((t) => (
                       <tr key={t.idTanda} className="border-b border-border last:border-0">
                         <td className="px-4 py-3 font-medium text-foreground md:px-5">{t.nombre}</td>
-                        <td className="hidden px-4 py-3 text-right tabular-nums text-muted-foreground sm:table-cell">{t.vendidas > 0 ? fmt(t.ingresos / t.vendidas) : "—"}</td>
+                        <td className="hidden px-4 py-3 text-right tabular-nums text-muted-foreground sm:table-cell">
+                          {/* El precio de la tanda, no ingresos ÷ vendidas: las cortesías ocupan cupo pero no cobran. */}
+                          {precioDeTanda(t.idTanda)}
+                        </td>
                         <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-foreground">
                           {t.vendidas} <span className="text-muted-foreground">/ {t.cupoMaximo}</span>
                         </td>
@@ -463,6 +541,10 @@ export function OrganizadorEventoDetallePage() {
           )}
         </div>
       )}
+
+      {metricas && <EmitirEntradasPanel evento={evento} onEmitidas={cargar} />}
+
+      {evento.estado === "Cancelado" && <ReembolsosPanel idEvento={evento.id} onCambio={cargar} />}
 
       {metricas && (
         <Card as="section" padding="none" aria-labelledby="compradores-titulo" className="overflow-hidden">
@@ -505,7 +587,7 @@ export function OrganizadorEventoDetallePage() {
 
           {puedeExportar && (
             <div role="group" aria-label="Filtrar entradas" className="flex gap-2 overflow-x-auto border-b border-border px-4 py-3 hide-scrollbar md:px-5">
-              {(["todas", "Pagada", "Usada", "Online", "Manual"] as const).map((f) => (
+              {(["todas", "Pagada", "Usada", "Anulada", "Online", "Manual"] as const).map((f) => (
                 <button
                   key={f}
                   type="button"
@@ -524,14 +606,29 @@ export function OrganizadorEventoDetallePage() {
             </div>
           )}
 
-          <ListaCompradores entradas={entradas} filtradas={entradasFiltradas} />
+          <ListaCompradores entradas={entradas} filtradas={entradasFiltradas} onCambio={cargar} />
         </Card>
       )}
     </div>
   );
 }
 
-function ListaCompradores({ entradas, filtradas }: { entradas: EntradaResponseDTO[] | null; filtradas: EntradaResponseDTO[] }) {
+function IconoCanal({ entrada }: { entrada: EntradaResponseDTO }) {
+  if (entrada.tipoEmision) return <Gift size={12} aria-hidden="true" />;
+  if (entrada.canalVenta === "Online") return <CreditCard size={12} aria-hidden="true" />;
+  return <Store size={12} aria-hidden="true" />;
+}
+
+function ListaCompradores({
+  entradas,
+  filtradas,
+  onCambio,
+}: {
+  entradas: EntradaResponseDTO[] | null;
+  filtradas: EntradaResponseDTO[];
+  /** Después de anular o reembolsar una entrada (8.6) se recarga el evento. */
+  onCambio: () => void;
+}) {
   if (entradas === null) {
     return (
       <div className="space-y-2 p-4" aria-busy="true">
@@ -558,16 +655,22 @@ function ListaCompradores({ entradas, filtradas }: { entradas: EntradaResponseDT
               <span>{e.nombreTanda}</span>
               <span aria-hidden="true">·</span>
               <span className="inline-flex items-center gap-1">
-                {e.canalVenta === "Online" ? <CreditCard size={12} aria-hidden="true" /> : <Store size={12} aria-hidden="true" />}
-                {e.canalVenta}
+                <IconoCanal entrada={e} />
+                {etiquetaCanal(e)}
               </span>
               <span aria-hidden="true">·</span>
               <span>{formatFechaHora(e.fechaCompra)}</span>
             </p>
+            {e.motivoEmision && <p className="mt-0.5 truncate text-xs text-muted-foreground">Motivo: {e.motivoEmision}</p>}
+            {e.motivoAnulacion && <p className="mt-0.5 truncate text-xs text-muted-foreground">Anulada: {e.motivoAnulacion}</p>}
           </div>
           <div className="flex flex-none flex-col items-end gap-1">
-            <p className="text-sm font-bold tabular-nums text-foreground">{fmt(e.precioTanda)}</p>
+            <p className="text-sm font-bold tabular-nums text-foreground">{e.tipoEmision === "Cortesia" ? "—" : fmt(e.precioTanda)}</p>
             <StatusBadge tipo="entrada" estado={e.estado} size="sm" />
+            {e.estado === "Anulada" && e.reembolsadaEn && (
+              <span className="font-mono text-2xs uppercase tracking-[0.08em] text-muted-foreground">Reembolsada</span>
+            )}
+            <EntradaAcciones entrada={e} onCambio={onCambio} />
           </div>
         </li>
       ))}

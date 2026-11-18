@@ -15,9 +15,9 @@ type Props = {
 
 /**
  * Selector de hora con el mismo lenguaje visual que `DatePicker`/`DateRangeFilter`, en
- * vez del selector nativo del navegador. Mantiene un `<input type="time">` real pero
- * oculto, sincronizado con el mismo value/onChange, para que los tests existentes que
- * lo buscan por `input[type="time"]` sigan funcionando sin tocarlos.
+ * vez del selector nativo del navegador. Las horas y los minutos son botones con nombre
+ * accesible ("Hora 21", "Minutos 30"); los tests los usan con `elegirHora` de
+ * `src/testing/pickers.ts`.
  */
 export function TimePicker({ value, onChange, placeholder = "Elegí un horario" }: Props) {
   const [open, setOpen] = useState(false);
@@ -43,17 +43,6 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
 
   return (
     <div className="relative" ref={ref}>
-      {/* Puente para los tests existentes — nunca visible ni interactuable por mouse/teclado. */}
-      <input
-        type="time"
-        value={value}
-        readOnly
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={(e) => onChange(e.target.value)}
-        className="sr-only"
-      />
-
       <button
         type="button"
         id={control.id}
@@ -87,6 +76,8 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
                     <button
                       key={h}
                       type="button"
+                      aria-label={`Hora ${h}`}
+                      aria-pressed={hh === h}
                       onClick={() => elegirHora(h)}
                       className={`w-full py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                         hh === h ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"
@@ -104,6 +95,8 @@ export function TimePicker({ value, onChange, placeholder = "Elegí un horario" 
                     <button
                       key={m}
                       type="button"
+                      aria-label={`Minutos ${m}`}
+                      aria-pressed={mm === m}
                       onClick={() => elegirMinuto(m)}
                       className={`w-full py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                         mm === m ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted"

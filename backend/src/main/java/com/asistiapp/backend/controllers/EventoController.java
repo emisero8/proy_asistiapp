@@ -35,6 +35,7 @@ import java.util.List;
  *   PUT    /eventos/{id}         → Editar evento (solo Borrador)
  *   PATCH  /eventos/{id}/publicar → Publicar evento (consume 1 crédito)
  *   PATCH  /eventos/{id}/cancelar → Cancelar evento
+ *   DELETE /eventos/{id}         → Eliminar un evento propio en Borrador (devuelve los créditos de sus tandas)
  *   POST   /eventos/imagenes     → Subir imagen de portada a Cloudinary (devuelve la URL)
  */
 @RestController
@@ -114,6 +115,13 @@ public class EventoController {
     public ResponseEntity<EventoResponseDTO> cancelarEvento(@PathVariable Long id) {
         Organizador org = securityUtils.getOrganizadorAutenticado();
         return ResponseEntity.ok(eventoService.cancelarEvento(id, org.getId()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminarBorrador(@PathVariable Long id) {
+        Organizador org = securityUtils.getOrganizadorAutenticado();
+        eventoService.eliminarBorrador(id, org.getId());
+        return ResponseEntity.noContent().build();
     }
 
     /** Resumen general del Dashboard del Organizador: todos sus eventos en una sola respuesta. */

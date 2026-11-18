@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { ArrowDownLeft, ArrowUpRight, ReceiptText, Wallet } from "lucide-react";
 import { Alert, Button, Card, EmptyState, ErrorState, PageHeader, RadioCardGroup, Skeleton, StatusBadge } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
 import { fmt } from "../../lib/format";
+import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/pago";
 import type {
   CompraCreditoResponseDTO,
+  IniciarCompraCreditoRequestDTO,
   IniciarCompraCreditoResponseDTO,
   MovimientoCreditoResponseDTO,
   PaqueteCreditoDisponibleDTO,
@@ -26,6 +29,7 @@ function fechaCorta(iso: string): string {
 
 export function OrganizadorWalletPage() {
   useDocumentTitle("Créditos");
+  const navigate = useNavigate();
   const [historial, setHistorial] = useState<MovimientoCreditoResponseDTO[] | null>(null);
   const [compras, setCompras] = useState<CompraCreditoResponseDTO[] | null>(null);
   const [paquetes, setPaquetes] = useState<PaqueteCreditoDisponibleDTO[] | null>(null);
@@ -57,12 +61,19 @@ export function OrganizadorWalletPage() {
     setComprando(true);
     setErrorCompra(null);
     try {
-      const orden = await api.post<IniciarCompraCreditoResponseDTO>("/creditos/comprar", { idPaquete: selectedPack });
-      // Redirección real a Checkout Pro — el pago se confirma por el webhook de
-      // MercadoPago, no acá. MercadoPago vuelve a /pago/resultado cuando termina.
-      window.location.href = orden.urlPago;
+      // El pago se confirma por el webhook de MercadoPago (o la reconciliación), no acá.
+      // En local se paga en otra pestaña y esta espera en /pago/resultado (ver lib/pago.ts).
+      const { orden, enPestanaNueva } = await iniciarPago(() =>
+        api.post<IniciarCompraCreditoResponseDTO>(
+          "/creditos/comprar",
+          { idPaquete: selectedPack } satisfies IniciarCompraCreditoRequestDTO,
+        ),
+      );
+      if (enPestanaNueva) {
+        navigate(rutaResultadoPago(orden.ordenId, "creditos"), { state: { urlPago: orden.urlPago } });
+      }
     } catch (e: unknown) {
-      setErrorCompra(e instanceof ApiError ? e.message : "No pudimos procesar la compra.");
+      setErrorCompra(mensajeDeErrorDePago(e, "No pudimos procesar la compra."));
       setComprando(false);
     }
   }

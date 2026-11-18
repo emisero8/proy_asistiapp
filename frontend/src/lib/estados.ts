@@ -48,6 +48,8 @@ export const TONO_ESTADO_USUARIO: Record<EstadoUsuario, Tono> = {
 export const TONO_ESTADO_ENTRADA: Record<EstadoEntrada, Tono> = {
   Pagada: "primary",
   Usada: "success",
+  // Anulada por el Organizador (8.6): ya no sirve para entrar.
+  Anulada: "danger",
 };
 
 export const TONO_ESTADO_TRANSACCION: Record<EstadoTransaccion, Tono> = {

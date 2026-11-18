@@ -1,5 +1,6 @@
 package com.asistiapp.backend.models.dtos.entrada;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -33,4 +34,8 @@ public class CompraOnlineRequestDTO {
     @NotBlank(message = "El email del comprador es obligatorio")
     @Email(message = "El email del comprador debe tener un formato válido")
     private String emailComprador;
+
+    @NotNull(message = "Tenés que aceptar los Términos y Condiciones y la Política de Privacidad")
+    @AssertTrue(message = "Tenés que aceptar los Términos y Condiciones y la Política de Privacidad")
+    private Boolean aceptaTerminos;
 }

@@ -4,9 +4,10 @@ import { BadgeCheck, Gift, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { AuthHeader, AuthLayout, type AuthBrand, MarcaAcento } from "../../components/AuthLayout";
-import { Alert, Button, Checkbox, Field, Input, PasswordInput } from "../../components/ui";
+import { Alert, Button, Field, Input, PasswordInput } from "../../components/ui";
 import type { AuthResponseDTO, MovimientoCreditoResponseDTO, RegisterRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
+import { AceptaTerminos } from "../../components/AceptaTerminos";
 
 const MARCA: AuthBrand = {
   title: (
@@ -62,7 +63,7 @@ export function OrganizadorRegisterPage() {
     try {
       const session = await api.post<AuthResponseDTO>(
         "/auth/register",
-        { nombre: name, email, password: pass } satisfies RegisterRequestDTO,
+        { nombre: name, email, password: pass, aceptaTerminos: agreed } satisfies RegisterRequestDTO,
         { skipAuth: true },
       );
       login(session);
@@ -148,19 +149,14 @@ export function OrganizadorRegisterPage() {
             />
           </Field>
         </div>
-        <div className="space-y-1.5">
-          <Checkbox
-            checked={agreed}
-            onChange={(e) => {
-              setAgreed(e.target.checked);
-              setTocados((t) => ({ ...t, terminos: true }));
-            }}
-            aria-invalid={mostrar("terminos") ? true : undefined}
-            aria-describedby={mostrar("terminos") ? "registro-terminos-error" : undefined}
-            label="Acepto los Términos y Condiciones y la Política de Privacidad de AsistíAPP."
-          />
-          {mostrar("terminos") && <p id="registro-terminos-error" className="pl-[30px] text-xs font-medium text-destructive">{mostrar("terminos")}</p>}
-        </div>
+        <AceptaTerminos
+          aceptado={agreed}
+          onCambio={(v) => {
+            setAgreed(v);
+            setTocados((t) => ({ ...t, terminos: true }));
+          }}
+          error={mostrar("terminos")}
+        />
         {error && <Alert tone="danger">{error}</Alert>}
         <Button type="submit" block size="lg" loading={loading} loadingText="Creando cuenta…">
           Crear cuenta gratis
