@@ -23,6 +23,7 @@ function entrada(extra: Partial<EntradaResponseDTO> = {}): EntradaResponseDTO {
     idTanda: 11,
     idEvento: 5,
     nombreEvento: "Festival",
+    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null,
     nombreTanda: "General",
     precioTanda: 5000,
     codigoQr: "QR-9",

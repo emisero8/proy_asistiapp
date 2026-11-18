@@ -72,6 +72,7 @@ function entrada(id: number, codigoQr: string): EntradaResponseDTO {
     idTanda: 1,
     idEvento: 1,
     nombreEvento: "Festival",
+    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null,
     nombreTanda: "General",
     precioTanda: 2000,
     codigoQr,

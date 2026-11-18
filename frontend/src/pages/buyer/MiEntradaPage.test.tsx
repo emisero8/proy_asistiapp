@@ -11,6 +11,10 @@ const BASE = {
   codigoQr: "AST-ABC123",
   estado: "Pagada",
   nombreEvento: "Fiesta de prueba",
+  fechaEvento: "2026-12-05",
+  horaEvento: "22:30:00",
+  lugarEvento: "Club Central",
+  imagenPortadaUrl: null,
   nombreTanda: "General",
   precioTanda: 12000,
   nombreComprador: "María García",
@@ -41,6 +45,28 @@ describe("MiEntradaPage", () => {
     renderEntrada(BASE);
     expect(await screen.findByText("Válida")).toBeInTheDocument();
     expect(screen.queryByText("Esta entrada fue anulada")).not.toBeInTheDocument();
+  });
+
+  it("ofrece descargar, compartir y copiar el código, y muestra el número de entrada", async () => {
+    renderEntrada(BASE);
+    expect(await screen.findByRole("button", { name: /Descargar entrada/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Compartir/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Copiar código/ })).toBeInTheDocument();
+    expect(screen.getByText("000010")).toBeInTheDocument();
+  });
+
+  it("muestra fecha, hora y lugar del evento, y el titular con la primera letra en mayúscula", async () => {
+    renderEntrada({ ...BASE, nombreComprador: "maría GARCÍA" });
+    expect(await screen.findByText("Club Central")).toBeInTheDocument();
+    expect(screen.getByText("22:30 hs")).toBeInTheDocument();
+    expect(screen.getByText(/5 dic 2026/)).toBeInTheDocument();
+    expect(screen.getByText("María García")).toBeInTheDocument();
+  });
+
+  it("si el evento no tiene portada no rompe, y si la tiene la usa", async () => {
+    renderEntrada({ ...BASE, imagenPortadaUrl: "https://img.test/p.jpg" });
+    await screen.findByText("Válida");
+    expect(document.querySelector('img[src="https://img.test/p.jpg"]')).not.toBeNull();
   });
 
   it("una entrada anulada por el Organizador lo dice, con el motivo y si se devolvió el pago (8.6)", async () => {

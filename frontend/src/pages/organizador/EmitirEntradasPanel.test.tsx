@@ -33,6 +33,7 @@ function entradaEmitida(id: number): EntradaResponseDTO {
     idTanda: 11,
     idEvento: 5,
     nombreEvento: "Festival de Jazz",
+    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null,
     nombreTanda: "Anticipada",
     precioTanda: 5000,
     codigoQr: `QR-${id}`,

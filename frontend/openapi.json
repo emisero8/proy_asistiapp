@@ -3222,6 +3222,21 @@
           "nombreEvento": {
             "type": "string"
           },
+          "fechaEvento": {
+            "type": "string",
+            "format": "date"
+          },
+          "horaEvento": {
+            "type": "string",
+            "format": "time",
+            "example": "21:00:00"
+          },
+          "lugarEvento": {
+            "type": "string"
+          },
+          "imagenPortadaUrl": {
+            "type": "string"
+          },
           "nombreTanda": {
             "type": "string"
           },

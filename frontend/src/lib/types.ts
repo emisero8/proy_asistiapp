@@ -250,6 +250,12 @@ export interface EntradaResponseDTO {
   idTanda: number;
   idEvento: number;
   nombreEvento: string;
+  /** Datos del evento para "Mi entrada" (fecha `YYYY-MM-DD`, hora `HH:mm:ss`). */
+  fechaEvento: string;
+  horaEvento: string;
+  lugarEvento: string;
+  /** Portada del evento; null si no tiene. */
+  imagenPortadaUrl: string | null;
   nombreTanda: string;
   precioTanda: number;
   codigoQr: string;

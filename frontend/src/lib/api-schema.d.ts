@@ -1437,6 +1437,15 @@ export interface components {
             /** Format: int64 */
             idEvento?: number;
             nombreEvento?: string;
+            /** Format: date */
+            fechaEvento?: string;
+            /**
+             * Format: time
+             * @example 21:00:00
+             */
+            horaEvento?: string;
+            lugarEvento?: string;
+            imagenPortadaUrl?: string;
             nombreTanda?: string;
             /** Format: double */
             precioTanda?: number;
