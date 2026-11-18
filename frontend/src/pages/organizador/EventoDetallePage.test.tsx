@@ -152,7 +152,7 @@ describe("OrganizadorEventoDetallePage — render", () => {
     expect(nombres).toEqual(["Carla Gómez", "Bruno Díaz", "Ana Pérez"]); // por fechaCompra descendente
 
     // "Manual" y "Usada" también son filtros: se comprueba dentro de la fila de cada comprador.
-    const fila = (nombre: string) => screen.getByText(nombre).closest("div.items-start") as HTMLElement;
+    const fila = (nombre: string) => screen.getByText(nombre).closest("li") as HTMLElement;
     expect(within(fila("Bruno Díaz")).getByText("Manual")).toBeInTheDocument();
     expect(within(fila("Ana Pérez")).getByText("Online")).toBeInTheDocument();
     expect(within(fila("Ana Pérez")).getByText("Pagada")).toBeInTheDocument();
@@ -168,7 +168,7 @@ describe("OrganizadorEventoDetallePage — render", () => {
     renderPage();
     await screen.findByText("Prensa Diario");
 
-    const fila = (nombre: string) => screen.getByText(nombre).closest("div.items-start") as HTMLElement;
+    const fila = (nombre: string) => screen.getByText(nombre).closest("li") as HTMLElement;
     expect(within(fila("Prensa Diario")).getByText("Cortesía")).toBeInTheDocument();
     expect(within(fila("Prensa Diario")).getByText("—")).toBeInTheDocument();
     expect(within(fila("Prensa Diario")).getByText("Motivo: Cobertura")).toBeInTheDocument();
@@ -202,7 +202,7 @@ describe("OrganizadorEventoDetallePage — render", () => {
     expect(api.get).toHaveBeenCalledTimes(1);
     expect(api.get).toHaveBeenCalledWith("/eventos/5");
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ver" })).not.toBeInTheDocument(); // todavía no tiene página pública
+    expect(screen.queryByRole("link", { name: "Ver página pública" })).not.toBeInTheDocument(); // todavía no tiene página pública
   });
 
   it("un evento cancelado no ofrece editar, cancelar ni ver la página pública", async () => {
@@ -211,8 +211,8 @@ describe("OrganizadorEventoDetallePage — render", () => {
     await screen.findByRole("heading", { name: "Festival de Jazz" });
 
     expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
-    expect(screen.queryByTitle("Cancelar evento")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ver" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar evento" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Ver página pública" })).not.toBeInTheDocument();
   });
 
   it("muestra el mensaje del backend si no se puede cargar el evento", async () => {
@@ -232,13 +232,13 @@ describe("OrganizadorEventoDetallePage — render", () => {
     expect(await screen.findByText("pantalla de edición")).toBeInTheDocument();
   });
 
-  it("'Ver' lleva a la página pública del evento (solo si está publicado)", async () => {
+  it("'Ver página pública' lleva a la página pública del evento (solo si está publicado)", async () => {
     const user = userEvent.setup();
     mockGets();
     renderPage();
     await screen.findByRole("heading", { name: "Festival de Jazz" });
 
-    await user.click(screen.getByRole("button", { name: "Ver" }));
+    await user.click(screen.getByRole("link", { name: "Ver página pública" }));
     expect(await screen.findByText("página pública")).toBeInTheDocument();
   });
 });
@@ -295,7 +295,7 @@ describe("OrganizadorEventoDetallePage — cancelar el evento", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Festival de Jazz" });
 
-    await user.click(screen.getByTitle("Cancelar evento"));
+    await user.click(screen.getByRole("button", { name: "Cancelar evento" }));
     const dialogo = await screen.findByRole("alertdialog", { name: "Cancelar evento" });
     expect(within(dialogo).getByText(/se devuelven los créditos de las entradas sin vender/)).toBeInTheDocument();
     await user.click(within(dialogo).getByRole("button", { name: "No, volver" }));
@@ -313,14 +313,14 @@ describe("OrganizadorEventoDetallePage — cancelar el evento", () => {
 
     // Desde ahora el backend devuelve el evento ya cancelado.
     mockGets({ ...EVENTO, estado: "Cancelado" });
-    await user.click(screen.getByTitle("Cancelar evento"));
+    await user.click(screen.getByRole("button", { name: "Cancelar evento" }));
     const dialogo = await screen.findByRole("alertdialog", { name: "Cancelar evento" });
     await user.click(within(dialogo).getByRole("button", { name: "Cancelar evento" }));
 
     expect(api.patch).toHaveBeenCalledWith("/eventos/5/cancelar");
     expect(await screen.findByText("Evento cancelado")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Cancelado")).toBeInTheDocument());
-    expect(screen.queryByTitle("Cancelar evento")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar evento" })).not.toBeInTheDocument();
   });
 
   it("si el backend rechaza la cancelación muestra su mensaje y el evento sigue publicado", async () => {
@@ -330,7 +330,7 @@ describe("OrganizadorEventoDetallePage — cancelar el evento", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Festival de Jazz" });
 
-    await user.click(screen.getByTitle("Cancelar evento"));
+    await user.click(screen.getByRole("button", { name: "Cancelar evento" }));
     const dialogo = await screen.findByRole("alertdialog", { name: "Cancelar evento" });
     await user.click(within(dialogo).getByRole("button", { name: "Cancelar evento" }));
 
@@ -394,7 +394,7 @@ describe("OrganizadorEventoDetallePage — eliminar un borrador", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Festival de Jazz" });
 
-    await user.click(screen.getByTitle("Eliminar borrador"));
+    await user.click(screen.getByRole("button", { name: "Eliminar borrador" }));
     const dialogo = await screen.findByRole("alertdialog", { name: "Eliminar borrador" });
     expect(within(dialogo).getByText(/se devuelven los créditos de sus tandas/)).toBeInTheDocument();
     await user.click(within(dialogo).getByRole("button", { name: "No, volver" }));
@@ -410,7 +410,7 @@ describe("OrganizadorEventoDetallePage — eliminar un borrador", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Festival de Jazz" });
 
-    await user.click(screen.getByTitle("Eliminar borrador"));
+    await user.click(screen.getByRole("button", { name: "Eliminar borrador" }));
     const dialogo = await screen.findByRole("alertdialog", { name: "Eliminar borrador" });
     await user.click(within(dialogo).getByRole("button", { name: "Eliminar borrador" }));
 
@@ -425,7 +425,7 @@ describe("OrganizadorEventoDetallePage — eliminar un borrador", () => {
     renderPage();
     await screen.findByRole("heading", { name: "Festival de Jazz" });
 
-    await user.click(screen.getByTitle("Eliminar borrador"));
+    await user.click(screen.getByRole("button", { name: "Eliminar borrador" }));
     const dialogo = await screen.findByRole("alertdialog", { name: "Eliminar borrador" });
     await user.click(within(dialogo).getByRole("button", { name: "Eliminar borrador" }));
 

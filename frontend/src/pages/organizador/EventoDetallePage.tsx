@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import {
-  ChevronLeft, Pencil, ExternalLink, Ban, Trash2, Ticket, TrendingUp, Users, ShieldCheck,
-  Search, Store, CreditCard, CheckCircle2, AlertCircle, Download, Gift,
-} from "lucide-react";
+import { Ban, CreditCard, Download, ExternalLink, FilePen, Gift, Pencil, Search, ShieldCheck, Store, Ticket, Trash2, TrendingUp, Users } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, Button, Card, EmptyState, ErrorState, Input, PageHeader, Skeleton, StatCard, StatusBadge, claseBoton } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
+import { cn } from "../../lib/cn";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -17,7 +16,8 @@ import { EntradaAcciones } from "./EntradaAcciones";
 import { ReembolsosPanel } from "./ReembolsosPanel";
 import type { EntradaResponseDTO, EventoMetricasResponseDTO, EventoResponseDTO } from "../../lib/types";
 
-const TANDA_COLORS = ["#4a5d8f", "#9cadd3", "#5b6f9c", "#64748b"];
+/** Barras del gráfico por tanda: tokens de gráficos (se adaptan al tema), nunca hex. */
+const COLORES_TANDA = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
 
 /** Cómo llegó la entrada, para mostrarlo y exportarlo: lo que emitió el Organizador se distingue de Online/Manual. */
 function etiquetaCanal(e: EntradaResponseDTO): string {
@@ -57,6 +57,17 @@ export function OrganizadorEventoDetallePage() {
 
   const [q, setQ] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "Pagada" | "Usada" | "Anulada" | "Online" | "Manual">("todas");
+  // Generar el Excel tarda (se descarga ExcelJS la primera vez): el botón muestra que está trabajando.
+  const [exportando, setExportando] = useState(false);
+
+  async function exportar() {
+    setExportando(true);
+    try {
+      await exportarExcel();
+    } finally {
+      setExportando(false);
+    }
+  }
 
   function cargar() {
     if (!id) return;
@@ -322,325 +333,347 @@ export function OrganizadorEventoDetallePage() {
 
   if (error && !evento) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-8">
-        <p className="text-sm text-destructive text-center">{error}</p>
+      <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+        <ErrorState
+          title="No pudimos cargar el evento"
+          description={error}
+          onRetry={() => {
+            setError(null);
+            cargar();
+          }}
+          secondaryAction={
+            <Link to="/organizador/dashboard" className={claseBoton("secondary")}>
+              Volver al panel
+            </Link>
+          }
+        />
       </div>
     );
   }
 
   if (!evento) {
     return (
-      <div className="max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 pt-8 space-y-4 animate-pulse">
-        <div className="h-8 bg-muted rounded w-1/2" />
-        <div className="h-28 bg-card border border-border rounded-2xl" />
-        <div className="h-64 bg-card border border-border rounded-2xl" />
+      <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8" aria-busy="true">
+        <span className="sr-only">Cargando el evento…</span>
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-9 w-2/3" />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }
 
-  const stats = metricas
-    ? [
-        { label: "Entradas vendidas", value: String(metricas.entradasVendidas), icon: Ticket },
-        { label: "Ingresos totales", value: fmt(metricas.ingresosTotales), icon: TrendingUp, strong: true },
-        { label: "Aforo disponible", value: `${metricas.cupoDisponible} / ${metricas.cupoTotal}`, icon: Users },
-        { label: "Validados en puerta", value: String(metricas.entradasValidadas), icon: ShieldCheck },
-      ]
-    : [];
-
   const hayVentas = (metricas?.entradasVendidas ?? 0) > 0;
+  const tieneMapa = evento.latitud != null && evento.longitud != null;
+  const tieneLateral = tieneMapa || Boolean(evento.imagenPortadaUrl);
+  const puedeExportar = (entradas?.length ?? 0) > 0;
+  const precioDeTanda = (idTanda: number) => {
+    const precio = evento.tandas.find((x) => x.id === idTanda)?.precio;
+    return precio == null ? "—" : fmt(precio);
+  };
 
   return (
-    <div className="max-w-md lg:max-w-5xl mx-auto px-4 lg:px-8 py-6 lg:py-8 pb-24 md:pb-12 space-y-6">
-      <button
-        onClick={() => navigate("/organizador/dashboard")}
-        className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground transition-colors"
-      >
-        <ChevronLeft size={15} />
-        Volver al dashboard
-      </button>
-
-      {/* Cabecera */}
-      <section className="rounded-2xl border border-border bg-card p-4 lg:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-        <EventoImagen src={evento.imagenPortadaUrl} alt="" className="w-full sm:w-20 h-32 sm:h-20 rounded-xl object-cover flex-none" iconSize={24} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h2 className="text-lg lg:text-xl font-extrabold text-foreground">{evento.nombre}</h2>
-            <span
-              className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                evento.estado === "Publicado"
-                  ? "bg-green-400/15 text-green-400"
-                  : evento.estado === "Borrador"
-                    ? "bg-amber-400/15 text-amber-400"
-                    : "bg-red-400/15 text-red-400"
-              }`}
-            >
-              {evento.estado}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {formatFecha(evento.fechaEvento)} · {formatHora(evento.horaEvento)} · {evento.lugar}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-none">
-          {evento.estado === "Publicado" && (
-            <button
-              onClick={() => navigate(`/eventos/${evento.urlPublica}`)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted text-xs font-semibold text-foreground hover:text-primary transition-colors"
-            >
-              <ExternalLink size={13} />
-              Ver
-            </button>
-          )}
-          {evento.estado !== "Cancelado" && (
-            <>
-              <button
-                onClick={() => navigate(`/organizador/eventos/${evento.id}/editar`)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
-              >
-                <Pencil size={13} />
-                Editar
-              </button>
-              <button
-                onClick={cancelarEvento}
-                disabled={cancelando}
-                title="Cancelar evento"
-                className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
-              >
-                <Ban size={14} />
-              </button>
-              {evento.estado === "Borrador" && (
-                <button
-                  onClick={eliminarBorrador}
-                  disabled={eliminando}
-                  title="Eliminar borrador"
-                  className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
-                >
-                  <Trash2 size={14} />
-                </button>
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6 lg:space-y-8 lg:px-8 lg:py-8">
+      <PageHeader
+        back={{ label: "Volver al panel", to: "/organizador/dashboard" }}
+        eyebrow={<StatusBadge tipo="evento" estado={evento.estado} />}
+        title={evento.nombre}
+        description={`${formatFecha(evento.fechaEvento)} · ${formatHora(evento.horaEvento)} · ${evento.lugar}`}
+        actions={
+          evento.estado !== "Cancelado" && (
+            <div className="flex flex-wrap items-center gap-2">
+              {evento.estado === "Publicado" && (
+                <Link to={`/eventos/${evento.urlPublica}`} className={claseBoton("secondary", "sm")}>
+                  <ExternalLink size={15} aria-hidden="true" />
+                  Ver página pública
+                </Link>
               )}
-            </>
-          )}
-        </div>
-      </section>
+              <Button size="sm" leftIcon={<Pencil size={15} />} onClick={() => navigate(`/organizador/eventos/${evento.id}/editar`)}>
+                Editar
+              </Button>
+              <Button variant="secondary" size="sm" leftIcon={<Ban size={15} />} loading={cancelando} onClick={cancelarEvento}>
+                Cancelar evento
+              </Button>
+              {evento.estado === "Borrador" && (
+                <Button variant="danger-subtle" size="sm" leftIcon={<Trash2 size={15} />} loading={eliminando} onClick={eliminarBorrador}>
+                  Eliminar borrador
+                </Button>
+              )}
+            </div>
+          )
+        }
+      />
 
-      {error && (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4 flex gap-2">
-          <AlertCircle size={15} className="flex-none mt-0.5" />
-          {error}
-        </div>
-      )}
-
-      {evento.latitud != null && evento.longitud != null && (
-        <MapView coords={{ lat: evento.latitud, lng: evento.longitud }} lugar={evento.lugar} alto="h-44" />
-      )}
+      {error && <Alert tone="danger">{error}</Alert>}
 
       {evento.estado === "Borrador" && (
-        <div className="rounded-2xl border border-dashed border-border bg-card/60 text-center py-12 px-6">
-          <p className="text-sm font-semibold text-foreground mb-1">Este evento todavía está en borrador</p>
-          <p className="text-xs text-muted-foreground">Publicalo para empezar a vender entradas y ver las métricas acá.</p>
-          {errorPublicar && (
-            <p role="alert" className="text-xs text-destructive mt-3">
-              {errorPublicar}
-            </p>
-          )}
-          <button
-            onClick={publicarEvento}
-            disabled={publicando}
-            className="mt-4 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {publicando ? "Publicando..." : "Publicar evento"}
-          </button>
+        <div className="space-y-3">
+          <EmptyState
+            icon={FilePen}
+            title="Este evento todavía está en borrador"
+            description="Publicalo para empezar a vender entradas y ver las métricas acá."
+            action={
+              <Button loading={publicando} loadingText="Publicando…" onClick={publicarEvento}>
+                Publicar evento
+              </Button>
+            }
+          />
+          {errorPublicar && <Alert tone="danger">{errorPublicar}</Alert>}
         </div>
       )}
 
       {metricas && (
-        <>
-          {/* Stats */}
-          <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {stats.map((s) => (
-              <div key={s.label} className={`rounded-2xl border p-4 ${s.strong ? "border-primary/30 bg-primary/[0.08]" : "border-border bg-card"}`}>
-                <div className="flex items-center gap-1.5 text-muted-foreground mb-2">
-                  <s.icon size={13} />
-                  <span className="text-[10px] font-semibold uppercase tracking-wider">{s.label}</span>
-                </div>
-                <p className={`text-xl font-extrabold ${s.strong ? "text-primary" : "text-foreground"}`}>{s.value}</p>
-              </div>
-            ))}
-          </section>
+        <section aria-label="Métricas del evento" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            label="Ingresos totales"
+            value={fmt(metricas.ingresosTotales)}
+            icon={TrendingUp}
+            emphasis="primary"
+            className="col-span-2 lg:col-span-1"
+          />
+          <StatCard label="Entradas vendidas" value={metricas.entradasVendidas.toLocaleString("es-AR")} icon={Ticket} />
+          <StatCard label="Validados en puerta" value={metricas.entradasValidadas.toLocaleString("es-AR")} icon={ShieldCheck} />
+          <StatCard
+            label="Aforo disponible"
+            value={`${metricas.cupoDisponible} / ${metricas.cupoTotal}`}
+            icon={Users}
+            className="col-span-2 lg:col-span-1"
+          />
+        </section>
+      )}
 
-          {/* Ventas por tanda */}
-          <section className="rounded-2xl border border-border bg-card overflow-hidden">
-            <p className="text-xs font-bold text-foreground px-4 pt-4">Ventas e ingresos por tanda</p>
-            {hayVentas && metricas.tandas.length >= 2 && (
-              <div className="px-4 pt-3">
-                <ResponsiveContainer width="100%" height={140}>
-                  <BarChart data={metricas.tandas} barCategoryGap="35%">
-                    <XAxis dataKey="nombre" tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis hide />
-                    <Tooltip
-                      contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 11, color: "var(--foreground)" }}
-                      cursor={{ fill: "rgba(156,173,211,0.1)" }}
-                      formatter={(v: number, n: string) => [n === "ingresos" ? fmt(v) : `${v} entradas`, ""]}
-                    />
-                    <Bar dataKey="vendidas" radius={[6, 6, 0, 0]}>
-                      {metricas.tandas.map((_, i) => (
-                        <Cell key={i} fill={TANDA_COLORS[i % TANDA_COLORS.length]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm mt-2">
-                <thead>
-                  <tr className="border-y border-border text-[10px] uppercase tracking-wider text-muted-foreground">
-                    <th className="text-left font-bold px-4 py-2">Tanda</th>
-                    <th className="text-right font-bold px-4 py-2">Precio</th>
-                    <th className="text-right font-bold px-4 py-2">Vendidas</th>
-                    <th className="text-right font-bold px-4 py-2">Ingresos</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {metricas.tandas.map((t) => (
-                    <tr key={t.idTanda} className="border-b border-border last:border-0">
-                      <td className="px-4 py-2.5 text-foreground font-medium">{t.nombre}</td>
-                      <td className="px-4 py-2.5 text-right text-muted-foreground">
-                        {/* El precio de la tanda, no ingresos ÷ vendidas: las cortesías ocupan cupo pero no cobran. */}
-                        {(() => {
-                          const precio = evento.tandas.find((x) => x.id === t.idTanda)?.precio;
-                          return precio != null ? fmt(precio) : "—";
-                        })()}
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-foreground">
-                        {t.vendidas} <span className="text-muted-foreground">/ {t.cupoMaximo}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-right font-bold text-foreground">{fmt(t.ingresos)}</td>
+      {(metricas || tieneLateral) && (
+        <div className={cn("grid gap-6", metricas && tieneLateral && "lg:grid-cols-[minmax(0,1fr)_20rem]")}>
+          {metricas && (
+            <Card as="section" padding="none" aria-labelledby="tandas-titulo" className="overflow-hidden">
+              <h2 id="tandas-titulo" className="px-4 pt-4 font-display text-base font-bold tracking-tight text-foreground md:px-5 md:pt-5">
+                Ventas e ingresos por tanda
+              </h2>
+              {hayVentas && metricas.tandas.length >= 2 && (
+                <div className="px-4 pt-3 md:px-5" aria-hidden="true">
+                  <ResponsiveContainer width="100%" height={150}>
+                    <BarChart data={metricas.tandas} barCategoryGap="35%">
+                      <XAxis dataKey="nombre" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis hide />
+                      <Tooltip
+                        contentStyle={{
+                          background: "var(--popover)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 12,
+                          fontSize: 12,
+                          color: "var(--foreground)",
+                        }}
+                        cursor={{ fill: "var(--muted)", opacity: 0.5 }}
+                        formatter={(v: number) => [`${v} entradas`, ""]}
+                      />
+                      <Bar dataKey="vendidas" radius={[6, 6, 0, 0]}>
+                        {metricas.tandas.map((_, i) => (
+                          <Cell key={i} fill={COLORES_TANDA[i % COLORES_TANDA.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-y border-border bg-surface-sunken text-2xs uppercase tracking-wider text-muted-foreground">
+                      <th scope="col" className="px-4 py-2 text-left font-semibold md:px-5">
+                        Tanda
+                      </th>
+                      <th scope="col" className="hidden px-4 py-2 text-right font-semibold sm:table-cell">
+                        Precio
+                      </th>
+                      <th scope="col" className="px-4 py-2 text-right font-semibold">
+                        Vendidas
+                      </th>
+                      <th scope="col" className="px-4 py-2 text-right font-semibold md:px-5">
+                        Ingresos
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t border-border bg-muted/40">
-                    <td className="px-4 py-2.5 font-bold text-foreground" colSpan={2}>Total</td>
-                    <td className="px-4 py-2.5 text-right font-bold text-foreground">{metricas.entradasVendidas}</td>
-                    <td className="px-4 py-2.5 text-right font-extrabold text-primary">{fmt(metricas.ingresosTotales)}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </section>
-
-          <EmitirEntradasPanel evento={evento} onEmitidas={cargar} />
-
-          {evento.estado === "Cancelado" && <ReembolsosPanel idEvento={evento.id} onCambio={cargar} />}
-
-          {/* Compradores */}
-          <section className="rounded-2xl border border-border bg-card overflow-hidden">
-            <div className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 border-b border-border">
-              <div className="flex-1">
-                <p className="text-xs font-bold text-foreground">Compradores</p>
-                <p className="text-[11px] text-muted-foreground">{entradasFiltradas.length} de {entradas?.length ?? 0} entradas</p>
+                  </thead>
+                  <tbody>
+                    {metricas.tandas.map((t) => (
+                      <tr key={t.idTanda} className="border-b border-border last:border-0">
+                        <td className="px-4 py-3 font-medium text-foreground md:px-5">{t.nombre}</td>
+                        <td className="hidden px-4 py-3 text-right tabular-nums text-muted-foreground sm:table-cell">
+                          {/* El precio de la tanda, no ingresos ÷ vendidas: las cortesías ocupan cupo pero no cobran. */}
+                          {precioDeTanda(t.idTanda)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-foreground">
+                          {t.vendidas} <span className="text-muted-foreground">/ {t.cupoMaximo}</span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold tabular-nums text-foreground md:px-5">{fmt(t.ingresos)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-border bg-surface-sunken">
+                      <td className="px-4 py-3 font-bold text-foreground md:px-5">
+                        Total
+                      </td>
+                      <td className="hidden sm:table-cell" />
+                      <td className="px-4 py-3 text-right font-bold tabular-nums text-foreground">{metricas.entradasVendidas}</td>
+                      <td className="px-4 py-3 text-right font-extrabold tabular-nums text-primary md:px-5">{fmt(metricas.ingresosTotales)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="relative sm:w-56">
-                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    value={q}
-                    onChange={(e) => setQ(e.target.value)}
-                    placeholder="Buscar por nombre o email"
-                    className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
+            </Card>
+          )}
+
+          {tieneLateral && (
+            <Card as="section" padding="none" aria-label="Portada y ubicación" className="self-start overflow-hidden">
+              {evento.imagenPortadaUrl && (
+                <EventoImagen src={evento.imagenPortadaUrl} alt={`Portada de ${evento.nombre}`} nombre={evento.nombre} className="aspect-[16/9] w-full object-cover" />
+              )}
+              {tieneMapa && (
+                <div className="p-3">
+                  <MapView coords={{ lat: evento.latitud!, lng: evento.longitud! }} lugar={evento.lugar} alto="h-44" />
                 </div>
-                {(entradas?.length ?? 0) > 0 && (
-                  <button
-                    id="btn-exportar-excel"
-                    onClick={exportarExcel}
-                    title="Exportar a Excel"
-                    aria-label="Exportar entradas a Excel"
-                    className="flex-none flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors text-xs font-semibold"
-                  >
-                    <Download size={13} />
-                    Excel
-                  </button>
-                )}
-              </div>
+              )}
+            </Card>
+          )}
+        </div>
+      )}
+
+      {metricas && <EmitirEntradasPanel evento={evento} onEmitidas={cargar} />}
+
+      {evento.estado === "Cancelado" && <ReembolsosPanel idEvento={evento.id} onCambio={cargar} />}
+
+      {metricas && (
+        <Card as="section" padding="none" aria-labelledby="compradores-titulo" className="overflow-hidden">
+          <div className="flex flex-col gap-3 border-b border-border p-4 md:flex-row md:items-center md:p-5">
+            <div className="flex-1">
+              <h2 id="compradores-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
+                Compradores
+              </h2>
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                {entradasFiltradas.length} de {entradas?.length ?? 0} entradas
+              </p>
             </div>
+            <div className="flex items-center gap-2">
+              <Input
+                type="search"
+                size="sm"
+                surface="sunken"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Buscar por nombre o email"
+                aria-label="Buscar compradores por nombre o email"
+                leadingIcon={<Search size={15} />}
+                className="min-w-0 flex-1 md:w-60 md:flex-none"
+              />
+              {puedeExportar && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={<Download size={15} />}
+                  loading={exportando}
+                  loadingText="Generando…"
+                  onClick={exportar}
+                  aria-label="Exportar entradas a Excel"
+                >
+                  Excel
+                </Button>
+              )}
+            </div>
+          </div>
 
-            {(entradas?.length ?? 0) > 0 && (
-              <div className="flex gap-1.5 px-4 py-2.5 border-b border-border overflow-x-auto hide-scrollbar">
-                {(["todas", "Pagada", "Usada", "Anulada", "Online", "Manual"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFiltro(f)}
-                    className={`flex-none px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
-                      filtro === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {f === "todas" ? "Todas" : f}
-                  </button>
-                ))}
-              </div>
-            )}
+          {puedeExportar && (
+            <div role="group" aria-label="Filtrar entradas" className="flex gap-2 overflow-x-auto border-b border-border px-4 py-3 hide-scrollbar md:px-5">
+              {(["todas", "Pagada", "Usada", "Anulada", "Online", "Manual"] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  aria-pressed={filtro === f}
+                  onClick={() => setFiltro(f)}
+                  className={cn(
+                    "h-8 flex-none rounded-full px-3 text-xs font-semibold transition-colors duration-(--duration-fast)",
+                    filtro === f
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-card text-muted-foreground hover:border-border-strong hover:text-foreground",
+                  )}
+                >
+                  {f === "todas" ? "Todas" : f}
+                </button>
+              ))}
+            </div>
+          )}
 
-            {entradas === null ? (
-              <div className="p-4 space-y-2">
-                {[0, 1, 2].map((i) => <div key={i} className="h-12 rounded-lg bg-muted animate-pulse" />)}
-              </div>
-            ) : entradas.length === 0 ? (
-              <div className="py-12 text-center">
-                <p className="text-sm text-muted-foreground">Todavía no se vendieron entradas para este evento.</p>
-              </div>
-            ) : entradasFiltradas.length === 0 ? (
-              <div className="py-12 text-center">
-                <p className="text-sm text-muted-foreground">Ninguna entrada coincide con la búsqueda.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {entradasFiltradas.map((e) => (
-                  <div key={e.id} className="px-4 py-3 flex items-start justify-between gap-3 hover:bg-muted/30 transition-colors">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-foreground leading-tight truncate">{e.nombreComprador}</p>
-                      <p className="text-[11px] text-muted-foreground truncate">{e.emailComprador}</p>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px] text-muted-foreground">
-                        <span>{e.nombreTanda}</span>
-                        <span>·</span>
-                        <span className="inline-flex items-center gap-1">
-                          {e.tipoEmision ? <Gift size={10} /> : e.canalVenta === "Online" ? <CreditCard size={10} /> : <Store size={10} />}
-                          {etiquetaCanal(e)}
-                        </span>
-                        <span>·</span>
-                        <span>{formatFechaHora(e.fechaCompra)}</span>
-                      </div>
-                      {e.motivoEmision && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Motivo: {e.motivoEmision}</p>
-                      )}
-                      {e.motivoAnulacion && (
-                        <p className="text-[11px] text-muted-foreground mt-0.5 truncate">Anulada: {e.motivoAnulacion}</p>
-                      )}
-                    </div>
-                    <div className="flex-none text-right">
-                      <p className="text-sm font-bold text-foreground">{e.tipoEmision === "Cortesia" ? "—" : fmt(e.precioTanda)}</p>
-                      {e.estado === "Anulada" ? (
-                        <span className="text-[11px] font-bold text-destructive">
-                          {e.reembolsadaEn ? "Anulada · reembolsada" : "Anulada"}
-                        </span>
-                      ) : e.estado === "Usada" ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
-                          <CheckCircle2 size={11} />
-                          Usada
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-bold text-green-400">Pagada</span>
-                      )}
-                      <EntradaAcciones entrada={e} onCambio={cargar} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </>
+          <ListaCompradores entradas={entradas} filtradas={entradasFiltradas} onCambio={cargar} />
+        </Card>
       )}
     </div>
+  );
+}
+
+function IconoCanal({ entrada }: { entrada: EntradaResponseDTO }) {
+  if (entrada.tipoEmision) return <Gift size={12} aria-hidden="true" />;
+  if (entrada.canalVenta === "Online") return <CreditCard size={12} aria-hidden="true" />;
+  return <Store size={12} aria-hidden="true" />;
+}
+
+function ListaCompradores({
+  entradas,
+  filtradas,
+  onCambio,
+}: {
+  entradas: EntradaResponseDTO[] | null;
+  filtradas: EntradaResponseDTO[];
+  /** Después de anular o reembolsar una entrada (8.6) se recarga el evento. */
+  onCambio: () => void;
+}) {
+  if (entradas === null) {
+    return (
+      <div className="space-y-2 p-4" aria-busy="true">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-12" />
+        ))}
+      </div>
+    );
+  }
+  if (entradas.length === 0) {
+    return <p className="px-4 py-12 text-center text-sm text-muted-foreground">Todavía no se vendieron entradas para este evento.</p>;
+  }
+  if (filtradas.length === 0) {
+    return <p className="px-4 py-12 text-center text-sm text-muted-foreground">Ninguna entrada coincide con la búsqueda.</p>;
+  }
+  return (
+    <ul className="divide-y divide-border">
+      {filtradas.map((e) => (
+        <li key={e.id} className="flex items-start justify-between gap-3 px-4 py-3 md:px-5">
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold leading-tight text-foreground">{e.nombreComprador}</p>
+            <p className="truncate text-xs text-muted-foreground">{e.emailComprador}</p>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+              <span>{e.nombreTanda}</span>
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1">
+                <IconoCanal entrada={e} />
+                {etiquetaCanal(e)}
+              </span>
+              <span aria-hidden="true">·</span>
+              <span>{formatFechaHora(e.fechaCompra)}</span>
+            </p>
+            {e.motivoEmision && <p className="mt-0.5 truncate text-xs text-muted-foreground">Motivo: {e.motivoEmision}</p>}
+            {e.motivoAnulacion && <p className="mt-0.5 truncate text-xs text-muted-foreground">Anulada: {e.motivoAnulacion}</p>}
+          </div>
+          <div className="flex flex-none flex-col items-end gap-1">
+            <p className="text-sm font-bold tabular-nums text-foreground">{e.tipoEmision === "Cortesia" ? "—" : fmt(e.precioTanda)}</p>
+            <StatusBadge tipo="entrada" estado={e.estado} size="sm" />
+            {e.estado === "Anulada" && e.reembolsadaEn && (
+              <span className="font-mono text-2xs uppercase tracking-[0.08em] text-muted-foreground">Reembolsada</span>
+            )}
+            <EntradaAcciones entrada={e} onCambio={onCambio} />
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }

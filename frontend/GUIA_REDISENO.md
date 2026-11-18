@@ -33,7 +33,7 @@ Si el diseño nuevo exige cambiar un texto, **cambiarlo también en el test que 
 
 ## 5. Reglas que ya se resolvieron y conviene mantener
 
-- **Botón de tema:** no es flotante. Cada pantalla lo pone en su propio header con `<ThemeToggle />` (variantes `normal`, `sobre-imagen` y `esquina` solo para pantallas sin header: login y registro). El escáner QR no lo lleva a propósito. Detalle en `docs/proyecto/DECISIONES.md` (2026-11-17). Si el nuevo header cambia, mover el toggle ahí; no volver a hacerlo `fixed` global (ya causó dos bugs).
+- **Botón de tema:** no es flotante. Lo traen los encabezados del sistema de diseño (`PublicHeader`, `AppShell`, `AuthLayout`) con `<ThemeToggle />`; las variantes `normal`/`sobre-imagen`/`esquina` de master se descartaron al unir con el rediseño (ver `docs/proyecto/DECISIONES.md`, 2026-11-17). El escáner QR no lo lleva a propósito. Detalle en `docs/proyecto/DECISIONES.md` (2026-11-17). Si el nuevo header cambia, mover el toggle ahí; no volver a hacerlo `fixed` global (ya causó dos bugs).
 - **`useTheme` exige `ThemeProvider`:** todo test que renderice una página con `ThemeToggle` tiene que envolverla en `<ThemeProvider>`.
 - **Mobile y desktop:** toda pantalla nueva se revisa en los dos (hay navegación inferior en mobile para Organizador y Admin).
 - **Pickers de fecha y hora:** son componentes propios (`DatePicker`, `TimePicker`) con tests propios; no se reemplazan por `<input type="date">` sin reescribir esos tests.

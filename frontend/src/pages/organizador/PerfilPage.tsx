@@ -1,18 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { Save, KeyRound, AlertCircle, Users, MessageCircle } from "lucide-react";
+import { KeyRound, MessageCircle, Save, UserRound, Users } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { ImagenPortadaField } from "../../components/ImagenPortadaField";
+import { Alert, Button, Card, ErrorState, Field, Input, PageHeader, PasswordInput, Skeleton } from "../../components/ui";
+import { ComisionMpPanel } from "./ComisionMpPanel";
 import { CuentaMercadoPagoCard } from "./CuentaMercadoPagoCard";
+import { EncabezadoTarjeta } from "./EncabezadoTarjeta";
 import type { CambiarPasswordRequestDTO, ContactoRequestDTO, PerfilRequestDTO, PerfilResponseDTO, TopeCompradorRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
-
-const INPUT =
-  "w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all";
-const LABEL = "text-xs text-muted-foreground block mb-1.5";
-const BOTON =
-  "w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2";
 
 export function OrganizadorPerfilPage() {
   useDocumentTitle("Mi perfil");
@@ -149,143 +146,134 @@ export function OrganizadorPerfilPage() {
   }
 
   return (
-    <div className="max-w-md lg:max-w-[1800px] mx-auto">
-      <div className="px-4 lg:px-8 pt-6 pb-4 border-b border-border bg-background">
-        <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Mi perfil</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Tus datos y tu contraseña</p>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+      <PageHeader title="Mi perfil" description="Tus datos, tu cuenta de cobro, el contacto para compradores y tu contraseña." />
 
-      {loadError && (
-        <div className="mx-4 lg:mx-8 mt-4 rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4 flex gap-2">
-          <AlertCircle size={16} className="flex-none mt-0.5" /> {loadError}
+      {loadError && <ErrorState title="No pudimos cargar tu perfil" description={loadError} />}
+
+      {!perfil && !loadError && (
+        <div className="flex flex-col gap-6 md:flex-row md:items-start" aria-busy="true">
+          <span className="sr-only">Cargando tu perfil…</span>
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Skeleton className="h-96 rounded-2xl" />
+            <Skeleton className="h-72 rounded-2xl" />
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Skeleton className="h-64 rounded-2xl" />
+            <Skeleton className="h-80 rounded-2xl" />
+          </div>
         </div>
       )}
 
-      {!perfil && !loadError && <div className="mx-4 lg:mx-8 mt-4 h-48 rounded-3xl bg-card border border-border animate-pulse" />}
-
       {perfil && (
-        <div className="px-4 lg:px-8 py-4 lg:py-6 pb-8 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start space-y-5 lg:space-y-0">
-          <form onSubmit={guardarPerfil} className="rounded-3xl bg-card border border-border p-5 space-y-5">
-            <h3 className="text-sm font-bold text-foreground">Datos del perfil</h3>
+        // Dos columnas flex independientes (no una grilla de filas): cada tarjeta ocupa su altura natural y una
+        // tarjeta alta no deja un hueco al lado de la más baja. En mobile es una sola columna en el mismo orden.
+        <div className="flex flex-col gap-6 md:flex-row md:items-start">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Card as="form" variant="editorial" onSubmit={guardarPerfil} aria-labelledby="perfil-titulo" className="space-y-5">
+              <EncabezadoTarjeta id="perfil-titulo" indice="01" eyebrow="Identidad" icon={UserRound}>
+                Datos del perfil
+              </EncabezadoTarjeta>
 
-            <ImagenPortadaField variant="avatar" value={foto} onChange={setFoto} endpoint="/organizador/perfil/foto" />
+              <ImagenPortadaField variant="avatar" value={foto} onChange={setFoto} endpoint="/organizador/perfil/foto" />
 
-            <div>
-              <label htmlFor="perfil-nombre" className={LABEL}>Nombre</label>
-              <input id="perfil-nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={150} className={INPUT} />
-            </div>
+              <Field label="Nombre" labelVariant="mono">
+                <Input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={150} autoComplete="name" />
+              </Field>
 
-            <div>
-              <label className={LABEL}>Email</label>
-              <input value={perfil.email} disabled className={`${INPUT} opacity-60 cursor-not-allowed`} />
-              <p className="text-[11px] text-muted-foreground mt-1.5">El email no se puede cambiar.</p>
-            </div>
+              <Field label="Email" labelVariant="mono" hint="El email no se puede cambiar.">
+                <Input value={perfil.email} disabled readOnly className="font-mono" />
+              </Field>
 
-            {errorPerfil && <p className="text-xs text-destructive">{errorPerfil}</p>}
+              {errorPerfil && <Alert tone="danger">{errorPerfil}</Alert>}
 
-            <button type="submit" disabled={guardandoPerfil} className={BOTON}>
-              <Save size={15} /> {guardandoPerfil ? "Guardando…" : "Guardar cambios"}
-            </button>
-          </form>
+              <Button type="submit" block tactil leftIcon={<Save size={16} />} loading={guardandoPerfil} loadingText="Guardando…">
+                Guardar cambios
+              </Button>
+            </Card>
 
-          <CuentaMercadoPagoCard />
+            <CuentaMercadoPagoCard>
+              <ComisionMpPanel perfil={perfil} onGuardado={setPerfil} />
+            </CuentaMercadoPagoCard>
+          </div>
 
-          <form onSubmit={guardarTope} noValidate className="rounded-3xl bg-card border border-border p-5 space-y-5">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Users size={15} className="text-primary" /> Entradas por persona
-            </h3>
-            <div>
-              <label htmlFor="tope-comprador" className={LABEL}>Máximo de entradas por persona</label>
-              <input
-                id="tope-comprador"
-                type="number"
-                min={1}
-                max={100}
-                value={tope}
-                onChange={(e) => setTope(e.target.value)}
-                placeholder={String(perfil.maxEntradasPorCompradorPlataforma)}
-                className={INPUT}
-              />
-              <p className="text-[11px] text-muted-foreground mt-1.5">
-                Cuántas entradas puede tener una misma persona (mismo email) para cada uno de tus eventos. Vale para la compra online y para
-                las ventas del staff. Si lo dejás vacío, rige el de la plataforma.
-              </p>
-              <p className="text-[11px] font-semibold text-foreground mt-1.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-6">
+            <Card as="form" variant="editorial" onSubmit={guardarTope} noValidate aria-labelledby="tope-titulo" className="space-y-5">
+              <EncabezadoTarjeta id="tope-titulo" indice="03" eyebrow="Compradores" icon={Users}>
+                Entradas por persona
+              </EncabezadoTarjeta>
+              <Field
+                label="Máximo de entradas por persona"
+                labelVariant="mono"
+                hint="Cuántas entradas puede tener una misma persona (mismo email) en cada uno de tus eventos, online y en las ventas del staff. Vacío: rige el de la plataforma."
+                error={errorTope ?? undefined}
+              >
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  inputMode="numeric"
+                  value={tope}
+                  onChange={(e) => setTope(e.target.value)}
+                  placeholder={String(perfil.maxEntradasPorCompradorPlataforma)}
+                  className="font-mono tabular-nums"
+                />
+              </Field>
+              <p className="flex items-center gap-2 font-mono text-xs font-semibold text-foreground">
+                <span aria-hidden="true" className="size-1.5 flex-none rounded-full bg-secondary" />
                 {perfil.maxEntradasPorComprador == null
                   ? `Hoy rige el de la plataforma: ${perfil.maxEntradasPorCompradorPlataforma}.`
                   : `Tu tope es de ${perfil.maxEntradasPorComprador} entradas por persona.`}
               </p>
-            </div>
+              <Button type="submit" block variant="secondary" tactil leftIcon={<Save size={16} />} loading={guardandoTope} loadingText="Guardando…">
+                Guardar tope
+              </Button>
+            </Card>
 
-            {errorTope && <p className="text-xs text-destructive">{errorTope}</p>}
+            <Card as="form" variant="editorial" onSubmit={guardarContacto} noValidate aria-labelledby="contacto-titulo" className="space-y-5">
+              <EncabezadoTarjeta
+                id="contacto-titulo"
+                indice="04"
+                eyebrow="Arrepentimiento"
+                icon={MessageCircle}
+                descripcion="Quien quiera arrepentirse de una compra es derivado a este contacto: el pedido lo resolvés vos. Necesitás al menos uno para publicar un evento."
+              >
+                Contacto para el arrepentimiento
+              </EncabezadoTarjeta>
+              <Field label="WhatsApp de contacto" labelVariant="mono">
+                <Input type="tel" autoComplete="tel" value={contactoWa} onChange={(e) => setContactoWa(e.target.value)} placeholder="+54 9 11 5555-1234" />
+              </Field>
+              <Field label="Email de contacto" labelVariant="mono">
+                <Input type="email" autoComplete="email" value={contactoMail} onChange={(e) => setContactoMail(e.target.value)} placeholder="contacto@tuevento.com" />
+              </Field>
+              {errorContacto && <Alert tone="danger">{errorContacto}</Alert>}
+              <Button type="submit" block variant="secondary" tactil leftIcon={<Save size={16} />} loading={guardandoContacto} loadingText="Guardando…">
+                Guardar contacto
+              </Button>
+            </Card>
 
-            <button type="submit" disabled={guardandoTope} className={BOTON}>
-              <Save size={15} /> {guardandoTope ? "Guardando…" : "Guardar tope"}
-            </button>
-          </form>
+            <Card as="form" variant="editorial" onSubmit={cambiarPassword} aria-labelledby="password-titulo" className="space-y-5">
+              <EncabezadoTarjeta id="password-titulo" indice="05" eyebrow="Seguridad" icon={KeyRound}>
+                Cambiar contraseña
+              </EncabezadoTarjeta>
 
-          <form onSubmit={guardarContacto} noValidate className="rounded-3xl bg-card border border-border p-5 space-y-5">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <MessageCircle size={15} className="text-primary" /> Contacto para el arrepentimiento
-            </h3>
-            <p className="text-[11px] text-muted-foreground">
-              Quien quiera arrepentirse de una compra es derivado a este contacto: el pedido lo resolvés vos. Hace falta cargar al menos
-              uno para publicar un evento.
-            </p>
-            <div>
-              <label htmlFor="contacto-wa" className={LABEL}>WhatsApp de contacto</label>
-              <input
-                id="contacto-wa"
-                type="tel"
-                value={contactoWa}
-                onChange={(e) => setContactoWa(e.target.value)}
-                placeholder="+54 9 11 5555-1234"
-                className={INPUT}
-              />
-            </div>
-            <div>
-              <label htmlFor="contacto-mail" className={LABEL}>Email de contacto</label>
-              <input
-                id="contacto-mail"
-                type="email"
-                value={contactoMail}
-                onChange={(e) => setContactoMail(e.target.value)}
-                placeholder="contacto@tuevento.com"
-                className={INPUT}
-              />
-            </div>
+              <Field label="Contraseña actual" labelVariant="mono">
+                <PasswordInput autoComplete="current-password" value={actual} onChange={(e) => setActual(e.target.value)} />
+              </Field>
+              <Field label="Nueva contraseña" labelVariant="mono" hint="Mínimo 8 caracteres.">
+                <PasswordInput autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} toggleLabel="nueva contraseña" />
+              </Field>
+              <Field label="Repetir la nueva contraseña" labelVariant="mono">
+                <PasswordInput autoComplete="new-password" value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} toggleLabel="confirmación" />
+              </Field>
 
-            {errorContacto && <p className="text-xs text-destructive">{errorContacto}</p>}
+              {errorPassword && <Alert tone="danger">{errorPassword}</Alert>}
 
-            <button type="submit" disabled={guardandoContacto} className={BOTON}>
-              <Save size={15} /> {guardandoContacto ? "Guardando…" : "Guardar contacto"}
-            </button>
-          </form>
-
-          <form onSubmit={cambiarPassword} className="rounded-3xl bg-card border border-border p-5 space-y-5">
-            <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <KeyRound size={15} className="text-primary" /> Cambiar contraseña
-            </h3>
-
-            <div>
-              <label htmlFor="pwd-actual" className={LABEL}>Contraseña actual</label>
-              <input id="pwd-actual" type="password" autoComplete="current-password" value={actual} onChange={(e) => setActual(e.target.value)} className={INPUT} />
-            </div>
-            <div>
-              <label htmlFor="pwd-nueva" className={LABEL}>Nueva contraseña</label>
-              <input id="pwd-nueva" type="password" autoComplete="new-password" value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="Mínimo 8 caracteres" className={INPUT} />
-            </div>
-            <div>
-              <label htmlFor="pwd-confirmar" className={LABEL}>Repetir la nueva contraseña</label>
-              <input id="pwd-confirmar" type="password" autoComplete="new-password" value={confirmacion} onChange={(e) => setConfirmacion(e.target.value)} className={INPUT} />
-            </div>
-
-            {errorPassword && <p className="text-xs text-destructive">{errorPassword}</p>}
-
-            <button type="submit" disabled={guardandoPassword} className={BOTON}>
-              {guardandoPassword ? "Cambiando…" : "Cambiar contraseña"}
-            </button>
-          </form>
+              <Button type="submit" block variant="secondary" tactil loading={guardandoPassword} loadingText="Cambiando…">
+                Cambiar contraseña
+              </Button>
+            </Card>
+          </div>
         </div>
       )}
     </div>

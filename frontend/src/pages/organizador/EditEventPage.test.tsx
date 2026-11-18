@@ -277,7 +277,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
     const marcas = screen.getAllByLabelText(/Tanda de cortesía/);
     expect(marcas[1]).toBeChecked();
     expect(marcas[1]).toBeEnabled(); // sin entradas emitidas todavía, se puede volver a una de venta
-    expect(screen.getByDisplayValue("Prensa").closest("div.space-y-3")!.querySelector("input[value='0']")).toBeDisabled();
+    expect(screen.getByDisplayValue("Prensa").closest("article")!.querySelector("input[value='0']")).toBeDisabled();
   });
 
   it("crea una tanda de cortesía nueva con POST: precio 0 y soloEmision", async () => {
@@ -288,7 +288,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
     await cargado();
 
     await user.click(screen.getByRole("button", { name: "Agregar tanda" }));
-    const tarjeta = screen.getByText("Nueva tanda").closest("div.space-y-3") as HTMLElement;
+    const tarjeta = screen.getByText("Nueva tanda").closest("article") as HTMLElement;
     await user.click(within(tarjeta).getByLabelText(/Tanda de cortesía/));
     const [nombre, , cupo] = within(tarjeta).getAllByRole("textbox");
     await user.type(nombre, "Invitados");
@@ -312,7 +312,7 @@ describe("OrganizadorEditEventPage — tandas", () => {
     const crear = screen.getByRole("button", { name: "Crear tanda" });
     expect(crear).toBeDisabled(); // vacía
 
-    const tarjeta = screen.getByText("Nueva tanda").closest("div.space-y-3") as HTMLElement;
+    const tarjeta = screen.getByText("Nueva tanda").closest("article") as HTMLElement;
     const [nombre, precio, cupo] = within(tarjeta).getAllByRole("textbox");
     await user.type(nombre, "VIP");
     await user.type(precio, "9000");

@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { QrCode, AlertCircle, Calendar, Ticket } from "lucide-react";
+import { Check, Copy, Sun, Ticket } from "lucide-react";
 import { api, ApiError, API_BASE_URL } from "../../lib/api";
+import { PublicHeader } from "../../components/PublicHeader";
 import { SupportContactLine } from "../../components/SupportContactLine";
-import { formatRelativo } from "../../lib/format";
+import { Alert, Badge, Button, ErrorState, Skeleton } from "../../components/ui";
+import { fmt, formatRelativo } from "../../lib/format";
 import type { EntradaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
-import { ThemeToggle } from "../../components/ThemeToggle";
 
 export function MiEntradaPage() {
   useDocumentTitle("Mi entrada");
@@ -18,10 +19,11 @@ export function MiEntradaPage() {
   const [entrada, setEntrada] = useState<EntradaResponseDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     if (!codigoQr) {
-      setError("No se encontró el código QR en la URL.");
+      setError("El enlace no incluye el código de la entrada.");
       setLoading(false);
       return;
     }
@@ -32,135 +34,165 @@ export function MiEntradaPage() {
       })
       .then((data) => setEntrada(data))
       .catch((e) => {
-        setError(
-          e instanceof ApiError
-            ? e.message
-            : "No pudimos encontrar tu entrada. El código QR puede ser inválido.",
-        );
+        setError(e instanceof ApiError ? e.message : "No pudimos encontrar tu entrada. El código QR puede ser inválido.");
       })
       .finally(() => setLoading(false));
   }, [codigoQr]);
 
+  async function copiarCodigo(codigo: string) {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      // Sin permiso de portapapeles: el código está visible y se puede seleccionar a mano.
+    }
+  }
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+      <div className="min-h-dvh bg-background" aria-busy="true">
+        <PublicHeader />
+        <span className="sr-only">Cargando tu entrada…</span>
+        <div className="mx-auto max-w-md space-y-4 px-4 py-8">
+          <Skeleton className="h-6 w-2/3" />
+          <Skeleton className="aspect-square w-full rounded-3xl" />
+        </div>
       </div>
     );
   }
 
   if (error || !entrada) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background p-8 text-center">
-        <div className="w-14 h-14 rounded-full bg-destructive/10 border border-destructive/20 flex items-center justify-center">
-          <AlertCircle size={24} className="text-destructive" />
+      <div className="min-h-dvh bg-background">
+        <PublicHeader />
+        <div className="mx-auto max-w-md px-4 py-16">
+          <ErrorState
+            title="No encontramos tu entrada"
+            description={error ?? "El código QR no es válido o la entrada no existe."}
+            secondaryAction={
+              <Button variant="secondary" size="sm" onClick={() => navigate("/")}>
+                Volver al inicio
+              </Button>
+            }
+          />
+          <div className="mt-6 flex justify-center">
+            <SupportContactLine />
+          </div>
         </div>
-        <div>
-          <p className="font-semibold text-foreground mb-1">No encontramos tu entrada</p>
-          <p className="text-sm text-muted-foreground max-w-xs">
-            {error ?? "El código QR no es válido o la entrada no existe."}
-          </p>
-        </div>
-        <button onClick={() => navigate("/")} className="text-primary text-sm font-semibold">
-          Volver al inicio
-        </button>
       </div>
     );
   }
 
   const qrImageUrl = `${API_BASE_URL}/tickets/${entrada.id}/qr-image?codigoQr=${encodeURIComponent(entrada.codigoQr)}`;
   const usada = entrada.estado === "Usada";
+  // Anulada por el Organizador (8.6): ya no sirve para entrar, aunque el QR siga existiendo.
+  const anulada = entrada.estado === "Anulada";
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate("/")} className="text-left">
-          <span className="text-lg font-extrabold text-foreground tracking-tight">
-            Asistí<span className="text-primary">APP</span>
-          </span>
-        </button>
-        <span className="text-muted-foreground text-sm">/ Mi entrada</span>
-        <ThemeToggle className="ml-auto" />
-      </div>
+    <div className="min-h-dvh bg-background">
+      <PublicHeader />
 
-      <div className="max-w-md mx-auto px-4 py-8 space-y-4">
-
-        {/* Estado de la entrada */}
+      <main className="mx-auto max-w-md space-y-5 px-4 py-8">
+        {anulada && (
+          <Alert tone="danger" title="Esta entrada fue anulada">
+            El Organizador la anuló{entrada.motivoAnulacion ? ` (${entrada.motivoAnulacion})` : ""}: ya no sirve para entrar al evento.
+            {entrada.reembolsadaEn ? " Te devolvimos el pago con Mercado Pago." : ""}
+          </Alert>
+        )}
         {usada && (
-          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl px-4 py-3 flex gap-3 items-center">
-            <AlertCircle size={16} className="text-amber-500 flex-none" />
-            <p className="text-sm text-amber-700 dark:text-amber-400 font-medium">
-                          Esta entrada ya fue utilizada {formatRelativo(entrada.fechaUso!)}
-            </p>
-          </div>
+          <Alert tone="warning" title="Esta entrada ya fue utilizada">
+            Se validó en la puerta {entrada.fechaUso ? formatRelativo(entrada.fechaUso) : "anteriormente"}.
+          </Alert>
         )}
 
-        {/* Card de la entrada */}
-        <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
-
-          {/* Info del evento */}
-          <div className="px-6 py-5 border-b border-dashed border-border">
-            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Evento</p>
-            <h1 className="text-xl font-extrabold text-foreground leading-tight mb-3">
-              {entrada.nombreEvento}
-            </h1>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Ticket size={13} className="flex-none" />
-                <span>Tanda: <strong className="text-foreground">{entrada.nombreTanda}</strong></span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Calendar size={13} className="flex-none" />
-                <span>Compra: {formatRelativo(entrada.fechaCompra)}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <QrCode size={13} className="flex-none" />
-                <span className="font-mono text-xs break-all">{entrada.codigoQr}</span>
-              </div>
-            </div>
+        {/* Pase físico digital: boarding pass troquelado — bloque de datos + talón con el QR */}
+        <section aria-label="Tu entrada" className="relative overflow-hidden rounded-2xl border border-foreground bg-card shadow-hard">
+          {/* Banda superior */}
+          <div className="flex items-center justify-between gap-3 border-b border-border px-6 py-3">
+            <p className="font-mono text-2xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Pase digital</p>
+            <EstadoBadge usada={usada} anulada={anulada} />
           </div>
 
-          {/* QR central */}
-          <div className="px-6 py-8 flex flex-col items-center bg-background/40">
-            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-5">
-              Código de acceso · Uso único
-            </p>
-            <div
-              className={`bg-white p-4 rounded-2xl shadow-xl shadow-black/20 transition-all ${
-                usada ? "opacity-40 grayscale" : ""
-              }`}
-            >
-              <img
-                src={qrImageUrl}
-                alt={`Código QR de tu entrada`}
-                width={220}
-                height={220}
-                className="block"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-4 font-mono tracking-wider text-center">
-              {entrada.nombreComprador}
-            </p>
+          {/* Datos del evento y del titular */}
+          <div className="px-6 py-6">
+            <h1 className="font-display text-2xl font-extrabold leading-[1.05] tracking-[-0.02em] text-foreground">{entrada.nombreEvento}</h1>
+            <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5">
+              <Campo label="Tanda">{entrada.nombreTanda}</Campo>
+              <Campo label="Precio" mono>
+                {fmt(entrada.precioTanda)}
+              </Campo>
+              <Campo label="Titular" full>
+                {entrada.nombreComprador}
+              </Campo>
+              <Campo label="Compra" full>
+                {formatRelativo(entrada.fechaCompra)}
+              </Campo>
+            </dl>
           </div>
-        </div>
 
-        {/* Aviso */}
-        <p className="text-center text-xs text-muted-foreground px-4">
-          Mostrá este código QR en la puerta del evento para ingresar. Guardá este link como comprobante.
-        </p>
+          {/* Perforación con muescas entre el bloque principal y el talón */}
+          <div className="relative h-0 border-t border-dashed border-border-strong">
+            <span aria-hidden="true" className="absolute -left-2 -top-2 size-4 rounded-full border border-foreground bg-background" />
+            <span aria-hidden="true" className="absolute -right-2 -top-2 size-4 rounded-full border border-foreground bg-background" />
+          </div>
 
-        <button
-          onClick={() => navigate("/")}
-          className="w-full py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors"
-        >
+          {/* Talón: QR de alta legibilidad, siempre sobre blanco en los dos temas */}
+          <div className="flex flex-col items-center gap-4 bg-surface-sunken px-6 py-7">
+            <div className={`rounded-2xl bg-white p-4 shadow-raised ${usada || anulada ? "opacity-40 grayscale" : ""}`}>
+              <img src={qrImageUrl} alt="Código QR de tu entrada" width={232} height={232} className="block size-[min(232px,60vw)]" />
+            </div>
+            <div className="flex items-center gap-2">
+              <code className="select-all font-mono text-sm tracking-wider text-foreground">{entrada.codigoQr}</code>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => copiarCodigo(entrada.codigoQr)}
+                leftIcon={copiado ? <Check size={14} /> : <Copy size={14} />}
+              >
+                {copiado ? "Código copiado" : "Copiar código"}
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {!usada && (
+          <ul className="space-y-2 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2.5">
+              <Ticket size={16} aria-hidden="true" className="mt-0.5 flex-none text-secondary" />
+              Mostrá este QR en la puerta del evento. Se valida una sola vez.
+            </li>
+            <li className="flex items-start gap-2.5">
+              <Sun size={16} aria-hidden="true" className="mt-0.5 flex-none text-secondary" />
+              Subí el brillo de la pantalla para que se lea más rápido. Guardá este link: es tu comprobante.
+            </li>
+          </ul>
+        )}
+
+        <Button variant="secondary" block onClick={() => navigate("/eventos")}>
           Ver más eventos
-        </button>
+        </Button>
 
-        <div className="flex justify-center pt-2">
+        <div className="flex justify-center pt-1">
           <SupportContactLine />
         </div>
-      </div>
+      </main>
     </div>
   );
+}
+
+/** Dato del pase: etiqueta en `IBM Plex Mono` (mayúsculas, espaciada) + valor destacado. */
+function Campo({ label, children, full, mono }: { label: string; children: ReactNode; full?: boolean; mono?: boolean }) {
+  return (
+    <div className={full ? "col-span-2" : undefined}>
+      <dt className="font-mono text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</dt>
+      <dd className={`mt-1 truncate font-semibold text-foreground ${mono ? "font-mono tabular-nums" : ""}`}>{children}</dd>
+    </div>
+  );
+}
+
+function EstadoBadge({ usada, anulada }: { usada: boolean; anulada: boolean }) {
+  if (anulada) return <Badge tone="danger">Anulada</Badge>;
+  if (usada) return <Badge tone="warning">Usada</Badge>;
+  return <Badge tone="success">Válida</Badge>;
 }

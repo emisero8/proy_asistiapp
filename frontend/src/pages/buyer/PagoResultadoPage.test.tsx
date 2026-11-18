@@ -72,6 +72,15 @@ describe("PagoResultadoPage — espera del pago", () => {
     expect(api.get).toHaveBeenCalledTimes(3);
   });
 
+  it("con el pago aprobado ofrece copiar el enlace y avisa que el enlace es la entrada", async () => {
+    vi.mocked(api.get).mockResolvedValue(APROBADA);
+    renderPage();
+    await avanzar(0);
+
+    expect(screen.getByRole("button", { name: "Copiar enlace para compartir" })).toBeInTheDocument();
+    expect(screen.getByText(/este enlace es tu entrada/)).toBeInTheDocument();
+  });
+
   it("si el pago quedó en otra pestaña, lo dice y ofrece reabrir MercadoPago", async () => {
     vi.mocked(api.get).mockResolvedValue(PENDIENTE);
     renderPage({ urlPago: "https://mp.test/checkout" });
@@ -116,7 +125,9 @@ describe("PagoResultadoPage — espera del pago", () => {
 
     await avanzar(ESPERA_ENTRE_REINTENTOS_MS * REINTENTOS_MAXIMOS);
 
-    expect(screen.getByText("Todavía no vemos tu pago")).toBeInTheDocument();
+    expect(screen.getByText("Todavía no recibimos la confirmación")).toBeInTheDocument();
+    expect(screen.queryByText("Estamos confirmando tu pago")).not.toBeInTheDocument();
+    expect(screen.getByText(/No vuelvas a pagar/)).toBeInTheDocument();
     const llamadas = vi.mocked(api.get).mock.calls.length;
     expect(llamadas).toBe(REINTENTOS_MAXIMOS);
 

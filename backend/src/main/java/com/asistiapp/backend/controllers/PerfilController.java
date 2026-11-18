@@ -2,6 +2,7 @@ package com.asistiapp.backend.controllers;
 
 import com.asistiapp.backend.models.dtos.evento.ImagenSubidaResponseDTO;
 import com.asistiapp.backend.models.dtos.perfil.CambiarPasswordRequestDTO;
+import com.asistiapp.backend.models.dtos.perfil.ComisionMpRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.ContactoRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilRequestDTO;
 import com.asistiapp.backend.models.dtos.perfil.PerfilResponseDTO;
@@ -26,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
  *   POST   /organizador/perfil/foto       → subir la foto a Cloudinary (devuelve la URL)
  *   PUT    /organizador/perfil/tope-comprador → tope de entradas por comprador (null = el de la plataforma)
  *   PUT    /organizador/perfil/contacto   → WhatsApp y/o email del botón de arrepentimiento (8.8)
+ *   PUT    /organizador/perfil/comision-mp → quién paga la comisión de Mercado Pago (plazo y zona para el cálculo)
  *   PUT    /organizador/perfil/password   → cambiar contraseña (exige la actual)
  */
 @RestController
@@ -58,6 +60,12 @@ public class PerfilController {
     public ResponseEntity<PerfilResponseDTO> cambiarContacto(@Valid @RequestBody ContactoRequestDTO dto) {
         return ResponseEntity.ok(perfilService.cambiarContacto(
                 securityUtils.getIdUsuarioAutenticado(), dto.getContactoWhatsapp(), dto.getContactoEmail()));
+    }
+
+    @PutMapping("/comision-mp")
+    public ResponseEntity<PerfilResponseDTO> cambiarComisionMp(@Valid @RequestBody ComisionMpRequestDTO dto) {
+        return ResponseEntity.ok(perfilService.cambiarComisionMp(securityUtils.getIdUsuarioAutenticado(),
+                dto.getTrasladarAlComprador(), dto.getPlazoLiberacion(), dto.getZona()));
     }
 
     @PostMapping(value = "/foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

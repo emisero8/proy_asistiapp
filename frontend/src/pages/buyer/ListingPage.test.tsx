@@ -17,7 +17,7 @@ vi.mock("../../lib/api", async (importOriginal) => {
   return { ...actual, api: { ...actual.api, get: vi.fn() } };
 });
 
-// Se fija solo la fecha (no los timers): "Hay shows hoy" depende del día en que se corran los tests.
+// Se fija solo la fecha (no los timers): la etiqueta "Hoy" depende del día en que se corran los tests.
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-10T12:00:00"));
@@ -38,6 +38,9 @@ function evento(id: number, fechaEvento: string, extra: Partial<EventoPublicoLis
     imagenPortadaUrl: null,
     urlPublica: `evento-${id}`,
     precioDesde: 1500,
+    cantidadTandas: 2,
+    cupoDisponibleTotal: 50,
+    cupoTotal: 100,
     ...extra,
   };
 }
@@ -73,7 +76,7 @@ function mockApi({
   }) as typeof api.get);
 }
 
-/** Muestra la ruta actual para comprobar a dónde navega cada botón. */
+/** Muestra la ruta actual para comprobar a dónde navega cada link. */
 function RutaActual() {
   return <div data-testid="ruta">{useLocation().pathname}</div>;
 }
@@ -92,32 +95,40 @@ function renderPage() {
   );
 }
 
-const grilla = () => within(document.getElementById("eventos-grid") as HTMLElement);
+/** La sección "Próximos eventos" (carrusel + grilla). */
+const seccionEventos = () => screen.findByRole("region", { name: "Próximos eventos" });
+
+/** Links de las tarjetas de evento (cada tarjeta es un link al detalle), en el orden en que aparecen. */
+async function tarjetas() {
+  const seccion = await seccionEventos();
+  return within(seccion).findAllByRole("link", { name: /^Evento \d+,/ });
+}
 
 describe("ListingPage — estados de la lista", () => {
   it("mientras carga muestra esqueletos y ningún cartel de vacío", () => {
     vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
     renderPage();
 
-    expect(screen.queryByText("Todavía no hay eventos publicados.")).not.toBeInTheDocument();
-    expect(screen.queryByText("Próximos eventos")).not.toBeInTheDocument();
+    expect(screen.getByText("Cargando eventos…")).toBeInTheDocument();
+    expect(screen.queryByText("Todavía no hay eventos publicados")).not.toBeInTheDocument();
   });
 
   it("sin eventos publicados lo avisa", async () => {
     mockApi({ eventos: [] });
     renderPage();
 
-    expect(await screen.findByText("Todavía no hay eventos publicados.")).toBeInTheDocument();
+    expect(await screen.findByText("Todavía no hay eventos publicados")).toBeInTheDocument();
   });
 
-  it("si falla la carga muestra el mensaje del backend y no el cartel de vacío", async () => {
+  it("si falla la carga muestra el mensaje del backend, ofrece reintentar y no muestra el cartel de vacío", async () => {
     mockApi({
       eventos: new ApiError({ status: 500, error: "El servidor no responde", path: "/public/eventos", timestamp: "t" }),
     });
     renderPage();
 
     expect(await screen.findByText("El servidor no responde")).toBeInTheDocument();
-    expect(screen.queryByText("Todavía no hay eventos publicados.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reintentar" })).toBeInTheDocument();
+    expect(screen.queryByText("Todavía no hay eventos publicados")).not.toBeInTheDocument();
   });
 
   it("si falla con un error que no es de la API usa un mensaje genérico", async () => {
@@ -131,7 +142,7 @@ describe("ListingPage — estados de la lista", () => {
     mockApi({ eventos: eventos(2), stats: new Error("x"), paquetes: new Error("y") });
     renderPage();
 
-    expect(await screen.findByText("Próximos eventos")).toBeInTheDocument();
+    expect(await tarjetas()).toHaveLength(2);
     expect(screen.queryByText("Eventos publicados")).not.toBeInTheDocument();
     expect(screen.queryByText("Créditos simples y transparentes")).not.toBeInTheDocument();
   });
@@ -144,73 +155,87 @@ describe("ListingPage — eventos", () => {
     });
     renderPage();
 
-    await screen.findByText("Próximos eventos");
-    const nombres = grilla()
-      .getAllByRole("heading", { level: 3 })
-      .map((h) => h.textContent);
-    expect(nombres).toEqual(["Evento 1", "Evento 2", "Evento 3"]);
-    expect(screen.getAllByText("Próximo")).toHaveLength(1);
+    const hrefs = (await tarjetas()).map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual(["/eventos/evento-1", "/eventos/evento-2", "/eventos/evento-3"]);
+    expect(within(await seccionEventos()).getAllByText("Próximo")).toHaveLength(1);
   });
 
-  it("muestra el precio 'Desde' solo si el evento tiene uno", async () => {
+  it("anuncia el precio 'desde' solo si el evento tiene uno", async () => {
     mockApi({ eventos: [evento(1, "2026-12-01", { precioDesde: 8000 }), evento(2, "2026-12-02", { precioDesde: null })] });
     renderPage();
 
-    await screen.findByText("Próximos eventos");
-    expect(grilla().getAllByText(/^Desde /)).toHaveLength(1);
+    const links = await tarjetas();
+    expect(links.filter((a) => /desde \$/.test(a.getAttribute("aria-label") ?? ""))).toHaveLength(1);
   });
 
-  it("click en un evento navega a su detalle", async () => {
+  it("las tarjetas son links al detalle (se pueden abrir en otra pestaña) y navegan a él", async () => {
     mockApi({ eventos: eventos(2) });
     renderPage();
 
-    await screen.findByText("Próximos eventos");
-    await userEvent.click(grilla().getByRole("heading", { name: "Evento 2" }));
-
+    const links = await tarjetas();
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["/eventos/evento-1", "/eventos/evento-2"]);
+    await userEvent.click(links[1]);
     expect(screen.getByTestId("ruta")).toHaveTextContent("/eventos/evento-2");
   });
 
-  it("anuncia 'Hay shows hoy' solo si algún evento es de hoy", async () => {
+  it("marca con 'Hoy' el evento de hoy, y a ninguno si no hay shows hoy", async () => {
     mockApi({ eventos: [evento(1, "2026-11-10"), evento(2, "2026-12-01")] });
     const { unmount } = renderPage();
-    expect(await screen.findByText("Hay shows hoy")).toBeInTheDocument();
+    await tarjetas();
+    expect(within(await seccionEventos()).getByText("Hoy")).toBeInTheDocument();
     unmount();
 
     mockApi({ eventos: [evento(1, "2026-12-01")] });
     renderPage();
-    await screen.findByText("Próximos eventos");
-    expect(screen.queryByText("Hay shows hoy")).not.toBeInTheDocument();
+    await tarjetas();
+    expect(within(await seccionEventos()).queryByText("Hoy")).not.toBeInTheDocument();
   });
 });
 
-describe("ListingPage — tope de la home y acceso a /eventos", () => {
-  it("con hasta 16 eventos los muestra todos y no ofrece 'Ir a ver todos'", async () => {
-    mockApi({ eventos: eventos(16) });
+describe("ListingPage — carrusel, grilla y acceso a /eventos", () => {
+  it("con pocos eventos muestra una sola grilla, sin carrusel", async () => {
+    mockApi({ eventos: eventos(3) });
     renderPage();
 
-    await screen.findByText("Próximos eventos");
-    expect(grilla().getAllByRole("heading", { level: 3 })).toHaveLength(16);
-    expect(screen.queryByRole("button", { name: /Ir a ver todos los eventos/ })).not.toBeInTheDocument();
+    expect(await tarjetas()).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: "Eventos siguientes" })).not.toBeInTheDocument();
   });
 
-  it("con más de 16 muestra solo 16 y ofrece 'Ir a ver todos', que navega a /eventos", async () => {
-    mockApi({ eventos: eventos(17) });
+  it("no repite eventos entre el carrusel y la grilla", async () => {
+    mockApi({ eventos: eventos(10) });
     renderPage();
 
-    await screen.findByText("Próximos eventos");
-    expect(grilla().getAllByRole("heading", { level: 3 })).toHaveLength(16);
-    expect(grilla().queryByRole("heading", { name: "Evento 17" })).not.toBeInTheDocument();
+    const hrefs = (await tarjetas()).map((a) => a.getAttribute("href"));
+    expect(hrefs).toHaveLength(10);
+    expect(new Set(hrefs).size).toBe(10);
+  });
 
-    await userEvent.click(screen.getByRole("button", { name: /Ir a ver todos los eventos/ }));
+  it("si hay más eventos de los que entran en la home, muestra una parte y ofrece ver todos en /eventos", async () => {
+    mockApi({ eventos: eventos(20) });
+    renderPage();
+
+    const hrefs = (await tarjetas()).map((a) => a.getAttribute("href"));
+    expect(hrefs.length).toBeLessThan(20);
+    expect(hrefs).not.toContain("/eventos/evento-20");
+
+    await userEvent.click(screen.getByRole("link", { name: /Ver todos los eventos \(20\)/ }));
     expect(screen.getByTestId("ruta")).toHaveTextContent("/eventos");
+  });
+
+  it("si entran todos, no ofrece el botón de 'Ver todos los eventos (N)'", async () => {
+    mockApi({ eventos: eventos(3) });
+    renderPage();
+    await tarjetas();
+
+    expect(screen.queryByRole("link", { name: /Ver todos los eventos \(/ })).not.toBeInTheDocument();
   });
 
   it("el link 'Eventos' del nav siempre está y navega a /eventos, aun con pocos eventos", async () => {
     mockApi({ eventos: eventos(2) });
     renderPage();
+    await tarjetas();
 
-    await screen.findByText("Próximos eventos");
-    await userEvent.click(screen.getByRole("button", { name: "Eventos" }));
+    await userEvent.click(screen.getAllByRole("link", { name: "Eventos" })[0]);
 
     expect(screen.getByTestId("ruta")).toHaveTextContent("/eventos");
   });
@@ -221,19 +246,19 @@ describe("ListingPage — accesos de Organizador", () => {
 
   it("'Ingresar' lleva al login de Organizador", async () => {
     renderPage();
-    await screen.findByText("Todavía no hay eventos publicados.");
+    await screen.findByText("Todavía no hay eventos publicados");
 
-    await userEvent.click(screen.getByRole("button", { name: "Ingresar" }));
+    await userEvent.click(screen.getAllByRole("link", { name: "Ingresar" })[0]);
 
     expect(screen.getByTestId("ruta")).toHaveTextContent("/organizador/login");
   });
 
   it("'Soy organizador' lleva al registro de Organizador", async () => {
     renderPage();
-    await screen.findByText("Todavía no hay eventos publicados.");
+    await screen.findByText("Todavía no hay eventos publicados");
 
-    // Aparece en el nav y en el pie de página: los dos van al mismo lugar.
-    await userEvent.click(screen.getAllByRole("button", { name: /Soy organizador/ })[0]);
+    // Aparece en el nav y más abajo en la página: todos van al mismo lugar.
+    await userEvent.click(screen.getAllByRole("link", { name: /Soy organizador/ })[0]);
 
     expect(screen.getByTestId("ruta")).toHaveTextContent("/organizador/registro");
   });
@@ -264,7 +289,7 @@ describe("ListingPage — secciones con datos opcionales", () => {
 
     mockApi({ eventos: [], soporte: { emailSoporte: null, whatsappSoporte: null } });
     renderPage();
-    await screen.findByText("Todavía no hay eventos publicados.");
+    await screen.findByText("Todavía no hay eventos publicados");
     await waitFor(() => expect(api.get).toHaveBeenCalledWith("/public/soporte", expect.anything()));
     expect(screen.queryByText("¿Necesitás ayuda?")).not.toBeInTheDocument();
   });
@@ -272,7 +297,7 @@ describe("ListingPage — secciones con datos opcionales", () => {
   it("pide solo los cuatro endpoints públicos, y ninguno con la sesión del usuario", async () => {
     mockApi({ eventos: [] });
     renderPage();
-    await screen.findByText("Todavía no hay eventos publicados.");
+    await screen.findByText("Todavía no hay eventos publicados");
 
     await waitFor(() => expect(api.get).toHaveBeenCalledTimes(URLS_PUBLICAS.length));
     expect(vi.mocked(api.get).mock.calls.map((llamada) => llamada[0]).sort()).toEqual([...URLS_PUBLICAS].sort());

@@ -17,4 +17,10 @@ public class EstadoCuentaMpResponseDTO {
     private EstadoCuentaMp estado;
     private Long mpUserId;
     private LocalDateTime vinculadaEn;
+    /**
+     * True si hace falta la cuenta vinculada para publicar (lo normal). En desarrollo se puede apagar con
+     * {@code MP_EXIGIR_CUENTA_VINCULADA=false}: entonces se publica y se cobra con la cuenta de la plataforma, y el
+     * frontend no tiene que bloquear la publicación.
+     */
+    private boolean obligatoria;
 }

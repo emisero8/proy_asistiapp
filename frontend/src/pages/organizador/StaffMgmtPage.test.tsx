@@ -68,9 +68,11 @@ describe("OrganizadorStaffMgmtPage — selector de evento", () => {
     renderPage();
     await abrirFormulario(user);
 
-    expect(screen.getByRole("option", { name: "Festival de Jazz" })).toBeInTheDocument();
     expect(screen.queryByText(/No pudimos cargar tus eventos/)).not.toBeInTheDocument();
     expect(screen.getByRole("combobox")).toBeEnabled();
+    // El selector es un combobox editorial: sus opciones se renderizan al abrirlo.
+    await user.click(screen.getByRole("combobox"));
+    expect(await screen.findByRole("option", { name: "Festival de Jazz" })).toBeInTheDocument();
   });
 
   it("si falla la carga de eventos lo avisa (en vez de dejar el selector vacío sin explicación) y lo deshabilita", async () => {
@@ -95,7 +97,8 @@ describe("OrganizadorStaffMgmtPage — selector de evento", () => {
 
     await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
     expect(screen.getByRole("combobox")).toBeEnabled();
-    expect(screen.getByRole("option", { name: "Festival de Jazz" })).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox"));
+    expect(await screen.findByRole("option", { name: "Festival de Jazz" })).toBeInTheDocument();
   });
 
   it("si reintentar vuelve a fallar, el aviso sigue ahí", async () => {
@@ -126,7 +129,7 @@ describe("OrganizadorStaffMgmtPage — resetear contraseña", () => {
     renderPage();
     await screen.findByText("Martín Gómez");
 
-    await user.click(screen.getByTitle("Resetear contraseña"));
+    await user.click(screen.getByRole("button", { name: /^Resetear contraseña/ }));
     const dialogo = await screen.findByRole("dialog", { name: "Generar contraseña nueva" });
     expect(within(dialogo).getByText(/La anterior deja de funcionar/)).toBeInTheDocument();
     await user.click(within(dialogo).getByRole("button", { name: "Cancelar" }));
@@ -142,7 +145,7 @@ describe("OrganizadorStaffMgmtPage — resetear contraseña", () => {
     renderPage();
     await screen.findByText("Martín Gómez");
 
-    await user.click(screen.getByTitle("Resetear contraseña"));
+    await user.click(screen.getByRole("button", { name: /^Resetear contraseña/ }));
     await user.click(within(await screen.findByRole("dialog", { name: "Generar contraseña nueva" })).getByRole("button", { name: "Generar" }));
 
     const alerta = await screen.findByRole("dialog", { name: "Contraseña temporal" });
@@ -167,7 +170,7 @@ describe("OrganizadorStaffMgmtPage — resetear contraseña", () => {
     renderPage();
     await screen.findByText("Martín Gómez");
 
-    await user.click(screen.getByTitle("Resetear contraseña"));
+    await user.click(screen.getByRole("button", { name: /^Resetear contraseña/ }));
     await user.click(within(await screen.findByRole("dialog", { name: "Generar contraseña nueva" })).getByRole("button", { name: "Generar" }));
 
     expect(await screen.findAllByText("Ese staff no te pertenece")).not.toHaveLength(0);
@@ -187,13 +190,19 @@ const VENDEDOR: StaffResponseDTO = {
   totalRecaudado: 36000,
 };
 
+/** El selector de evento es un combobox propio (SelectMenu): sus opciones se renderizan al abrirlo. */
+async function elegirEvento(user: ReturnType<typeof userEvent.setup>, nombre: string) {
+  await user.click(screen.getByRole("combobox"));
+  await user.click(await screen.findByRole("option", { name: nombre }));
+}
+
 describe("OrganizadorStaffMgmtPage — tope por vendedor (8.3)", () => {
   async function llenarAltaDeVendedor(user: ReturnType<typeof userEvent.setup>) {
     await abrirFormulario(user);
     await user.type(screen.getByPlaceholderText("Martín Gómez"), "Nuevo Vendedor");
     await user.type(screen.getByPlaceholderText("martin@mail.com"), "nuevo@test.com");
-    await user.click(screen.getByRole("button", { name: "Staff Vendedor" }));
-    await user.selectOptions(screen.getByRole("combobox"), "5");
+    await user.click(screen.getByRole("radio", { name: /Staff Vendedor/ }));
+    await elegirEvento(user, "Festival de Jazz");
   }
 
   it("la tarjeta del vendedor muestra cuántas vendió, el tope y cuánto suma", async () => {
@@ -253,7 +262,7 @@ describe("OrganizadorStaffMgmtPage — tope por vendedor (8.3)", () => {
     await abrirFormulario(user);
     await user.type(screen.getByPlaceholderText("Martín Gómez"), "Nuevo QR");
     await user.type(screen.getByPlaceholderText("martin@mail.com"), "qr@test.com");
-    await user.selectOptions(screen.getByRole("combobox"), "5");
+    await elegirEvento(user, "Festival de Jazz");
 
     expect(screen.queryByLabelText(/Tope de entradas/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Agregar" }));

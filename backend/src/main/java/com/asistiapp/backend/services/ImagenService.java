@@ -34,6 +34,26 @@ public class ImagenService {
     @Value("${app.cloudinary.cloud-name}")
     private String cloudName;
 
+    @Value("${app.cloudinary.api-key}")
+    private String apiKey;
+
+    @Value("${app.cloudinary.api-secret}")
+    private String apiSecret;
+
+    /**
+     * True si están cargadas las tres credenciales de Cloudinary. Sin esto, el SDK falla recién
+     * al subir, con una excepción genérica que antes se confundía con un error transitorio de su
+     * API ("intentá en unos minutos"). Un servicio sin configurar es un problema de entorno, no
+     * uno que se resuelva reintentando.
+     */
+    private boolean credencialesConfiguradas() {
+        return !isBlank(cloudName) && !isBlank(apiKey) && !isBlank(apiSecret);
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
     /**
      * El public_id de Cloudinary es lo que viene después de "/upload/", sin el
      * "v<versión>/" opcional y sin la extensión. Ej: para
@@ -81,6 +101,12 @@ public class ImagenService {
 
     private String subirImagen(MultipartFile archivo, String carpeta) {
         validar(archivo);
+        if (!credencialesConfiguradas()) {
+            log.error("Subida de imagen abortada: faltan credenciales de Cloudinary " +
+                    "(CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET).");
+            throw new BusinessRuleException(
+                    "El servicio de imágenes no está configurado. Avisá al administrador del sitio.");
+        }
         try {
             Map<?, ?> resultado = cloudinary.uploader().upload(
                     archivo.getBytes(),

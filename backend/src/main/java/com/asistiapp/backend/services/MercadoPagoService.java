@@ -49,7 +49,16 @@ public class MercadoPagoService {
     private final PaymentRefundClient paymentRefundClient;
     private final MercadoPagoConfig config;
 
-    /** Datos de una orden a cobrar — un solo ítem, con cantidad. */
+    /** Título del ítem del cargo por procesamiento: es lo que ve el comprador en el checkout de Mercado Pago. */
+    public static final String TITULO_CARGO_SERVICIO = "Cargo por procesamiento de pago (Mercado Pago)";
+
+    /**
+     * Datos de una orden a cobrar — un ítem con cantidad y, si el Organizador traslada la comisión de Mercado
+     * Pago al comprador, un segundo ítem con el cargo por entrada (misma cantidad), para que el desglose se vea
+     * también en el checkout de Mercado Pago.
+     *
+     * @param cargoServicioUnitario cargo por entrada; null o 0 = sin cargo (la orden de créditos nunca lo lleva)
+     */
     public record OrdenACobrar(
             String itemId,
             String titulo,
@@ -59,7 +68,20 @@ public class MercadoPagoService {
             String externalReference,
             String tipo,
             String emailPagador,
-            LocalDateTime fechaVencimiento) {}
+            LocalDateTime fechaVencimiento,
+            BigDecimal cargoServicioUnitario) {
+
+        /** Orden sin cargo por procesamiento (créditos, o entradas cuyo Organizador absorbe la comisión). */
+        public OrdenACobrar(String itemId, String titulo, String descripcion, int cantidad, BigDecimal precioUnitario,
+                            String externalReference, String tipo, String emailPagador, LocalDateTime fechaVencimiento) {
+            this(itemId, titulo, descripcion, cantidad, precioUnitario, externalReference, tipo, emailPagador,
+                    fechaVencimiento, null);
+        }
+
+        public boolean tieneCargoServicio() {
+            return cargoServicioUnitario != null && cargoServicioUnitario.signum() > 0;
+        }
+    }
 
     public record PreferenciaCreada(String preferenceId, String initPoint) {}
 
@@ -97,8 +119,19 @@ public class MercadoPagoService {
                 .currencyId("ARS")
                 .build();
 
+        List<PreferenceItemRequest> items = orden.tieneCargoServicio()
+                ? List.of(item, PreferenceItemRequest.builder()
+                        .id("cargo-servicio")
+                        .title(TITULO_CARGO_SERVICIO)
+                        .description("Comisión de Mercado Pago trasladada por el organizador")
+                        .quantity(orden.cantidad())
+                        .unitPrice(orden.cargoServicioUnitario())
+                        .currencyId("ARS")
+                        .build())
+                : List.of(item);
+
         PreferenceRequest.PreferenceRequestBuilder request = PreferenceRequest.builder()
-                .items(List.of(item))
+                .items(items)
                 .externalReference(orden.externalReference())
                 .backUrls(PreferenceBackUrlsRequest.builder()
                         .success(urlRetorno)

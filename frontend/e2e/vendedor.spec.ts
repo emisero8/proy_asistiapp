@@ -9,7 +9,7 @@ test("el Staff Vendedor entra al POS y vende una entrada", async ({ page, mundo 
   await expect(page).toHaveURL(/\/staff\/pos/);
   await expect(page.getByText(mundo.publicado.evento.nombre)).toBeVisible();
 
-  await page.getByPlaceholder("Nombre del comprador...").fill("Comprador E2E");
+  await page.getByPlaceholder("Nombre del comprador").fill("Comprador E2E");
   await page.getByPlaceholder("comprador@ejemplo.com").fill("venta.e2e@asistiapp.test");
   await page.getByRole("button", { name: "Generar entrada" }).first().click();
 

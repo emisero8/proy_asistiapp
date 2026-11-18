@@ -118,6 +118,41 @@ class MercadoPagoServiceTest {
     }
 
     // ─────────────────────────────────────────────
+    // Cargo por procesamiento trasladado al comprador
+    // ─────────────────────────────────────────────
+
+    @Test
+    void crearPreferencia_conCargoPorProcesamiento_agregaUnSegundoItemConElCargoPorEntrada() throws Exception {
+        when(config.getFrontendBaseUrl()).thenReturn("http://localhost:5173");
+        when(config.getBackendPublicUrl()).thenReturn("http://localhost:8080");
+        when(preferenceClient.create(any(PreferenceRequest.class), any(com.mercadopago.core.MPRequestOptions.class)))
+                .thenReturn(preferenciaCon("https://www.mercadopago.com.ar/x", null));
+        var orden = new MercadoPagoService.OrdenACobrar(
+                "tanda-1", "Entrada General", "Recital de prueba", 2,
+                BigDecimal.valueOf(8000), "ext-ref-1", MercadoPagoService.TIPO_ENTRADAS,
+                "comprador@test.com", LocalDateTime.now().plusMinutes(30), new BigDecimal("659.03"));
+
+        mercadoPagoService.crearPreferencia(orden, "token-del-organizador");
+
+        verify(preferenceClient).create(argThat((PreferenceRequest r) -> r.getItems().size() == 2
+                && r.getItems().get(0).getUnitPrice().compareTo(BigDecimal.valueOf(8000)) == 0
+                && r.getItems().get(1).getQuantity() == 2
+                && r.getItems().get(1).getUnitPrice().compareTo(new BigDecimal("659.03")) == 0
+                && MercadoPagoService.TITULO_CARGO_SERVICIO.equals(r.getItems().get(1).getTitle())),
+                any(com.mercadopago.core.MPRequestOptions.class));
+    }
+
+    @Test
+    void crearPreferencia_sinCargo_mandaUnSoloItem() throws Exception {
+        stubConfigValida();
+        when(preferenceClient.create(any(PreferenceRequest.class))).thenReturn(preferenciaCon("https://mp/x", null));
+
+        mercadoPagoService.crearPreferencia(orden());
+
+        verify(preferenceClient).create(argThat((PreferenceRequest r) -> r.getItems().size() == 1));
+    }
+
+    // ─────────────────────────────────────────────
     // Cobro con la cuenta del Organizador (8.5)
     // ─────────────────────────────────────────────
 

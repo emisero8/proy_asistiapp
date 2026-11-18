@@ -158,6 +158,23 @@ class AnulacionEntradaServiceTest {
     }
 
     @Test
+    void prepararReembolso_siElCompradorPagoCargoPorProcesamiento_tambienSeLoDevuelve() {
+        // El Organizador le trasladó la comisión de Mercado Pago: la entrada costó $1500 + $123,57 de cargo.
+        entrada.setEstado(EstadoEntrada.Anulada);
+        TransaccionPago orden = new TransaccionPago();
+        orden.setMercadopagoPaymentId("12345");
+        orden.setCargoServicioUnitario(123.57);
+        when(transaccionPagoRepository.findById(11L)).thenReturn(Optional.of(orden));
+        when(entradaRepository.reservarReembolso(ID_ENTRADA)).thenReturn(1);
+
+        var plan = service.prepararReembolso(ID_ENTRADA, ORG);
+
+        assertThat(plan.monto()).isEqualByComparingTo("1623.57");
+        // El mail al comprador informa lo que se le devuelve de verdad.
+        assertThat(plan.entrada().precio()).isEqualTo(1623.57);
+    }
+
+    @Test
     void prepararReembolso_deUnaEntradaVigenteEnUnEventoActivo_pideAnularlaPrimero() {
         assertThatThrownBy(() -> service.prepararReembolso(ID_ENTRADA, ORG))
                 .isInstanceOf(BusinessRuleException.class).hasMessageContaining("Primero anulá");

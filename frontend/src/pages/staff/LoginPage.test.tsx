@@ -4,9 +4,9 @@ import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StaffLoginPage } from "./LoginPage";
 import { AuthProvider } from "../../lib/auth";
+import { ThemeProvider } from "../../lib/theme";
 import { api, ApiError } from "../../lib/api";
 import type { AuthResponseDTO } from "../../lib/types";
-import { ThemeProvider } from "../../lib/theme";
 
 vi.mock("../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../lib/api")>();
@@ -15,6 +15,7 @@ vi.mock("../../lib/api", async (importOriginal) => {
 
 function renderLoginPage() {
   return render(
+    // La pantalla incluye el toggle de tema (AuthLayout), igual que en la app real.
     <ThemeProvider>
       <AuthProvider>
         <MemoryRouter initialEntries={["/staff/login"]}>

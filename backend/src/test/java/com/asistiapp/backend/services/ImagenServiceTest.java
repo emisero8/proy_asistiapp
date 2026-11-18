@@ -37,6 +37,8 @@ class ImagenServiceTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(imagenService, "cloudName", CLOUD);
+        ReflectionTestUtils.setField(imagenService, "apiKey", "una-api-key");
+        ReflectionTestUtils.setField(imagenService, "apiSecret", "un-api-secret");
     }
 
     @Test
@@ -144,5 +146,25 @@ class ImagenServiceTest {
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> imagenService.subirImagenEvento(archivo))
                 .isInstanceOf(com.asistiapp.backend.exceptions.BusinessRuleException.class);
+    }
+
+    /**
+     * Si faltan las credenciales de Cloudinary (variables CLOUDINARY_* sin setear), la subida se
+     * corta ANTES de llamar al SDK, con un mensaje honesto de "no está configurado" en vez del
+     * genérico "intentá en unos minutos" (que sugería un error transitorio y confundía el
+     * diagnóstico). Reproduce la causa real del fallo reportado al subir una portada.
+     */
+    @Test
+    void subirImagenEvento_sinCredenciales_avisaQueNoEstaConfiguradoYNoLlamaAlSdk() {
+        ReflectionTestUtils.setField(imagenService, "cloudName", "");
+
+        var archivo = new org.springframework.mock.web.MockMultipartFile(
+                "archivo", "foto.png", "image/png", new byte[]{1, 2, 3});
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> imagenService.subirImagenEvento(archivo))
+                .isInstanceOf(com.asistiapp.backend.exceptions.BusinessRuleException.class)
+                .hasMessageContaining("no está configurado");
+
+        verifyNoInteractions(cloudinary);
     }
 }

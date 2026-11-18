@@ -34,9 +34,17 @@ public class TransaccionPago {
     @Column(nullable = false, columnDefinition = "integer default 1")
     private Integer cantidad;
 
-    /** Total de la orden (precio de la tanda × cantidad). */
+    /** Total de la orden: (precio de la tanda + cargo por entrada) × cantidad. Es lo que se cobra en MercadoPago. */
     @Column(name = "monto_total", nullable = false)
     private Double montoTotal;
+
+    /**
+     * Cargo por procesamiento de pago por entrada que se le sumó al comprador porque el Organizador traslada la
+     * comisión de Mercado Pago. Null o 0 = la absorbió el Organizador. Queda fijo en la orden: si el Organizador
+     * cambia su preferencia después, no afecta lo ya cobrado ni lo que se reembolsa.
+     */
+    @Column(name = "cargo_servicio_unitario")
+    private Double cargoServicioUnitario;
 
     /**
      * Identificador opaco de la orden que viaja a MercadoPago como external_reference.

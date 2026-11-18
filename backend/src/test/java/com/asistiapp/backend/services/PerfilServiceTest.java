@@ -86,6 +86,44 @@ class PerfilServiceTest {
         assertThat(response.getMaxEntradasPorCompradorPlataforma()).isEqualTo(6);
     }
 
+    // ── Comisión de Mercado Pago: quién la paga ─────────────
+
+    @Test
+    void obtenerPerfil_sinPreferenciaDeComision_laAbsorbeElOrganizadorConLosValoresPorDefecto() {
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(organizador(null)));
+
+        var response = perfilService.obtenerPerfil(ID);
+
+        assertThat(response.isTrasladarCargoMp()).isFalse();
+        assertThat(response.getPlazoLiberacionMp()).isEqualTo(com.asistiapp.backend.models.enums.PlazoLiberacionMp.AlInstante);
+        assertThat(response.getZonaComisionMp()).isEqualTo(com.asistiapp.backend.models.enums.ZonaComisionMp.General);
+        assertThat(response.getPorcentajeCargoComprador()).isEqualTo(8.24);
+    }
+
+    @Test
+    void cambiarComisionMp_guardaQuienPagaElPlazoYLaZona() {
+        var org = organizador(null);
+        when(organizadorRepository.findById(ID)).thenReturn(Optional.of(org));
+        when(organizadorRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var response = perfilService.cambiarComisionMp(ID, true,
+                com.asistiapp.backend.models.enums.PlazoLiberacionMp.Dias35,
+                com.asistiapp.backend.models.enums.ZonaComisionMp.General);
+
+        assertThat(org.isTrasladarCargoMp()).isTrue();
+        assertThat(org.getPlazoLiberacionMp()).isEqualTo(com.asistiapp.backend.models.enums.PlazoLiberacionMp.Dias35);
+        assertThat(response.isTrasladarCargoMp()).isTrue();
+        assertThat(response.getPorcentajeCargoComprador()).isEqualTo(1.84);
+    }
+
+    @Test
+    void cambiarComisionMp_sinPlazo_lanzaBusinessRuleExceptionYNoGuarda() {
+        assertThatThrownBy(() -> perfilService.cambiarComisionMp(ID, true, null,
+                com.asistiapp.backend.models.enums.ZonaComisionMp.General))
+                .isInstanceOf(com.asistiapp.backend.exceptions.BusinessRuleException.class);
+        verify(organizadorRepository, never()).save(any());
+    }
+
     @Test
     void obtenerPerfil_sinTopePropio_viene_null() {
         when(organizadorRepository.findById(ID)).thenReturn(Optional.of(organizador(null)));
