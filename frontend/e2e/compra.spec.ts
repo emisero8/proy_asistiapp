@@ -10,7 +10,7 @@ test("un comprador elige una tanda, completa sus datos y se abre el pago de Merc
 
   await page.goto(`/eventos/${evento.urlPublica}`);
   await expect(page.getByRole("heading", { name: evento.nombre })).toBeVisible();
-  await expect(page.getByRole("button", { name: new RegExp(nombreTanda) })).toBeVisible();
+  await expect(page.getByRole("radio", { name: new RegExp(nombreTanda) })).toBeVisible();
   await page.getByRole("button", { name: /Comprar entradas/ }).click();
 
   await expect(page).toHaveURL(/\/checkout/);
@@ -19,7 +19,7 @@ test("un comprador elige una tanda, completa sus datos y se abre el pago de Merc
   await page.getByPlaceholder("Repetí tu email").fill("comprador.e2e@asistiapp.test");
   await page.getByRole("checkbox", { name: /Acepto los Términos/ }).check();
   const pestanaPago = context.waitForEvent("page");
-  await page.getByRole("button", { name: /Confirmar compra/ }).first().click();
+  await page.getByRole("button", { name: /^Pagar \$/ }).first().click();
 
   const pago = await pestanaPago;
   await expect(pago).toHaveURL(/mercadopago|mercadolibre/);

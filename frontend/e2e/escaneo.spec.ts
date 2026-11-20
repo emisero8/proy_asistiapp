@@ -18,7 +18,8 @@ test("el Staff QR valida una entrada con su código, y la segunda vez la rechaza
   }
 
   await validarManual();
-  await expect(page.getByText("Comprador E2E")).toBeVisible();
+  // exact: el nombre también está dentro del aviso para lectores de pantalla ("Ingreso válido. Comprador E2E, …").
+  await expect(page.getByText("Comprador E2E", { exact: true })).toBeVisible();
   const contador = (rotulo: string) => page.getByText(rotulo, { exact: true }).locator("xpath=..");
   await expect(contador("Válidos")).toContainText("1");
 

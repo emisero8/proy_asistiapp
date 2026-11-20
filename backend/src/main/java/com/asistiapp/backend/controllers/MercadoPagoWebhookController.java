@@ -21,6 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
  * autenticidad se garantiza con la firma x-signature (MercadoPagoFirmaValidator) y
  * volviendo a consultar el pago a la API de MP (PagoWebhookService).
  *
+ * Solo se procesan los avisos en formato Webhooks (?data.id=…&type=…), que son los firmados con la clave
+ * secreta. Los del formato viejo IPN (?id=…&topic=…) no se pueden autenticar con esa clave, así que se
+ * responden 200 y se ignoran: MP manda cada pago por las dos vías y el pago lo confirma el webhook (con la
+ * reconciliación de la orden como respaldo si algún aviso se perdiera).
+ *
  * Responde 200 a todo lo que no necesita reintento (notificaciones que no son de pago,
  * pagos ya procesados) para que MP no insista; 401 si la firma no es válida; y deja
  * subir los errores transitorios (5xx) para que MP reintente.
@@ -46,7 +51,7 @@ public class MercadoPagoWebhookController {
             @RequestBody(required = false) JsonNode body) {
 
         // MP manda cada pago por dos vías: Webhooks (?data.id=…&type=payment) y el formato
-        // viejo IPN (?id=…&topic=payment). Las dos van firmadas y se tratan igual.
+        // viejo IPN (?id=…&topic=payment). Solo el primero va firmado con la clave secreta.
         String idQuery = dataIdQuery != null ? dataIdQuery : idIpnQuery;
 
         // Diagnóstico de la firma (ver "Pendiente de la firma" en docs/tecnica/backend_implementation_plan.md):
@@ -58,6 +63,13 @@ public class MercadoPagoWebhookController {
                 MercadoPagoFirmaValidator.paraLog(idQuery),
                 xSignature != null ? "presente" : "ausente",
                 xRequestId != null ? "presente" : "ausente");
+
+        // IPN: formato viejo, sin firma verificable con la clave secreta (lo confirman los avisos reales del
+        // 12 y el 17/11, donde solo el webhook validaba). No se rechaza con 401, porque MP reintentaría en vano.
+        if (dataIdQuery == null && idIpnQuery != null) {
+            log.debug("Aviso IPN de MercadoPago ignorado: el pago lo confirma el aviso en formato webhook");
+            return ResponseEntity.ok().build();
+        }
 
         // La firma se calcula con el id de la query string, tal como lo manda MP.
         if (!firmaValidator.esValida(xSignature, xRequestId, idQuery)) {

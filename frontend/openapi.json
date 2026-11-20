@@ -145,6 +145,36 @@
         }
       }
     },
+    "/organizador/perfil/comision-mp": {
+      "put": {
+        "tags": [
+          "perfil-controller"
+        ],
+        "operationId": "cambiarComisionMp",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComisionMpRequestDTO"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/eventos/{id}": {
       "get": {
         "tags": [
@@ -2782,6 +2812,29 @@
           },
           "contactoEmail": {
             "type": "string"
+          },
+          "trasladarCargoMp": {
+            "type": "boolean"
+          },
+          "plazoLiberacionMp": {
+            "type": "string",
+            "enum": [
+              "AlInstante",
+              "Dias10",
+              "Dias18",
+              "Dias35"
+            ]
+          },
+          "zonaComisionMp": {
+            "type": "string",
+            "enum": [
+              "General",
+              "BuenosAiresEntreRiosChubut"
+            ]
+          },
+          "porcentajeCargoComprador": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -2825,6 +2878,35 @@
             "maxLength": 200,
             "minLength": 0,
             "type": "string"
+          }
+        }
+      },
+      "ComisionMpRequestDTO": {
+        "required": [
+          "plazoLiberacion",
+          "trasladarAlComprador",
+          "zona"
+        ],
+        "type": "object",
+        "properties": {
+          "trasladarAlComprador": {
+            "type": "boolean"
+          },
+          "plazoLiberacion": {
+            "type": "string",
+            "enum": [
+              "AlInstante",
+              "Dias10",
+              "Dias18",
+              "Dias35"
+            ]
+          },
+          "zona": {
+            "type": "string",
+            "enum": [
+              "General",
+              "BuenosAiresEntreRiosChubut"
+            ]
           }
         }
       },
@@ -2986,6 +3068,10 @@
           "fechaFinVigencia": {
             "type": "string",
             "format": "date-time"
+          },
+          "cargoServicio": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -3134,6 +3220,21 @@
             "format": "int64"
           },
           "nombreEvento": {
+            "type": "string"
+          },
+          "fechaEvento": {
+            "type": "string",
+            "format": "date"
+          },
+          "horaEvento": {
+            "type": "string",
+            "format": "time",
+            "example": "21:00:00"
+          },
+          "lugarEvento": {
+            "type": "string"
+          },
+          "imagenPortadaUrl": {
             "type": "string"
           },
           "nombreTanda": {
@@ -3860,6 +3961,18 @@
           "precioDesde": {
             "type": "number",
             "format": "double"
+          },
+          "cantidadTandas": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cupoDisponibleTotal": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cupoTotal": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -3917,6 +4030,10 @@
           },
           "contactoEmail": {
             "type": "string"
+          },
+          "porcentajeCargoServicio": {
+            "type": "number",
+            "format": "double"
           }
         }
       },
@@ -3957,6 +4074,9 @@
           "vinculadaEn": {
             "type": "string",
             "format": "date-time"
+          },
+          "obligatoria": {
+            "type": "boolean"
           }
         }
       },

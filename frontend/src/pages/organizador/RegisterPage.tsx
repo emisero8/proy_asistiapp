@@ -1,24 +1,30 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import { ChevronLeft, Eye, EyeOff, AlertCircle, Check, UserPlus, BadgeCheck, Zap, ShieldCheck, TrendingUp } from "lucide-react";
+import { useRef, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { BadgeCheck, Gift, ShieldCheck, TrendingUp, Zap } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { AuthHeader, AuthLayout, type AuthBrand, MarcaAcento } from "../../components/AuthLayout";
+import { Alert, Button, Field, Input, PasswordInput } from "../../components/ui";
 import type { AuthResponseDTO, MovimientoCreditoResponseDTO, RegisterRequestDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { AceptaTerminos } from "../../components/AceptaTerminos";
-import { ThemeToggle } from "../../components/ThemeToggle";
 
-const PITCH_STATS = [
-  { value: "0%", label: "comisión al organizador" },
-  { value: "100%", label: "entradas digitales con QR" },
-  { value: "24/7", label: "panel de ventas en vivo" },
-];
+const MARCA: AuthBrand = {
+  title: (
+    <>
+      Vendé entradas <MarcaAcento>sin comisión</MarcaAcento> y con todo bajo control
+    </>
+  ),
+  description: "Publicá tu evento, vendé online o en la puerta y validá cada entrada con QR — todo desde un mismo panel.",
+  features: [
+    { icon: Gift, text: "Créditos de bienvenida al registrarte" },
+    { icon: Zap, text: "Cargá tu evento y sus tandas de precios en minutos" },
+    { icon: ShieldCheck, text: "Validación QR en la puerta, sin entradas duplicadas" },
+    { icon: TrendingUp, text: "Seguí tus ventas en vivo desde cualquier lado" },
+  ],
+};
 
-const PITCH_FEATURES = [
-  { icon: Zap, title: "Publicá en minutos", desc: "Cargá tu evento, tandas de precios y ya está online." },
-  { icon: ShieldCheck, title: "Validación QR en la puerta", desc: "Sin planillas ni entradas duplicadas el día del show." },
-  { icon: TrendingUp, title: "Ventas en tiempo real", desc: "Seguí cuánto vendiste y quién compró, desde cualquier lado." },
-];
+type Campo = "nombre" | "email" | "pass" | "pass2" | "terminos";
 
 export function OrganizadorRegisterPage() {
   useDocumentTitle("Crear cuenta de organizador");
@@ -31,14 +37,25 @@ export function OrganizadorRegisterPage() {
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
-  const [show, setShow] = useState(false);
-  const [show2, setShow2] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Los errores de cada campo se muestran recién al salir de él o al intentar enviar,
+  // no mientras la persona todavía está escribiendo.
+  const [tocados, setTocados] = useState<Partial<Record<Campo, boolean>>>({});
+  const [intentoEnviar, setIntentoEnviar] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const passMatch = pass === pass2 && pass.length >= 8;
-  const valid = name.trim().length > 1 && email.includes("@") && passMatch && agreed;
+  const errores: Partial<Record<Campo, string>> = {
+    nombre: name.trim().length > 1 ? undefined : "Ingresá tu nombre completo.",
+    email: email.includes("@") ? undefined : "Ingresá un email válido.",
+    pass: pass.length >= 8 ? undefined : "Tiene que tener al menos 8 caracteres.",
+    pass2: pass2 && pass2 === pass ? undefined : "Las contraseñas no coinciden.",
+    terminos: agreed ? undefined : "Tenés que aceptar los términos para crear la cuenta.",
+  };
+  const valid = Object.values(errores).every((e) => !e);
+  const mostrar = (c: Campo) => (intentoEnviar || tocados[c] ? errores[c] : undefined);
+  const tocar = (c: Campo) => () => setTocados((t) => ({ ...t, [c]: true }));
 
   async function handleSubmit() {
     setLoading(true);
@@ -63,197 +80,94 @@ export function OrganizadorRegisterPage() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mb-6">
-          <BadgeCheck size={38} className="text-primary" />
-        </div>
-        <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-2">¡Registro exitoso!</p>
-        <h2 className="text-2xl font-extrabold text-foreground mb-2">Bienvenido/a, {name.split(" ")[0]}</h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          Ya podés empezar a publicar tus eventos con <span className="text-foreground font-medium">{email}</span>
-        </p>
-        {creditosBienvenida !== null && (
-          <div className="bg-card border border-border rounded-2xl p-4 w-full max-w-sm mb-6 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Créditos de bienvenida</span>
-              <span className="text-sm font-bold text-emerald-400">+{creditosBienvenida} créditos 🎉</span>
+      <AuthLayout brand={MARCA}>
+        <div className="text-center">
+          <span className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-success/12 text-success">
+            <BadgeCheck size={22} aria-hidden="true" />
+          </span>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight text-foreground">¡Bienvenido/a, {name.split(" ")[0]}!</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Tu cuenta <span className="font-medium text-foreground">{email}</span> ya está lista para publicar eventos.
+          </p>
+          {creditosBienvenida !== null && (
+            <div className="mt-5 flex items-center justify-between rounded-xl border border-success/25 bg-success/10 px-4 py-3 text-left">
+              <span className="text-sm text-foreground">Créditos de bienvenida</span>
+              <span className="text-base font-extrabold tabular-nums text-success">+{creditosBienvenida}</span>
             </div>
-          </div>
-        )}
-        <button
-          onClick={() => navigate("/organizador/dashboard")}
-          className="w-full max-w-sm py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 transition-all"
-        >
-          Ir a mi panel
-        </button>
-      </div>
+          )}
+          <Button block size="lg" className="mt-6" onClick={() => navigate("/organizador/dashboard")}>
+            Ir a mi panel
+          </Button>
+        </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background lg:flex lg:items-center lg:justify-center lg:py-10">
-      <ThemeToggle variante="esquina" />
-      <div className="w-full lg:max-w-5xl lg:mx-auto lg:grid lg:grid-cols-2 lg:gap-12 lg:items-center lg:px-8">
-        {/* Pitch — solo desktop, para no alargar el flujo corto de mobile */}
-        <div className="hidden lg:block">
-          <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-3">Para organizadores</p>
-          <h1 className="text-3xl xl:text-4xl font-extrabold text-foreground leading-tight mb-4">
-            Vendé entradas <span className="text-primary">sin comisión</span> y con todo bajo control
-          </h1>
-          <p className="text-sm text-muted-foreground mb-8 max-w-md">
-            Publicá tu evento, vendé online o en la puerta y validá cada entrada con QR — todo desde un mismo panel.
-          </p>
-
-          <div className="flex gap-6 mb-8">
-            {PITCH_STATS.map((s) => (
-              <div key={s.label}>
-                <p className="text-2xl font-extrabold text-foreground">{s.value}</p>
-                <p className="text-[11px] text-muted-foreground leading-tight mt-0.5 max-w-[9rem]">{s.label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="space-y-3">
-            {PITCH_FEATURES.map((f) => (
-              <div key={f.title} className="flex items-start gap-3 bg-card/60 border border-border rounded-2xl p-4">
-                <div className="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center flex-none">
-                  <f.icon size={16} className="text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-foreground">{f.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+    <AuthLayout brand={MARCA} size="md">
+      <AuthHeader title="Crear cuenta de organizador" description="Gratis. Recibís créditos de bienvenida para publicar tu primer evento." />
+      <form
+        ref={formRef}
+        className="space-y-4"
+        noValidate
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (loading) return;
+          if (!valid) {
+            setIntentoEnviar(true);
+            // Lleva el foco al primer campo con problemas (los inválidos quedan con aria-invalid).
+            requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+            return;
+          }
+          handleSubmit();
+        }}
+      >
+        <Field label="Nombre completo" error={mostrar("nombre")}>
+          <Input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} onBlur={tocar("nombre")} placeholder="María García" />
+        </Field>
+        <Field label="Email" error={mostrar("email")}>
+          <Input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={tocar("email")}
+            placeholder="hola@miempresa.com"
+          />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Contraseña" hint="Mínimo 8 caracteres." error={mostrar("pass")}>
+            <PasswordInput autoComplete="new-password" value={pass} onChange={(e) => setPass(e.target.value)} onBlur={tocar("pass")} />
+          </Field>
+          <Field label="Confirmar contraseña" error={mostrar("pass2")}>
+            <PasswordInput
+              autoComplete="new-password"
+              toggleLabel="la confirmación"
+              value={pass2}
+              onChange={(e) => setPass2(e.target.value)}
+              onBlur={tocar("pass2")}
+            />
+          </Field>
         </div>
-
-        <div className="max-w-sm lg:max-w-md mx-auto w-full lg:border lg:border-border lg:rounded-3xl lg:bg-card/40">
-        <div className="px-6 pt-8 pb-4 border-b border-border">
-          <button onClick={() => navigate("/organizador/login")} className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors">
-            <ChevronLeft size={15} />
-            Volver
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-primary/15 border border-primary/30 flex items-center justify-center">
-              <UserPlus size={18} className="text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-extrabold text-foreground">Crear cuenta gratis</h2>
-              <p className="text-xs text-muted-foreground">Empezá a vender entradas hoy</p>
-            </div>
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (valid && !loading) handleSubmit();
+        <AceptaTerminos
+          aceptado={agreed}
+          onCambio={(v) => {
+            setAgreed(v);
+            setTocados((t) => ({ ...t, terminos: true }));
           }}
-        >
-        <div className="px-6 py-5 space-y-4">
-          <div className="bg-primary/8 border border-primary/20 rounded-2xl px-4 py-3 flex flex-wrap gap-3">
-            {["Créditos gratis al registrarte", "Sin comisiones", "Soporte 24/7"].map((b) => (
-              <span key={b} className="flex items-center gap-1 text-xs font-semibold text-primary">
-                <Check size={11} /> {b}
-              </span>
-            ))}
-          </div>
-
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">Nombre completo *</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="María García"
-              className="w-full px-4 py-3.5 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">Email *</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="hola@miempresa.com"
-              className="w-full px-4 py-3.5 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">
-              Contraseña * <span className="text-muted-foreground/60">(mín. 8 caracteres)</span>
-            </label>
-            <div className="relative">
-              <input
-                type={show ? "text" : "password"}
-                value={pass}
-                onChange={(e) => setPass(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-4 py-3.5 pr-11 bg-card border border-border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
-              <button type="button" aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"} aria-pressed={show} onClick={() => setShow((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                {show ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">Confirmar contraseña *</label>
-            <div className="relative">
-              <input
-                type={show2 ? "text" : "password"}
-                value={pass2}
-                onChange={(e) => setPass2(e.target.value)}
-                placeholder="••••••••"
-                className={`w-full px-4 py-3.5 pr-11 bg-card border rounded-2xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all ${
-                  pass2 && !passMatch ? "border-red-500/60" : "border-border"
-                }`}
-              />
-              <button type="button" aria-label={show2 ? "Ocultar confirmación de contraseña" : "Mostrar confirmación de contraseña"} aria-pressed={show2} onClick={() => setShow2((s) => !s)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                {show2 ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            {pass2 && !passMatch && (
-              <p className="text-xs text-red-400 mt-1 flex items-center gap-1">
-                <AlertCircle size={11} />
-                Las contraseñas no coinciden o son muy cortas.
-              </p>
-            )}
-            {pass2 && passMatch && (
-              <p className="text-xs text-emerald-400 mt-1 flex items-center gap-1">
-                <Check size={11} />
-                Contraseñas coinciden.
-              </p>
-            )}
-          </div>
-
-          <AceptaTerminos aceptado={agreed} onCambio={setAgreed} />
-
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-
-        <div className="px-6 py-4">
-          <button
-            type="submit"
-            disabled={!valid || loading}
-            className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
-              valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
-            }`}
-          >
-            {loading ? "Creando cuenta..." : "Crear cuenta gratis"}
-          </button>
-          <p className="text-center text-xs text-muted-foreground mt-3">
-            ¿Ya tenés cuenta?{" "}
-            <button type="button" onClick={() => navigate("/organizador/login")} className="text-primary hover:underline">
-              Iniciá sesión
-            </button>
-          </p>
-        </div>
-        </form>
-        </div>
-      </div>
-    </div>
+          error={mostrar("terminos")}
+        />
+        {error && <Alert tone="danger">{error}</Alert>}
+        <Button type="submit" block size="lg" loading={loading} loadingText="Creando cuenta…">
+          Crear cuenta gratis
+        </Button>
+      </form>
+      <p className="mt-6 border-t border-border pt-5 text-center text-sm text-muted-foreground">
+        ¿Ya tenés cuenta?{" "}
+        <Link to="/organizador/login" className="font-semibold text-primary underline-offset-4 hover:underline">
+          Ingresá
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

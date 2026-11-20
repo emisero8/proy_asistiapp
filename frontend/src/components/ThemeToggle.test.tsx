@@ -9,10 +9,10 @@ beforeEach(() => {
   document.documentElement.classList.remove("dark");
 });
 
-function renderToggle(variante?: "normal" | "sobre-imagen" | "esquina") {
+function renderToggle() {
   return render(
     <ThemeProvider>
-      <ThemeToggle variante={variante} />
+      <ThemeToggle />
     </ThemeProvider>,
   );
 }
@@ -36,14 +36,5 @@ describe("ThemeToggle", () => {
     await user.click(screen.getByRole("button", { name: "Cambiar a modo oscuro" }));
     expect(document.documentElement).toHaveClass("dark");
     expect(localStorage.getItem("asistiapp_theme")).toBe("dark");
-  });
-
-  it("solo la variante 'esquina' flota; la normal y la de imagen van donde las pone el header", () => {
-    const { unmount } = renderToggle("esquina");
-    expect(screen.getByRole("button")).toHaveClass("fixed");
-    unmount();
-
-    renderToggle("normal");
-    expect(screen.getByRole("button")).not.toHaveClass("fixed");
   });
 });

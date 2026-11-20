@@ -1,6 +1,11 @@
-/** Formatea un monto en pesos argentinos, ej. `$12.000`. */
+/**
+ * Formatea un monto en pesos argentinos: `$12.000`, o con centavos si los tiene: `$1.977,10` (siempre dos
+ * decimales, para que un cargo por procesamiento no se lea como `$1.977,1`).
+ */
 export function fmt(n: number): string {
-  return `$${Math.abs(n).toLocaleString("es-AR")}`;
+  const abs = Math.abs(n);
+  const conCentavos = Math.round(abs * 100) % 100 !== 0;
+  return `$${abs.toLocaleString("es-AR", conCentavos ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
 }
 
 /**
@@ -30,6 +35,18 @@ export function formatFecha(fechaEvento: string): string {
 /** `"23:00:00"` (LocalTime del backend) → `"23:00 hs"`. */
 export function formatHora(horaEvento: string): string {
   return `${horaEvento.slice(0, 5)} hs`;
+}
+
+/**
+ * LocalDateTime del backend (sin zona, hora local) → `"10 nov 12:00"`. Para la ventana de
+ * venta de las tandas. Se arma en dos pasos para que no aparezca la coma de `Intl` (día/mes
+ * + hora juntos la meten como "10 nov, 12:00").
+ */
+export function formatFechaHoraCorta(fechaIso: string): string {
+  const d = new Date(fechaIso);
+  const fecha = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short" }).format(d).replace(".", "");
+  const hora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+  return `${fecha} ${hora}`;
 }
 
 /** Timestamp ISO (LocalDateTime del backend, sin zona) → `"hace 3 min"` / `"hace 2 h"` / `"hace 5 d"`. */

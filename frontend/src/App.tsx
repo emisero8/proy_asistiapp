@@ -1,17 +1,19 @@
 import { TerminosPage } from "./pages/legal/TerminosPage";
 import { PrivacidadPage } from "./pages/legal/PrivacidadPage";
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
 import { AuthProvider, RequireRole } from "./lib/auth";
 import { ThemeProvider, useTheme } from "./lib/theme";
 import { DialogProvider } from "./components/DialogProvider";
+import { RouteErrorBoundary } from "./components/RouteErrorBoundary";
+import { EntradaSeccion } from "./components/EntradaSeccion";
+import { AnimatedOutlet, RouteFallback } from "./components/AnimatedOutlet";
 
 const ListingPage = lazy(() => import("./pages/buyer/ListingPage").then((m) => ({ default: m.ListingPage })));
 const AllEventsPage = lazy(() => import("./pages/buyer/AllEventsPage").then((m) => ({ default: m.AllEventsPage })));
 const DetailPage = lazy(() => import("./pages/buyer/DetailPage").then((m) => ({ default: m.DetailPage })));
 const CheckoutPage = lazy(() => import("./pages/buyer/CheckoutPage").then((m) => ({ default: m.CheckoutPage })));
-const TicketPage = lazy(() => import("./pages/buyer/TicketPage").then((m) => ({ default: m.TicketPage })));
 const MiEntradaPage = lazy(() => import("./pages/buyer/MiEntradaPage").then((m) => ({ default: m.MiEntradaPage })));
 const PagoResultadoPage = lazy(() => import("./pages/buyer/PagoResultadoPage").then((m) => ({ default: m.PagoResultadoPage })));
 
@@ -39,80 +41,50 @@ const AdminEventsPage = lazy(() => import("./pages/admin/EventsPage").then((m) =
 const AdminConfigPage = lazy(() => import("./pages/admin/ConfigPage").then((m) => ({ default: m.AdminConfigPage })));
 const AdminAuditoriaPage = lazy(() => import("./pages/admin/AuditoriaPage").then((m) => ({ default: m.AdminAuditoriaPage })));
 
-/** Fallback mientras carga el chunk de la sección (Organizador/Staff/Admin traen recharts/html5-qrcode, code-split por ruta). */
-function RouteFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-    </div>
-  );
-}
+// Catálogo del sistema de diseño: solo en desarrollo. Con import.meta.env.DEV = false en el
+// build, el ternario se resuelve en `null` y el import dinámico (y su chunk) desaparecen.
+const UiCatalogPage = import.meta.env.DEV
+  ? lazy(() => import("./pages/dev/UiCatalogPage").then((m) => ({ default: m.UiCatalogPage })))
+  : null;
 
-/** Envuelve las Routes en un div con key={pathname} — al cambiar de ruta se remonta y
-    dispara la animación .page-transition (fade + slide sutil), dándole a toda la app
-    una transición de página consistente sin tener que tocar cada pantalla. */
-function AnimatedRoutes() {
-  const location = useLocation();
-  const wrapRef = useRef<HTMLDivElement>(null);
-
+/** Vuelve arriba en cada cambio de ruta (antes lo hacía el wrapper animado global). */
+function ScrollToTop() {
+  const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Respaldo de onAnimationEnd: si el hilo principal está ocupado (ej. cargando muchas
-    // imágenes en mobile) el evento puede retrasarse. 500ms da margen sobre los 400ms de
-    // la animación para que esto nunca quede sin limpiarse.
-    const timer = setTimeout(() => {
-      if (wrapRef.current) wrapRef.current.style.animation = "none";
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [location.pathname]);
+  }, [pathname]);
+  return null;
+}
 
+/**
+ * Rutas de la app. La transición de página NO envuelve a todas las rutas: vive en
+ * `<AnimatedOutlet>` adentro de cada layout, así navegar entre pantallas de Organizador
+ * o Admin remonta solo el contenido — el sidebar y la campanita quedan montados (antes
+ * un `key={pathname}` global los remontaba en cada navegación).
+ */
+function AppRoutes() {
   return (
-    <div
-      key={location.pathname}
-      ref={wrapRef}
-      className="page-transition"
-      // La animación usa "both": sin esto, el transform (translateY) del keyframe final
-      // queda aplicado para siempre, y cualquier transform (aunque sea la matriz identidad)
-      // vuelve "relativos a este div" a los elementos position:fixed de adentro — sidebar,
-      // botón Salir, barra inferior de mobile, fondos de login — en vez de al viewport.
-      // Al terminar la animación la sacamos para que fixed vuelva a ser fixed de verdad.
-      onAnimationEnd={(e) => {
-        if (e.animationName === "fade-in-up") e.currentTarget.style.animation = "none";
-      }}
-    >
-      <Routes location={location}>
+    <Routes>
+      {/* Pantallas sin chrome compartido: comprador, logins y Staff */}
+      <Route element={<AnimatedOutlet />}>
         {/* Comprador — público, sin auth (CU-015/016/017) */}
         <Route path="/" element={<ListingPage />} />
         <Route path="/eventos" element={<AllEventsPage />} />
         <Route path="/eventos/:urlPublica" element={<DetailPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/ticket/:id" element={<TicketPage />} />
         <Route path="/mi-entrada" element={<MiEntradaPage />} />
         <Route path="/terminos" element={<TerminosPage />} />
         <Route path="/privacidad" element={<PrivacidadPage />} />
         <Route path="/pago/resultado" element={<PagoResultadoPage />} />
 
-        {/* Organizador */}
+        {/* Accesos (logins y recupero) */}
         <Route path="/organizador/login" element={<OrganizadorLoginPage />} />
         <Route path="/organizador/registro" element={<OrganizadorRegisterPage />} />
         <Route path="/organizador/recuperar-password" element={<OrganizadorResetPasswordPage />} />
-        <Route
-          element={
-            <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">
-              <OrganizadorLayout />
-            </RequireRole>
-          }
-        >
-          <Route path="/organizador/dashboard" element={<OrganizadorDashboardPage />} />
-          <Route path="/organizador/crear" element={<OrganizadorWizardPage />} />
-          <Route path="/organizador/eventos/:id" element={<OrganizadorEventoDetallePage />} />
-          <Route path="/organizador/eventos/:id/editar" element={<OrganizadorEditEventPage />} />
-          <Route path="/organizador/creditos" element={<OrganizadorWalletPage />} />
-          <Route path="/organizador/staff" element={<OrganizadorStaffMgmtPage />} />
-          <Route path="/organizador/perfil" element={<OrganizadorPerfilPage />} />
-        </Route>
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        {UiCatalogPage && <Route path="/dev/ui" element={<UiCatalogPage />} />}
 
-        {/* Staff (QR y Vendedor) */}
+        {/* Staff (QR y Vendedor) — pantallas de una sola tarea, sin layout compartido */}
         <Route path="/staff/login" element={<StaffLoginPage />} />
         <Route
           path="/staff/scanner"
@@ -130,27 +102,49 @@ function AnimatedRoutes() {
             </RequireRole>
           }
         />
+      </Route>
 
-        {/* Admin */}
-        <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route
-          element={
-            <RequireRole roles={["Administrador"]} redirectTo="/admin/login">
-              <AdminLayout />
-            </RequireRole>
-          }
-        >
-          <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
-          <Route path="/admin/usuarios" element={<AdminUsersPage />} />
-          <Route path="/admin/eventos" element={<AdminEventsPage />} />
-          <Route path="/admin/eventos/:id/editar" element={<OrganizadorEditEventPage />} />
-          <Route path="/admin/config" element={<AdminConfigPage />} />
-          <Route path="/admin/auditoria" element={<AdminAuditoriaPage />} />
-        </Route>
+      {/* Organizador — el layout usa <AnimatedOutlet> para su contenido */}
+      <Route
+        element={
+          <RequireRole roles={["Organizador"]} redirectTo="/organizador/login">
+            <OrganizadorLayout />
+          </RequireRole>
+        }
+      >
+        <Route path="/organizador/dashboard" element={<OrganizadorDashboardPage />} />
+        <Route path="/organizador/crear" element={<OrganizadorWizardPage />} />
+        <Route path="/organizador/eventos/:id" element={<OrganizadorEventoDetallePage />} />
+        <Route path="/organizador/eventos/:id/editar" element={<OrganizadorEditEventPage />} />
+        <Route path="/organizador/creditos" element={<OrganizadorWalletPage />} />
+        <Route path="/organizador/staff" element={<OrganizadorStaffMgmtPage />} />
+        <Route path="/organizador/perfil" element={<OrganizadorPerfilPage />} />
+      </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </div>
+      {/* Admin — el layout usa <AnimatedOutlet> para su contenido */}
+      <Route
+        element={
+          <RequireRole roles={["Administrador"]} redirectTo="/admin/login">
+            <AdminLayout />
+          </RequireRole>
+        }
+      >
+        <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+        <Route path="/admin/usuarios" element={<AdminUsersPage />} />
+        <Route path="/admin/eventos" element={<AdminEventsPage />} />
+        <Route path="/admin/eventos/:id/editar" element={<OrganizadorEditEventPage />} />
+        <Route path="/admin/config" element={<AdminConfigPage />} />
+        <Route path="/admin/auditoria" element={<AdminAuditoriaPage />} />
+      </Route>
+
+      {/* Entrada de cada sección y rutas inexistentes dentro de ella: al panel con sesión,
+          al login sin ella (las rutas concretas de arriba tienen prioridad sobre "/admin/*"). */}
+      <Route path="/admin/*" element={<EntradaSeccion seccion="admin" />} />
+      <Route path="/organizador/*" element={<EntradaSeccion seccion="organizador" />} />
+      <Route path="/staff/*" element={<EntradaSeccion seccion="staff" />} />
+
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
@@ -180,9 +174,15 @@ function AppShell() {
       />
       <DialogProvider>
         <BrowserRouter>
-          <Suspense fallback={<RouteFallback />}>
-            <AnimatedRoutes />
-          </Suspense>
+          <ScrollToTop />
+          {/* Fallback y error boundary de primera carga de una sección (todavía no hay layout
+              montado, ej. el chunk de OrganizadorLayout); dentro de un layout ya montado,
+              actúan los de <AnimatedOutlet>. */}
+          <RouteErrorBoundary>
+            <Suspense fallback={<RouteFallback />}>
+              <AppRoutes />
+            </Suspense>
+          </RouteErrorBoundary>
         </BrowserRouter>
       </DialogProvider>
     </AuthProvider>

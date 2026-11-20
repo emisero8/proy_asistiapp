@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useContext, useId, useRef, useState } from "react";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { useDismiss } from "../lib/useDismiss";
 import { MESES, DIAS, toISO, buildGrid, fechaLarga } from "../lib/calendar";
 import { formatFecha } from "../lib/format";
+import { cn } from "../lib/cn";
+import { FieldContext, useFieldControl } from "./ui/fieldContext";
 
 type Props = {
   value: string;
@@ -22,6 +25,12 @@ type Props = {
  */
 export function DatePicker({ value, onChange, min, max, error, placeholder = "Elegí una fecha", allowClear }: Props) {
   const [open, setOpen] = useState(false);
+  // Dentro de un <Field>: toma su id (el label apunta a este botón), la ayuda/el error y aria-invalid.
+  const control = useFieldControl<{ id?: string; "aria-describedby"?: string; "aria-invalid"?: boolean }>({ "aria-invalid": error || undefined });
+  const valorId = useId();
+  // Nombre = label del Field + valor visible ("Venta desde, Elegí una fecha"): así el texto que se ve
+  // forma parte del nombre accesible (WCAG 2.5.3), y no solo el label.
+  const labelId = useContext(FieldContext)?.labelId;
   const [cursor, setCursor] = useState(() => {
     const base = value ? new Date(`${value}T00:00:00`) : new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);
@@ -34,21 +43,7 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
     setCursor(new Date(base.getFullYear(), base.getMonth(), 1));
   }, [open, value]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onDocClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    function onEsc(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, [open]);
+  useDismiss(open, () => setOpen(false), [ref]);
 
   function elegir(iso: string) {
     onChange(iso);
@@ -62,21 +57,29 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
     <div className="relative" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="dialog"
+        id={control.id}
+        aria-invalid={control["aria-invalid"]}
+        aria-labelledby={labelId ? `${labelId} ${valorId}` : undefined}
+        aria-describedby={control["aria-describedby"]}
         aria-expanded={open}
-        className={`w-full flex items-center justify-between gap-2 px-3 py-3 bg-card border rounded-xl text-sm text-left transition-all focus:outline-none focus:ring-2 focus:ring-primary/50 ${
-          error ? "border-red-500/60" : "border-border"
-        } ${value ? "text-foreground" : "text-muted-foreground"}`}
+        aria-haspopup="dialog"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-border-strong bg-card px-3.5 text-left text-sm",
+          "transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard",
+          "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25",
+          "aria-[invalid=true]:border-destructive aria-[invalid=true]:focus:ring-destructive/25",
+          value ? "text-foreground" : "text-muted-foreground",
+        )}
       >
-        <span className="truncate">{value ? formatFecha(value) : placeholder}</span>
-        <Calendar size={15} className="flex-none text-muted-foreground" />
+        <span id={valorId} className="truncate">{value ? formatFecha(value) : placeholder}</span>
+        <Calendar size={15} aria-hidden="true" className="flex-none text-muted-foreground" />
       </button>
 
       {open && (
         <div className="absolute left-0 top-full mt-2 z-50 w-[280px] max-w-[calc(100vw-2rem)] animate-fade-in-up origin-top-left">
           <div className="absolute -top-1.5 left-5 w-3 h-3 rotate-45 bg-card border-l border-t border-border" />
-          <div className="relative bg-card border border-border rounded-2xl shadow-xl shadow-black/40 p-4">
+          <div className="relative bg-card border border-border rounded-2xl shadow-overlay p-4">
             <div className="flex items-center justify-between mb-3">
               <button
                 type="button"
@@ -101,7 +104,7 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
 
             <div className="grid grid-cols-7 gap-y-1 mb-1">
               {DIAS.map((d, i) => (
-                <div key={i} className="text-center text-[10px] font-bold text-muted-foreground">
+                <div key={i} className="text-center text-2xs font-bold text-muted-foreground">
                   {d}
                 </div>
               ))}
@@ -131,7 +134,7 @@ export function DatePicker({ value, onChange, min, max, error, placeholder = "El
                         !disabled && !enMes
                           ? "text-muted-foreground/30 hover:text-muted-foreground/60"
                           : esElegido
-                            ? "bg-primary text-primary-foreground shadow-md shadow-primary/30"
+                            ? "bg-primary text-primary-foreground"
                             : esHoy
                               ? "border border-primary/50 text-primary"
                               : !disabled

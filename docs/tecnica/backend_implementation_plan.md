@@ -245,6 +245,8 @@ Cada fase está marcada con su prioridad:
 6.  **Verificación:** PNG → 201 con URL de Cloudinary que carga; TXT → 409 (`BusinessRuleException`, convención del proyecto); sin token → 403. Imágenes de prueba borradas de Cloudinary.
 7.  Commiteado (`7b64cf4`), pusheado.
 
+**Corrección posterior — fallo de subida con credenciales faltantes (sin commitear):** el usuario reportó que subir una portada fallaba con "No se pudo subir la imagen. Intentá nuevamente en unos minutos.". **Causa raíz: no es un bug de código**, sino que las variables `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET` están **vacías en el entorno de esta máquina** (verificado en los scopes User/Machine/Process). Sin credenciales, el SDK de Cloudinary tira una `RuntimeException` recién al subir, y el `catch` genérico devolvía ese mensaje de "error transitorio", que confundía el diagnóstico (sugería esperar, cuando es un problema de configuración). **Fix:** `ImagenService` ahora chequea las tres credenciales **antes** de llamar al SDK (`credencialesConfiguradas()`); si faltan, corta con un mensaje honesto ("El servicio de imágenes no está configurado. Avisá al administrador del sitio.") y un `log.error` que nombra las variables que faltan — mismo criterio que el "no está configurado" de MercadoPago. Test nuevo (`ImagenServiceTest`, 12 en total; el `@BeforeEach` ahora setea también `apiKey`/`apiSecret`). **Para que la subida vuelva a funcionar hay que setear las tres variables** (la cuenta real de Cloudinary usada en 18.1/20.x) y reabrir la terminal/VS Code.
+
 ### 18.2 — Suspensión real de cuentas ✅ (commit `d9b3ca6`, pusheado)
 - Causa: `UserDetailsServiceImpl` no reflejaba el estado, así que una cuenta suspendida seguía autenticando y su JWT seguía válido.
 - `UserDetailsServiceImpl`: `enabled = estado == Activo`. Spring Security lanza `DisabledException` en el login, antes de comparar la contraseña.
@@ -443,7 +445,10 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 - Pagos reales de $100 con un usuario comprador de prueba: MP avisó **solo**, el backend consultó el pago a la API, acreditó los créditos **una sola vez** aun cuando llegaron dos avisos del mismo pago con 3 ms de diferencia (webhook + IPN → `CONFIRMADA` + `YA_PROCESADA`), y la orden quedó `Aprobada`.
 - Firmas inválidas o ausentes: 401, también a través de ngrok.
 
-### ⚠️ Pendiente de la firma (`x-signature`) — resolver antes de producción
+### ✅ Firma (`x-signature`) — resuelta el 2026-11-20; lo de abajo es la historia de la investigación
+> **Resuelto:** hay una clave secreta de Webhooks **por modo** (prueba / productivo) y el backend acepta las dos (`MP_WEBHOOK_SECRET`, `MP_WEBHOOK_SECRET_PRODUCCION`). Los avisos que "no coincidían" eran IPN (`?id=&topic=`), que Mercado Pago no firma con esa clave; ahora se ignoran con 200. Ver `docs/tecnica/MERCADOPAGO_COBRO.md` sección 9 y `docs/proyecto/DECISIONES.md` (2026-11-20). La hipótesis de abajo del "usuario vendedor de prueba" **no era la causa**.
+
+### (histórico) Pendiente de la firma (`x-signature`)
 - El **simulador** del panel de MP firma con la clave que muestra el panel y nuestro validador la acepta. Pero los avisos de **pagos reales de sandbox** llegan firmados con **otra clave**: se probaron todas las variantes del manifest y también como clave el access token, la public key y los ids de app/usuario, y ninguna coincide. Hipótesis (sin confirmar): el access token de las credenciales de prueba pertenece al *usuario vendedor de prueba*, y los pagos hacia ese usuario se firman con una clave que no figura en el panel de la cuenta real.
 - Por eso se agregó `MP_VALIDAR_FIRMA`. **Está en `false` solo en el entorno local de desarrollo** (el backend lo avisa en el log al arrancar y por cada aviso que no coincide). El default del código es `true`.
 - Por qué es aceptable en sandbox: aun sin firma, cada aviso se vuelve a consultar a la API de MP y solo se entrega si el pago existe, está aprobado, corresponde a una orden nuestra y el monto coincide; un aviso falso no puede entregar nada sin un pago real.
@@ -463,7 +468,7 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 - ✅ **Mail de reembolso** (`EmailService.enviarNotificacionReembolsoEntradas`/`...Creditos`): `marcarOrdenReembolsada` en `VentaService`/`CreditoService` ahora devuelve si de verdad reembolsó recién (no si ya lo estaba) junto con los datos para el mail; `PagoWebhookService` lo dispara en los tres casos donde se reembolsa (sin disponibilidad para entradas, sin disponibilidad para créditos, y el reembolso externo detectado por `estado=refunded`). Además de los tests unitarios, `EmailServiceSmtpTest` (2026-11-12, PLAN_MEJORAS 4.6) los envía por **SMTP real** contra un servidor GreenMail dentro del test (el rol que en desarrollo cumple MailHog, pero sin Docker) y verifica destinatario, asunto, cuerpo y la codificación de los acentos y del guion largo.
 
 ### Checklist de pase a producción
-1. Credenciales de **producción** en `MP_ACCESS_TOKEN` y la clave secreta de producción en `MP_WEBHOOK_SECRET`.
+1. Credenciales de **producción** en `MP_ACCESS_TOKEN` y la clave secreta del **Modo productivo** en `MP_WEBHOOK_SECRET_PRODUCCION` (la de prueba, `MP_WEBHOOK_SECRET`, es opcional).
 2. `MP_VALIDAR_FIRMA=true` y verificar con un pago real de bajo monto.
 3. `BACKEND_PUBLIC_URL` y `FRONTEND_BASE_URL` con los dominios HTTPS finales; webhook configurado en **Modo productivo** del panel con la URL final.
 4. `SPRING_PROFILES_ACTIVE=prod`, `JWT_SECRET` propio (aleatorio, 32+ caracteres) y otra contraseña de la base (los defaults de desarrollo son públicos). Con el perfil `prod` el backend no arranca si `JWT_SECRET` sigue siendo el de desarrollo; **sin el perfil `prod` ese control no corre**, así que activarlo es parte del pase a producción. El perfil `prod` también apaga `show-sql`, baja el log a INFO/WARN y no devuelve mensajes internos en los errores (`application-prod.yml`), y **exige** `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `SMTP_HOST`, `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `BACKEND_PUBLIC_URL`, `CORS_ALLOWED_ORIGINS`, `FRONTEND_BASE_URL` y las tres `CLOUDINARY_*`: si falta alguna el backend no arranca y nombra las que faltan (`ConfiguracionProdValidator`).
@@ -479,3 +484,18 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 - **Usuarios/tarjetas de prueba:** panel de la app → *Cuentas de prueba* y *Tarjetas de prueba*. Pagar con el usuario comprador de prueba (idealmente en ventana de incógnito). Con "Dinero disponible" o la tarjeta de prueba con titular `APRO` el pago se aprueba.
 - **`mvn test` falla con "Unresolved compilation problems"/errores de contexto:** la extensión de Java de VS Code deja clases mal compiladas (sin procesar Lombok) en `target/classes`. Correr `mvn clean test`.
 - **Datos de prueba en la base local de desarrollo:** organizador `org.prueba.mp@example.com`, paquete de créditos "Prueba MP" (10 créditos, $100) y 3 órdenes de crédito (#1 y #3 `Aprobada`, #2 `Pendiente`). Limpiar al terminar las pruebas.
+
+---
+
+## Fase 22: Cargo por procesamiento de Mercado Pago trasladado al comprador ✅ (2026-11-17, sin commitear)
+
+Pedido desde Mi perfil (frontend, Fase 15): el Organizador elige si absorbe la comisión de Mercado Pago (por defecto) o si se le suma al comprador. AsistíAPP no cobra comisión en ningún caso.
+
+- **Modelo:** `Organizador.trasladarCargoMp` (boolean, default false), `plazoLiberacionMp` (`PlazoLiberacionMp`: `AlInstante`, `Dias10`, `Dias18`, `Dias35`, con las tasas sin IVA) y `zonaComisionMp` (`ZonaComisionMp`: `General`, `BuenosAiresEntreRiosChubut`). `TransaccionPago.cargoServicioUnitario` fija el cargo por entrada de cada orden. Migración: `db/migraciones/2026-11-25-cargo-servicio-mercadopago.sql`.
+- **Cálculo (`CargoServicioMp`):** `t = % × 1,21 / 100`; `cargo = precio × t / (1 − t)` al centavo (HALF_UP), **por entrada**. Así, después de la comisión de Mercado Pago (que se aplica sobre todo lo cobrado), al Organizador le queda el precio de la entrada (± 1 centavo).
+- **Endpoint:** `PUT /organizador/perfil/comision-mp` (`ComisionMpRequestDTO`: `trasladarAlComprador`, `plazoLiberacion`, `zona`). `PerfilResponseDTO` suma `trasladarCargoMp`, `plazoLiberacionMp`, `zonaComisionMp` y `porcentajeCargoComprador`.
+- **Público:** `TandaResponseDTO.cargoServicio` (solo en el detalle público: el monto exacto por entrada) y `EventoPublicoDetalleDTO.porcentajeCargoServicio` (null si lo absorbe el Organizador).
+- **Cobro (`VentaService.iniciarCompraOnline`):** `montoTotal = (precio + cargo) × cantidad`; la preferencia lleva un **segundo ítem** "Cargo por procesamiento de pago (Mercado Pago)" con la misma cantidad (`OrdenACobrar.cargoServicioUnitario`; constructor sin cargo para créditos). El webhook sigue validando el monto pagado contra `montoTotal`.
+- **Reembolsos:** el reembolso parcial de una entrada devuelve precio + su cargo (`AnulacionEntradaService.prepararReembolso`), y el mail y el total del reembolso masivo informan ese monto.
+- **Tests (+17):** `CargoServicioMpTest` (vectores de las 8 combinaciones, propiedad "el Organizador recibe el precio", defaults), `VentaServiceTest` (compra con y sin cargo, confirmación con el total con cargo), `MercadoPagoServiceTest` (dos ítems / uno), `AnulacionEntradaServiceTest` (reembolso con cargo), `PerfilServiceTest`, `EventoPublicoServiceTest`. Suite completa: **568 tests, 0 fallos**.
+

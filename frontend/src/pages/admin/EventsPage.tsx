@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { EventoImagen } from "../../components/EventoImagen";
 import { useNavigate } from "react-router";
-import { CircleX, Search, Pencil, Trash2 } from "lucide-react";
+import { CalendarSearch, CircleX, Pencil, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
 import { formatFecha } from "../../lib/format";
 import type { EventoResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
+import { Card, EmptyState, ErrorState, Input, Menu, PageHeader, Skeleton, StatusBadge } from "../../components/ui";
+import { cn } from "../../lib/cn";
 
 export function AdminEventsPage() {
   useDocumentTitle("Eventos · Admin");
@@ -16,15 +18,17 @@ export function AdminEventsPage() {
   const [eventos, setEventos] = useState<EventoResponseDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
 
-  useEffect(() => {
+  function cargar() {
+    setError(null);
     api
       .get<EventoResponseDTO[]>("/admin/eventos")
       .then(setEventos)
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar los eventos."));
-  }, []);
+  }
+
+  useEffect(cargar, []);
 
   const filtered = (eventos ?? []).filter((e) => e.nombre.toLowerCase().includes(search.toLowerCase()));
 
@@ -33,7 +37,15 @@ export function AdminEventsPage() {
   }
 
   async function cancelarEvento(e: EventoResponseDTO) {
-    setOpenMenu(null);
+    // Irreversible y avisa a terceros: se confirma, igual que desde el panel del organizador.
+    const ok = await confirm({
+      titulo: "Cancelar evento",
+      mensaje: `¿Cancelar "${e.nombre}"? Se avisa por email a los compradores y al organizador, y se le devuelven los créditos de las entradas sin vender. No se puede deshacer.`,
+      confirmarTexto: "Cancelar evento",
+      cancelarTexto: "No, volver",
+      variante: "destructiva",
+    });
+    if (!ok) return;
     setBusyId(e.id);
     try {
       const updated = await api.patch<EventoResponseDTO>(`/admin/eventos/${e.id}/cancelar`);
@@ -41,7 +53,6 @@ export function AdminEventsPage() {
       toast.success(`${e.nombre} cancelado`);
     } catch (err: unknown) {
       const message = err instanceof ApiError ? err.message : "No pudimos cancelar el evento.";
-      setError(message);
       toast.error(message);
     } finally {
       setBusyId(null);
@@ -49,7 +60,6 @@ export function AdminEventsPage() {
   }
 
   async function eliminarEvento(e: EventoResponseDTO) {
-    setOpenMenu(null);
     const ok = await confirm({
       titulo: "Eliminar evento",
       mensaje: `¿Eliminar "${e.nombre}" definitivamente? Esta acción no se puede deshacer.`,
@@ -64,128 +74,119 @@ export function AdminEventsPage() {
       toast.success(`${e.nombre} eliminado`);
     } catch (err: unknown) {
       const message = err instanceof ApiError ? err.message : "No pudimos eliminar el evento.";
-      setError(message);
       toast.error(message);
     } finally {
       setBusyId(null);
     }
   }
 
-  const ESTADO_COLORS: Record<EventoResponseDTO["estado"], string> = {
-    Borrador: "bg-muted text-muted-foreground",
-    Publicado: "bg-emerald-400/15 text-emerald-400",
-    Cancelado: "bg-red-400/15 text-red-400",
-  };
-
   return (
-    <div className="min-h-screen bg-background" onClick={() => setOpenMenu(null)}>
-      <div className="px-4 lg:px-8 pt-8 pb-5 border-b border-border">
-        <h1 className="text-xl font-extrabold text-foreground">Gestión Global de Eventos</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">{eventos?.length ?? 0} eventos en la plataforma</p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+      <PageHeader
+        title="Eventos"
+        description={eventos === null ? "Todos los eventos de la plataforma." : `${eventos.length} ${eventos.length === 1 ? "evento" : "eventos"} en la plataforma.`}
+      />
 
-      <div className="px-4 lg:px-8 py-5 space-y-4">
-        <div className="relative max-w-md">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por evento..."
-            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
-          />
+      {error && eventos === null && <ErrorState title="No pudimos cargar los eventos" description={error} onRetry={cargar} />}
+
+      {!error && eventos === null && (
+        <div className="space-y-2" aria-busy="true">
+          <span className="sr-only">Cargando eventos…</span>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 rounded-2xl" />
+          ))}
         </div>
+      )}
 
-        {error && <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>}
-
-        {eventos === null && !error && (
-          <div className="space-y-2">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-14 rounded-2xl bg-card border border-border animate-pulse" />
-            ))}
+      {eventos !== null && (
+        <Card as="section" padding="none" aria-label="Lista de eventos" className="overflow-hidden">
+          <div className="border-b border-border p-4 md:p-5">
+            <Input
+              type="search"
+              size="sm"
+              surface="sunken"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por evento..."
+              aria-label="Buscar eventos por nombre"
+              leadingIcon={<Search size={15} />}
+              className="sm:max-w-sm"
+            />
           </div>
-        )}
 
-        {eventos !== null && (
-        <div className="bg-card border border-border rounded-2xl overflow-x-auto">
-          <table className="w-full min-w-[640px]">
-            <thead>
-              <tr className="border-b border-border">
-                {["Evento", "Organizador", "Fecha", "Entradas", "Estado", "Acciones"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                    {h}
+          {filtered.length === 0 ? (
+            <EmptyState variant="plain" icon={CalendarSearch} title={search.trim() ? "Ningún evento coincide con la búsqueda" : "Todavía no hay eventos"} />
+          ) : (
+            // Una sola tabla: tabla desde lg, tarjetas (flex) en mobile/tablet.
+            <table className="w-full text-sm">
+              <thead className="sr-only lg:not-sr-only">
+                <tr className="border-b border-border bg-surface-sunken text-2xs uppercase tracking-wider text-muted-foreground">
+                  <th scope="col" className="px-5 py-2.5 text-left font-semibold">Evento</th>
+                  <th scope="col" className="px-4 py-2.5 text-left font-semibold">Organizador</th>
+                  <th scope="col" className="px-4 py-2.5 text-left font-semibold">Fecha</th>
+                  <th scope="col" className="px-4 py-2.5 text-right font-semibold">Entradas</th>
+                  <th scope="col" className="px-4 py-2.5 text-left font-semibold">Estado</th>
+                  <th scope="col" className="px-5 py-2.5 text-right font-semibold">
+                    <span className="sr-only">Acciones</span>
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((e, i) => (
-                <tr key={e.id} className={`${i < filtered.length - 1 ? "border-b border-border" : ""} hover:bg-muted/30 transition-colors ${busyId === e.id ? "opacity-50" : ""}`}>
-                  <td className="px-4 py-3.5">
-                    <div className="flex items-center gap-2.5">
-                      <EventoImagen src={e.imagenPortadaUrl} alt="" className="w-7 aspect-[3/4] rounded-md object-cover flex-none" iconSize={10} />
-                      <p className="text-sm font-semibold text-foreground leading-snug max-w-[190px] truncate">{e.nombre}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5 text-sm text-muted-foreground">#{e.idOrganizador}</td>
-                  <td className="px-4 py-3.5 text-sm text-muted-foreground">{formatFecha(e.fechaEvento)}</td>
-                  <td className="px-4 py-3.5">
-                    <span className="text-sm font-bold text-foreground">{entradasVendidas(e).toLocaleString("es-AR")}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${ESTADO_COLORS[e.estado]}`}>{e.estado}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <div className="relative" onClick={(ev) => ev.stopPropagation()}>
-                      <button
-                        disabled={busyId === e.id}
-                        onClick={() => setOpenMenu(openMenu === e.id ? null : e.id)}
-                        className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        ···
-                      </button>
-                      {openMenu === e.id && (
-                        <div className="absolute right-0 top-9 z-50 bg-card border border-border origin-top-right animate-scale-in rounded-xl shadow-xl shadow-black/40 overflow-hidden min-w-[170px]">
-                          <button
-                            onClick={() => navigate(`/admin/eventos/${e.id}/editar`)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-colors flex items-center gap-2"
-                          >
-                            <Pencil size={13} className="text-primary" />
-                            Editar
-                          </button>
-                          <div className="border-t border-border" />
-                          {e.estado !== "Cancelado" && (
-                            <button
-                              onClick={() => cancelarEvento(e)}
-                              className="w-full text-left px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
-                            >
-                              <CircleX size={13} />
-                              Cancelar Evento
-                            </button>
-                          )}
-                          <div className="border-t border-border" />
-                          <button
-                            onClick={() => eliminarEvento(e)}
-                            className="w-full text-left px-4 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2"
-                          >
-                            <Trash2 size={13} />
-                            Eliminar
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          {filtered.length === 0 && (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground text-sm">No se encontraron eventos.</p>
-            </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((e) => (
+                  <tr
+                    key={e.id}
+                    className={cn(
+                      "flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 transition-colors duration-(--duration-fast) hover:bg-surface-sunken lg:table-row lg:p-0",
+                      busyId === e.id && "opacity-50",
+                    )}
+                  >
+                    <td className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] lg:px-5 lg:py-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <EventoImagen src={e.imagenPortadaUrl} alt="" nombre={e.nombre} className="aspect-[3/4] w-8 flex-none rounded-md object-cover" />
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-foreground lg:max-w-64">{e.nombre}</p>
+                          <p className="truncate text-xs text-muted-foreground lg:hidden">
+                            {formatFecha(e.fechaEvento)} · Organizador #{e.idOrganizador}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="hidden px-4 py-3 text-muted-foreground lg:table-cell">#{e.idOrganizador}</td>
+                    <td className="hidden whitespace-nowrap px-4 py-3 text-muted-foreground lg:table-cell">{formatFecha(e.fechaEvento)}</td>
+                    <td className="order-4 text-xs text-muted-foreground lg:order-none lg:table-cell lg:px-4 lg:py-3 lg:text-right lg:text-sm">
+                      <span className="font-semibold tabular-nums text-foreground">{entradasVendidas(e).toLocaleString("es-AR")}</span>
+                      <span className="lg:hidden"> vendidas</span>
+                    </td>
+                    <td className="order-3 pl-11 lg:order-none lg:table-cell lg:px-4 lg:py-3">
+                      <StatusBadge tipo="evento" estado={e.estado} size="sm" />
+                    </td>
+                    <td className="order-2 flex-none lg:order-none lg:table-cell lg:px-5 lg:py-3 lg:text-right">
+                      <Menu
+                        label={`Acciones de ${e.nombre}`}
+                        disabled={busyId === e.id}
+                        placement="bottom-end"
+                        items={[
+                          { label: "Editar", icon: Pencil, onSelect: () => navigate(`/admin/eventos/${e.id}/editar`) },
+                          ...(e.estado !== "Cancelado"
+                            ? [{ label: "Cancelar evento", icon: CircleX, tone: "danger" as const, separatorBefore: true, onSelect: () => cancelarEvento(e) }]
+                            : []),
+                          {
+                            label: "Eliminar",
+                            icon: Trash2,
+                            tone: "danger" as const,
+                            separatorBefore: e.estado === "Cancelado",
+                            onSelect: () => eliminarEvento(e),
+                          },
+                        ]}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
-        </div>
-        )}
-      </div>
+        </Card>
+      )}
     </div>
   );
 }

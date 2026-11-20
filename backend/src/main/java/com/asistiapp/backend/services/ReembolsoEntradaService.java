@@ -54,7 +54,7 @@ public class ReembolsoEntradaService {
 
     /** Devuelve el dinero de una entrada anulada (o de un evento cancelado). Sirve también para reintentar un reembolso fallido. */
     public EntradaResponseDTO reembolsar(Long idEntrada, Long idOrganizador) {
-        return reembolsarConToken(idEntrada, idOrganizador, null, true);
+        return reembolsarConToken(idEntrada, idOrganizador, null, true).entrada();
     }
 
     /** Reembolsa todas las compras de un evento cancelado. Las que fallan quedan pendientes, listas para reintentar. */
@@ -67,9 +67,9 @@ public class ReembolsoEntradaService {
             String token = cuentaCobroService.tokenParaReembolsar(idOrganizador);
             for (Long id : ids) {
                 try {
-                    EntradaResponseDTO dto = reembolsarConToken(id, idOrganizador, token, false);
+                    Reembolsado hecho = reembolsarConToken(id, idOrganizador, token, false);
                     reembolsadas++;
-                    monto += dto.getPrecioTanda() == null ? 0 : dto.getPrecioTanda();
+                    monto += hecho.monto();
                 } catch (RuntimeException e) {
                     log.warn("No se pudo reembolsar la entrada {} del evento {}: {}", id, idEvento, e.getMessage());
                     fallidas.add(falla(id, idOrganizador, e));
@@ -90,7 +90,10 @@ public class ReembolsoEntradaService {
      *                   (así el aviso de "entrada que no se puede reembolsar" no depende de la cuenta) y si no hay
      *                   cuenta utilizable se suelta el turno
      */
-    private EntradaResponseDTO reembolsarConToken(Long idEntrada, Long idOrganizador, String token, boolean pedirToken) {
+    /** Lo que devolvió un reembolso: la entrada y el monto (precio + cargo por procesamiento, si se cobró). */
+    private record Reembolsado(EntradaResponseDTO entrada, double monto) {}
+
+    private Reembolsado reembolsarConToken(Long idEntrada, Long idOrganizador, String token, boolean pedirToken) {
         AnulacionEntradaService.PlanReembolso plan = anulacionService.prepararReembolso(idEntrada, idOrganizador);
         try {
             String tokenDeCobro = pedirToken ? cuentaCobroService.tokenParaReembolsar(idOrganizador) : token;
@@ -109,7 +112,7 @@ public class ReembolsoEntradaService {
         }
         AnulacionEntradaService.DatosEntrada datos = plan.entrada();
         emailService.enviarNotificacionReembolsoOrganizador(datos.emailComprador(), datos.nombreComprador(), datos.nombreEvento(), datos.precio());
-        return dto;
+        return new Reembolsado(dto, plan.monto().doubleValue());
     }
 
     private boolean esReembolsable(EntradaResponseDTO entrada) {

@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
-import { UserPlus, QrCode, Store, BadgeCheck, AlertCircle, KeyRound } from "lucide-react";
+import { KeyRound, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
-import type { CambiarTopeVendedorRequestDTO, CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, RolUsuario, StaffResponseDTO } from "../../lib/types";
+import { Alert, Badge, Button, Card, EmptyState, Field, Input, PageHeader, RadioCardGroup, SelectMenu, Skeleton } from "../../components/ui";
+import { cn } from "../../lib/cn";
+import { ETIQUETA_ROL, TONO_ROL } from "../../lib/estados";
+import type { CambiarTopeVendedorRequestDTO, CrearStaffQRRequestDTO, CrearStaffVendedorRequestDTO, EventoResponseDTO, StaffResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
 import { fmt } from "../../lib/format";
 
-const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: string; icon: typeof QrCode; color: string; bg: string }> = {
-  Staff_QR: { label: "Staff QR", desc: "Escanea entradas en la puerta", icon: QrCode, color: "text-primary", bg: "bg-primary/10" },
-  Staff_Vendedor: { label: "Staff Vendedor", desc: "Vende y genera entradas en el evento", icon: Store, color: "text-muted-foreground", bg: "bg-muted" },
+const ROLE_META: Record<"Staff_QR" | "Staff_Vendedor", { label: string; desc: string }> = {
+  Staff_QR: { label: "Staff QR", desc: "Escanea las entradas en la puerta" },
+  Staff_Vendedor: { label: "Staff Vendedor", desc: "Vende y genera entradas en el evento" },
 };
 
 /**
@@ -165,257 +168,236 @@ export function OrganizadorStaffMgmtPage() {
     }
   }
 
+  const eventosDisponibles = eventos.filter(eventoDisponibleParaStaff);
+  const formularioValido = form.nombre.trim() !== "" && form.email.trim() !== "" && form.idEvento !== "";
+
   return (
-    <div className="max-w-md lg:max-w-[1600px] mx-auto">
-      <div className="px-4 lg:px-8 pt-6 pb-4 border-b border-border bg-background">
-        <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Gestión de Staff</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">Staff QR y Vendedor de tus eventos</p>
-      </div>
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
+      <PageHeader
+        title="Staff"
+        description="Las personas que validan entradas en la puerta (Staff QR) o venden en el evento (Staff Vendedor)."
+        actions={
+          !showForm && (
+            <Button leftIcon={<UserPlus size={16} />} onClick={() => setShowForm(true)}>
+              Agregar miembro de staff
+            </Button>
+          )
+        }
+      />
 
-      <div className="px-4 lg:px-8 py-4 lg:py-6 space-y-4 pb-8">
-        <div className="grid grid-cols-2 lg:w-2/3 gap-3">
-          {(Object.entries(ROLE_META) as [RolUsuario, (typeof ROLE_META)["Staff_QR"]][]).map(([key, m]) => (
-            <div key={key} className="bg-card border border-border rounded-2xl p-3.5">
-              <div className={`w-8 h-8 rounded-xl ${m.bg} flex items-center justify-center mb-2`}>
-                <m.icon size={15} className={m.color} />
-              </div>
-              <p className="text-xs font-bold text-foreground">{m.label}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{m.desc}</p>
-            </div>
-          ))}
-        </div>
+      {error && <Alert tone="danger">{error}</Alert>}
 
-        {error && (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4 flex gap-2">
-            <AlertCircle size={15} className="flex-none mt-0.5" />
-            {error}
-          </div>
-        )}
-
-        <div>
-          <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Staff asignado {staff !== null && `(${staff.length})`}</p>
+      <div className={cn("grid gap-6", showForm && "lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start")}>
+        {/* Staff asignado */}
+        <Card as="section" padding="none" aria-labelledby="staff-titulo" className="overflow-hidden">
+          <h2 id="staff-titulo" className="border-b border-border px-4 py-4 font-display text-base font-bold tracking-tight text-foreground md:px-5">
+            Staff asignado {staff !== null && `(${staff.length})`}
+          </h2>
           {staff === null ? (
-            <div className="space-y-2">
+            <div className="space-y-2 p-4" aria-busy="true">
               {[0, 1].map((i) => (
-                <div key={i} className="h-16 rounded-2xl bg-card border border-border animate-pulse" />
+                <Skeleton key={i} className="h-14" />
               ))}
             </div>
           ) : staff.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Todavía no agregaste a nadie.</p>
+            <EmptyState
+              variant="plain"
+              icon={Users}
+              title="Todavía no agregaste a nadie"
+              description="Sumá a quien va a escanear entradas en la puerta o vender en el evento. Recibe sus credenciales por email."
+            />
           ) : (
-            <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
+            <ul className="divide-y divide-border">
               {staff.map((member) => {
-                const meta = ROLE_META[member.rol as "Staff_QR" | "Staff_Vendedor"];
                 const inactivo = member.estado === "Inactivo";
                 const eventoAsignado = eventos.find((e) => e.id === member.idEvento)?.nombre;
+                const ocupado = busyId === member.id;
                 return (
-                  <div key={member.id} className={`bg-card border border-border rounded-2xl px-4 py-3.5 ${inactivo ? "opacity-60" : ""}`}>
-                    <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/20 flex items-center justify-center text-sm font-bold text-primary flex-none">
-                        {member.nombre.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-foreground truncate">{member.nombre}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{member.email}</p>
-                        {eventoAsignado && <p className="text-[10px] text-primary truncate">{eventoAsignado}</p>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-none">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${inactivo ? "bg-muted text-muted-foreground" : `${meta?.bg} ${meta?.color}`}`}>
-                        {inactivo ? "Inactivo" : (meta?.label ?? member.rol)}
+                  <li key={member.id} className="px-4 py-3.5 md:px-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <span
+                        aria-hidden="true"
+                        className="flex size-10 flex-none items-center justify-center rounded-full bg-secondary/12 text-sm font-bold text-secondary"
+                      >
+                        {member.nombre.charAt(0).toUpperCase()}
                       </span>
-                      <button
-                        disabled={busyId === member.id}
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="truncate text-sm font-semibold text-foreground">{member.nombre}</span>
+                          <Badge tone={TONO_ROL[member.rol]} size="sm">
+                            {ETIQUETA_ROL[member.rol]}
+                          </Badge>
+                          {inactivo && (
+                            <Badge tone="neutral" size="sm">
+                              Inactivo
+                            </Badge>
+                          )}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                        {eventoAsignado && <p className="truncate text-xs text-muted-foreground">Evento: {eventoAsignado}</p>}
+                      </div>
+                    </div>
+                    <div className="flex flex-none items-center gap-2 pl-13 sm:pl-0">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        leftIcon={<KeyRound size={15} />}
+                        disabled={ocupado}
                         onClick={() => resetPassword(member)}
-                        title="Resetear contraseña"
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                        aria-label={`Resetear contraseña de ${member.nombre}`}
                       >
-                        <KeyRound size={13} />
-                      </button>
-                      <button
-                        disabled={busyId === member.id}
-                        onClick={() => toggleEstado(member)}
-                        className={`text-[10px] font-semibold px-2 py-1 rounded-lg transition-colors disabled:opacity-50 ${
-                          inactivo ? "text-primary hover:bg-primary/10" : "text-destructive hover:bg-destructive/10"
-                        }`}
-                      >
+                        Contraseña
+                      </Button>
+                      <Button variant={inactivo ? "link" : "danger-subtle"} size="sm" disabled={ocupado} onClick={() => toggleEstado(member)}>
                         {inactivo ? "Reactivar" : "Dar de baja"}
-                      </button>
+                      </Button>
                     </div>
                     </div>
+
+                    {/* Vendedor (8.3): lo vendido contra su tope y lo que tiene que rendir. */}
                     {member.rol === "Staff_Vendedor" && (
-                      <div className="mt-2.5 pt-2.5 border-t border-border flex items-center justify-between gap-2 flex-wrap">
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-dashed border-border-strong pt-3 sm:ml-13">
                         <div className="min-w-0">
-                          <p className="text-xs font-semibold text-foreground">
+                          <p className="font-mono text-xs font-semibold tabular-nums text-foreground">
                             {member.topeEntradas == null
                               ? `${member.entradasVendidas ?? 0} entradas · sin tope`
                               : `${member.entradasVendidas ?? 0} de ${member.topeEntradas} entradas`}
                           </p>
-                          <p className="text-[10px] text-muted-foreground">Suman {fmt(member.totalRecaudado ?? 0)} para rendir</p>
+                          <p className="text-xs text-muted-foreground">Suman {fmt(member.totalRecaudado ?? 0)} para rendir</p>
                         </div>
                         {editandoTope?.id === member.id ? (
-                          <div className="flex items-center gap-1.5">
-                            <input
+                          <div className="flex items-center gap-2">
+                            <Input
+                              surface="sunken"
                               type="number"
                               min={1}
+                              inputMode="numeric"
                               aria-label={`Nuevo tope de ${member.nombre}`}
                               value={editandoTope.valor}
                               onChange={(e) => setEditandoTope({ id: member.id, valor: e.target.value })}
-                              className="w-20 px-2 py-1 bg-background border border-border rounded-lg text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                              className="w-24"
                             />
-                            <button
-                              disabled={busyId === member.id}
-                              onClick={() => guardarTope(member)}
-                              className="text-[10px] font-semibold px-2 py-1 rounded-lg text-primary hover:bg-primary/10 disabled:opacity-50"
-                            >
+                            <Button size="sm" loading={ocupado} onClick={() => guardarTope(member)}>
                               Guardar tope
-                            </button>
-                            <button onClick={() => setEditandoTope(null)} className="text-[10px] font-semibold px-2 py-1 rounded-lg text-muted-foreground hover:bg-muted">
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => setEditandoTope(null)}>
                               Cancelar
-                            </button>
+                            </Button>
                           </div>
                         ) : (
-                          <button
+                          <Button
+                            variant="link"
+                            size="sm"
                             onClick={() => setEditandoTope({ id: member.id, valor: String(member.topeEntradas ?? "") })}
-                            className="text-[10px] font-semibold px-2 py-1 rounded-lg text-primary hover:bg-primary/10"
                           >
                             Cambiar tope
-                          </button>
+                          </Button>
                         )}
                       </div>
                     )}
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
-        </div>
+        </Card>
 
-        {showForm ? (
-          <div className="bg-card border border-primary/30 rounded-2xl p-4 space-y-3 lg:max-w-md">
-            <p className="text-xs font-bold text-foreground">Nuevo miembro de staff</p>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Nombre completo</label>
-              <input
+        {/* Alta */}
+        {showForm && (
+          <Card as="section" aria-labelledby="nuevo-staff-titulo" className="space-y-4 lg:sticky lg:top-6">
+            <h2 id="nuevo-staff-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
+              Nuevo miembro de staff
+            </h2>
+            <Field label="Nombre completo" required>
+              <Input
+                surface="sunken"
                 value={form.nombre}
                 onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
                 placeholder="Martín Gómez"
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                autoComplete="off"
               />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Email</label>
-              <input
+            </Field>
+            <Field label="Email" required hint="Le enviamos sus credenciales a este email.">
+              <Input
+                surface="sunken"
                 type="email"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 placeholder="martin@mail.com"
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                autoComplete="off"
               />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Rol</label>
-              <div className="grid grid-cols-2 gap-2">
-                {(["Staff_QR", "Staff_Vendedor"] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setForm((f) => ({ ...f, role: r }))}
-                    className={`py-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                      form.role === r ? "border-primary bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground hover:border-primary/40"
-                    }`}
-                  >
-                    {ROLE_META[r].label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Evento asignado</label>
-              <select
+            </Field>
+            <RadioCardGroup<"Staff_QR" | "Staff_Vendedor">
+              label="Rol"
+              value={form.role}
+              onChange={(r) => setForm((f) => ({ ...f, role: r }))}
+              options={(["Staff_QR", "Staff_Vendedor"] as const).map((r) => ({
+                value: r,
+                label: ROLE_META[r].label,
+                description: ROLE_META[r].desc,
+              }))}
+            />
+            <Field
+              label="Evento asignado"
+              required
+              hint={
+                !errorEventos && eventos.length > 0 && eventosDisponibles.length === 0
+                  ? "No tenés eventos publicados todavía vigentes — publicá uno para poder asignarle staff."
+                  : form.role === "Staff_QR"
+                    ? "Solo va a poder validar entradas de este evento."
+                    : "Solo va a poder vender entradas de este evento."
+              }
+            >
+              <SelectMenu
+                surface="sunken"
                 value={form.idEvento}
-                onChange={(e) => setForm((f) => ({ ...f, idEvento: e.target.value }))}
+                onChange={(idEvento) => setForm((f) => ({ ...f, idEvento }))}
                 disabled={errorEventos}
-                className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50"
-              >
-                <option value="">Elegí un evento...</option>
-                {eventos.filter(eventoDisponibleParaStaff).map((ev) => (
-                  <option key={ev.id} value={ev.id}>
-                    {ev.nombre}
-                  </option>
-                ))}
-              </select>
-              {errorEventos && (
-                <p role="alert" className="text-[11px] text-destructive mt-1.5 flex flex-wrap items-center gap-x-2">
-                  No pudimos cargar tus eventos, y sin elegir uno no se puede agregar staff.
-                  <button type="button" onClick={cargarEventos} className="text-[11px] font-semibold underline hover:no-underline">
-                    Reintentar
-                  </button>
-                </p>
-              )}
-              {!errorEventos && eventos.length > 0 && eventos.filter(eventoDisponibleParaStaff).length === 0 && (
-                <p className="text-[11px] text-muted-foreground mt-1.5">
-                  No tenés eventos publicados todavía vigentes — publicá uno para poder asignarle staff.
-                </p>
-              )}
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {form.role === "Staff_QR"
-                  ? "Solo va a poder validar entradas de este evento."
-                  : "Solo va a poder vender entradas de este evento."}
-              </p>
-            </div>
+                placeholder="Elegí un evento…"
+                options={eventosDisponibles.map((ev) => ({ value: String(ev.id), label: ev.nombre }))}
+              />
+            </Field>
             {form.role === "Staff_Vendedor" && (
-              <div>
-                <label htmlFor="tope-vendedor" className="text-xs text-muted-foreground block mb-1">
-                  Tope de entradas
-                </label>
-                <input
-                  id="tope-vendedor"
+              <Field
+                label="Tope de entradas"
+                required
+                hint="Lo máximo que puede vender en total; al llegar, el sistema no le deja vender más. Lo podés ampliar después."
+              >
+                <Input
+                  surface="sunken"
                   type="number"
                   min={1}
+                  inputMode="numeric"
                   value={form.tope}
                   onChange={(e) => setForm((f) => ({ ...f, tope: e.target.value }))}
                   placeholder="50"
-                  className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Es lo máximo que puede vender en total; al llegar, el sistema no le deja vender más. Lo podés ampliar después.
-                </p>
-              </div>
+              </Field>
+            )}
+            {errorEventos && (
+              <p role="alert" className="flex flex-wrap items-center gap-x-2 text-xs font-medium text-destructive">
+                No pudimos cargar tus eventos, y sin elegir uno no se puede agregar staff.
+                <Button variant="link" size="sm" onClick={cargarEventos}>
+                  Reintentar
+                </Button>
+              </p>
             )}
             <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => setShowForm(false)}
-                className="flex-1 py-2.5 rounded-xl bg-muted text-muted-foreground text-sm font-semibold hover:bg-muted/70 transition-colors"
-              >
+              <Button variant="secondary" block onClick={() => setShowForm(false)}>
                 Cancelar
-              </button>
-              <button
-                disabled={saving}
-                onClick={addStaff}
-                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {saving ? "Agregando..." : "Agregar"}
-              </button>
+              </Button>
+              <Button block disabled={!formularioValido} loading={saving} loadingText="Agregando…" onClick={addStaff}>
+                Agregar
+              </Button>
             </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowForm(true)}
-            className="w-full lg:w-auto lg:px-8 py-3.5 rounded-2xl border border-dashed border-border text-muted-foreground text-sm flex items-center justify-center gap-2 hover:border-primary/50 hover:text-foreground transition-all"
-          >
-            <UserPlus size={15} />
-            Agregar miembro de staff
-          </button>
+          </Card>
         )}
-
-        <div className="bg-primary/5 border border-primary/15 rounded-2xl px-4 py-3 flex gap-3 lg:max-w-lg">
-          <BadgeCheck size={16} className="text-primary flex-none mt-0.5" />
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            El staff recibe sus credenciales por email y accede desde la pantalla de <strong className="text-foreground">Staff</strong> en la app.
-          </p>
-        </div>
       </div>
+
+      <Alert tone="info">
+        El staff recibe sus credenciales por email y entra desde la pantalla de <strong className="font-semibold">Staff</strong> en la app.
+      </Alert>
     </div>
   );
 }

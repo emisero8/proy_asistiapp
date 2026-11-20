@@ -6,24 +6,27 @@
   display: none;
 }
 
-/* Ticker infinito (listado del comprador) — el contenido se duplica una vez
-   en el componente y esto desplaza esa copia exactamente a la mitad, así el
-   loop no se nota. */
+/* Ticker infinito (listado del comprador) — el contenido se duplica EXACTAMENTE una vez
+   en el componente (dos mitades idénticas) y esto desplaza el track la mitad justa: al
+   llegar a -50% la 2.ª mitad ocupa el lugar de la 1.ª, idéntica, y el reinicio a 0 es
+   invisible (loop continuo, sin saltos ni huecos). Cada mitad repite los ítems para ser
+   más ancha que la pantalla (ver TICKER_SECUENCIA); la duración acompaña ese ancho para
+   mantener la misma velocidad de desplazamiento. */
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
 .marquee-track {
-  animation: marquee 26s linear infinite;
+  animation: marquee 78s linear infinite;
 }
 
 /* ---------------------------------------------------------------------
-   Animaciones generales del sistema — transición de página, entrada de
-   contenido (hero, grillas de tarjetas con stagger) y aparición de menús
-   flotantes (dropdowns de tres puntos). Todo respeta prefers-reduced-motion.
+   Animaciones del sistema — breves y discretas (duraciones de theme.css:
+   --duration-fast/base/slow). prefers-reduced-motion se resuelve de forma
+   global en la capa base de theme.css, no acá clase por clase.
    ------------------------------------------------------------------- */
 @keyframes fade-in-up {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes fade-in {
@@ -31,35 +34,212 @@
   to   { opacity: 1; }
 }
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.96); }
   to   { opacity: 1; transform: scale(1); }
 }
 @keyframes bounce-x {
   0%, 100% { transform: translateX(0); }
   50%      { transform: translateX(4px); }
 }
+/* Barra de cuenta regresiva (resultado del Scanner): se vacía en la duración que se le pase
+   con `animation-duration` inline. */
+@keyframes vaciar {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
 
+/* Entrada de contenido (hero, grillas con stagger, panel de diálogos). */
 .animate-fade-in-up {
-  animation: fade-in-up 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fade-in-up 280ms var(--ease-emphasized) both;
 }
 .animate-fade-in {
-  animation: fade-in 0.4s ease-out both;
+  animation: fade-in 200ms ease-out both;
 }
+/* Aparición de menús y popovers. */
 .animate-scale-in {
-  animation: scale-in 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-/* Se re-monta en cada cambio de ruta (key={pathname} en App.tsx) — le da
-   una entrada suave a toda pantalla nueva sin tocar cada page individual. */
-.page-transition {
-  animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: scale-in 160ms var(--ease-emphasized) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-in-up,
-  .animate-fade-in,
-  .animate-scale-in,
-  .page-transition,
-  [class*="animate-[bounce-x"] {
-    animation: none;
-  }
+/* Transición de página: la aplica <AnimatedOutlet> (components/), que se
+   remonta con cada cambio de ruta adentro de su layout. Solo opacidad y sin
+   fill-mode a propósito: un transform (aunque sea la identidad) convertiría
+   al contenedor en el "viewport" de los position: fixed de adentro (barras
+   inferiores de compra, etc.), y un fill forwards dejaría la opacidad
+   aplicada después de terminar. */
+@keyframes page-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
+.page-transition {
+  animation: page-enter 160ms ease-out;
+}
+
+/* ---------------------------------------------------------------------
+   Utilidades editoriales (Fase 14). La sombra dura desplazada reemplaza a
+   las sombras difusas en los elementos que queremos que se sientan como
+   papel/ticket (hover de tarjetas, buscador). Usa --foreground para que
+   funcione en los dos modos (en oscuro la sombra es casi-negra igual, el
+   contraste lo da el borde). Las muescas/perforación del ticket son
+   específicas de su layout y viven en el componente TicketCard.
+   ------------------------------------------------------------------- */
+.shadow-hard {
+  box-shadow: 5px 5px 0 0 var(--foreground);
+}
+.shadow-hard-sm {
+  box-shadow: 3px 3px 0 0 var(--foreground);
+}
+.shadow-hard-accent {
+  box-shadow: 6px 7px 0 0 var(--accent);
+}
+
+/* Botón táctil (`<Button tactil>`): sombra dura chica que se levanta un poco al pasar el mouse y desaparece al
+   presionar, como un sello que se aprieta contra el papel. Usa `translate` (no `transform`) para convivir con el
+   `active:scale` de las variantes; reduced-motion lo vuelve instantáneo por la regla global de theme.css. */
+.btn-tactil {
+  box-shadow: 3px 3px 0 0 var(--foreground);
+  transition-property: background-color, border-color, color, box-shadow, translate, scale;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.btn-tactil:disabled {
+  box-shadow: none;
+}
+.btn-tactil:not(:disabled):hover {
+  translate: -1px -1px;
+  box-shadow: 4px 4px 0 0 var(--foreground);
+}
+.btn-tactil:not(:disabled):active {
+  translate: 3px 3px;
+  box-shadow: 0 0 0 0 var(--foreground);
+}
+
+/* =====================================================================
+   TicketCard (Fase 14.2) — tarjeta de evento como entrada troquelada.
+   Dos piezas (talón/poster arriba + cuerpo abajo) con borde propio cada
+   una, perforación punteada, muescas de papel en los extremos y un
+   "corte" al hover (se separan por transform, sin reflow). La paleta del
+   ticket es oscura en los dos temas (como el Scanner), distinguible del
+   fondo por el borde; las muescas y la separación muestran --background.
+   ===================================================================== */
+:root {
+  --ticket-bg: #141311;
+  --ticket-bg2: #1c1a17;
+  --ticket-fg: #f3f1ec;
+  --ticket-muted: #aba99f;
+  --ticket-line: #3a372f;
+  --ticket-edge: #141311;
+  --ticket-shadow: #141311;
+}
+.dark {
+  --ticket-bg: #1a1813;
+  --ticket-bg2: #221f18;
+  --ticket-fg: #f2f1ec;
+  --ticket-muted: #aba99f;
+  --ticket-line: #3f3c32;
+  --ticket-edge: #3f3c32;
+  --ticket-shadow: var(--accent);
+}
+
+/* Mobile/tablet: ticket VERTICAL (talón arriba, cuerpo abajo). */
+.tkt { display: flex; flex-direction: column; position: relative; height: 100%; }
+.tkt-stub,
+.tkt-body {
+  position: relative;
+  background: var(--ticket-bg);
+  border: 1px solid var(--ticket-edge);
+  color: var(--ticket-fg);
+  transition: transform var(--duration-slow) var(--ease-emphasized), box-shadow var(--duration-slow) var(--ease-emphasized);
+}
+.tkt-stub { border-bottom: 0; border-radius: 14px 14px 0 0; background: var(--ticket-bg2); }
+.tkt-body { flex: 1 1 auto; border-top: 1.5px dashed var(--ticket-line); border-radius: 0 0 14px 14px; }
+
+/* El zoom de la portada al hover se recorta en una capa propia (no en .tkt-stub): así la
+   pieza NO lleva overflow:hidden y las muescas pueden pintar por encima del borde. */
+.tkt-stub-media { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+
+/* Muescas de papel en los dos extremos de la perforación: un círculo completo del color del
+   fondo centrado en cada esquina de la perforación (radio 9px, z sobre el borde). Unidas, las
+   dos piezas comparten el mismo centro → cada extremo queda como un semicírculo limpio del
+   tamaño original. Al separarse en hover, cada círculo viaja con su pieza y solo muerde su
+   propia esquina → dos cuartos limpios del mismo radio, sin líneas residuales del borde
+   (las piezas ya no recortan: el círculo cubre el borde entero). */
+.tkt-stub::before,
+.tkt-stub::after,
+.tkt-body::before,
+.tkt-body::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--background);
+  z-index: 4;
+}
+/* Mobile: perforación horizontal (talón arriba, cuerpo abajo). */
+.tkt-stub::before { bottom: -9px; left: -9px; }
+.tkt-stub::after { bottom: -9px; right: -9px; }
+.tkt-body::before { top: -9px; left: -9px; }
+.tkt-body::after { top: -9px; right: -9px; }
+
+/* corte al hover (vertical): el talón sube, el cuerpo baja → se abre la perforación. */
+@media (hover: hover) and (max-width: 1023.98px) {
+  .tkt-link:hover .tkt-stub { transform: translateY(-5px); box-shadow: -5px -5px 0 0 var(--ticket-shadow); }
+  .tkt-link:hover .tkt-body { transform: translateY(5px); box-shadow: 5px 6px 0 0 var(--ticket-shadow); }
+}
+
+/* Desktop (lg+): ticket HORIZONTAL (cuerpo a la izquierda, talón a la derecha). */
+@media (min-width: 1024px) {
+  .tkt { flex-direction: row-reverse; }
+  .tkt-stub { border: 1px solid var(--ticket-edge); border-left: 0; border-radius: 0 14px 14px 0; }
+  .tkt-body { border: 1px solid var(--ticket-edge); border-right: 1.5px dashed var(--ticket-line); border-radius: 14px 0 0 14px; }
+  /* Muescas en los extremos de la perforación vertical: el cuerpo las recorta en su borde
+     derecho y el talón en su borde izquierdo (simétricas al separarse en diagonal). */
+  .tkt-stub::before { top: -9px; bottom: auto; left: -9px; right: auto; }
+  .tkt-stub::after { top: auto; bottom: -9px; left: -9px; right: auto; }
+  .tkt-body::before { top: -9px; bottom: auto; left: auto; right: -9px; }
+  .tkt-body::after { top: auto; bottom: -9px; left: auto; right: -9px; }
+}
+/* corte al hover (horizontal): se separan en diagonal con una leve inclinación. */
+@media (min-width: 1024px) and (hover: hover) {
+  .tkt-link:hover .tkt-stub { transform: translateX(7px) rotate(1.5deg); box-shadow: 6px 7px 0 0 var(--ticket-shadow); }
+  .tkt-link:hover .tkt-body { transform: translateX(-6px) rotate(-0.6deg); box-shadow: -6px 7px 0 0 var(--ticket-shadow); }
+}
+.tkt-link:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 15px; }
+
+.tkt-sold .tkt-stub,
+.tkt-sold .tkt-body { opacity: 0.62; }
+@media (hover: hover) {
+  .tkt-link.tkt-sold:hover .tkt-stub { transform: none; box-shadow: none; }
+  .tkt-link.tkt-sold:hover .tkt-body { transform: none; box-shadow: none; }
+}
+
+/* badge inclinado sobre el poster */
+.tkt-badge {
+  position: absolute; top: 6px; right: 6px; z-index: 2; transform: rotate(4deg);
+  display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 999px;
+  border: 1px solid #0d1403; background: var(--accent); color: var(--accent-foreground);
+  font-family: var(--font-mono); font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.04em; white-space: nowrap;
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+.tkt-badge.is-sold { transform: rotate(-3deg); background: var(--ticket-bg); color: var(--ticket-fg); border-color: var(--ticket-line); }
+
+/* Micro-detalles del hover: el título del evento gana un subrayado lima que crece desde la
+   izquierda, y el badge "disponible" da un pop. (El corte troquelado + la sombra lima ya están
+   arriba.) prefers-reduced-motion deja las transiciones instantáneas (global en theme.css). */
+.tkt-title {
+  background-image: linear-gradient(var(--accent), var(--accent));
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0% 2px;
+  transition: background-size var(--duration-base) var(--ease-standard);
+}
+.tkt-link:focus-visible .tkt-title { background-size: 100% 2px; }
+@media (hover: hover) {
+  .tkt-link:hover .tkt-title { background-size: 100% 2px; }
+  .tkt-link:not(.tkt-sold):hover .tkt-badge { transform: rotate(6deg) scale(1.07); }
+}
+
+/* Sello rotativo del hero (Fase 14.2) — giro lento continuo. prefers-reduced-motion
+   se resuelve global en theme.css (queda quieto). */
+@keyframes seal-spin { to { transform: rotate(360deg); } }
+.animate-seal { animation: seal-spin 24s linear infinite; }

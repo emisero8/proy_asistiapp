@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -106,7 +106,9 @@ describe("OrganizadorDashboardPage — Mis eventos", () => {
     renderDashboard();
     await screen.findByText("Recital de rock");
 
-    await userEvent.selectOptions(screen.getByLabelText("Filtrar por estado"), "Publicado");
+    // El filtro es un combobox editorial (SelectMenu): se abre y se elige la opción.
+    await userEvent.click(screen.getByRole("combobox", { name: "Filtrar por estado" }));
+    await userEvent.click(await screen.findByRole("option", { name: "Publicados" }));
 
     expect(titulosVisibles()).toEqual(["Recital de rock", "Feria de bandas"]);
   });
@@ -130,5 +132,78 @@ describe("OrganizadorDashboardPage — métricas", () => {
     expect(api.get).not.toHaveBeenCalledWith(expect.stringMatching(/\/eventos\/\d+\/metricas/));
     expect(screen.getByText("8")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
+  });
+});
+
+describe("OrganizadorDashboardPage — refresco de fondo (bug 2)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("un fallo del refresco no tapa el panel ya cargado", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderDashboard();
+    expect(await screen.findByText("Recital de rock")).toBeInTheDocument();
+
+    vi.mocked(api.get).mockClear();
+    vi.mocked(api.get).mockRejectedValue(new Error("Failed to fetch"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20000);
+    });
+    // El refresco se hizo y falló; se deja asentar la promesa rechazada antes de mirar.
+    expect(api.get).toHaveBeenCalledWith("/eventos");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+
+    expect(screen.getByText("Recital de rock")).toBeInTheDocument();
+    expect(screen.queryByText("No pudimos cargar tu panel.")).not.toBeInTheDocument();
+  });
+
+  it("si la primera carga falla, el refresco siguiente se recupera y saca el error", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.mocked(api.get).mockRejectedValue(new Error("Failed to fetch"));
+    renderDashboard();
+    expect(await screen.findByText("No pudimos cargar tu panel.")).toBeInTheDocument();
+
+    vi.mocked(api.get).mockImplementation(async (path: string) => {
+      if (path === "/eventos") return LISTA;
+      if (path === "/eventos/resumen") return RESUMEN;
+      return undefined;
+    });
+    await vi.advanceTimersByTimeAsync(20000);
+
+    expect(await screen.findByText("Recital de rock")).toBeInTheDocument();
+    expect(screen.queryByText("No pudimos cargar tu panel.")).not.toBeInTheDocument();
+  });
+});
+
+describe("OrganizadorDashboardPage — error de carga", () => {
+  it("muestra el error con 'Reintentar', que vuelve a pedir el panel", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockRejectedValue(new Error("Failed to fetch"));
+    renderDashboard();
+    expect(await screen.findByText("No pudimos cargar tu panel.")).toBeInTheDocument();
+
+    vi.mocked(api.get).mockImplementation(async (path: string) => {
+      if (path === "/eventos") return LISTA;
+      if (path === "/eventos/resumen") return RESUMEN;
+      return undefined;
+    });
+    await user.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(await screen.findByText("Recital de rock")).toBeInTheDocument();
+  });
+
+  it("cada evento tiene su menú de acciones accesible por nombre", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    await screen.findByText("Recital de rock");
+
+    await user.click(screen.getByRole("button", { name: "Acciones de Recital de rock" }));
+
+    expect(screen.getByRole("menuitem", { name: "Ver página pública" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Editar" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Cancelar evento" })).toBeInTheDocument();
   });
 });

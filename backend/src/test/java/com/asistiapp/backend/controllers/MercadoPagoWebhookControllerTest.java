@@ -118,21 +118,20 @@ class MercadoPagoWebhookControllerTest {
     }
 
     @Test
-    void avisoIpnDelFormatoViejo_seTrataIgualQueElWebhook() throws Exception {
-        when(firmaValidator.esValida("ts=1,v1=abc", "req-1", "123456")).thenReturn(true);
-
+    void avisoIpnDelFormatoViejo_seIgnoraConOkSinValidarLaFirmaNiProcesarNada() throws Exception {
+        // El IPN no se firma con la clave secreta: rechazarlo con 401 solo haría que MP reintente en vano,
+        // y el pago ya lo confirma el aviso en formato webhook (?data.id=).
         mockMvc.perform(post("/payments/mercadopago/webhook?id=123456&topic=payment")
                         .header("x-signature", "ts=1,v1=abc")
                         .header("x-request-id", "req-1"))
                 .andExpect(status().isOk());
 
-        verify(pagoWebhookService).procesarNotificacionPago(123456L, null, null);
+        verify(firmaValidator, never()).esValida(any(), any(), any());
+        verify(pagoWebhookService, never()).procesarNotificacionPago(anyLong(), any(), any());
     }
 
     @Test
     void avisoIpnDeMerchantOrder_seIgnoraConOk() throws Exception {
-        when(firmaValidator.esValida(any(), any(), any())).thenReturn(true);
-
         mockMvc.perform(post("/payments/mercadopago/webhook?id=45290772479&topic=merchant_order"))
                 .andExpect(status().isOk());
 

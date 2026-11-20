@@ -1,5 +1,6 @@
 package com.asistiapp.backend.services;
 
+import com.asistiapp.backend.config.MercadoPagoConfig;
 import com.asistiapp.backend.exceptions.BusinessRuleException;
 import com.asistiapp.backend.exceptions.PasarelaPagoException;
 import com.asistiapp.backend.models.dtos.mercadopago.EstadoCuentaMpResponseDTO;
@@ -44,6 +45,7 @@ public class VinculacionMercadoPagoService {
     private final MercadoPagoOAuthClient oauthClient;
     private final TokenCifradoService tokenCifradoService;
     private final NotificacionService notificacionService;
+    private final MercadoPagoConfig config;
 
     private final SecureRandom random = new SecureRandom();
 
@@ -104,14 +106,16 @@ public class VinculacionMercadoPagoService {
 
     @Transactional(readOnly = true)
     public EstadoCuentaMpResponseDTO estado(Long idOrganizador) {
+        boolean obligatoria = config.isExigirCuentaVinculada();
         return cuentaRepository.findByIdOrganizador(idOrganizador)
                 .map(c -> EstadoCuentaMpResponseDTO.builder()
                         .vinculada(c.getEstado() == EstadoCuentaMp.Vinculada)
                         .estado(c.getEstado())
                         .mpUserId(c.getMpUserId())
                         .vinculadaEn(c.getVinculadaEn())
+                        .obligatoria(obligatoria)
                         .build())
-                .orElseGet(() -> EstadoCuentaMpResponseDTO.builder().vinculada(false).build());
+                .orElseGet(() -> EstadoCuentaMpResponseDTO.builder().vinculada(false).obligatoria(obligatoria).build());
     }
 
     /** Borra los tokens guardados. El acceso de la aplicación también se puede quitar desde la cuenta de Mercado Pago. */

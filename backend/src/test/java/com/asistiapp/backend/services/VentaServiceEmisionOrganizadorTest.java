@@ -302,6 +302,23 @@ class VentaServiceEmisionOrganizadorTest {
         assertThat(ventaService.obtenerEntradaPorCodigoQr("QR-X").getMotivoEmision()).isNull();
     }
 
+    @Test
+    void laConsultaPublicaDeLaEntradaTraeFechaHoraLugarYPortadaDelEvento() {
+        Entrada e = entradaEmitida();
+        e.getTanda().getEvento().setFechaEvento(java.time.LocalDate.of(2026, 12, 5));
+        e.getTanda().getEvento().setHoraEvento(java.time.LocalTime.of(22, 30));
+        e.getTanda().getEvento().setLugar("Club Central");
+        e.getTanda().getEvento().setImagenPortadaUrl("https://img.test/portada.jpg");
+        when(entradaRepository.findByCodigoQr("QR-X")).thenReturn(Optional.of(e));
+
+        var dto = ventaService.obtenerEntradaPorCodigoQr("QR-X");
+
+        assertThat(dto.getFechaEvento()).isEqualTo(java.time.LocalDate.of(2026, 12, 5));
+        assertThat(dto.getHoraEvento()).isEqualTo(java.time.LocalTime.of(22, 30));
+        assertThat(dto.getLugarEvento()).isEqualTo("Club Central");
+        assertThat(dto.getImagenPortadaUrl()).isEqualTo("https://img.test/portada.jpg");
+    }
+
     private Entrada entradaEmitida() {
         Entrada e = new Entrada();
         e.setId(7L);

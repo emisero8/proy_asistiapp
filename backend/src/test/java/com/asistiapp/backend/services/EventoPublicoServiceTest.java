@@ -65,6 +65,29 @@ class EventoPublicoServiceTest {
         assertThat(eventoPublicoService.listarPublicados()).hasSize(1);
     }
 
+    private Tanda tanda(Double precio, int cupoMaximo, int cupoDisponible) {
+        Tanda t = new Tanda();
+        t.setNombre("Tanda");
+        t.setPrecio(precio);
+        t.setCupoMaximo(cupoMaximo);
+        t.setCupoDisponible(cupoDisponible);
+        return t;
+    }
+
+    @Test
+    void listarPublicados_calculaPrecioCupoYTandas() {
+        Evento futuro = evento(9L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        futuro.setTandas(List.of(tanda(5000.0, 100, 10), tanda(8000.0, 50, 0)));
+        when(eventoRepository.findByEstado(EstadoEvento.Publicado)).thenReturn(List.of(futuro));
+
+        var item = eventoPublicoService.listarPublicados().get(0);
+
+        assertThat(item.getPrecioDesde()).isEqualTo(5000.0);
+        assertThat(item.getCantidadTandas()).isEqualTo(2);
+        assertThat(item.getCupoDisponibleTotal()).isEqualTo(10);
+        assertThat(item.getCupoTotal()).isEqualTo(150);
+    }
+
     @Test
     void listarPublicados_eventoYaPasado_seExcluye() {
         Evento pasado = evento(2L, LocalDate.now().minusDays(1), LocalTime.of(21, 0));
@@ -151,6 +174,40 @@ class EventoPublicoServiceTest {
     }
 
     @Test
+    void obtenerPorUrlPublica_organizadorQueTrasladaLaComision_informaElCargoPorEntradaYElPorcentaje() {
+        Evento ev = evento(9L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        ev.setIdOrganizador(57L);
+        ev.setTandas(List.of(tanda(1L, "General", 10000, false)));
+        var org = new com.asistiapp.backend.models.entities.Organizador();
+        org.setTrasladarCargoMp(true);
+        org.setPlazoLiberacionMp(com.asistiapp.backend.models.enums.PlazoLiberacionMp.Dias10);
+        org.setZonaComisionMp(com.asistiapp.backend.models.enums.ZonaComisionMp.BuenosAiresEntreRiosChubut);
+        when(eventoRepository.findByUrlPublica("evento-9")).thenReturn(Optional.of(ev));
+        when(organizadorRepository.findById(57L)).thenReturn(Optional.of(org));
+        lenient().when(limiteCompradorService.limiteParaOrganizador(any())).thenReturn(6);
+
+        var detalle = eventoPublicoService.obtenerPorUrlPublica("evento-9");
+
+        assertThat(detalle.getTandas().get(0).getCargoServicio()).isEqualTo(590.76);
+        assertThat(detalle.getPorcentajeCargoServicio()).isEqualTo(5.91);
+    }
+
+    @Test
+    void obtenerPorUrlPublica_organizadorQueAbsorbeLaComision_noInformaCargo() {
+        Evento ev = evento(10L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        ev.setIdOrganizador(58L);
+        ev.setTandas(List.of(tanda(1L, "General", 10000, false)));
+        when(eventoRepository.findByUrlPublica("evento-10")).thenReturn(Optional.of(ev));
+        when(organizadorRepository.findById(58L)).thenReturn(Optional.of(new com.asistiapp.backend.models.entities.Organizador()));
+        lenient().when(limiteCompradorService.limiteParaOrganizador(any())).thenReturn(6);
+
+        var detalle = eventoPublicoService.obtenerPorUrlPublica("evento-10");
+
+        assertThat(detalle.getTandas().get(0).getCargoServicio()).isZero();
+        assertThat(detalle.getPorcentajeCargoServicio()).isNull();
+    }
+
+    @Test
     void obtenerPorUrlPublica_noMuestraLasTandasDeSoloEmision() {
         Evento ev = evento(7L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
         ev.setTandas(List.of(tanda(1L, "General", 1500, false), tanda(2L, "Prensa", 0, true)));
@@ -168,6 +225,24 @@ class EventoPublicoServiceTest {
         when(eventoRepository.findByEstado(EstadoEvento.Publicado)).thenReturn(List.of(ev));
 
         assertThat(eventoPublicoService.listarPublicados().get(0).getPrecioDesde()).isEqualTo(1500.0);
+    }
+
+    @Test
+    void listarPublicados_lasTandasDeSoloEmisionNoCuentanEnLaCantidadNiEnElCupo() {
+        // Cruce de la Fase 14.2 (cupo real en el listado) con la 8.10 (cortesía oculta al público):
+        // una cortesía agotada no puede hacer que el evento figure "Agotado" ni sumar una tanda.
+        Evento ev = evento(10L, LocalDate.now().plusDays(10), LocalTime.of(21, 0));
+        var cortesia = tanda(2L, "Prensa", 0, true);
+        cortesia.setCupoMaximo(40);
+        cortesia.setCupoDisponible(0);
+        ev.setTandas(List.of(tanda(1L, "General", 1500, false), cortesia));
+        when(eventoRepository.findByEstado(EstadoEvento.Publicado)).thenReturn(List.of(ev));
+
+        var item = eventoPublicoService.listarPublicados().get(0);
+
+        assertThat(item.getCantidadTandas()).isEqualTo(1);
+        assertThat(item.getCupoTotal()).isEqualTo(10);
+        assertThat(item.getCupoDisponibleTotal()).isEqualTo(10);
     }
 
     @Test

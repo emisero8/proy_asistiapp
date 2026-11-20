@@ -1,5 +1,6 @@
 package com.asistiapp.backend.services;
 
+import com.asistiapp.backend.config.MercadoPagoConfig;
 import com.asistiapp.backend.exceptions.BusinessRuleException;
 import com.asistiapp.backend.exceptions.PasarelaPagoException;
 import com.asistiapp.backend.models.entities.CuentaMercadoPago;
@@ -42,6 +43,8 @@ class VinculacionMercadoPagoServiceTest {
     private MercadoPagoOAuthClient oauthClient;
     @Mock
     private NotificacionService notificacionService;
+    @Mock
+    private MercadoPagoConfig config;
 
     private final TokenCifradoService cifrado = new TokenCifradoService(
             Base64.getEncoder().encodeToString(new byte[32]));
@@ -50,7 +53,7 @@ class VinculacionMercadoPagoServiceTest {
 
     @BeforeEach
     void setUp() {
-        servicio = new VinculacionMercadoPagoService(intentoRepository, cuentaRepository, oauthClient, cifrado, notificacionService);
+        servicio = new VinculacionMercadoPagoService(intentoRepository, cuentaRepository, oauthClient, cifrado, notificacionService, config);
     }
 
     private IntentoVinculacionMp intento(String state, LocalDateTime creado) {
@@ -222,6 +225,18 @@ class VinculacionMercadoPagoServiceTest {
 
         assertThat(estado.isVinculada()).isFalse();
         assertThat(estado.getEstado()).isEqualTo(EstadoCuentaMp.Revocada);
+    }
+
+    @Test
+    void estado_informaSiVincularEsObligatorioParaPublicar() {
+        when(cuentaRepository.findByIdOrganizador(ID_ORG)).thenReturn(Optional.empty());
+
+        when(config.isExigirCuentaVinculada()).thenReturn(true);
+        assertThat(servicio.estado(ID_ORG).isObligatoria()).isTrue();
+
+        // En desarrollo (MP_EXIGIR_CUENTA_VINCULADA=false) se publica sin cuenta: el frontend no tiene que bloquear.
+        when(config.isExigirCuentaVinculada()).thenReturn(false);
+        assertThat(servicio.estado(ID_ORG).isObligatoria()).isFalse();
     }
 
     @Test

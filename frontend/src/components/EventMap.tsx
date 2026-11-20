@@ -2,11 +2,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Navigation, MapPin, Loader2, X } from "lucide-react";
+import { useDismiss } from "../lib/useDismiss";
 
 // ── Pin SVG personalizado (evita los problemas de rutas de PNG con bundlers) ──
 const PIN_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
-  <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24S24 21 24 12C24 5.373 18.627 0 12 0z" fill="#6366f1"/>
-  <circle cx="12" cy="12" r="5" fill="white"/>
+  <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24S24 21 24 12C24 5.373 18.627 0 12 0z" style="fill: var(--accent)"/>
+  <circle cx="12" cy="12" r="5" style="fill: var(--accent-foreground)"/>
 </svg>`;
 
 const PIN_ICON = L.divIcon({
@@ -104,16 +105,8 @@ export function MapPicker({
     setInputText(venueValue);
   }, [venueValue]);
 
-  // Cerrar dropdown al hacer click fuera
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setAbierto(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  // Cerrar las sugerencias de dirección al tocar afuera o con Escape
+  useDismiss(abierto, () => setAbierto(false), [containerRef]);
 
   // init mapa una sola vez
   useEffect(() => {
@@ -127,9 +120,12 @@ export function MapPicker({
 
     mapRef.current = map;
     if (value) ponerMarcador(value.lat, value.lng);
-    setTimeout(() => map.invalidateSize(), 100);
+    // Recalcula el tamaño cuando el contenedor ya tiene su layout. Se cancela al desmontar:
+    // si el mapa se removía antes de los 100 ms, Leaflet fallaba ("_leaflet_pos" de undefined).
+    const timer = setTimeout(() => map.invalidateSize({ animate: false }), 100);
 
     return () => {
+      clearTimeout(timer);
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
@@ -225,8 +221,12 @@ export function MapPicker({
     <div className="space-y-2">
       {/* ── Input con autocompletado ── */}
       <div ref={containerRef} className="relative">
-        <label className="text-xs text-muted-foreground block mb-1.5">
-          Lugar / dirección *
+        <label htmlFor="venue-autocomplete" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+          Lugar / dirección
+          <span aria-hidden="true" className="text-destructive">
+            {" "}
+            *
+          </span>
         </label>
         <div className="relative flex items-center">
           <MapPin
@@ -241,7 +241,9 @@ export function MapPicker({
             onFocus={() => sugerencias.length > 0 && setAbierto(true)}
             placeholder="Ej: Pavón 123, Santa Fe"
             autoComplete="off"
-            className="w-full pl-9 pr-9 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            required
+            aria-describedby="venue-ayuda"
+            className="h-11 w-full rounded-xl border border-border-strong bg-card pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground transition-[border-color,box-shadow] duration-(--duration-fast) ease-standard focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/25"
           />
           {buscando && (
             <Loader2
@@ -253,10 +255,10 @@ export function MapPicker({
             <button
               type="button"
               onClick={quitarUbicacion}
-              className="absolute right-3 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-1.5 flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Limpiar dirección"
             >
-              <X size={15} />
+              <X size={15} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -265,7 +267,7 @@ export function MapPicker({
         {abierto && sugerencias.length > 0 && (
           <ul
             role="listbox"
-            className="absolute z-[9999] top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden"
+            className="absolute left-0 right-0 top-full z-[9999] mt-1 overflow-hidden rounded-xl border border-border bg-popover shadow-overlay"
           >
             {sugerencias.map((s) => (
               <li
@@ -278,7 +280,7 @@ export function MapPicker({
                 }}
                 className="flex items-start gap-2 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted transition-colors border-b border-border last:border-0"
               >
-                <MapPin size={13} className="mt-0.5 shrink-0 text-primary" />
+                <MapPin size={13} aria-hidden="true" className="mt-0.5 shrink-0 text-muted-foreground" />
                 <span className="line-clamp-2 text-foreground leading-snug">{s.nombre}</span>
               </li>
             ))}
@@ -303,7 +305,7 @@ export function MapPicker({
         )}
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
+      <p id="venue-ayuda" className="text-xs text-muted-foreground">
         {value
           ? "✓ Ubicación marcada. Podés arrastrar el pin para ajustar el punto exacto."
           : "Escribí la dirección para ver sugerencias o tocá el mapa para marcar el lugar."}
@@ -339,8 +341,11 @@ export function MapView({ coords, lugar, alto = "h-52" }: { coords: Coords; luga
     }).addTo(map);
     L.marker([coords.lat, coords.lng], { icon: PIN_ICON }).addTo(map);
     mapRef.current = map;
-    setTimeout(() => map.invalidateSize(), 100);
+    // Recalcula el tamaño cuando el contenedor ya tiene su layout. Se cancela al desmontar:
+    // si el mapa se removía antes de los 100 ms, Leaflet fallaba ("_leaflet_pos" de undefined).
+    const timer = setTimeout(() => map.invalidateSize({ animate: false }), 100);
     return () => {
+      clearTimeout(timer);
       map.remove();
       mapRef.current = null;
     };
@@ -349,34 +354,35 @@ export function MapView({ coords, lugar, alto = "h-52" }: { coords: Coords; luga
 
   return (
     <div>
-      {/* El mapa completo es clickeable y abre Google Maps */}
-      <a
-        href={mapsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label={lugar ? `Ver ${lugar} en Google Maps y obtener indicaciones` : "Ver en Google Maps y obtener indicaciones"}
-        className="group block relative"
-      >
-        <div
-          ref={mapEl}
-          className={`w-full ${alto} rounded-xl overflow-hidden border border-border z-0 cursor-pointer`}
-        />
-        {/* Overlay tooltip al hacer hover */}
-        <div className="absolute inset-0 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[400]">
-          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-semibold shadow-lg">
+      {/* El mapa completo es clickeable con el mouse. Para teclado y lectores de pantalla es
+          decorativo: el mismo destino lo ofrece "Cómo llegar" (antes había dos links iguales). */}
+      <div className="group relative">
+        <div ref={mapEl} className={`w-full ${alto} z-0 overflow-hidden rounded-xl border border-border`} />
+        {/* Capa clickeable encima del mapa (solo mouse: para teclado y lectores está "Cómo llegar").
+            Va por debajo de los controles de Leaflet (z 800), así la atribución sigue accesible. */}
+        <a
+          href={mapsUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-hidden="true"
+          tabIndex={-1}
+          className="absolute inset-0 z-[450] flex items-center justify-center rounded-xl"
+        >
+          <span className="flex items-center gap-1.5 rounded-lg bg-black/70 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-overlay backdrop-blur-sm transition-opacity group-hover:opacity-100">
             <Navigation size={12} />
             Abrir en Google Maps
           </span>
-        </div>
-      </a>
+        </a>
+      </div>
       <a
         href={mapsUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
       >
-        <Navigation size={13} />
+        <Navigation size={13} aria-hidden="true" />
         Cómo llegar
+        <span className="sr-only">{lugar ? ` a ${lugar}` : ""} (abre Google Maps)</span>
       </a>
     </div>
   );

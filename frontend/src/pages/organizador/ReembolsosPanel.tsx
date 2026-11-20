@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
+import { AVISO_COMISION_REEMBOLSO } from "../../lib/comisionesMp";
 import { fmt } from "../../lib/format";
 import type { EntradaResponseDTO, FallaReembolsoDTO, ResultadoReembolsoMasivoResponseDTO } from "../../lib/types";
 
@@ -92,7 +93,8 @@ export function ReembolsosPanel({ idEvento, onCambio }: Props) {
       ) : (
         <>
           <p className="text-[11px] text-muted-foreground">
-            {plural(pendientes.length, "compra", "compras")} online por devolver, {fmt(total)} en total.
+            {plural(pendientes.length, "compra", "compras")} online por devolver, {fmt(total)} en entradas. A cada comprador se le devuelve todo lo
+            que pagó, cargo por procesamiento incluido si lo pagó. {AVISO_COMISION_REEMBOLSO}
           </p>
           <ul className="space-y-0.5 max-h-40 overflow-y-auto">
             {pendientes.map((e) => (

@@ -118,6 +118,28 @@ class MercadoPagoFirmaValidatorTest {
     }
 
     @Test
+    void aceptaLaFirmaDeCualquieraDeLasDosClavesConfiguradas() {
+        when(config.getWebhookSecretProduccion()).thenReturn("secreto-productivo");
+
+        // Pago de sandbox: lo firma Mercado Pago con la clave del modo de prueba.
+        assertThat(validator.esValida(firmar(SECRETO, "123456", "req-1", "1704908010"), "req-1", "123456")).isTrue();
+        // Pago con dinero real: lo firma con la clave del modo productivo.
+        assertThat(validator.esValida(firmar("secreto-productivo", "123456", "req-1", "1704908010"), "req-1", "123456")).isTrue();
+        // Una firma hecha con otra clave sigue rechazada.
+        assertThat(validator.esValida(firmar("otra-clave", "123456", "req-1", "1704908010"), "req-1", "123456")).isFalse();
+    }
+
+    @Test
+    void conSoloLaClaveProductivaConfigurada_valida_yRechazaLaDePrueba() {
+        // Así corre producción: la clave del modo de prueba no está cargada.
+        when(config.getWebhookSecret()).thenReturn("");
+        when(config.getWebhookSecretProduccion()).thenReturn("secreto-productivo");
+
+        assertThat(validator.esValida(firmar("secreto-productivo", "9", "r", "1704908010"), "r", "9")).isTrue();
+        assertThat(validator.esValida(firmar(SECRETO, "9", "r", "1704908010"), "r", "9")).isFalse();
+    }
+
+    @Test
     void sinSecretoConfigurado_rechazaTodoAunqueLaFirmaSeaCorrecta() {
         String header = firmar(SECRETO, "123456", "req-abc", "1704908010"); // firma correcta con el secreto real
         when(config.getWebhookSecret()).thenReturn(""); // pero el backend no tiene secreto configurado

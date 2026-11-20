@@ -15,11 +15,12 @@ function renderizar(ui: React.ReactElement) {
 }
 
 describe("páginas legales", () => {
-  it("los términos dicen que son un borrador, su versión y que la plataforma es intermediaria", () => {
+  it("los términos muestran su versión, no son un borrador y dicen que la plataforma es intermediaria", () => {
     renderizar(<TerminosPage />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Términos y Condiciones" })).toBeInTheDocument();
-    expect(screen.getByRole("note")).toHaveTextContent(/borrador/i);
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+    expect(screen.queryByText(/borrador/i)).not.toBeInTheDocument();
     expect(screen.getByText(new RegExp(TERMINOS_VERSION))).toBeInTheDocument();
     expect(screen.getByText(/intermediaria/i)).toBeInTheDocument();
   });
@@ -28,7 +29,7 @@ describe("páginas legales", () => {
     renderizar(<PrivacidadPage />);
 
     expect(screen.getByRole("heading", { level: 1, name: "Política de Privacidad" })).toBeInTheDocument();
-    expect(screen.getByRole("note")).toHaveTextContent(/borrador/i);
+    expect(screen.queryByText(/borrador/i)).not.toBeInTheDocument();
     expect(screen.getByText(/acceso, rectificación y supresión/i)).toBeInTheDocument();
   });
 

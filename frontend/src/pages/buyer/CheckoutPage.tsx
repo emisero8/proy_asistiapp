@@ -1,11 +1,15 @@
-import { AceptaTerminos } from "../../components/AceptaTerminos";
-import { useState } from "react";
-import { EventoImagen } from "../../components/EventoImagen";
+import { useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { ChevronLeft } from "lucide-react";
+import { Calendar, MapPin, ShieldCheck, ShoppingBag } from "lucide-react";
+import { AceptaTerminos } from "../../components/AceptaTerminos";
+import { EventoImagen } from "../../components/EventoImagen";
+import { PublicHeader } from "../../components/PublicHeader";
+import { Alert, Button, Card, EmptyState, Field, Input, StickyActionBar } from "../../components/ui";
 import { api } from "../../lib/api";
-import { fmt } from "../../lib/format";
+import { fmt, formatFecha } from "../../lib/format";
+import { desglosePedido, textoPorcentaje } from "../../lib/comisionesMp";
 import { iniciarPago, mensajeDeErrorDePago, rutaResultadoPago } from "../../lib/pago";
+import { estadoVentaTanda } from "../../lib/tandas";
 import type {
   CompraOnlineRequestDTO,
   EventoPublicoDetalleDTO,
@@ -13,13 +17,14 @@ import type {
   TandaResponseDTO,
 } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
-import { ThemeToggle } from "../../components/ThemeToggle";
 
 interface CheckoutState {
   evento: EventoPublicoDetalleDTO;
   tanda: TandaResponseDTO;
   qty: number;
 }
+
+const FORM_ID = "checkout-datos";
 
 export function CheckoutPage() {
   useDocumentTitle("Finalizar compra");
@@ -33,23 +38,55 @@ export function CheckoutPage() {
   const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tocados, setTocados] = useState({ name: false, email: false, confirmar: false });
+  const [intento, setIntento] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   if (!state) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background p-8 text-center">
-        <p className="text-sm text-muted-foreground">No hay ninguna compra en curso.</p>
-        <button onClick={() => navigate("/")} className="text-primary text-sm font-semibold">
-          Volver al inicio
-        </button>
+      <div className="min-h-dvh bg-background">
+        <PublicHeader />
+        <div className="mx-auto max-w-md px-4 py-16">
+          <EmptyState
+            icon={ShoppingBag}
+            title="No hay ninguna compra en curso"
+            description="Elegí un evento y la cantidad de entradas para empezar."
+            action={<Button onClick={() => navigate("/eventos")}>Ver eventos</Button>}
+          />
+        </div>
       </div>
     );
   }
 
   const { evento, tanda, qty } = state;
-  const total = tanda.precio * qty;
-  const emailsNoCoinciden = confirmarEmail.length > 0 && email !== confirmarEmail;
-  const valid =
-    name.trim().length > 1 && email.length > 4 && email.includes("@") && email === confirmarEmail && aceptaTerminos;
+  // Si el Organizador traslada la comisión de Mercado Pago, cada entrada lleva un cargo que fija el backend
+  // (tanda.cargoServicio): se muestra desglosado y el total es exactamente lo que se cobra.
+  const { subtotal, cargo, total } = desglosePedido(tanda.precio, tanda.cargoServicio, qty);
+  const desglose = { subtotal, cargo, porcentajeCargo: evento.porcentajeCargoServicio ?? null };
+
+  // Validación temprana (espeja al backend): si la tanda llegó fuera de su ventana de venta o el
+  // evento ya pasó, se avisa apenas se entra, sin obligar a llenar el formulario para enterarse
+  // recién al enviar. La validación real (la que corta) sigue siendo la del backend.
+  const eventoFinalizado = new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
+  const estadoTanda = estadoVentaTanda(tanda);
+  const disponible = !eventoFinalizado && estadoTanda === "abierta";
+  const avisoNoDisponible = eventoFinalizado
+    ? "Este evento ya finalizó: no se pueden comprar entradas."
+    : estadoTanda === "proximamente"
+      ? `La venta de la tanda "${tanda.nombre}" todavía no está abierta.`
+      : estadoTanda === "cerrada"
+        ? `La venta de la tanda "${tanda.nombre}" ya cerró.`
+        : estadoTanda === "agotada"
+          ? `La tanda "${tanda.nombre}" está agotada.`
+          : null;
+
+  const errorNombre = name.trim().length > 1 ? undefined : "Ingresá tu nombre y apellido.";
+  const errorEmail = email.length > 4 && email.includes("@") ? undefined : "Ingresá un email válido: ahí te llegan las entradas.";
+  // Confirmación de email y aceptación de términos (8.7): el backend también exige aceptaTerminos.
+  const errorConfirmar =
+    confirmarEmail.trim() === "" ? "Repetí tu email para confirmarlo." : confirmarEmail !== email ? "Los emails no coinciden." : undefined;
+  const errorTerminos = aceptaTerminos ? undefined : "Para comprar tenés que aceptar los Términos y la Política de Privacidad.";
+  const valid = !errorNombre && !errorEmail && !errorConfirmar && !errorTerminos;
 
   async function handleConfirm() {
     setLoading(true);
@@ -83,152 +120,235 @@ export function CheckoutPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="px-4 lg:px-8 pt-6 pb-3 border-b border-border bg-background sticky top-0 z-10">
-        <div className="max-w-[1800px] mx-auto">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-1 text-muted-foreground text-sm hover:text-foreground transition-colors"
-            >
-              <ChevronLeft size={15} />
-              Volver
-            </button>
-            <ThemeToggle />
-          </div>
-          <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Finalizar compra</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Sin registro. Solo tu nombre y email.</p>
-        </div>
-      </div>
+  const etiquetaCantidad = `${qty} entrada${qty > 1 ? "s" : ""} · ${tanda.nombre}`;
+  const botonPagar = (
+    <Button type="submit" form={FORM_ID} variant="accent" block size="lg" disabled={!disponible} loading={loading} loadingText="Redirigiendo a MercadoPago…">
+      Pagar {fmt(total)}
+    </Button>
+  );
 
-      <div className="max-w-[1800px] mx-auto lg:flex lg:gap-8 lg:px-8 lg:py-8 lg:items-start">
-        <div className="lg:flex-1 lg:min-w-0 px-4 lg:px-0 py-4 lg:py-0 space-y-5 pb-32 lg:pb-0">
+  return (
+    <div className="min-h-dvh bg-background">
+      <PublicHeader back="historial" />
+
+      <div className="mx-auto max-w-6xl px-4 pt-6 pb-44 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-10 lg:px-8 lg:py-10 lg:pb-10">
+        <div className="min-w-0 space-y-6">
           <div>
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Tus datos</p>
+            <p className="font-mono text-2xs font-semibold uppercase tracking-[0.16em] text-secondary">Paso final</p>
+            <h1 className="mt-1.5 font-display text-3xl font-extrabold leading-[1.02] tracking-[-0.02em] text-foreground lg:text-4xl">
+              Finalizar compra
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground">No necesitás crear una cuenta: te mandamos las entradas por email.</p>
+          </div>
+
+          {avisoNoDisponible && (
+            <Alert
+              tone="warning"
+              title="Esta entrada ya no está disponible"
+              action={
+                <Button variant="secondary" size="sm" onClick={() => navigate(`/eventos/${evento.urlPublica}`)}>
+                  Volver al evento
+                </Button>
+              }
+            >
+              {avisoNoDisponible}
+            </Alert>
+          )}
+
+          {/* Resumen del pedido como recibo troquelado — también en mobile (la barra fija solo lleva el total). */}
+          <ReciboPedido evento={evento} tanda={tanda} qty={qty} etiqueta={etiquetaCantidad} total={total} {...desglose} className="lg:hidden" />
+
+          <Card as="section" aria-labelledby="checkout-datos-titulo">
+            <h2 id="checkout-datos-titulo" className="font-display text-base font-bold tracking-tight text-foreground">
+              Tus datos
+            </h2>
             <form
-              className="space-y-3"
+              id={FORM_ID}
+              ref={formRef}
+              noValidate
+              className="mt-4 space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (valid && !loading) handleConfirm();
+                if (loading || !disponible) return;
+                if (!valid) {
+                  setIntento(true);
+                  requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+                  return;
+                }
+                handleConfirm();
               }}
             >
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Nombre completo</label>
-                <input
+              <Field label="Nombre y apellido" error={intento || tocados.name ? errorNombre : undefined}>
+                <Input
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setTocados((t) => ({ ...t, name: true }))}
                   placeholder="María García"
-                  className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Email</label>
-                <input
+              </Field>
+              <Field
+                label="Email"
+                hint="Te mandamos las entradas a este email: revisá que esté bien escrito."
+                error={intento || tocados.email ? errorEmail : undefined}
+              >
+                <Input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setTocados((t) => ({ ...t, email: true }))}
                   placeholder="maria@ejemplo.com"
-                  className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 />
-                <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
-                  <span className="text-green-400 font-bold">✓</span> Recibís la entrada en este email.
-                </p>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Confirmar email</label>
-                <input
+              </Field>
+              <Field
+                label="Confirmar email"
+                error={intento || tocados.confirmar ? errorConfirmar : undefined}
+              >
+                <Input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   value={confirmarEmail}
                   onChange={(e) => setConfirmarEmail(e.target.value)}
+                  onBlur={() => setTocados((t) => ({ ...t, confirmar: true }))}
                   placeholder="Repetí tu email"
-                  className={`w-full px-4 py-3 bg-card border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 transition-all ${
-                    emailsNoCoinciden
-                      ? "border-destructive focus:ring-destructive/50"
-                      : "border-border focus:ring-primary/50"
-                  }`}
                 />
-                {emailsNoCoinciden && (
-                  <p className="text-xs text-destructive mt-1.5">Los emails no coinciden.</p>
-                )}
-              </div>
-              {/* submit oculto: habilita enviar con Enter; el botón visible está en el panel lateral */}
-              <button type="submit" className="sr-only" tabIndex={-1} aria-hidden>
-                Confirmar
-              </button>
+              </Field>
+              <AceptaTerminos
+                aceptado={aceptaTerminos}
+                onCambio={setAceptaTerminos}
+                error={intento ? errorTerminos : undefined}
+              />
             </form>
-          </div>
+          </Card>
 
-          <AceptaTerminos aceptado={aceptaTerminos} onCambio={setAceptaTerminos} />
-
-          <div>
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Método de pago</p>
-            <div className="p-3.5 rounded-xl border border-primary bg-primary/10 lg:max-w-xs">
-              <span className="text-xl block mb-1.5">🔵</span>
-              <p className="text-xs font-bold text-foreground">MercadoPago</p>
-              <p className="text-[11px] text-muted-foreground">Único método disponible por ahora</p>
-            </div>
-          </div>
-
-          {error && (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4">{error}</div>
-          )}
+          {error && <Alert tone="danger">{error}</Alert>}
         </div>
 
-        {/* Resumen + confirmación — sticky en desktop */}
-        <div className="hidden lg:block lg:w-80 lg:flex-none lg:sticky lg:top-28">
-          <div className="bg-card rounded-2xl p-4 border border-border">
-            <p className="text-[10px] text-muted-foreground tracking-widest uppercase mb-3">Resumen</p>
-            <div className="flex gap-3">
-              <EventoImagen src={evento.imagenPortadaUrl} alt={evento.nombre} className="w-16 aspect-[3/4] rounded-xl object-cover flex-none" iconSize={16} />
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-foreground leading-tight line-clamp-2">{evento.nombre}</h4>
-                <p className="text-xs text-muted-foreground mt-0.5">{tanda.nombre}</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-              <span className="text-sm text-muted-foreground">
-                {qty} entrada{qty > 1 ? "s" : ""} × {fmt(tanda.precio)}
-              </span>
-              <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
-            </div>
-            <button
-              disabled={!valid || loading}
-              onClick={handleConfirm}
-              className={`mt-4 w-full py-4 rounded-2xl font-bold text-base transition-all ${
-                valid && !loading
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              }`}
-            >
-              {loading ? "Procesando..." : `Confirmar compra · ${fmt(total)}`}
-            </button>
-          </div>
-        </div>
+        {/* Recibo + pago — panel sticky en desktop */}
+        <aside className="hidden lg:sticky lg:top-24 lg:block">
+          <ReciboPedido evento={evento} tanda={tanda} qty={qty} etiqueta={etiquetaCantidad} total={total} {...desglose}>
+            {botonPagar}
+            <NotaPago />
+          </ReciboPedido>
+        </aside>
       </div>
 
-      {/* Resumen + confirmación fijos — mobile */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
-        <div className="max-w-md mx-auto">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-muted-foreground">
-              {qty} entrada{qty > 1 ? "s" : ""} × {tanda.nombre}
-            </span>
-            <span className="text-base font-extrabold text-foreground">{fmt(total)}</span>
-          </div>
-          <button
-            disabled={!valid || loading}
-            onClick={handleConfirm}
-            className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
-              valid && !loading
-                ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]"
-                : "bg-muted text-muted-foreground cursor-not-allowed"
-            }`}
-          >
-            {loading ? "Procesando..." : `Confirmar compra · ${fmt(total)}`}
-          </button>
-        </div>
-      </div>
+      <StickyActionBar summary={etiquetaCantidad} amount={fmt(total)}>
+        {botonPagar}
+      </StickyActionBar>
     </div>
+  );
+}
+
+interface ReciboPedidoProps {
+  evento: EventoPublicoDetalleDTO;
+  tanda: TandaResponseDTO;
+  qty: number;
+  etiqueta: string;
+  total: number;
+  /** Precio de las entradas (precio × cantidad). */
+  subtotal: number;
+  /** Cargo por procesamiento de pago de Mercado Pago; 0 si lo absorbe el Organizador. */
+  cargo: number;
+  porcentajeCargo: number | null;
+  className?: string;
+  /** Acciones bajo el total (botón de pago + nota), solo en el panel de desktop. */
+  children?: ReactNode;
+}
+
+/**
+ * Resumen del pedido con forma de **recibo / talón de ticket troquelado**: borde fuerte +
+ * sombra dura, perforación punteada con muescas entre el desglose y el total, y precios
+ * en `IBM Plex Mono` tabular. El `aria-label="Tu pedido"` lo mantiene como región localizable.
+ */
+function ReciboPedido({ evento, tanda, qty, etiqueta, total, subtotal, cargo, porcentajeCargo, className, children }: ReciboPedidoProps) {
+  return (
+    <section aria-label="Tu pedido" className={["relative rounded-2xl border border-foreground bg-card shadow-hard", className].filter(Boolean).join(" ")}>
+      <div className="space-y-4 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-mono text-2xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Tu pedido</p>
+          <span aria-hidden="true" className="font-mono text-2xs tabular-nums text-muted-foreground">×{qty}</span>
+        </div>
+
+        <div className="flex gap-3">
+          <EventoImagen
+            src={evento.imagenPortadaUrl}
+            alt=""
+            nombre={evento.nombre}
+            className="aspect-[3/4] w-14 flex-none rounded-lg border border-border-strong object-cover"
+          />
+          <div className="min-w-0">
+            <p className="line-clamp-2 font-display text-sm font-bold leading-snug text-foreground">{evento.nombre}</p>
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Calendar size={12} aria-hidden="true" className="flex-none text-secondary" />
+              {formatFecha(evento.fechaEvento)}
+            </p>
+            <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <MapPin size={12} aria-hidden="true" className="flex-none text-secondary" />
+              <span className="truncate">{evento.lugar}</span>
+            </p>
+          </div>
+        </div>
+
+        {/* Desglose: tanda · cantidad, en mono tabular */}
+        <dl className="space-y-2 border-t border-border pt-4 font-mono text-xs">
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="min-w-0 truncate text-muted-foreground">{tanda.nombre}</dt>
+            <dd className="flex-none tabular-nums text-foreground">{fmt(tanda.precio)}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <dt className="text-muted-foreground">Cantidad</dt>
+            <dd className="flex-none tabular-nums text-foreground">× {qty}</dd>
+          </div>
+          {cargo > 0 && (
+            <>
+              <div className="flex items-baseline justify-between gap-3 border-t border-dashed border-border pt-2">
+                <dt className="text-muted-foreground">Entradas</dt>
+                <dd className="flex-none tabular-nums text-foreground">{fmt(subtotal)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt className="min-w-0 text-muted-foreground">Cargo por procesamiento de pago (Mercado Pago)</dt>
+                <dd className="flex-none tabular-nums text-foreground">{fmt(cargo)}</dd>
+              </div>
+            </>
+          )}
+        </dl>
+        {cargo > 0 && (
+          <p className="text-2xs leading-relaxed text-muted-foreground">
+            El organizador trasladó al precio la comisión de Mercado Pago
+            {porcentajeCargo != null && ` (${textoPorcentaje(porcentajeCargo)})`}. AsistíAPP no cobra comisión.
+          </p>
+        )}
+      </div>
+
+      {/* Perforación con muescas */}
+      <div className="relative h-0 border-t border-dashed border-border-strong">
+        <span aria-hidden="true" className="absolute -left-2 -top-2 size-4 rounded-full border border-foreground bg-background" />
+        <span aria-hidden="true" className="absolute -right-2 -top-2 size-4 rounded-full border border-foreground bg-background" />
+      </div>
+
+      <div className="space-y-4 p-5">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <span className="block font-mono text-2xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">Total</span>
+            <span className="mt-0.5 block font-mono text-2xs text-muted-foreground">{etiqueta}</span>
+          </div>
+          <span className="font-display text-3xl font-extrabold leading-none tabular-nums text-foreground">{fmt(total)}</span>
+        </div>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function NotaPago() {
+  return (
+    <p className="flex items-start gap-2 text-xs leading-relaxed text-muted-foreground">
+      <ShieldCheck size={14} aria-hidden="true" className="mt-0.5 flex-none text-success" />
+      Te llevamos a MercadoPago para pagar de forma segura. Al confirmarse el pago, te llegan las entradas con su QR.
+    </p>
   );
 }

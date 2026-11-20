@@ -68,6 +68,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/organizador/perfil/comision-mp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["cambiarComisionMp"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/eventos/{id}": {
         parameters: {
             query?: never;
@@ -1272,6 +1288,13 @@ export interface components {
             maxEntradasPorCompradorPlataforma?: number;
             contactoWhatsapp?: string;
             contactoEmail?: string;
+            trasladarCargoMp?: boolean;
+            /** @enum {string} */
+            plazoLiberacionMp?: "AlInstante" | "Dias10" | "Dias18" | "Dias35";
+            /** @enum {string} */
+            zonaComisionMp?: "General" | "BuenosAiresEntreRiosChubut";
+            /** Format: double */
+            porcentajeCargoComprador?: number;
         };
         TopeCompradorRequestDTO: {
             /** Format: int32 */
@@ -1284,6 +1307,13 @@ export interface components {
         ContactoRequestDTO: {
             contactoWhatsapp?: string;
             contactoEmail?: string;
+        };
+        ComisionMpRequestDTO: {
+            trasladarAlComprador: boolean;
+            /** @enum {string} */
+            plazoLiberacion: "AlInstante" | "Dias10" | "Dias18" | "Dias35";
+            /** @enum {string} */
+            zona: "General" | "BuenosAiresEntreRiosChubut";
         };
         EventoRequestDTO: {
             nombre: string;
@@ -1351,6 +1381,8 @@ export interface components {
             fechaInicioVigencia?: string;
             /** Format: date-time */
             fechaFinVigencia?: string;
+            /** Format: double */
+            cargoServicio?: number;
         };
         TandaRequestDTO: {
             nombre: string;
@@ -1405,6 +1437,15 @@ export interface components {
             /** Format: int64 */
             idEvento?: number;
             nombreEvento?: string;
+            /** Format: date */
+            fechaEvento?: string;
+            /**
+             * Format: time
+             * @example 21:00:00
+             */
+            horaEvento?: string;
+            lugarEvento?: string;
+            imagenPortadaUrl?: string;
             nombreTanda?: string;
             /** Format: double */
             precioTanda?: number;
@@ -1648,6 +1689,12 @@ export interface components {
             urlPublica?: string;
             /** Format: double */
             precioDesde?: number;
+            /** Format: int32 */
+            cantidadTandas?: number;
+            /** Format: int32 */
+            cupoDisponibleTotal?: number;
+            /** Format: int32 */
+            cupoTotal?: number;
         };
         EventoPublicoDetalleDTO: {
             /** Format: int64 */
@@ -1673,6 +1720,8 @@ export interface components {
             maxEntradasPorCompra?: number;
             contactoWhatsapp?: string;
             contactoEmail?: string;
+            /** Format: double */
+            porcentajeCargoServicio?: number;
         };
         EstadisticasPublicasResponseDTO: {
             /** Format: int64 */
@@ -1690,6 +1739,7 @@ export interface components {
             mpUserId?: number;
             /** Format: date-time */
             vinculadaEn?: string;
+            obligatoria?: boolean;
         };
         NotificacionResponseDTO: {
             /** Format: int64 */
@@ -1936,6 +1986,30 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ContactoRequestDTO"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PerfilResponseDTO"];
+                };
+            };
+        };
+    };
+    cambiarComisionMp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ComisionMpRequestDTO"];
             };
         };
         responses: {

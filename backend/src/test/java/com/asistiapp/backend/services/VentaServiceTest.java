@@ -65,6 +65,8 @@ class VentaServiceTest {
     private CuentaCobroService cuentaCobroService;
     @Mock
     private NotificacionService notificacionService;
+    @Mock
+    private com.asistiapp.backend.repositories.OrganizadorRepository organizadorRepository;
 
     @InjectMocks
     private VentaService ventaService;
@@ -176,6 +178,79 @@ class VentaServiceTest {
                         && o.tipo().equals(MercadoPagoService.TIPO_ENTRADAS)), eq("token-del-organizador"));
         // Comprar no descuenta cupo: eso lo hace el webhook al confirmar el pago.
         verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
+    }
+
+    @Test
+    void iniciarCompraOnline_organizadorQueTrasladaLaComision_sumaElCargoPorEntradaAlTotalYALaPreferencia() {
+        // Al instante, tasa general: sobre $1000 el cargo es $82,38 por entrada → 3 entradas = $3247,14.
+        Organizador organizador = new Organizador();
+        organizador.setTrasladarCargoMp(true);
+        organizador.setPlazoLiberacionMp(com.asistiapp.backend.models.enums.PlazoLiberacionMp.AlInstante);
+        organizador.setZonaComisionMp(com.asistiapp.backend.models.enums.ZonaComisionMp.General);
+        when(organizadorRepository.findById(evento.getIdOrganizador())).thenReturn(Optional.of(organizador));
+        CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        dto.setCantidad(3);
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(mercadoPagoService.calcularVencimiento()).thenReturn(LocalDateTime.now().plusMinutes(30));
+        when(transaccionPagoRepository.save(any(TransaccionPago.class))).thenAnswer(inv -> {
+            TransaccionPago t = inv.getArgument(0);
+            t.setExternalReference("ref-cargo");
+            return t;
+        });
+        when(cuentaCobroService.tokenParaCobrar(evento.getIdOrganizador())).thenReturn("token");
+        when(mercadoPagoService.crearPreferencia(any(), any()))
+                .thenReturn(new MercadoPagoService.PreferenciaCreada("pref-1", "https://mp.test/init"));
+
+        ventaService.iniciarCompraOnline(dto);
+
+        verify(transaccionPagoRepository).save(argThat(t ->
+                t.getMontoTotal().equals(3247.14) && t.getCargoServicioUnitario().equals(82.38)));
+        verify(mercadoPagoService).crearPreferencia(argThat(o ->
+                o.cantidad() == 3
+                        && o.precioUnitario().compareTo(BigDecimal.valueOf(1000)) == 0
+                        && o.cargoServicioUnitario().compareTo(new BigDecimal("82.38")) == 0), eq("token"));
+    }
+
+    @Test
+    void iniciarCompraOnline_organizadorQueAbsorbeLaComision_cobraElPrecioExactoSinCargo() {
+        Organizador organizador = new Organizador(); // trasladarCargoMp = false por defecto
+        when(organizadorRepository.findById(evento.getIdOrganizador())).thenReturn(Optional.of(organizador));
+        CompraOnlineRequestDTO dto = compraDto(tanda.getId());
+        dto.setCantidad(2);
+        when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(mercadoPagoService.calcularVencimiento()).thenReturn(LocalDateTime.now().plusMinutes(30));
+        when(transaccionPagoRepository.save(any(TransaccionPago.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(cuentaCobroService.tokenParaCobrar(evento.getIdOrganizador())).thenReturn("token");
+        when(mercadoPagoService.crearPreferencia(any(), any()))
+                .thenReturn(new MercadoPagoService.PreferenciaCreada("pref-1", "https://mp.test/init"));
+
+        ventaService.iniciarCompraOnline(dto);
+
+        verify(transaccionPagoRepository).save(argThat(t ->
+                t.getMontoTotal().equals(2000.0) && t.getCargoServicioUnitario() == null));
+        verify(mercadoPagoService).crearPreferencia(argThat(o -> !o.tieneCargoServicio()), eq("token"));
+    }
+
+    @Test
+    void confirmarPagoEntradas_conCargoPorProcesamiento_aceptaElTotalConCargoYRechazaElPrecioSolo() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        transaccion.setCantidad(3);
+        transaccion.setMontoTotal(3247.14);
+        transaccion.setCargoServicioUnitario(82.38);
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+
+        // Pagar solo el precio de las entradas no alcanza: el monto tiene que ser el de la orden.
+        assertThat(ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(3000.0), "ARS").resultado())
+                .isEqualTo(ResultadoPago.MONTO_INVALIDO);
+
+        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(tandaRepository.decrementarCupo(tanda.getId(), 3)).thenReturn(1);
+        when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Mercado Pago informa el total como la suma de los dos ítems (3 × 1000 + 3 × 82,38).
+        assertThat(ventaService.confirmarPagoEntradas("1", 999L, new BigDecimal("3247.14"), "ARS").resultado())
+                .isEqualTo(ResultadoPago.CONFIRMADA);
     }
 
     @Test

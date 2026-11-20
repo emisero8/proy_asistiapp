@@ -1,13 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Check, ChevronLeft, ChevronRight, Plus, Trash2, CircleDollarSign, PartyPopper, AlertCircle } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, PartyPopper, Plus } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
-import { hoyLocal } from "../../lib/format";
-import { DatePicker } from "../../components/DatePicker";
-import { TimePicker } from "../../components/TimePicker";
-import { MapPicker, type Coords } from "../../components/EventMap";
-import { ImagenPortadaField } from "../../components/ImagenPortadaField";
-import type { CreditosResumenResponseDTO, EstadoCuentaMpResponseDTO, EventoRequestDTO, EventoResponseDTO, MovimientoCreditoResponseDTO, PerfilResponseDTO, TandaRequestDTO } from "../../lib/types";
+import { formatFecha, hoyLocal } from "../../lib/format";
+import type { Coords } from "../../components/EventMap";
+import { Alert, Button, Card, IconButton, PageHeader, claseBoton } from "../../components/ui";
+import { cn } from "../../lib/cn";
+import { comportamientoScroll } from "../../lib/motion";
+import { DatosEventoCampos, TandaCard } from "./EventoFormCampos";
+import type {
+  CreditosResumenResponseDTO,
+  EstadoCuentaMpResponseDTO,
+  EventoRequestDTO,
+  EventoResponseDTO,
+  MovimientoCreditoResponseDTO,
+  PerfilResponseDTO,
+  TandaRequestDTO,
+  TandaResponseDTO,
+} from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 interface WizardTanda {
@@ -47,12 +57,12 @@ export function OrganizadorWizardPage() {
   const topRef = useRef<HTMLDivElement>(null);
   const [published, setPublished] = useState(false);
   const [eventoId, setEventoId] = useState<number | null>(null);
-  // Tandas ya creadas en el servidor: si publicar falla y se reintenta, no se vuelven a crear (quedarían duplicadas).
-  const tandasCreadas = useRef<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [movimiento, setMovimiento] = useState<MovimientoCreditoResponseDTO | null>(null);
   const [resumen, setResumen] = useState<CreditosResumenResponseDTO | null>(null);
+  /** Tandas ya creadas en el borrador (id local → id del backend + lo que se mandó), para que un reintento no las duplique. */
+  const tandasCreadasRef = useRef(new Map<number, { tandaId: number; firma: string }>());
   const saldo = resumen?.saldo ?? null;
 
   // Para publicar hace falta la cuenta de Mercado Pago vinculada (8.5) y un contacto de arrepentimiento (8.8).
@@ -63,7 +73,8 @@ export function OrganizadorWizardPage() {
   useEffect(() => {
     api
       .get<EstadoCuentaMpResponseDTO>("/organizador/mercadopago/estado")
-      .then((e) => setSinMercadoPago(e.vinculada === false))
+      // Solo bloquea si el backend exige la cuenta (en desarrollo se apaga con MP_EXIGIR_CUENTA_VINCULADA=false).
+      .then((e) => setSinMercadoPago(e.obligatoria && !e.vinculada))
       .catch(() => undefined);
     api
       .get<PerfilResponseDTO>("/organizador/perfil")
@@ -80,7 +91,7 @@ export function OrganizadorWizardPage() {
 
   // Scroll al top al cambiar de paso
   useEffect(() => {
-    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    topRef.current?.scrollIntoView({ behavior: comportamientoScroll(), block: "start" });
   }, [step]);
 
   const [title, setTitle] = useState("");
@@ -151,9 +162,17 @@ export function OrganizadorWizardPage() {
     if (!eventoId) return;
     setLoading(true);
     setError(null);
+    const creadas = tandasCreadasRef.current;
     try {
+      // Reintento después de un fallo: las tandas que se sacaron de la lista pero ya
+      // estaban creadas en el borrador se borran del backend.
+      const idsLocales = new Set(tandas.map((t) => t.id));
+      for (const [idLocal, creada] of [...creadas]) {
+        if (idsLocales.has(idLocal)) continue;
+        await api.delete(`/eventos/${eventoId}/tandas/${creada.tandaId}`);
+        creadas.delete(idLocal);
+      }
       for (const t of tandas) {
-        if (tandasCreadas.current.has(t.id)) continue;
         // Si el "hasta" cae el mismo día del evento, la venta cierra cuando
         // empieza el evento (no a las 23:59) para no chocar con la validación.
         const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
@@ -165,8 +184,19 @@ export function OrganizadorWizardPage() {
           fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
           fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
         };
-        await api.post(`/eventos/${eventoId}/tandas`, dto);
-        tandasCreadas.current.add(t.id);
+        const firma = JSON.stringify(dto);
+        const yaCreada = creadas.get(t.id);
+        // Ya creada en un intento anterior: no se vuelve a crear (antes se duplicaba);
+        // solo se actualiza si el organizador la cambió antes de reintentar.
+        if (yaCreada) {
+          if (yaCreada.firma !== firma) {
+            await api.put(`/eventos/${eventoId}/tandas/${yaCreada.tandaId}`, dto);
+            creadas.set(t.id, { tandaId: yaCreada.tandaId, firma });
+          }
+          continue;
+        }
+        const nueva = await api.post<TandaResponseDTO>(`/eventos/${eventoId}/tandas`, dto);
+        creadas.set(t.id, { tandaId: nueva.id, firma });
       }
       await api.patch(`/eventos/${eventoId}/publicar`);
       const historial = await api.get<MovimientoCreditoResponseDTO[]>("/creditos/historial");
@@ -181,381 +211,264 @@ export function OrganizadorWizardPage() {
 
   if (published) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6 text-center">
-        <div className="w-20 h-20 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mb-6">
-          <PartyPopper size={36} className="text-primary" />
+      <div className="mx-auto flex min-h-[70dvh] max-w-md flex-col items-center justify-center px-4 py-10 text-center">
+        <div className="mb-6 flex size-16 items-center justify-center rounded-full bg-success/12 text-success animate-scale-in">
+          <PartyPopper size={30} aria-hidden="true" />
         </div>
-        <p className="text-primary text-xs font-bold tracking-[0.25em] uppercase mb-2">¡Evento publicado!</p>
-        <h2 className="text-2xl font-extrabold text-foreground mb-2">{title}</h2>
-        <p className="text-sm text-muted-foreground mb-1">{venue}</p>
-        <p className="text-sm text-muted-foreground mb-6">
-          {date} {time && `· ${time} hs`}
+        <p role="status" className="mb-2 font-mono text-xs font-bold uppercase tracking-[0.2em] text-success">
+          ¡Evento publicado!
+        </p>
+        <h1 className="mb-2 font-display text-2xl font-extrabold tracking-tight text-foreground">{title}</h1>
+        <p className="text-sm text-muted-foreground">{venue}</p>
+        <p className="mb-6 text-sm text-muted-foreground">
+          {formatFecha(date)} {time && `· ${time} hs`}
         </p>
         {movimiento && (
-          <div className="bg-card border border-border rounded-2xl p-4 w-full max-w-sm mb-6 space-y-2">
+          <Card className="mb-6 w-full space-y-2.5 text-left">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Créditos consumidos</span>
-              <span className="text-sm font-bold text-red-400">{movimiento.monto} créditos</span>
+              <span className="text-sm text-muted-foreground">Créditos consumidos</span>
+              <span className="text-sm font-bold tabular-nums text-foreground">{movimiento.monto} créditos</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Saldo restante</span>
-              <span className="text-sm font-bold text-foreground">{movimiento.saldoResultante} créditos</span>
+              <span className="text-sm text-muted-foreground">Saldo restante</span>
+              <span className="text-sm font-bold tabular-nums text-foreground">{movimiento.saldoResultante} créditos</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">Tandas creadas</span>
-              <span className="text-sm font-bold text-foreground">{tandas.length}</span>
+              <span className="text-sm text-muted-foreground">Tandas creadas</span>
+              <span className="text-sm font-bold tabular-nums text-foreground">{tandas.length}</span>
             </div>
-          </div>
+          </Card>
         )}
-        <button
-          onClick={() => navigate("/organizador/dashboard")}
-          className="w-full max-w-sm py-4 rounded-2xl bg-primary text-primary-foreground font-bold text-base hover:bg-primary/90 transition-all"
-        >
-          Volver al dashboard
-        </button>
+        <Button block size="lg" onClick={() => navigate("/organizador/dashboard")}>
+          Volver al panel
+        </Button>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-md lg:max-w-2xl mx-auto">
-      <div ref={topRef} className="px-4 lg:px-0 pt-6 pb-4 border-b border-border bg-background">
-        <button onClick={() => navigate("/organizador/dashboard")} className="flex items-center gap-1 text-muted-foreground text-sm mb-3 hover:text-foreground transition-colors">
-          <ChevronLeft size={15} />
-          Volver
-        </button>
-        <h2 className="text-lg lg:text-xl font-extrabold text-foreground">Crear evento</h2>
+  const pasos = [
+    { n: 1, label: "Datos del evento" },
+    { n: 2, label: "Entradas" },
+  ];
 
-        {/* Stepper animado */}
-        <div className="flex items-center gap-0 mt-4">
-          {[
-            { n: 1, label: "Datos básicos" },
-            { n: 2, label: "Entradas" },
-          ].map(({ n, label }, i) => {
-            const isCompleted = step > n;
-            const isActive = step === n;
+  return (
+    <div className="mx-auto max-w-3xl px-4 pt-6 md:px-6 lg:px-8 lg:pt-8">
+      <div ref={topRef} className="scroll-mt-20">
+        <PageHeader back={{ label: "Volver al panel", to: "/organizador/dashboard" }} title="Crear evento" />
+
+        {/* Pasos: lista ordenada con el actual marcado (aria-current), no solo por color. */}
+        <ol className="mt-5 flex items-center gap-3" aria-label="Pasos">
+          {pasos.map(({ n, label }, i) => {
+            const completo = step > n;
+            const actual = step === n;
             return (
-              <div key={n} className="flex items-center gap-0">
-                <div className="flex items-center gap-2">
-                  {/* Círculo del paso */}
-                  <div
-                    className={`relative flex items-center justify-center rounded-full text-xs font-bold flex-none transition-all duration-500 ${
-                      isCompleted
-                        ? "w-6 h-6 bg-primary text-primary-foreground scale-100 shadow-md shadow-primary/30"
-                        : isActive
-                        ? "w-7 h-7 bg-primary text-primary-foreground scale-110 shadow-lg shadow-primary/40 ring-2 ring-primary/20"
-                        : "w-6 h-6 bg-muted text-muted-foreground scale-100"
-                    }`}
-                  >
-                    {isCompleted ? <Check size={12} strokeWidth={3} /> : n}
-                  </div>
-                  {/* Label del paso */}
+              <li key={n} className="flex items-center gap-3" aria-current={actual ? "step" : undefined}>
+                <span className="flex items-center gap-2">
                   <span
-                    className={`text-xs font-semibold whitespace-nowrap transition-colors duration-300 ${
-                      isActive ? "text-foreground" : isCompleted ? "text-primary" : "text-muted-foreground"
-                    }`}
+                    className={cn(
+                      "flex size-7 flex-none items-center justify-center rounded-full text-xs font-bold transition-colors duration-(--duration-base)",
+                      completo || actual ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                    )}
                   >
-                    {label}
+                    {completo ? <Check size={14} strokeWidth={3} aria-label="Completo" /> : n}
                   </span>
-                </div>
-                {/* Línea de progreso entre pasos */}
-                {i === 0 && (
-                  <div className="relative mx-3 h-0.5 w-10 sm:w-16 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500 ease-in-out"
-                      style={{ width: step >= 2 ? "100%" : "0%" }}
+                  <span className={cn("text-sm font-semibold", actual ? "text-foreground" : "text-muted-foreground")}>{label}</span>
+                </span>
+                {i < pasos.length - 1 && (
+                  <span aria-hidden="true" className="relative h-0.5 w-8 overflow-hidden rounded-full bg-muted sm:w-14">
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-full bg-primary transition-[width] duration-(--duration-slow) ease-standard"
+                      style={{ width: step > n ? "100%" : "0%" }}
                     />
-                  </div>
+                  </span>
                 )}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ol>
       </div>
 
-      <div className="px-4 lg:px-0 py-4 space-y-4 pb-32 md:pb-24">
+      <div className="space-y-5 py-6">
         {step === 1 && (
-          <>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Nombre del evento *</label>
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Festival de Jazz al Aire Libre"
-                className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1.5">Descripción</label>
-              <textarea
-                value={desc}
-                onChange={(e) => setDesc(e.target.value)}
-                rows={3}
-                placeholder="Describí el evento para los compradores..."
-                className="w-full px-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Fecha *</label>
-                <DatePicker value={date} onChange={setDate} min={hoyStr} error={fechaEnPasado} />
-                {fechaEnPasado && <p className="text-[11px] text-red-400 mt-1">La fecha no puede estar en el pasado.</p>}
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1.5">Hora *</label>
-                <TimePicker value={time} onChange={setTime} />
-              </div>
-            </div>
-            <div>
-              <MapPicker
-                venueValue={venue}
-                onVenueChange={setVenue}
-                value={coords}
-                onChange={setCoords}
-              />
-            </div>
-            <div>
-              <ImagenPortadaField value={img} onChange={setImg} />
-            </div>
-          </>
+          <Card padding="none" className="p-4 md:p-6">
+            <DatosEventoCampos
+              nombre={title}
+              onNombre={setTitle}
+              descripcion={desc}
+              onDescripcion={setDesc}
+              fecha={date}
+              onFecha={setDate}
+              hora={time}
+              onHora={setTime}
+              lugar={venue}
+              onLugar={setVenue}
+              coords={coords}
+              onCoords={setCoords}
+              imagen={img}
+              onImagen={setImg}
+              hoy={hoyStr}
+              fechaEnPasado={fechaEnPasado}
+            />
+          </Card>
         )}
 
         {step === 2 && (
           <>
-            <p className="text-xs text-muted-foreground">Configurá las tandas de precios y sus cupos.</p>
-            {resumen && (
-              <p className="text-xs mt-1 text-muted-foreground">
-                {`Tenés ${disponibleEntradas} crédito(s) disponible(s) para entradas: cada entrada consume 1. Se reservan ${resumen.costoPublicacion} para publicar.`}
+            <div>
+              <h2 className="font-display text-base font-bold tracking-tight text-foreground">Tandas de entradas</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Cada tanda tiene su precio y su cupo. Si dejás las fechas de venta vacías, se vende desde que publicás hasta que empieza el evento.
+              </p>
+            </div>
+
+            {(sinMercadoPago || sinContacto) && (
+              <Alert
+                tone="danger"
+                title="Antes de publicar, completá tu perfil"
+                action={
+                  <Link to="/organizador/perfil" className={claseBoton("secondary", "sm")}>
+                    Ir a Mi perfil
+                  </Link>
+                }
+              >
+                {sinMercadoPago && (
+                  <p>
+                    <span className="font-semibold">Vinculá tu cuenta de Mercado Pago.</span> Es la cuenta donde vas a recibir el dinero de las
+                    entradas.
+                  </p>
+                )}
+                {sinContacto && (
+                  <p>
+                    <span className="font-semibold">Cargá un contacto (WhatsApp o email).</span> A ese contacto se deriva a quien quiera
+                    arrepentirse de su compra.
+                  </p>
+                )}
+              </Alert>
+            )}
+
+            {resumen && disponibleEntradas !== null && (
+              <ContadorCreditos usadas={totalEntradas} disponibles={disponibleEntradas} reservados={resumen.costoPublicacion} excede={excedeCreditos} />
+            )}
+
+            {tandas.map((t, i) => (
+              <TandaCard
+                key={t.id}
+                titulo={`Tanda ${i + 1}`}
+                valores={t}
+                onCambio={(campo, valor) => updateTanda(t.id, campo, valor)}
+                fechaEvento={date}
+                error={tandaErrors[i]}
+                onEliminar={tandas.length > 1 ? () => removeTanda(t.id) : undefined}
+                etiquetaEliminar={`Eliminar la tanda ${t.nombre || i + 1}`}
+                cortesia={{ marcada: t.soloEmision, onCambio: (v) => toggleCortesia(t.id, v) }}
+              />
+            ))}
+
+            {!haytandaDeVenta && (
+              <p role="alert" className="text-xs font-medium text-destructive">
+                Necesitás al menos una tanda de venta: las de cortesía no se venden.
               </p>
             )}
 
-            {/* Contador de créditos en vivo */}
-            {resumen && disponibleEntradas !== null && (
-              (() => {
-                const pct = disponibleEntradas > 0 ? Math.min((totalEntradas / disponibleEntradas) * 100, 100) : 100;
-                const restantes = disponibleEntradas - totalEntradas;
-                const colorBar = excedeCreditos
-                  ? "bg-destructive"
-                  : pct >= 80
-                  ? "bg-amber-400"
-                  : "bg-primary";
-                const colorText = excedeCreditos
-                  ? "text-destructive"
-                  : pct >= 80
-                  ? "text-amber-400"
-                  : "text-primary";
-                return (
-                  <div className="bg-card border border-border rounded-2xl p-4 space-y-3 mt-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-foreground">Créditos para entradas</span>
-                      <span className={`text-sm font-extrabold tabular-nums transition-colors duration-300 ${colorText}`}>
-                        {totalEntradas}
-                        <span className="text-muted-foreground font-normal text-xs"> / {disponibleEntradas}</span>
-                      </span>
-                    </div>
-
-                    {/* Barra de progreso */}
-                    <div className="relative h-2 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`absolute inset-y-0 left-0 rounded-full transition-all duration-300 ease-out ${colorBar}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-
-                    {/* Estado textual */}
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="text-muted-foreground">
-                        {excedeCreditos
-                          ? `Excedés el límite en ${Math.abs(restantes)} entrada${Math.abs(restantes) !== 1 ? "s" : ""}`
-                          : restantes === 0
-                          ? "Usaste todos los créditos disponibles"
-                          : `Te quedan ${restantes} crédito${restantes !== 1 ? "s" : ""} sin asignar`}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {resumen.costoPublicacion} reservado{resumen.costoPublicacion !== 1 ? "s" : ""} para publicar
-                      </span>
-                    </div>
-                  </div>
-                );
-              })()
-            )}
-            {tandas.map((t, i) => (
-              <div key={t.id} className={`bg-card border rounded-2xl p-4 space-y-3 ${tandaErrors[i] ? "border-red-500/50" : "border-border"}`}>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-foreground uppercase tracking-wider">Tanda {i + 1}</p>
-                  {tandas.length > 1 && (
-                    <button onClick={() => removeTanda(t.id)} aria-label={`Eliminar la tanda ${t.nombre || tandas.indexOf(t) + 1}`} className="text-muted-foreground hover:text-red-400 transition-colors">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Nombre *</label>
-                  <input
-                    value={t.nombre}
-                    onChange={(e) => updateTanda(t.id, "nombre", e.target.value)}
-                    placeholder="Anticipada 1"
-                    className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                  />
-                </div>
-                <label className="flex items-start gap-2 text-xs text-muted-foreground cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={t.soloEmision}
-                    onChange={(e) => toggleCortesia(t.id, e.target.checked)}
-                    className="mt-0.5 accent-primary"
-                  />
-                  <span>
-                    <span className="font-semibold text-foreground">Tanda de cortesía</span> — no se vende ni se muestra al público; solo vos
-                    emitís entradas de ella (prensa, invitados). Sin precio.
-                  </span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Precio *</label>
-                    <input
-                      value={t.precio}
-                      disabled={t.soloEmision}
-                      onChange={(e) => updateTanda(t.id, "precio", e.target.value)}
-                      placeholder="12000"
-                      inputMode="numeric"
-                      className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Cupo *</label>
-                    <input
-                      value={t.cupoMaximo}
-                      onChange={(e) => updateTanda(t.id, "cupoMaximo", e.target.value)}
-                      placeholder="200"
-                      inputMode="numeric"
-                      className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Venta desde</label>
-                    <DatePicker value={t.desde} onChange={(v) => updateTanda(t.id, "desde", v)} max={date || undefined} allowClear />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1">Venta hasta</label>
-                    <DatePicker value={t.hasta} onChange={(v) => updateTanda(t.id, "hasta", v)} max={date || undefined} allowClear />
-                  </div>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Si dejás las fechas vacías, la tanda se vende desde que publicás hasta que empieza el evento.
-                </p>
-                {tandaErrors[i] && (
-                  <p className="text-[11px] text-red-400 flex items-start gap-1">
-                    <AlertCircle size={12} className="flex-none mt-0.5" />
-                    {tandaErrors[i]}
-                  </p>
-                )}
-              </div>
-            ))}
-            {!haytandaDeVenta && (
-              <p className="text-xs text-destructive">Necesitás al menos una tanda de venta: las de cortesía no se venden.</p>
-            )}
             <button
+              type="button"
               onClick={addTanda}
-              className="w-full py-3 rounded-2xl border border-dashed border-border text-muted-foreground text-sm flex items-center justify-center gap-2 hover:border-primary/50 hover:text-foreground transition-all"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border-strong text-sm font-semibold text-muted-foreground transition-colors duration-(--duration-fast) hover:border-primary/50 hover:bg-card hover:text-foreground"
             >
-              <Plus size={15} />
+              <Plus size={16} aria-hidden="true" />
               Agregar tanda
             </button>
-            {(sinMercadoPago || sinContacto) && (
-              <div className="bg-destructive/10 border border-destructive/30 rounded-2xl px-4 py-3 flex gap-3">
-                <AlertCircle size={16} className="text-destructive flex-none mt-0.5" />
-                <div className="text-xs space-y-1">
-                  {sinMercadoPago && (
-                    <p className="text-foreground">
-                      <span className="font-semibold">Vinculá tu cuenta de Mercado Pago para publicar.</span> Es la cuenta donde vas a recibir el
-                      dinero de las entradas.
-                    </p>
-                  )}
-                  {sinContacto && (
-                    <p className="text-foreground">
-                      <span className="font-semibold">Cargá un contacto (WhatsApp o email) para publicar.</span> A ese contacto se deriva a quien
-                      quiera arrepentirse de su compra.
-                    </p>
-                  )}
-                  <Link to="/organizador/perfil" className="inline-block text-primary font-semibold underline">
-                    Ir a Mi perfil
-                  </Link>
-                </div>
-              </div>
-            )}
+
             {sinCreditos ? (
-              <div className="bg-destructive/10 border border-destructive/30 rounded-2xl px-4 py-3 flex gap-3">
-                <AlertCircle size={16} className="text-destructive flex-none mt-0.5" />
-                <div className="text-xs">
-                  <p className="text-foreground font-semibold">No te alcanzan los créditos para publicar.</p>
-                  <p className="text-muted-foreground mt-0.5">
-                    Publicar consume {resumen?.costoPublicacion ?? 1} crédito(s) y tu saldo es {saldo}.{" "}
-                    <button
-                      type="button"
-                      onClick={() => navigate("/organizador/creditos")}
-                      className="text-primary font-semibold underline"
-                    >
-                      Comprar créditos
-                    </button>
-                  </p>
-                </div>
-              </div>
+              <Alert
+                tone="danger"
+                title="No te alcanzan los créditos para publicar."
+                action={
+                  <Button variant="secondary" size="sm" onClick={() => navigate("/organizador/creditos")}>
+                    Comprar créditos
+                  </Button>
+                }
+              >
+                Publicar consume {resumen?.costoPublicacion ?? 1} crédito(s) y tu saldo es {saldo}.
+              </Alert>
             ) : (
-              <div className="bg-primary/10 border border-primary/20 rounded-2xl px-4 py-3 flex gap-3">
-                <CircleDollarSign size={16} className="text-primary flex-none mt-0.5" />
-                <p className="text-xs text-foreground">
-                  Publicar consume {resumen?.costoPublicacion ?? 1} crédito(s).{saldo !== null && ` Tenés ${saldo} disponible${saldo === 1 ? "" : "s"}.`}
-                </p>
-              </div>
+              <Alert tone="info">
+                Publicar consume {resumen?.costoPublicacion ?? 1} crédito(s).{saldo !== null && ` Tenés ${saldo} disponible${saldo === 1 ? "" : "s"}.`}
+              </Alert>
             )}
           </>
         )}
 
-        {error && (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/10 text-destructive text-sm p-4 flex gap-2">
-            <AlertCircle size={15} className="flex-none mt-0.5" />
-            {error}
+        {error && <Alert tone="danger">{error}</Alert>}
+      </div>
+
+      {/* Acciones: pegadas abajo mientras se scrollea el formulario (arriba de la barra de
+          pestañas en mobile). Es sticky dentro del flujo: no depende del ancho del sidebar. */}
+      <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-md md:bottom-0 md:-mx-6 md:px-6 lg:-mx-8 lg:px-8">
+        {step === 1 ? (
+          <Button block size="lg" disabled={!step1Valid} loading={loading} loadingText="Guardando…" onClick={handleNext} rightIcon={<ChevronRight size={18} />}>
+            Siguiente: configurar tandas
+          </Button>
+        ) : (
+          <div className="flex gap-3">
+            <IconButton label="Volver al paso anterior" icon={<ChevronLeft size={18} />} variant="secondary" size="lg" onClick={() => setStep(1)} />
+            <Button block size="lg" disabled={!step2Valid} loading={loading} loadingText="Publicando…" onClick={handlePublicar}>
+              Publicar evento
+            </Button>
           </div>
         )}
       </div>
-
-      <div className="fixed bottom-16 md:bottom-0 left-0 right-0 md:left-56 border-t border-border bg-background/90 backdrop-blur-md px-4 py-4">
-        <div className="max-w-md lg:max-w-2xl mx-auto">
-          {step === 1 ? (
-            <button
-              disabled={!step1Valid || loading}
-              onClick={handleNext}
-              className={`w-full py-4 rounded-2xl font-bold text-base flex items-center justify-center gap-2 transition-all ${
-                step1Valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground cursor-not-allowed"
-              }`}
-            >
-              {loading ? "Guardando..." : "Siguiente: configurar tandas"} <ChevronRight size={18} />
-            </button>
-          ) : (
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStep(1)}
-                aria-label="Volver al paso anterior"
-                className="flex-none py-4 px-5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                disabled={!step2Valid || loading}
-                onClick={handlePublicar}
-                className={`flex-1 py-4 rounded-2xl font-bold text-sm transition-all ${
-                  step2Valid && !loading ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-[1.015] active:scale-[0.98]" : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                {loading ? "Publicando..." : "Publicar evento"}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
+  );
+}
+
+interface ContadorCreditosProps {
+  usadas: number;
+  disponibles: number;
+  reservados: number;
+  excede: boolean;
+}
+
+/** Créditos para entradas en vivo: cada entrada de cupo consume uno. */
+function ContadorCreditos({ usadas, disponibles, reservados, excede }: ContadorCreditosProps) {
+  const pct = disponibles > 0 ? Math.min((usadas / disponibles) * 100, 100) : 100;
+  const restantes = disponibles - usadas;
+  const cerca = !excede && pct >= 80;
+  const tono = excede ? "text-destructive" : cerca ? "text-warning" : "text-primary";
+  const barra = excede ? "bg-destructive" : cerca ? "bg-warning" : "bg-primary";
+
+  let estado: string;
+  if (excede) estado = `Excedés el límite en ${Math.abs(restantes)} entrada${Math.abs(restantes) !== 1 ? "s" : ""}`;
+  else if (restantes === 0) estado = "Usaste todos los créditos disponibles";
+  else estado = `Te quedan ${restantes} crédito${restantes !== 1 ? "s" : ""} sin asignar`;
+
+  return (
+    <Card padding="sm" className="space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-sm font-semibold text-foreground">Créditos para entradas</span>
+        <span className={cn("text-base font-extrabold tabular-nums", tono)}>
+          {usadas}
+          <span className="text-xs font-normal text-muted-foreground"> / {disponibles}</span>
+        </span>
+      </div>
+      <div
+        role="progressbar"
+        aria-label="Créditos para entradas usados"
+        aria-valuemin={0}
+        aria-valuemax={disponibles}
+        aria-valuenow={Math.min(usadas, disponibles)}
+        className="relative h-2 overflow-hidden rounded-full bg-muted"
+      >
+        <div className={cn("absolute inset-y-0 left-0 rounded-full transition-[width] duration-(--duration-base) ease-standard", barra)} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+        <span className={cn(excede ? "font-semibold text-destructive" : "text-muted-foreground")} aria-live="polite">
+          {estado}
+        </span>
+        <span className="text-muted-foreground">
+          {reservados} reservado{reservados !== 1 ? "s" : ""} para publicar
+        </span>
+      </div>
+    </Card>
   );
 }

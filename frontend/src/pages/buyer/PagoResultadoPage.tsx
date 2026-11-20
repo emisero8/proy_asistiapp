@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router";
-import { CheckCircle2, AlertCircle, CircleX, Clock3, QrCode, Copy, Check } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
+import { AlertCircle, Check, CheckCircle2, ChevronRight, CircleX, Clock3, Copy, QrCode, RotateCcw, type LucideIcon } from "lucide-react";
+import { PublicHeader } from "../../components/PublicHeader";
+import { Button, ErrorState, Spinner } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import type { EstadoOrdenCreditoResponseDTO, EstadoOrdenEntradasResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
-import { ThemeToggle } from "../../components/ThemeToggle";
 
 /**
  * A esta pantalla vuelve el comprador (o el Organizador, para créditos) después de
@@ -41,6 +42,8 @@ export function PagoResultadoPage() {
   const [ordenEntradas, setOrdenEntradas] = useState<EstadoOrdenEntradasResponseDTO | null>(null);
   const [ordenCreditos, setOrdenCreditos] = useState<EstadoOrdenCreditoResponseDTO | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  // La consulta automática se detiene tras REINTENTOS_MAXIMOS; desde ahí la pantalla lo dice
+  // y ofrece volver a consultar, que incrementa `ronda` y reinicia el ciclo.
   const [esperaAgotada, setEsperaAgotada] = useState(false);
   const [ronda, setRonda] = useState(0);
 
@@ -149,82 +152,81 @@ export function PagoResultadoPage() {
 
   const orden = tipo === "creditos" ? ordenCreditos : ordenEntradas;
   const estado = orden?.estado ?? null;
+  const volver =
+    tipo === "creditos"
+      ? { texto: "Volver a mis créditos", ir: () => navigate("/organizador/creditos") }
+      : { texto: "Ver más eventos", ir: () => navigate("/eventos") };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate("/")} className="text-left">
-          <span className="text-lg font-extrabold text-foreground tracking-tight">
-            Asistí<span className="text-primary">APP</span>
-          </span>
-        </button>
-        <span className="text-muted-foreground text-sm">/ Resultado del pago</span>
-        <ThemeToggle className="ml-auto" />
-      </div>
+    <div className="min-h-dvh bg-background">
+      <PublicHeader />
 
-      <div className="max-w-md mx-auto px-4 py-10">
-        {cargando && !orden && (
-          <div className="flex flex-col items-center gap-4 text-center py-10">
-            <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Consultando el estado de tu pago…</p>
+      <main className="mx-auto max-w-md px-4 py-10">
+        {cargando && !orden && !error && (
+          <div className="flex flex-col items-center gap-3 py-16 text-center text-muted-foreground" role="status">
+            <Spinner size={28} className="text-primary" />
+            <p className="text-sm">Consultando el estado de tu pago…</p>
           </div>
         )}
 
         {!cargando && error && (
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="w-14 h-14 rounded-full bg-destructive/10 border border-destructive/20 flex items-center justify-center">
-              <AlertCircle size={24} className="text-destructive" />
-            </div>
-            <p className="text-sm text-muted-foreground max-w-xs">{error}</p>
-            <button onClick={() => navigate("/")} className="text-primary text-sm font-semibold">
-              Volver al inicio
-            </button>
-          </div>
+          <ErrorState
+            title="No pudimos consultar tu pago"
+            description={error}
+            secondaryAction={
+              <Button variant="secondary" size="sm" onClick={() => navigate("/")}>
+                Volver al inicio
+              </Button>
+            }
+          />
         )}
 
         {estado && (
-          <div className="space-y-5">
-            {estado === "Pendiente" && (
-              <>
-                <EstadoCard
-                  icon={<Clock3 size={24} className="text-amber-500" />}
-                  iconBg="bg-amber-500/10 border-amber-500/20"
-                  titulo={
-                    esperaAgotada ? "Todavía no vemos tu pago" : urlPago ? "Esperando tu pago" : "Estamos confirmando tu pago"
-                  }
-                  texto={
-                    esperaAgotada
-                      ? "Dejamos de consultar para no dejar la pantalla trabajando de más. Si ya pagaste, tocá el botón para volver a revisar."
-                      : urlPago
-                        ? "Completá el pago en la pestaña de MercadoPago que se abrió. Cuando termines, volvé acá: esta pantalla se actualiza sola."
-                        : "Puede tardar unos minutos. Esta pantalla se actualiza sola — no hace falta que la recargues."
-                  }
-                />
-                {esperaAgotada && (
-                  <button
-                    onClick={() => setRonda((r) => r + 1)}
-                    className="w-full py-3.5 rounded-2xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-colors"
-                  >
-                    Volver a consultar
-                  </button>
-                )}
+          <div className="space-y-4" aria-live="polite">
+            {estado === "Pendiente" && !esperaAgotada && (
+              <EstadoCard
+                tono="warning"
+                icono={Clock3}
+                titulo={urlPago ? "Esperando tu pago" : "Estamos confirmando tu pago"}
+                texto={
+                  urlPago
+                    ? "Completá el pago en la pestaña de MercadoPago que se abrió. Cuando termines, volvé acá: esta pantalla se actualiza sola."
+                    : "Puede tardar unos minutos. Esta pantalla se actualiza sola — no hace falta que la recargues."
+                }
+                consultando
+              >
                 {urlPago && (
                   <a
                     href={urlPago}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-center text-sm font-semibold text-primary hover:underline"
+                    className="text-sm font-semibold text-foreground underline underline-offset-4 hover:text-primary"
                   >
                     ¿Cerraste la pestaña? Abrir MercadoPago de nuevo
                   </a>
                 )}
-              </>
+              </EstadoCard>
+            )}
+
+            {estado === "Pendiente" && esperaAgotada && (
+              <EstadoCard
+                tono="warning"
+                icono={Clock3}
+                titulo="Todavía no recibimos la confirmación"
+                texto={`Si ya pagaste, MercadoPago puede demorar unos minutos más en avisarnos. No vuelvas a pagar: consultá de nuevo en un rato.${
+                  tipo === "entradas" ? " Cuando se confirme, también te llega un mail con tus entradas." : ""
+                }`}
+              >
+                <Button block onClick={() => setRonda((r) => r + 1)} leftIcon={<RotateCcw size={15} />}>
+                  Volver a consultar
+                </Button>
+              </EstadoCard>
             )}
 
             {estado === "Rechazada" && (
               <EstadoCard
-                icon={<CircleX size={24} className="text-destructive" />}
-                iconBg="bg-destructive/10 border-destructive/20"
+                tono="danger"
+                icono={CircleX}
                 titulo="El pago no se pudo completar"
                 texto="MercadoPago rechazó el pago. No se te cobró nada — podés intentarlo de nuevo."
               />
@@ -232,8 +234,8 @@ export function PagoResultadoPage() {
 
             {estado === "Expirada" && (
               <EstadoCard
-                icon={<Clock3 size={24} className="text-muted-foreground" />}
-                iconBg="bg-muted border-border"
+                tono="neutral"
+                icono={Clock3}
                 titulo="La orden venció"
                 texto="Pasó el tiempo para completar este pago. Volvé a intentar la compra desde el principio."
               />
@@ -241,60 +243,61 @@ export function PagoResultadoPage() {
 
             {estado === "Reembolsada" && (
               <EstadoCard
-                icon={<AlertCircle size={24} className="text-amber-500" />}
-                iconBg="bg-amber-500/10 border-amber-500/20"
+                tono="warning"
+                icono={AlertCircle}
                 titulo="Te devolvimos el pago"
                 texto="Se cobró el pago pero ya no se podía entregar lo que comprabas (por ejemplo, se agotó el cupo). MercadoPago te reembolsa automáticamente."
               />
             )}
 
             {estado === "Aprobada" && tipo === "entradas" && ordenEntradas && (
-              <div className="space-y-4">
-                <EstadoCard
-                  icon={<CheckCircle2 size={24} className="text-emerald-500" />}
-                  iconBg="bg-emerald-500/10 border-emerald-500/20"
-                  titulo="¡Pago aprobado!"
-                  texto={`Ya tenés ${ordenEntradas.cantidad > 1 ? `tus ${ordenEntradas.cantidad} entradas` : "tu entrada"} para ${ordenEntradas.nombreEvento}. También te mandamos un mail con el código QR de cada una.`}
-                />
-                <button
-                  onClick={copiarLink}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-primary/40 bg-primary/5 text-primary text-sm font-semibold hover:bg-primary/10 transition-colors"
-                >
-                  {linkCopiado ? (
-                    <>
-                      <Check size={15} /> Enlace copiado
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={15} /> Copiar enlace para compartir
-                    </>
-                  )}
-                </button>
-                <p className="text-xs text-muted-foreground text-center -mt-1">
-                  Ojo: este enlace es tu entrada. Quien lo tenga puede ver y usar el QR, así que compartilo solo con quien vaya a ir al evento.
-                </p>
-                <div className="bg-card border border-border rounded-2xl divide-y divide-border overflow-hidden">
+              <EstadoCard
+                tono="success"
+                icono={CheckCircle2}
+                titulo="¡Pago aprobado!"
+                texto={`Ya tenés ${ordenEntradas.cantidad > 1 ? `tus ${ordenEntradas.cantidad} entradas` : "tu entrada"} para ${ordenEntradas.nombreEvento}. También te mandamos un mail con el código QR de cada una.`}
+              >
+                <div className="space-y-3">
+                  <Button
+                    variant="secondary"
+                    block
+                    onClick={copiarLink}
+                    leftIcon={linkCopiado ? <Check size={15} /> : <Copy size={15} />}
+                  >
+                    {linkCopiado ? "Enlace copiado" : "Copiar enlace para compartir"}
+                  </Button>
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    Ojo: este enlace es tu entrada. Quien lo tenga puede ver y usar el QR, así que compartilo solo con quien vaya a ir al evento.
+                  </p>
+                <ul className="divide-y divide-dashed divide-border-strong overflow-hidden rounded-xl border border-border-strong text-left">
                   {ordenEntradas.entradas.map((entrada, i) => (
-                    <button
-                      key={entrada.id}
-                      onClick={() => navigate(`/mi-entrada?codigoQr=${encodeURIComponent(entrada.codigoQr)}`)}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted transition-colors"
-                    >
-                      <QrCode size={16} className="text-primary flex-none" />
-                      <span className="text-sm text-foreground flex-1">
-                        Entrada {i + 1} de {ordenEntradas.cantidad}
-                      </span>
-                      <span className="text-xs text-primary font-semibold">Ver</span>
-                    </button>
+                    <li key={entrada.id}>
+                      <Link
+                        to={`/mi-entrada?codigoQr=${encodeURIComponent(entrada.codigoQr)}`}
+                        className="group flex items-center gap-3 px-4 py-3 transition-colors duration-(--duration-fast) hover:bg-muted"
+                      >
+                        <span className="flex size-9 flex-none items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                          <QrCode size={16} aria-hidden="true" />
+                        </span>
+                        <span className="flex-1 font-mono text-sm font-medium tabular-nums text-foreground">
+                          Entrada {i + 1} de {ordenEntradas.cantidad}
+                        </span>
+                        <span className="flex items-center gap-0.5 text-xs font-semibold text-foreground">
+                          Ver QR
+                          <ChevronRight size={14} aria-hidden="true" className="transition-transform duration-(--duration-base) group-hover:translate-x-0.5" />
+                        </span>
+                      </Link>
+                    </li>
                   ))}
+                </ul>
                 </div>
-              </div>
+              </EstadoCard>
             )}
 
             {estado === "Aprobada" && tipo === "creditos" && ordenCreditos && (
               <EstadoCard
-                icon={<CheckCircle2 size={24} className="text-emerald-500" />}
-                iconBg="bg-emerald-500/10 border-emerald-500/20"
+                tono="success"
+                icono={CheckCircle2}
                 titulo="¡Pago aprobado!"
                 texto={
                   ordenCreditos.cantidadCreditos != null
@@ -304,35 +307,47 @@ export function PagoResultadoPage() {
               />
             )}
 
-            <button
-              onClick={() => navigate(tipo === "creditos" ? "/organizador/creditos" : "/")}
-              className="w-full py-3.5 rounded-2xl bg-card border border-border text-foreground font-semibold text-sm hover:bg-muted transition-colors"
-            >
-              {tipo === "creditos" ? "Volver a mis créditos" : "Ver más eventos"}
-            </button>
+            <Button variant="secondary" block onClick={volver.ir}>
+              {volver.texto}
+            </Button>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
 
-function EstadoCard({
-  icon,
-  iconBg,
-  titulo,
-  texto,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
+const TONOS = {
+  success: "bg-success/12 text-success",
+  warning: "bg-warning/14 text-warning",
+  danger: "bg-destructive/12 text-destructive",
+  neutral: "bg-muted text-muted-foreground",
+} as const;
+
+interface EstadoCardProps {
+  tono: keyof typeof TONOS;
+  icono: LucideIcon;
   titulo: string;
   texto: string;
-}) {
+  /** Indica que la pantalla sigue consultando sola. */
+  consultando?: boolean;
+  children?: ReactNode;
+}
+
+function EstadoCard({ tono, icono: Icono, titulo, texto, consultando = false, children }: EstadoCardProps) {
   return (
-    <div className="flex flex-col items-center gap-3 text-center bg-card border border-border rounded-3xl px-6 py-8">
-      <div className={`w-14 h-14 rounded-full border flex items-center justify-center ${iconBg}`}>{icon}</div>
-      <h1 className="text-lg font-extrabold text-foreground">{titulo}</h1>
-      <p className="text-sm text-muted-foreground max-w-xs">{texto}</p>
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-border-strong bg-card px-6 py-9 text-center shadow-hard">
+      <span className={`flex size-14 items-center justify-center rounded-2xl ${TONOS[tono]}`}>
+        <Icono size={26} aria-hidden="true" />
+      </span>
+      <h1 className="font-display text-xl font-extrabold tracking-tight text-foreground">{titulo}</h1>
+      <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{texto}</p>
+      {consultando && (
+        <span className="flex items-center gap-2 font-mono text-2xs uppercase tracking-[0.1em] text-muted-foreground">
+          <Spinner size={12} /> Consultando…
+        </span>
+      )}
+      {children && <div className="mt-2 w-full">{children}</div>}
     </div>
   );
 }

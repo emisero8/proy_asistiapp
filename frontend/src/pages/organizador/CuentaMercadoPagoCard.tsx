@@ -1,18 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { AlertCircle, CheckCircle2, Wallet } from "lucide-react";
+import { BadgePercent, CheckCircle2, Wallet } from "lucide-react";
+import { Alert, Button, Card, Skeleton } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { redirigirA } from "../../lib/navegacion";
+import { InfoComisionesMp } from "./ComisionMpPanel";
+import { EncabezadoTarjeta } from "./EncabezadoTarjeta";
 import type { EstadoCuentaMpResponseDTO, IniciarVinculacionResponseDTO } from "../../lib/types";
-
-const BOTON =
-  "w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2";
 
 /**
  * Cuenta de Mercado Pago del Organizador (8.4): el dinero de sus entradas cae directo en ella. Mercado Pago vuelve a
  * esta pantalla con `?mp=ok|cancelado|error`, que se avisa una vez y se saca de la dirección.
+ *
+ * `children`: la preferencia de quién paga la comisión (`ComisionMpPanel`), que vive en el perfil y la pasa Mi perfil.
  */
-export function CuentaMercadoPagoCard() {
+export function CuentaMercadoPagoCard({ children }: { children?: ReactNode }) {
   const [estado, setEstado] = useState<EstadoCuentaMpResponseDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
@@ -53,7 +55,7 @@ export function CuentaMercadoPagoCard() {
     setError(null);
     try {
       await api.delete("/organizador/mercadopago");
-      setEstado({ vinculada: false, estado: null, mpUserId: null, vinculadaEn: null });
+      setEstado((e) => ({ vinculada: false, estado: null, mpUserId: null, vinculadaEn: null, obligatoria: e?.obligatoria ?? true }));
       setConfirmando(false);
       toast.success("Cuenta de Mercado Pago desvinculada");
     } catch (e: unknown) {
@@ -64,56 +66,61 @@ export function CuentaMercadoPagoCard() {
   }
 
   const revocada = estado?.estado === "Revocada";
+  let textoVincular = "Vincular Mercado Pago";
+  if (revocada) textoVincular = "Volver a vincular";
 
   return (
-    <section className="rounded-3xl bg-card border border-border p-5 space-y-4">
-      <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-        <Wallet size={15} className="text-primary" /> Cuenta de Mercado Pago
-      </h3>
+    <Card as="section" variant="editorial" aria-labelledby="mp-titulo" className="space-y-5">
+      <EncabezadoTarjeta id="mp-titulo" indice="02" eyebrow="Cobros" icon={Wallet}>
+        Cuenta de Mercado Pago
+      </EncabezadoTarjeta>
 
-      {!estado && !error && <div className="h-16 rounded-2xl bg-muted animate-pulse" />}
+      <div className="flex items-start gap-3 rounded-xl border border-border-strong bg-surface-sunken px-4 py-3">
+        <span aria-hidden="true" className="flex size-7 flex-none items-center justify-center rounded-md bg-accent text-accent-foreground">
+          <BadgePercent size={15} />
+        </span>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          <strong className="font-semibold text-foreground">AsistíAPP no cobra comisión por venta de entradas.</strong> La única comisión es la de
+          Mercado Pago, según el plazo de liberación del dinero que tengas configurado en tu cuenta.
+        </p>
+      </div>
+
+      {!estado && !error && (
+        <>
+          <span className="sr-only">Cargando el estado de tu cuenta…</span>
+          <Skeleton className="h-16 rounded-xl" />
+        </>
+      )}
 
       {estado?.vinculada && (
         <>
-          <div className="flex items-start gap-2 text-sm text-foreground">
-            <CheckCircle2 size={16} className="text-emerald-400 flex-none mt-0.5" />
-            <div>
-              <p className="font-semibold">Cuenta vinculada</p>
-              <p className="text-[11px] text-muted-foreground">
+          <div className="flex items-start gap-3 rounded-xl border border-success/30 bg-success/10 px-4 py-3">
+            <CheckCircle2 size={18} aria-hidden="true" className="mt-0.5 flex-none text-success" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Cuenta vinculada</p>
+              <p className="mt-0.5 font-mono text-2xs text-muted-foreground">
                 Usuario de Mercado Pago: {estado.mpUserId ?? "—"}
                 {estado.vinculadaEn && ` · desde el ${new Date(estado.vinculadaEn).toLocaleDateString("es-AR")}`}
               </p>
-              <p className="text-[11px] text-muted-foreground mt-1">El dinero de tus entradas va directo a esta cuenta.</p>
+              <p className="mt-1 text-xs text-muted-foreground">El dinero de tus entradas va directo a esta cuenta.</p>
             </div>
           </div>
           {confirmando ? (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">
-                Sin una cuenta vinculada no vas a poder cobrar entradas online. ¿Desvincularla?
-              </p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Sin una cuenta vinculada no vas a poder cobrar entradas online. ¿Desvincularla?</p>
               <div className="flex gap-2">
-                <button
-                  onClick={() => setConfirmando(false)}
-                  className="flex-1 py-2.5 rounded-xl bg-muted text-muted-foreground text-xs font-semibold hover:bg-muted/70"
-                >
+                <Button variant="secondary" block onClick={() => setConfirmando(false)}>
                   No, mantener
-                </button>
-                <button
-                  disabled={ocupado}
-                  onClick={desvincular}
-                  className="flex-1 py-2.5 rounded-xl bg-destructive/10 text-destructive text-xs font-bold hover:bg-destructive/20 disabled:opacity-50"
-                >
+                </Button>
+                <Button variant="danger" block loading={ocupado} onClick={desvincular}>
                   Sí, desvincular
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => setConfirmando(true)}
-              className="w-full py-2.5 rounded-xl border border-border text-muted-foreground text-xs font-semibold hover:text-destructive hover:border-destructive/40 transition-colors"
-            >
+            <Button variant="ghost" size="sm" block className="text-muted-foreground" onClick={() => setConfirmando(true)}>
               Desvincular
-            </button>
+            </Button>
           )}
         </>
       )}
@@ -121,26 +128,27 @@ export function CuentaMercadoPagoCard() {
       {estado && !estado.vinculada && (
         <>
           {revocada ? (
-            <div className="flex items-start gap-2 text-sm text-destructive">
-              <AlertCircle size={16} className="flex-none mt-0.5" />
-              <p className="text-xs">
-                Mercado Pago ya no acepta el acceso de AsistíAPP a tu cuenta (la desvinculaste desde Mercado Pago o venció). Volvé a
-                vincularla para seguir cobrando entradas.
-              </p>
-            </div>
+            <Alert tone="danger">
+              Mercado Pago ya no acepta el acceso de AsistíAPP a tu cuenta (la desvinculaste desde Mercado Pago o venció). Volvé a vincularla
+              para seguir cobrando entradas.
+            </Alert>
           ) : (
-            <p className="text-xs text-muted-foreground">
-              Todavía no vinculaste tu cuenta. Al vincularla, el dinero de tus entradas va directo a tu cuenta de Mercado Pago: AsistíAPP no
-              lo toca ni cobra comisión.
+            <p className="text-sm text-muted-foreground">
+              Todavía no vinculaste tu cuenta. Al vincularla, el dinero de tus entradas va directo a tu cuenta de Mercado Pago: AsistíAPP no lo
+              toca ni cobra comisión.
             </p>
           )}
-          <button onClick={vincular} disabled={ocupado} className={BOTON}>
-            {ocupado ? "Redirigiendo…" : revocada ? "Volver a vincular" : "Vincular Mercado Pago"}
-          </button>
+          <Button block tactil onClick={vincular} loading={ocupado} loadingText="Redirigiendo a Mercado Pago…">
+            {textoVincular}
+          </Button>
         </>
       )}
 
-      {error && <p className="text-xs text-destructive">{error}</p>}
-    </section>
+      {error && <Alert tone="danger">{error}</Alert>}
+
+      {children && <div className="border-t border-border pt-5">{children}</div>}
+
+      <InfoComisionesMp />
+    </Card>
   );
 }

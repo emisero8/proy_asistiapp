@@ -13,6 +13,7 @@
 - Un Organizador **sin cuenta vinculada** (o con el acceso revocado) **no puede publicar** (409 que lo manda a Mi perfil), y sus eventos ya publicados **no cobran**. Se apaga solo en local con `MP_EXIGIR_CUENTA_VINCULADA=false` (sección 4).
 - **Reembolsos, anulaciones y cancelaciones** son del Organizador: se hacen desde su panel con su token (sale de su saldo de Mercado Pago). La plataforma solo da la herramienta.
 - **No hay comisión** de la plataforma. Mercado Pago cobra la suya al vendedor (en la prueba real: $0,42 sobre $10).
+- **Quién paga la comisión de Mercado Pago** lo elige el Organizador en Mi perfil (por defecto, él). Si la traslada, cada entrada lleva un *cargo por procesamiento de pago* calculado con su plazo de liberación y zona (`CargoServicioMp`): va como segundo ítem de la preferencia, queda fijo en la orden (`cargoServicioUnitario`) y se devuelve junto con el precio al reembolsar. **Mercado Pago no devuelve su comisión en un reembolso** (en la prueba real, $0,42 sobre $10): la absorbe el Organizador, aunque haya trasladado el cargo. El panel se lo aclara en Mi perfil (con el costo estimado de un reembolso si traslada), al anular con devolución y en el reembolso masivo (`AVISO_COMISION_REEMBOLSO` en `lib/comisionesMp.ts`).
 
 ## 2. Mapa del código
 
@@ -115,13 +116,13 @@ Costo de la prueba real del 17/11: comisión de Mercado Pago de $0,42 sobre $10.
 - Cambiar el estado de una entrada con `@Modifying` (el turno de reembolso) exige `clearAutomatically/flushAutomatically`.
 - Postgres **no** actualiza el CHECK de una columna enum con `ddl-auto: update`: un valor nuevo de enum necesita una migración en `backend/db/migraciones/`.
 - En local el sitio corre en `http`: Mercado Pago no pone botón "Volver al sitio". La pantalla de espera sigue sola; si se pierde, `http://localhost:5173/pago/resultado?ref=<externalReference>&tipo=entradas`.
-- `MP_VALIDAR_FIRMA=false` **solo en local**. En la prueba real la firma del webhook no coincidió con la clave configurada (ver sección 9).
+- `MP_VALIDAR_FIRMA=false` es el valor seguro para empezar en local, pero **ya se puede dejar en `true`** si cargaste las dos claves de Webhooks (ver sección 9).
 - Si algo falla con `ERR_NGROK_3200`, el túnel está caído: volver a levantarlo; el `code` de un callback OAuth es de un solo uso y no se puede reusar.
 
 ## 9. Pendiente antes de producción
 
-- Activar `MP_VALIDAR_FIRMA=true` con la **clave secreta de Webhooks de la aplicación OAuth** (en la prueba real el log dijo "la firma del webhook no coincide"; puede que la clave configurada sea la de la otra aplicación). Hay que verificar el panel: la notificación de pagos de cuentas vinculadas por OAuth se firma con la clave de la aplicación que cobra.
+- **Firma del webhook (resuelto el 20/11).** Mercado Pago tiene **una clave secreta de Webhooks por modo** de la aplicación (panel → Webhooks → pestañas *Modo de prueba* y *Modo productivo*) y firma cada aviso con la del modo en que ocurrió el pago. El backend acepta las dos: `MP_WEBHOOK_SECRET` (prueba) y `MP_WEBHOOK_SECRET_PRODUCCION` (productiva); en producción alcanza con la productiva, que es la obligatoria. Lo que parecía "la firma no coincide" eran los avisos en formato **IPN** (`?id=&topic=`), que Mercado Pago no firma con esa clave: ahora se responden 200 y se ignoran, porque el pago lo confirma el aviso en formato webhook (`?data.id=`), que en el pago real del 17/11 sí validó. Verificado el 20/11 con avisos firmados con cada clave. **Falta antes de producción:** `MP_VALIDAR_FIRMA=true` y comprobar con un pago real de bajo monto, ya deployado, que el aviso llega y valida con la clave productiva; y cargar la URL de producción en la pestaña *Modo productivo* del panel cuando haya dominio.
 - `MP_TOKEN_ENCRYPTION_KEY` real y secreta (`openssl rand -base64 32`); la de desarrollo es pública.
 - Rotar las credenciales del sandbox que pasaron por chats; dominio propio con SPF/DKIM/DMARC; aplicar las migraciones en las bases que no sean la local.
 - Probar con dinero real la **revocación de la cuenta** (hoy cubierta solo por tests) y un reembolso masivo con **varias** compras y una que falle (por ejemplo, por saldo insuficiente).
-- Términos y privacidad son **borradores** (8.7): revisarlos con un abogado.
+- Términos y privacidad: **definitivos y revisados por un abogado** (versión `2026-11-20`). Falta solo lo fiscal (AAIP, contador).

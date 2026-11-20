@@ -14,9 +14,9 @@ vi.mock("../../lib/api", async (importOriginal) => {
 });
 vi.mock("../../lib/navegacion", () => ({ redirigirA }));
 
-const SIN_CUENTA: EstadoCuentaMpResponseDTO = { vinculada: false, estado: null, mpUserId: null, vinculadaEn: null };
-const VINCULADA: EstadoCuentaMpResponseDTO = { vinculada: true, estado: "Vinculada", mpUserId: 555, vinculadaEn: "2026-11-17T10:30:00" };
-const REVOCADA: EstadoCuentaMpResponseDTO = { vinculada: false, estado: "Revocada", mpUserId: 555, vinculadaEn: "2026-10-01T10:30:00" };
+const SIN_CUENTA: EstadoCuentaMpResponseDTO = { vinculada: false, estado: null, mpUserId: null, vinculadaEn: null, obligatoria: true };
+const VINCULADA: EstadoCuentaMpResponseDTO = { vinculada: true, estado: "Vinculada", mpUserId: 555, vinculadaEn: "2026-11-17T10:30:00", obligatoria: true };
+const REVOCADA: EstadoCuentaMpResponseDTO = { vinculada: false, estado: "Revocada", mpUserId: 555, vinculadaEn: "2026-10-01T10:30:00", obligatoria: true };
 
 function renderCard() {
   return render(

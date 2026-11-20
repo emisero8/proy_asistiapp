@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { Toaster } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StaffPosPage } from "./PosPage";
@@ -71,6 +72,7 @@ function entrada(id: number, codigoQr: string): EntradaResponseDTO {
     idTanda: 1,
     idEvento: 1,
     nombreEvento: "Festival",
+    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null,
     nombreTanda: "General",
     precioTanda: 2000,
     codigoQr,
@@ -111,14 +113,16 @@ function mockApi({ eventos = [evento(1, "Festival", [tanda(1, "General")])], dis
 function renderPage() {
   return render(
     <ThemeProvider>
-      <StaffPosPage />
+      <MemoryRouter>
+        <StaffPosPage />
+      </MemoryRouter>
       <Toaster />
     </ThemeProvider>,
   );
 }
 
 async function esperarFormulario() {
-  await screen.findByPlaceholderText("Nombre del comprador...");
+  await screen.findByPlaceholderText("Nombre del comprador");
 }
 
 // La pantalla repite el botón de generar (panel en desktop y barra fija en mobile): jsdom no aplica el CSS.
@@ -127,7 +131,7 @@ const mas = () => screen.getByRole("button", { name: "Agregar una entrada" });
 const menos = () => screen.getByRole("button", { name: "Quitar una entrada" });
 
 async function completarComprador(nombre = "Ana Compradora", email = "ana@mail.com") {
-  await userEvent.type(screen.getByPlaceholderText("Nombre del comprador..."), nombre);
+  await userEvent.type(screen.getByPlaceholderText("Nombre del comprador"), nombre);
   await userEvent.type(screen.getByPlaceholderText("comprador@ejemplo.com"), email);
 }
 
@@ -144,7 +148,8 @@ describe("StaffPosPage — carga inicial", () => {
     renderPage();
 
     expect(await screen.findByText("Sin permiso")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
+    // Está en el header y en la tarjeta del error: los dos cierran la sesión.
+    await userEvent.click(screen.getAllByRole("button", { name: "Cerrar sesión" })[0]);
     expect(logout).toHaveBeenCalledTimes(1);
   });
 
@@ -167,6 +172,19 @@ describe("StaffPosPage — carga inicial", () => {
     expect(screen.getAllByText("1 × Anticipada").length).toBeGreaterThan(0);
   });
 
+  it("arranca con la primera tanda con cupo, no con una agotada", async () => {
+    mockApi({
+      eventos: [evento(1, "Festival", [tanda(1, "Anticipada", { cupoDisponible: 0 }), tanda(2, "General")])],
+    });
+    renderPage();
+    await esperarFormulario();
+
+    expect(screen.getAllByText("1 × General").length).toBeGreaterThan(0);
+    expect(screen.queryByText("1 × Anticipada")).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /General/ })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: /Anticipada/ })).toBeDisabled();
+  });
+
   it("con más de un evento ofrece el selector y cambiar de evento cambia las tandas", async () => {
     mockApi({
       eventos: [
@@ -177,7 +195,9 @@ describe("StaffPosPage — carga inicial", () => {
     renderPage();
     await esperarFormulario();
 
-    await userEvent.selectOptions(screen.getByRole("combobox"), "2");
+    // El selector de evento es un combobox accesible propio (SelectMenu), no un <select> nativo.
+    await userEvent.click(screen.getByRole("combobox"));
+    await userEvent.click(screen.getByRole("option", { name: "Recital" }));
 
     expect(screen.getByText("Platea")).toBeInTheDocument();
     expect(screen.queryByText("Anticipada")).not.toBeInTheDocument();
@@ -285,11 +305,11 @@ describe("StaffPosPage — validación del formulario", () => {
     await esperarFormulario();
     expect(botonGenerar()).toBeDisabled();
 
-    await userEvent.type(screen.getByPlaceholderText("Nombre del comprador..."), "A");
+    await userEvent.type(screen.getByPlaceholderText("Nombre del comprador"), "A");
     await userEvent.type(screen.getByPlaceholderText("comprador@ejemplo.com"), "ana@mail.com");
     expect(botonGenerar()).toBeDisabled(); // un solo carácter no alcanza como nombre
 
-    await userEvent.type(screen.getByPlaceholderText("Nombre del comprador..."), "na");
+    await userEvent.type(screen.getByPlaceholderText("Nombre del comprador"), "na");
     expect(botonGenerar()).toBeEnabled();
 
     await userEvent.clear(screen.getByPlaceholderText("comprador@ejemplo.com"));
@@ -303,7 +323,7 @@ describe("StaffPosPage — validación del formulario", () => {
     await esperarFormulario();
     await completarComprador();
 
-    expect(screen.getByRole("button", { name: /General/ })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: /General/ })).toBeDisabled();
     expect(botonGenerar()).toBeDisabled();
   });
 });
@@ -326,7 +346,7 @@ describe("StaffPosPage — venta", () => {
       nombreComprador: "Ana Compradora",
       emailComprador: "ana@mail.com",
     });
-    expect(await screen.findByText("¡Entradas generadas!")).toBeInTheDocument();
+    expect(await screen.findByText(/entradas generadas!/)).toBeInTheDocument();
     expect(screen.getByText("QR-AAA")).toBeInTheDocument();
     expect(screen.getByText("QR-BBB")).toBeInTheDocument();
     // Aviso de 6.3: el enlace de cada entrada es la entrada.
@@ -361,7 +381,7 @@ describe("StaffPosPage — venta", () => {
     expect(await screen.findByText("Tanda agotada — no hay cupo disponible")).toBeInTheDocument();
     expect(screen.queryByText(/Entradas? generadas?!/)).not.toBeInTheDocument();
     // Los datos del comprador siguen cargados para reintentar.
-    expect(screen.getByPlaceholderText("Nombre del comprador...")).toHaveValue("Ana Compradora");
+    expect(screen.getByPlaceholderText("Nombre del comprador")).toHaveValue("Ana Compradora");
   });
 
   it("si falla con un error que no es de la API usa un mensaje genérico", async () => {
@@ -384,14 +404,14 @@ describe("StaffPosPage — venta", () => {
     await userEvent.click(mas());
     await completarComprador();
     await userEvent.click(botonGenerar());
-    await screen.findByText("¡Entradas generadas!");
+    await screen.findByText(/entradas generadas!/);
 
     await userEvent.click(screen.getByRole("button", { name: /Nueva venta/ }));
 
-    expect(await screen.findByPlaceholderText("Nombre del comprador...")).toHaveValue("");
+    expect(await screen.findByPlaceholderText("Nombre del comprador")).toHaveValue("");
     expect(screen.getByPlaceholderText("comprador@ejemplo.com")).toHaveValue("");
     expect(screen.getAllByText("1 × General").length).toBeGreaterThan(0);
-    expect(screen.getByText("Vendidas hoy").nextElementSibling).toHaveTextContent("2");
+    expect(screen.getByText("Vendidas").nextElementSibling).toHaveTextContent("2");
   });
 });
 
@@ -411,7 +431,7 @@ describe("StaffPosPage — compartir la entrada", () => {
     await userEvent.click(mas());
     await completarComprador();
     await userEvent.click(botonGenerar());
-    await screen.findByText("¡Entradas generadas!");
+    await screen.findByText(/entradas generadas!/);
   }
 
   it("'Copiar enlace' copia el link público de esa entrada y lo confirma", async () => {

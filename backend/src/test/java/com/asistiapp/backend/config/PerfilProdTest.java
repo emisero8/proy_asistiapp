@@ -32,7 +32,7 @@ class PerfilProdTest {
         Properties prod = cargar("application-prod.yml");
         // Sin valor por defecto: si falta la variable, el backend no arranca.
         for (String clave : List.of("spring.datasource.url", "spring.datasource.username", "spring.datasource.password",
-                "spring.mail.host", "app.mercadopago.access-token", "app.mercadopago.webhook-secret",
+                "spring.mail.host", "app.mercadopago.access-token", "app.mercadopago.webhook-secret-produccion",
                 "app.mercadopago.backend-public-url", "app.cors.allowed-origins", "app.frontend-base-url")) {
             assertThat(prod.getProperty(clave)).as(clave).matches("\\$\\{[A-Z_]+}");
         }

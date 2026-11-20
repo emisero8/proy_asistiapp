@@ -23,6 +23,7 @@ function entrada(extra: Partial<EntradaResponseDTO> = {}): EntradaResponseDTO {
     idTanda: 11,
     idEvento: 5,
     nombreEvento: "Festival",
+    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null,
     nombreTanda: "General",
     precioTanda: 5000,
     codigoQr: "QR-9",
@@ -125,6 +126,17 @@ describe("EntradaAcciones — anular", () => {
     await userEvent.click(screen.getByRole("button", { name: "Confirmar anulación" }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/tickets/9/anular", { motivo: null, reembolsar: true }));
+  });
+
+  it("al tildar la devolución aclara que se devuelve todo lo pagado y que la comisión de Mercado Pago la absorbe el organizador", async () => {
+    render(<EntradaAcciones entrada={entrada()} onCambio={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+    expect(screen.queryByText(/no devuelve su comisión/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText(/Devolverle el dinero que pagó/));
+
+    expect(screen.getByText(/más el cargo por procesamiento si lo pagó/)).toBeInTheDocument();
+    expect(screen.getByText(/Mercado Pago no devuelve su comisión cuando hay un reembolso: la absorbés vos/)).toBeInTheDocument();
   });
 
   it("en una entrada manual o emitida por el Organizador no ofrece devolver dinero (no pasó por Mercado Pago)", async () => {

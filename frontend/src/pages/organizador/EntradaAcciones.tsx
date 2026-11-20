@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import { toast } from "sonner";
 import { api, ApiError } from "../../lib/api";
+import { AVISO_COMISION_REEMBOLSO } from "../../lib/comisionesMp";
 import { fmt } from "../../lib/format";
 import type { AnularEntradaRequestDTO, EntradaResponseDTO, ResultadoAnulacionResponseDTO } from "../../lib/types";
 
@@ -91,9 +92,13 @@ export function EntradaAcciones({ entrada, onCambio }: Props) {
         {online && (
           <label className="flex items-start gap-2 text-[11px] text-foreground">
             <input type="checkbox" checked={reembolsar} onChange={(e) => setReembolsar(e.target.checked)} className="mt-0.5" />
-            <span>Devolverle el dinero ({fmt(entrada.precioTanda)}) desde tu cuenta de Mercado Pago</span>
+            <span>
+              Devolverle el dinero que pagó ({fmt(entrada.precioTanda)} de la entrada, más el cargo por procesamiento si lo pagó) desde tu cuenta de
+              Mercado Pago
+            </span>
           </label>
         )}
+        {online && reembolsar && <p className="text-[11px] text-muted-foreground">{AVISO_COMISION_REEMBOLSO}</p>}
         {error && <p role="alert" className="text-[11px] text-destructive">{error}</p>}
         <div className="flex gap-2">
           <button onClick={anular} disabled={enviando} className={`${boton} bg-destructive text-white`}>
@@ -111,7 +116,8 @@ export function EntradaAcciones({ entrada, onCambio }: Props) {
     return (
       <div className="mt-2 rounded-lg border border-border bg-muted/40 p-3 space-y-2 text-left">
         <p className="text-[11px] text-muted-foreground">
-          Se le devuelven {fmt(entrada.precioTanda)} a {entrada.emailComprador} desde tu cuenta de Mercado Pago.
+          Se le devuelve a {entrada.emailComprador} todo lo que pagó ({fmt(entrada.precioTanda)} de la entrada, más el cargo por procesamiento si lo
+          pagó) desde tu cuenta de Mercado Pago. {AVISO_COMISION_REEMBOLSO}
         </p>
         {error && <p role="alert" className="text-[11px] text-destructive">{error}</p>}
         <div className="flex gap-2">
