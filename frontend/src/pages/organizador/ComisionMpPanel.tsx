@@ -4,7 +4,7 @@ import { ChevronDown, Save } from "lucide-react";
 import { Alert, Button, Field, RadioCardGroup, SelectMenu } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
-import { PLAZOS_MP, ZONAS_MP, cargoEstimado, porcentajeMp, textoComision, textoPorcentaje } from "../../lib/comisionesMp";
+import { AVISO_COMISION_REEMBOLSO, PLAZOS_MP, ZONAS_MP, cargoEstimado, porcentajeMp, textoComision, textoPorcentaje } from "../../lib/comisionesMp";
 import { fmt } from "../../lib/format";
 import type { ComisionMpRequestDTO, PerfilResponseDTO, PlazoLiberacionMp, ZonaComisionMp } from "../../lib/types";
 
@@ -108,6 +108,13 @@ export function ComisionMpPanel({ perfil, onGuardado }: Props) {
           </p>
         </div>
       )}
+
+      {/* Qué pasa con la comisión si hay que devolverle el dinero al comprador: el Organizador la absorbe en los dos casos. */}
+      <Alert tone="info" title="Si hay un reembolso">
+        Al anular una entrada con reembolso o cancelar un evento, el comprador recibe todo lo que pagó
+        {trasladar ? ", cargo por procesamiento incluido" : ""}. {AVISO_COMISION_REEMBOLSO}
+        {trasladar && <> Con la entrada de ejemplo, un reembolso te cuesta alrededor de {fmt(cargoEjemplo)}.</>}
+      </Alert>
 
       {error && <Alert tone="danger">{error}</Alert>}
 

@@ -128,6 +128,17 @@ describe("EntradaAcciones — anular", () => {
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/tickets/9/anular", { motivo: null, reembolsar: true }));
   });
 
+  it("al tildar la devolución aclara que se devuelve todo lo pagado y que la comisión de Mercado Pago la absorbe el organizador", async () => {
+    render(<EntradaAcciones entrada={entrada()} onCambio={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Anular" }));
+    expect(screen.queryByText(/no devuelve su comisión/)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText(/Devolverle el dinero que pagó/));
+
+    expect(screen.getByText(/más el cargo por procesamiento si lo pagó/)).toBeInTheDocument();
+    expect(screen.getByText(/Mercado Pago no devuelve su comisión cuando hay un reembolso: la absorbés vos/)).toBeInTheDocument();
+  });
+
   it("en una entrada manual o emitida por el Organizador no ofrece devolver dinero (no pasó por Mercado Pago)", async () => {
     render(<EntradaAcciones entrada={entrada({ canalVenta: "Manual" })} onCambio={vi.fn()} />);
     await userEvent.click(screen.getByRole("button", { name: "Anular" }));

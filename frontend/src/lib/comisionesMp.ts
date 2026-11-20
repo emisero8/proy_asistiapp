@@ -67,3 +67,10 @@ export function desglosePedido(precio: number, cargoUnitario: number | null | un
   const cargo = centavos(cargoUnitario && cargoUnitario > 0 ? cargoUnitario : 0) * cantidad;
   return { subtotal: subtotal / 100, cargo: cargo / 100, total: (subtotal + cargo) / 100 };
 }
+
+/**
+ * Qué pasa con la comisión de Mercado Pago cuando hay un reembolso. Se muestra donde el Organizador decide quién
+ * paga la comisión y donde reembolsa: el comprador recibe todo lo que pagó (cargo incluido) y Mercado Pago se
+ * queda con su comisión, así que la termina absorbiendo el Organizador.
+ */
+export const AVISO_COMISION_REEMBOLSO = "Mercado Pago no devuelve su comisión cuando hay un reembolso: la absorbés vos.";

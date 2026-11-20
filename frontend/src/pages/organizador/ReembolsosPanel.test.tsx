@@ -46,6 +46,14 @@ describe("ReembolsosPanel", () => {
     expect(screen.getByText("Ana")).toBeInTheDocument();
   });
 
+  it("aclara que se devuelve todo lo pagado (con el cargo) y que la comisión de Mercado Pago la absorbe el organizador", async () => {
+    vi.mocked(api.get).mockResolvedValueOnce([pendiente(1, "Ana")]);
+    render(<ReembolsosPanel idEvento={5} onCambio={vi.fn()} />);
+
+    expect(await screen.findByText(/cargo por procesamiento incluido si lo pagó/)).toBeInTheDocument();
+    expect(screen.getByText(/Mercado Pago no devuelve su comisión cuando hay un reembolso: la absorbés vos/)).toBeInTheDocument();
+  });
+
   it("pide confirmar antes de devolver el dinero y avisa que sale de su cuenta", async () => {
     vi.mocked(api.get).mockResolvedValueOnce([pendiente(1, "Ana")]);
     render(<ReembolsosPanel idEvento={5} onCambio={vi.fn()} />);

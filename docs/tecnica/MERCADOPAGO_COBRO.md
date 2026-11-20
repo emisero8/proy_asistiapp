@@ -13,7 +13,7 @@
 - Un Organizador **sin cuenta vinculada** (o con el acceso revocado) **no puede publicar** (409 que lo manda a Mi perfil), y sus eventos ya publicados **no cobran**. Se apaga solo en local con `MP_EXIGIR_CUENTA_VINCULADA=false` (sección 4).
 - **Reembolsos, anulaciones y cancelaciones** son del Organizador: se hacen desde su panel con su token (sale de su saldo de Mercado Pago). La plataforma solo da la herramienta.
 - **No hay comisión** de la plataforma. Mercado Pago cobra la suya al vendedor (en la prueba real: $0,42 sobre $10).
-- **Quién paga la comisión de Mercado Pago** lo elige el Organizador en Mi perfil (por defecto, él). Si la traslada, cada entrada lleva un *cargo por procesamiento de pago* calculado con su plazo de liberación y zona (`CargoServicioMp`): va como segundo ítem de la preferencia, queda fijo en la orden (`cargoServicioUnitario`) y se devuelve junto con el precio al reembolsar.
+- **Quién paga la comisión de Mercado Pago** lo elige el Organizador en Mi perfil (por defecto, él). Si la traslada, cada entrada lleva un *cargo por procesamiento de pago* calculado con su plazo de liberación y zona (`CargoServicioMp`): va como segundo ítem de la preferencia, queda fijo en la orden (`cargoServicioUnitario`) y se devuelve junto con el precio al reembolsar. **Mercado Pago no devuelve su comisión en un reembolso** (en la prueba real, $0,42 sobre $10): la absorbe el Organizador, aunque haya trasladado el cargo. El panel se lo aclara en Mi perfil (con el costo estimado de un reembolso si traslada), al anular con devolución y en el reembolso masivo (`AVISO_COMISION_REEMBOLSO` en `lib/comisionesMp.ts`).
 
 ## 2. Mapa del código
 

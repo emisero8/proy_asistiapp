@@ -61,6 +61,21 @@ describe("ComisionMpPanel", () => {
     expect(guardar()).toBeEnabled();
   });
 
+  it("avisa que en un reembolso Mercado Pago no devuelve su comisión y la absorbe el organizador, esté como esté configurado", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+
+    // Absorbiendo la comisión: aviso general, sin monto.
+    expect(screen.getByText("Si hay un reembolso")).toBeInTheDocument();
+    expect(screen.getByText(/Mercado Pago no devuelve su comisión cuando hay un reembolso: la absorbés vos/)).toBeInTheDocument();
+    expect(screen.queryByText(/cuesta alrededor de/)).not.toBeInTheDocument();
+
+    // Trasladándola: el comprador recibe el cargo de vuelta y se muestra cuánto le cuesta al organizador.
+    await user.click(opcion(/La paga el comprador/));
+    expect(screen.getByText(/cargo por procesamiento incluido/)).toBeInTheDocument();
+    expect(screen.getByText(/un reembolso te cuesta alrededor de \$\s?823,79/)).toBeInTheDocument();
+  });
+
   it("cambiar el plazo recalcula el cargo del ejemplo", async () => {
     const user = userEvent.setup();
     renderPanel({ ...PERFIL, trasladarCargoMp: true });
