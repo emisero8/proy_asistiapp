@@ -7,7 +7,7 @@ package com.asistiapp.backend.models.entities;
  */
 public final class TerminosLegales {
 
-    public static final String VERSION = "2026-11-borrador";
+    public static final String VERSION = "2026-11-20";
 
     private TerminosLegales() {}
 }

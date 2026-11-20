@@ -54,7 +54,7 @@ Deben cubrir, como mínimo:
 - [ ] Reunión con un abogado: términos, privacidad, arrepentimiento y rol de la plataforma.
 - [ ] Reunión con un contador: inscripción, facturación de créditos, Ingresos Brutos.
 - [ ] Inscribir la base de datos en la AAIP.
-- [ ] Revisar con el abogado los **borradores** ya publicados en `/terminos` y `/privacidad` y reemplazarlos (subir `TerminosLegales.VERSION` y `frontend/src/lib/terminos.ts` juntos). La aceptación explícita en el registro del Organizador y en el checkout **ya está hecha**.
+- [x] Términos y privacidad **revisados por un abogado y publicados como definitivos** en `/terminos` y `/privacidad` (versión `2026-11-20`; si el texto cambia, subir `TerminosLegales.VERSION` y `frontend/src/lib/terminos.ts` juntos). La aceptación explícita en el registro del Organizador y en el checkout **ya está hecha**.
 - [ ] Definir el botón o aviso de arrepentimiento (punto 1).
 - [ ] Registrar la aplicación como marketplace en Mercado Pago.
 - [ ] Dominio propio y registros de mail.
