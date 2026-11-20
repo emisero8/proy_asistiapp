@@ -111,6 +111,9 @@ app:
     email: ${ADMIN_INICIAL_EMAIL:}
     password: ${ADMIN_INICIAL_PASSWORD:}
   frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  mail:
+    # Remitente de los mails; vacío = el que decida el servidor SMTP. Brevo y similares exigen uno verificado.
+    from: ${MAIL_FROM:}
 
 logging:
   level:

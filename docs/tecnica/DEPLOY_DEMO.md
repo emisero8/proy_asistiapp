@@ -18,7 +18,7 @@ Variables de entorno (el perfil `prod` ya viene en el Dockerfile; si falta algun
 | `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` | de Neon (ver arriba) |
 | `JWT_SECRET` | cadena aleatoria larga (`openssl rand -base64 48`) |
 | `ADMIN_INICIAL_EMAIL`, `ADMIN_INICIAL_PASSWORD` | cuenta de administrador inicial |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS` | Gmail con contraseña de aplicación: `smtp.gmail.com`, `587`, `true`, `true` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_AUTH`, `SMTP_STARTTLS`, `MAIL_FROM` | **Brevo** (plan gratis): `smtp-relay.brevo.com`, puerto `2525`, usuario y clave SMTP de Brevo, `true`, `true`, y `MAIL_FROM` = el remitente verificado en Brevo. **Gmail no sirve**: Render (plan gratis) bloquea los puertos 465 y 587 (`Connection timed out`) |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | los de siempre |
 | `MP_ACCESS_TOKEN` | token de **prueba** (la demo no mueve dinero real) |
 | `MP_WEBHOOK_SECRET` | clave del webhook, modo de prueba |
