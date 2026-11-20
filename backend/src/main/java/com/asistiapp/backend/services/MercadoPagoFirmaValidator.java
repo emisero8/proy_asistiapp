@@ -11,7 +11,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 
 /**
  * Valida la firma (header x-signature) con la que MercadoPago autentica cada webhook.
@@ -55,11 +57,17 @@ public class MercadoPagoFirmaValidator {
         return firmaCorrecta;
     }
 
+    /** Una clave secreta de Webhooks configurada y el modo del panel de Mercado Pago al que pertenece. */
+    private record ClaveWebhook(String modo, String secreto) {}
+
     private boolean firmaCoincide(String xSignature, String xRequestId, String dataId) {
-        String secreto = config.getWebhookSecret();
-        if (secreto == null || secreto.isBlank()) {
+        List<ClaveWebhook> claves = new ArrayList<>();
+        agregarSiHay(claves, "prueba", config.getWebhookSecret());
+        agregarSiHay(claves, "producción", config.getWebhookSecretProduccion());
+        if (claves.isEmpty()) {
             // Falla cerrado: sin secreto no hay forma de autenticar, así que no se acepta nada.
-            log.error("MP_WEBHOOK_SECRET no configurado: se rechaza el webhook de MercadoPago");
+            log.error("Ninguna clave de webhook configurada (MP_WEBHOOK_SECRET / MP_WEBHOOK_SECRET_PRODUCCION): "
+                    + "se rechaza el webhook de MercadoPago");
             return false;
         }
         if (xSignature == null || xSignature.isBlank()) {
@@ -83,11 +91,24 @@ public class MercadoPagoFirmaValidator {
             return false;
         }
 
-        String esperada = calcularFirma(secreto, construirManifest(dataId, xRequestId, ts));
-        // Comparación en tiempo constante para no filtrar información por timing.
-        return MessageDigest.isEqual(
-                esperada.getBytes(StandardCharsets.UTF_8),
-                v1.toLowerCase().getBytes(StandardCharsets.UTF_8));
+        String manifest = construirManifest(dataId, xRequestId, ts);
+        byte[] recibida = v1.toLowerCase().getBytes(StandardCharsets.UTF_8);
+        // Mercado Pago firma con la clave del modo (prueba o productivo) en que ocurrió el pago: se prueba con
+        // cada clave configurada. Comparación en tiempo constante para no filtrar información por timing.
+        for (ClaveWebhook clave : claves) {
+            String esperada = calcularFirma(clave.secreto(), manifest);
+            if (MessageDigest.isEqual(esperada.getBytes(StandardCharsets.UTF_8), recibida)) {
+                log.info("Firma de MercadoPago válida (clave del modo {})", clave.modo());
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void agregarSiHay(List<ClaveWebhook> claves, String modo, String secreto) {
+        if (secreto != null && !secreto.isBlank()) {
+            claves.add(new ClaveWebhook(modo, secreto));
+        }
     }
 
     /**

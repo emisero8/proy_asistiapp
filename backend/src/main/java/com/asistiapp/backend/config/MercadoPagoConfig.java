@@ -22,8 +22,17 @@ public class MercadoPagoConfig {
     @Value("${app.mercadopago.access-token}")
     private String accessToken;
 
-    @Value("${app.mercadopago.webhook-secret}")
+    /**
+     * Claves secretas de Webhooks de la aplicación (panel → Webhooks). Mercado Pago tiene una por modo y firma
+     * cada aviso con la del modo en que ocurrió el pago: la de prueba firma los pagos de sandbox y la
+     * productiva los de dinero real. El validador acepta un aviso firmado con cualquiera de las dos que esté
+     * configurada; en producción alcanza con la productiva.
+     */
+    @Value("${app.mercadopago.webhook-secret:}")
     private String webhookSecret;
+
+    @Value("${app.mercadopago.webhook-secret-produccion:}")
+    private String webhookSecretProduccion;
 
     @Value("${app.mercadopago.validar-firma-webhook}")
     private boolean validarFirmaWebhook;

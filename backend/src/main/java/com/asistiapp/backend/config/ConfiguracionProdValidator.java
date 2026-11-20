@@ -37,7 +37,7 @@ public class ConfiguracionProdValidator implements EnvironmentPostProcessor, Ord
         OBLIGATORIAS_EN_PROD.put("spring.datasource.password", "DB_PASSWORD");
         OBLIGATORIAS_EN_PROD.put("spring.mail.host", "SMTP_HOST");
         OBLIGATORIAS_EN_PROD.put("app.mercadopago.access-token", "MP_ACCESS_TOKEN");
-        OBLIGATORIAS_EN_PROD.put("app.mercadopago.webhook-secret", "MP_WEBHOOK_SECRET");
+        OBLIGATORIAS_EN_PROD.put("app.mercadopago.webhook-secret-produccion", "MP_WEBHOOK_SECRET_PRODUCCION");
         OBLIGATORIAS_EN_PROD.put("app.mercadopago.backend-public-url", "BACKEND_PUBLIC_URL");
         OBLIGATORIAS_EN_PROD.put("app.mercadopago.token-encryption-key", "MP_TOKEN_ENCRYPTION_KEY");
         OBLIGATORIAS_EN_PROD.put("app.mercadopago.oauth.client-id", "MP_OAUTH_CLIENT_ID");

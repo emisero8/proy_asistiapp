@@ -445,7 +445,10 @@ Suite completa: **196 tests, 0 fallos** (`mvn clean test`).
 - Pagos reales de $100 con un usuario comprador de prueba: MP avisó **solo**, el backend consultó el pago a la API, acreditó los créditos **una sola vez** aun cuando llegaron dos avisos del mismo pago con 3 ms de diferencia (webhook + IPN → `CONFIRMADA` + `YA_PROCESADA`), y la orden quedó `Aprobada`.
 - Firmas inválidas o ausentes: 401, también a través de ngrok.
 
-### ⚠️ Pendiente de la firma (`x-signature`) — resolver antes de producción
+### ✅ Firma (`x-signature`) — resuelta el 2026-11-20; lo de abajo es la historia de la investigación
+> **Resuelto:** hay una clave secreta de Webhooks **por modo** (prueba / productivo) y el backend acepta las dos (`MP_WEBHOOK_SECRET`, `MP_WEBHOOK_SECRET_PRODUCCION`). Los avisos que "no coincidían" eran IPN (`?id=&topic=`), que Mercado Pago no firma con esa clave; ahora se ignoran con 200. Ver `docs/tecnica/MERCADOPAGO_COBRO.md` sección 9 y `docs/proyecto/DECISIONES.md` (2026-11-20). La hipótesis de abajo del "usuario vendedor de prueba" **no era la causa**.
+
+### (histórico) Pendiente de la firma (`x-signature`)
 - El **simulador** del panel de MP firma con la clave que muestra el panel y nuestro validador la acepta. Pero los avisos de **pagos reales de sandbox** llegan firmados con **otra clave**: se probaron todas las variantes del manifest y también como clave el access token, la public key y los ids de app/usuario, y ninguna coincide. Hipótesis (sin confirmar): el access token de las credenciales de prueba pertenece al *usuario vendedor de prueba*, y los pagos hacia ese usuario se firman con una clave que no figura en el panel de la cuenta real.
 - Por eso se agregó `MP_VALIDAR_FIRMA`. **Está en `false` solo en el entorno local de desarrollo** (el backend lo avisa en el log al arrancar y por cada aviso que no coincide). El default del código es `true`.
 - Por qué es aceptable en sandbox: aun sin firma, cada aviso se vuelve a consultar a la API de MP y solo se entrega si el pago existe, está aprobado, corresponde a una orden nuestra y el monto coincide; un aviso falso no puede entregar nada sin un pago real.

@@ -39,7 +39,9 @@ app:
     api-secret: ${CLOUDINARY_API_SECRET}
   mercadopago:
     access-token: ${MP_ACCESS_TOKEN}
-    webhook-secret: ${MP_WEBHOOK_SECRET}
+    # En producción cobra dinero real: la clave obligatoria es la del "Modo productivo". La de prueba es opcional.
+    webhook-secret: ${MP_WEBHOOK_SECRET:}
+    webhook-secret-produccion: ${MP_WEBHOOK_SECRET_PRODUCCION}
     backend-public-url: ${BACKEND_PUBLIC_URL}
     token-encryption-key: ${MP_TOKEN_ENCRYPTION_KEY}
     oauth:

@@ -33,7 +33,8 @@ API REST del sistema de venta de entradas y control de acceso. Java 17 + Spring 
    | `MP_ACCESS_TOKEN` ⚠️ | vacío — Access Token de MercadoPago (ver sección MercadoPago) |
    | `MP_OAUTH_CLIENT_ID` / `MP_OAUTH_CLIENT_SECRET` / `MP_OAUTH_REDIRECT_URI` ⚠️ | vacíos — vinculación de la cuenta de Mercado Pago de cada Organizador (8.4). Salen de las credenciales de **producción** de la aplicación; la Redirect URI tiene que coincidir con la cargada en la aplicación (ngrok en local) |
    | `MP_TOKEN_ENCRYPTION_KEY` ⚠️ | clave pública de desarrollo — cifra los tokens de Mercado Pago en la base (AES-256, 32 bytes en Base64; generar con `openssl rand -base64 32`) |
-   | `MP_WEBHOOK_SECRET` ⚠️ | vacío — clave secreta de Webhooks de MercadoPago |
+   | `MP_WEBHOOK_SECRET` | vacío — clave secreta de Webhooks del **modo de prueba** de la aplicación de Mercado Pago |
+   | `MP_WEBHOOK_SECRET_PRODUCCION` ⚠️ | vacío — clave secreta de Webhooks del **modo productivo**. Obligatoria en producción |
    | `MP_VALIDAR_FIRMA` | `true` — **dejar en `true` en producción** |
    | `MP_EXIGIR_CUENTA_VINCULADA` | `true` — las entradas se cobran con la cuenta de Mercado Pago de cada Organizador y no se puede publicar sin vincularla. **Dejar en `true`**: solo se apaga en local o en la suite e2e (ahí se cobra con la cuenta de la plataforma) |
    | `BACKEND_PUBLIC_URL` ⚠️ | `http://localhost:8080` — solo hace falta HTTPS público para recibir el webhook (ngrok en local); para pagar en local no es necesario, ver "Pagos con MercadoPago" |
@@ -171,10 +172,10 @@ Solo hace falta para ver llegar el aviso de MercadoPago. Si `BACKEND_PUBLIC_URL`
    ngrok config add-authtoken <TU_TOKEN>
    ngrok http --url=<tu-dominio>.ngrok-free.dev 8080
    ```
-2. En el panel de la app → **Webhooks** (modo de prueba): URL `https://<tu-dominio>.ngrok-free.dev/payments/mercadopago/webhook`, evento **Pagos**. Copiar la **Clave secreta** a `MP_WEBHOOK_SECRET`, y setear `BACKEND_PUBLIC_URL=https://<tu-dominio>.ngrok-free.dev`. Reiniciar el backend.
+2. En el panel de la app → **Webhooks** (modo de prueba): URL `https://<tu-dominio>.ngrok-free.dev/payments/mercadopago/webhook`, evento **Pagos**. Copiar la **Clave secreta** de esa pestaña a `MP_WEBHOOK_SECRET` (la de la pestaña "Modo productivo", a `MP_WEBHOOK_SECRET_PRODUCCION`), y setear `BACKEND_PUBLIC_URL=https://<tu-dominio>.ngrok-free.dev`. Reiniciar el backend.
 3. El plan gratuito de ngrok no soporta dos túneles a la vez, así que no se puede tunelear también el frontend para tener HTTPS real en local.
 
-**Firma del webhook:** el backend valida `x-signature`. En el sandbox los avisos de pagos reales llegan firmados con una clave que no coincide con la del panel, por lo que en desarrollo local se puede usar `MP_VALIDAR_FIRMA=false` (el pago igual se verifica contra la API de MercadoPago antes de entregar nada). **En producción tiene que estar en `true`.**
+**Firma del webhook:** el backend valida `x-signature` de los avisos en formato Webhooks (`?data.id=`) con la clave del modo de prueba o la del modo productivo, la que coincida. Los avisos del formato viejo IPN (`?id=&topic=`) **no se firman con esa clave**: se responden 200 y se ignoran, porque el pago lo confirma el webhook (y la reconciliación de la orden es el respaldo). Verificado el 20/11 con avisos firmados con cada clave. **En producción tiene que estar `MP_VALIDAR_FIRMA=true`.**
 
 ## Contrato de errores
 

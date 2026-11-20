@@ -60,8 +60,11 @@ app:
     # Credenciales por variable de entorno; nunca van en el repo.
     # access-token: "Credenciales de prueba" de la app (TEST-...) en sandbox, de producción al lanzar.
     access-token: ${MP_ACCESS_TOKEN:}
-    # Clave secreta de Webhooks (panel de la app → Webhooks): valida la firma x-signature.
+    # Claves secretas de Webhooks (panel de la app → Webhooks, una por modo): validan la firma x-signature.
+    # MP_WEBHOOK_SECRET = la del "Modo de prueba"; MP_WEBHOOK_SECRET_PRODUCCION = la del "Modo productivo".
+    # El validador acepta un aviso firmado con cualquiera de las dos que esté cargada.
     webhook-secret: ${MP_WEBHOOK_SECRET:}
+    webhook-secret-produccion: ${MP_WEBHOOK_SECRET_PRODUCCION:}
     # Valida la firma x-signature de cada webhook. DEJAR EN true EN PRODUCCIÓN: solo se apaga
     # en el sandbox local, donde MP firma los pagos de usuarios de prueba con una clave que no
     # coincide con la del panel. Aun apagada, cada pago se vuelve a consultar a la API de MP.
