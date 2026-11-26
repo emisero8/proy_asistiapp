@@ -84,14 +84,14 @@ class MetricasOrganizadorServiceTest {
         Evento borrador = evento(2L, EstadoEvento.Borrador, LocalDate.now().plusDays(20), 50, 50, 500);
         when(eventoRepository.findByIdOrganizador(ID_ORG)).thenReturn(List.of(publicado, borrador));
         when(eventoRepository.findById(1L)).thenReturn(Optional.of(publicado));
-        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of(new Entrada(), new Entrada()));
+        when(entradaRepository.findByEventoId(1L)).thenReturn(entradasDe(publicado.getTandas().get(0), 30));
         when(movimientoCreditoRepository.findByIdOrganizadorOrderByFechaMovimientoDesc(ID_ORG)).thenReturn(List.of());
 
         ResumenOrganizadorResponseDTO r = metricasService.obtenerResumen(organizador);
 
         assertThat(r.getEventosPublicados()).isEqualTo(1);
         assertThat(r.getEventosBorrador()).isEqualTo(1);
-        assertThat(r.getEntradasVendidas()).isEqualTo(2);
+        assertThat(r.getEntradasVendidas()).isEqualTo(30);
         assertThat(r.getIngresosTotales()).isEqualTo(30_000.0);
         assertThat(r.getSaldoCreditos()).isEqualTo(7);
     }
@@ -103,23 +103,43 @@ class MetricasOrganizadorServiceTest {
         return e;
     }
 
+    private List<Entrada> entradasDe(Tanda tanda, int cantidad) {
+        return java.util.stream.IntStream.range(0, cantidad).mapToObj(i -> entradaDe(tanda, null)).toList();
+    }
+
+    @Test
+    void metricas_cambiarElPrecioDeLaTandaNoCambiaLoYaVendido() {
+        Evento publicado = evento(1L, EstadoEvento.Publicado, LocalDate.now().plusDays(10), 100, 98, 1000);
+        Tanda tanda = publicado.getTandas().get(0);
+        Entrada alPrecioViejo = entradaDe(tanda, null);
+        alPrecioViejo.setPrecioVenta(1000.0);
+        Entrada alPrecioNuevo = entradaDe(tanda, null);
+        alPrecioNuevo.setPrecioVenta(1500.0);
+        tanda.setPrecio(1500.0);
+        when(eventoRepository.findById(1L)).thenReturn(Optional.of(publicado));
+        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of(alPrecioViejo, alPrecioNuevo));
+
+        assertThat(metricasService.obtenerMetricas(1L, ID_ORG).getIngresosTotales()).isEqualTo(2500.0);
+    }
+
     @Test
     void metricas_lasCortesiasOcupanCupoPeroNoSumanIngresos() {
         // 30 entradas salieron de la tanda ($1000 c/u): 4 son cortesías del Organizador, que no cobró.
         Evento publicado = evento(1L, EstadoEvento.Publicado, LocalDate.now().plusDays(10), 100, 70, 1000);
         Tanda tanda = publicado.getTandas().get(0);
         when(eventoRepository.findById(1L)).thenReturn(Optional.of(publicado));
-        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of(
-                entradaDe(tanda, TipoEmision.Cortesia), entradaDe(tanda, TipoEmision.Cortesia),
-                entradaDe(tanda, TipoEmision.Cortesia), entradaDe(tanda, TipoEmision.Cortesia),
-                entradaDe(tanda, null)));
+        java.util.List<Entrada> salieron = new java.util.ArrayList<>(entradasDe(tanda, 26));
+        for (int i = 0; i < 4; i++) {
+            salieron.add(entradaDe(tanda, TipoEmision.Cortesia));
+        }
+        when(entradaRepository.findByEventoId(1L)).thenReturn(salieron);
 
         EventoMetricasResponseDTO m = metricasService.obtenerMetricas(1L, ID_ORG);
 
         assertThat(m.getIngresosTotales()).isEqualTo(26_000.0); // (30 - 4) x 1000
         assertThat(m.getTandas().get(0).getIngresos()).isEqualTo(26_000.0);
         assertThat(m.getTandas().get(0).getVendidas()).isEqualTo(30); // las cortesías sí ocupan cupo
-        assertThat(m.getEntradasVendidas()).isEqualTo(5);
+        assertThat(m.getEntradasVendidas()).isEqualTo(30);
     }
 
     @Test
@@ -133,14 +153,15 @@ class MetricasOrganizadorServiceTest {
         anulada2.setEstado(EstadoEntrada.Anulada);
         Entrada anulada3 = entradaDe(tanda, null);
         anulada3.setEstado(EstadoEntrada.Anulada);
-        Entrada vigente = entradaDe(tanda, null);
-        vigente.setEstado(EstadoEntrada.Pagada);
+        java.util.List<Entrada> salieron = new java.util.ArrayList<>(entradasDe(tanda, 27));
+        salieron.forEach(e -> e.setEstado(EstadoEntrada.Pagada));
+        salieron.addAll(List.of(anulada1, anulada2, anulada3));
         when(eventoRepository.findById(1L)).thenReturn(Optional.of(publicado));
-        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of(anulada1, anulada2, anulada3, vigente));
+        when(entradaRepository.findByEventoId(1L)).thenReturn(salieron);
 
         EventoMetricasResponseDTO m = metricasService.obtenerMetricas(1L, ID_ORG);
 
-        assertThat(m.getEntradasVendidas()).isEqualTo(1);
+        assertThat(m.getEntradasVendidas()).isEqualTo(27);
         assertThat(m.getTandas().get(0).getVendidas()).isEqualTo(27); // 30 - 3 anuladas
         assertThat(m.getIngresosTotales()).isEqualTo(27_000.0);
         assertThat(m.getCupoDisponible()).isEqualTo(70);
@@ -152,7 +173,9 @@ class MetricasOrganizadorServiceTest {
         Evento publicado = evento(1L, EstadoEvento.Publicado, LocalDate.now().plusDays(10), 100, 70, 1000);
         Tanda tanda = publicado.getTandas().get(0);
         when(eventoRepository.findById(1L)).thenReturn(Optional.of(publicado));
-        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of(entradaDe(tanda, TipoEmision.Pago_Externo)));
+        java.util.List<Entrada> salieron = new java.util.ArrayList<>(entradasDe(tanda, 29));
+        salieron.add(entradaDe(tanda, TipoEmision.Pago_Externo));
+        when(entradaRepository.findByEventoId(1L)).thenReturn(salieron);
 
         assertThat(metricasService.obtenerMetricas(1L, ID_ORG).getIngresosTotales()).isEqualTo(30_000.0);
     }

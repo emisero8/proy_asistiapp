@@ -270,6 +270,9 @@ public class VentaService {
         transaccion.setMercadopagoPaymentId(idPago);
         transaccionPagoRepository.save(transaccion);
 
+        // El precio por entrada es el de la orden (lo que se cobró), aunque la tanda haya cambiado mientras se pagaba.
+        double precioPagado = precioUnitarioDe(transaccion);
+
         List<String> codigosQr = new ArrayList<>();
         for (int i = 0; i < cantidad; i++) {
             String codigoQr = generarCodigoQrUnico();
@@ -281,6 +284,7 @@ public class VentaService {
             entrada.setEstado(EstadoEntrada.Pagada);
             entrada.setCanalVenta(CanalVenta.Online);
             entrada.setIdTransaccionPago(transaccion.getId());
+            entrada.setPrecioVenta(precioPagado);
             entradaRepository.save(entrada);
             codigosQr.add(codigoQr);
         }
@@ -414,6 +418,7 @@ public class VentaService {
             entrada.setEstado(EstadoEntrada.Pagada);
             entrada.setCanalVenta(CanalVenta.Manual);
             entrada.setIdStaffVendedor(idStaffVendedor);
+            entrada.setPrecioVenta(tanda.getPrecio());
 
             Entrada saved = entradaRepository.save(entrada);
             generadas.add(toResponseDTO(saved));
@@ -427,6 +432,29 @@ public class VentaService {
         AuditoriaContexto.detalle("Total: " + AuditoriaContexto.pesos(tanda.getPrecio() * cantidad)
                 + " (" + AuditoriaContexto.pesos(tanda.getPrecio()) + " c/u, cobrado en puerta)");
         return generadas;
+    }
+
+    /** Precio de cada entrada de una orden online: el total cobrado por unidad, sin el cargo por procesamiento. */
+    private static double precioUnitarioDe(TransaccionPago orden) {
+        BigDecimal cargo = BigDecimal.valueOf(orden.getCargoServicioUnitario() == null ? 0 : orden.getCargoServicioUnitario());
+        return BigDecimal.valueOf(orden.getMontoTotal())
+                .divide(BigDecimal.valueOf(orden.getCantidad()), 2, java.math.RoundingMode.HALF_UP)
+                .subtract(cargo)
+                .doubleValue();
+    }
+
+    /** Cuánto le queda de su tope al Staff Vendedor, para que lo vea en el punto de venta antes de vender. */
+    @Transactional(readOnly = true)
+    public TopeVendedorResponseDTO consultarTopeVendedor(Long idStaffVendedor) {
+        StaffVendedor vendedor = staffVendedorRepository.findById(idStaffVendedor)
+                .orElseThrow(() -> new ResourceNotFoundException("Staff Vendedor no encontrado"));
+        long vendidas = entradaRepository.countByIdStaffVendedor(idStaffVendedor);
+        Integer tope = vendedor.getTopeEntradas();
+        return TopeVendedorResponseDTO.builder()
+                .tope(tope)
+                .vendidas(vendidas)
+                .restantes(tope == null ? null : Math.max(0, tope - vendidas))
+                .build();
     }
 
     /**
@@ -495,6 +523,7 @@ public class VentaService {
             entrada.setEstado(EstadoEntrada.Pagada);
             entrada.setCanalVenta(CanalVenta.Manual);
             entrada.setIdOrganizadorEmisor(idOrganizador);
+            entrada.setPrecioVenta(tanda.getPrecio());
             entrada.setTipoEmision(dto.getTipo());
             entrada.setMotivoEmision(motivo);
             generadas.add(toResponseDTOParaOrganizador(entradaRepository.save(entrada)));
@@ -744,7 +773,7 @@ public class VentaService {
                 .eventoFinalizado(tanda.getEvento().yaFinalizo())
                 .eventoCancelado(tanda.getEvento().getEstado() == EstadoEvento.Cancelado)
                 .nombreTanda(tanda.getNombre())
-                .precioTanda(tanda.getPrecio())
+                .precioTanda(entrada.precio())
                 .codigoQr(entrada.getCodigoQr())
                 .nombreComprador(entrada.getNombreComprador())
                 .emailComprador(entrada.getEmailComprador())

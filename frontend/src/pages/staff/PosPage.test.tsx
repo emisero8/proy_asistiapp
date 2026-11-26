@@ -96,9 +96,15 @@ interface Config {
   eventos?: EventoResponseDTO[] | Error;
   /** Qué responde la consulta de tope por comprador; recibe los parámetros de la URL. */
   disponibilidad?: (params: URLSearchParams) => DisponibilidadCompradorResponseDTO | Error;
+  /** Tope del vendedor; por defecto, sin tope. */
+  tope?: { tope: number | null; vendidas: number; restantes: number | null };
 }
 
-function mockApi({ eventos = [evento(1, "Festival", [tanda(1, "General")])], disponibilidad }: Config = {}) {
+function mockApi({
+  eventos = [evento(1, "Festival", [tanda(1, "General")])],
+  disponibilidad,
+  tope = { tope: null, vendidas: 0, restantes: null },
+}: Config = {}) {
   vi.mocked(api.get).mockImplementation(((url: string) => {
     if (url === "/eventos/vendedor") return eventos instanceof Error ? Promise.reject(eventos) : Promise.resolve(eventos);
     if (url.startsWith(URL_DISPONIBILIDAD)) {
@@ -106,6 +112,7 @@ function mockApi({ eventos = [evento(1, "Festival", [tanda(1, "General")])], dis
       const r = disponibilidad ? disponibilidad(params) : { limite: 6, yaCompradas: 0, disponible: 6 };
       return r instanceof Error ? Promise.reject(r) : Promise.resolve(r);
     }
+    if (url === "/tickets/mi-tope") return Promise.resolve(tope);
     return Promise.reject(new Error(`URL inesperada: ${url}`));
   }) as typeof api.get);
 }
@@ -464,5 +471,28 @@ describe("StaffPosPage — compartir la entrada", () => {
     await userEvent.click(screen.getAllByRole("button", { name: /Copiar enlace/ })[0]);
 
     expect(await screen.findByText("No pudimos copiar el enlace. Copialo a mano.")).toBeInTheDocument();
+  });
+});
+
+describe("StaffPosPage — tope del vendedor", () => {
+  it("muestra cuánto le queda y no deja elegir más que eso", async () => {
+    const user = userEvent.setup();
+    mockApi({ tope: { tope: 10, vendidas: 8, restantes: 2 } });
+    renderPage();
+
+    expect(await screen.findByText("Vendiste 8 de 10 entradas de tu tope.")).toBeInTheDocument();
+    await user.click(mas());
+    expect(mas()).toBeDisabled();
+  });
+
+  it("sin lugar en el tope lo avisa y no deja generar la venta", async () => {
+    const user = userEvent.setup();
+    mockApi({ tope: { tope: 5, vendidas: 5, restantes: 0 } });
+    renderPage();
+
+    expect(await screen.findByText("Llegaste a tu tope de ventas")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("Nombre del comprador"), "Ana Compradora");
+    await user.type(screen.getByPlaceholderText("comprador@ejemplo.com"), "ana@mail.com");
+    expect(botonGenerar()).toBeDisabled();
   });
 });

@@ -129,6 +129,7 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `GET /eventos/vendedor` | `Staff_Vendedor` | El evento publicado que puede vender. |
 | `POST /tickets/venta-manual` | `Staff_Vendedor` | Vende 1 a 20 entradas en una sola operación y manda el mail al comprador. Si se pasa del tope de entradas que le fijó el Organizador, rechaza la venta entera (409). |
 | `GET /tickets/disponibilidad-comprador` | `Staff_Vendedor` | Cuántas entradas más se le pueden vender a ese comprador. |
+| `GET /tickets/mi-tope` | `Staff_Vendedor` | Su tope de entradas, cuántas vendió y cuántas le quedan (`tope` y `restantes` null si no tiene). |
 | `POST /tickets/validate`, `GET /tickets/validate/{codigo}` | `Staff_QR` | Valida una entrada (la marca como usada) o solo la consulta. |
 
 ### Notificaciones (cualquier usuario autenticado)
@@ -171,6 +172,10 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 
 - **Finalizó:** pasaron 12 horas desde el inicio (`Evento.HORAS_HASTA_FINALIZAR`; los eventos no tienen hora de fin). Hasta entonces se vende (online y en puerta), se emiten entradas, el evento está en el catálogo y la ventana de venta de una tanda puede llegar hasta ese momento. Desde que finaliza, nada de eso; y si estaba publicado, ya no se puede editar, cancelar ni cambiar sus tandas (tampoco el Admin, que sí puede eliminarlo), anular una entrada no devuelve créditos, el QR no permite ingresar y no se le puede asignar staff. Las ventas, métricas, listados y reembolsos siguen disponibles, y su página pública se muestra como "Evento finalizado".
 - No es un estado guardado: se calcula y viaja en los DTOs (`finalizado`, `eventoFinalizado`; `eventoCancelado` avisa en "Mi entrada" que el evento se canceló). El frontend no lo recalcula (solo repite las 12 horas en `lib/tandas.ts` para armar el cierre de venta de una tanda).
+
+### Precio de una entrada
+
+Cada entrada guarda el precio con el que salió (`entradas.precio_venta`, sin el cargo por procesamiento; en la compra online, el de la orden). Ingresos, rendición del vendedor, reembolsos y el precio que se muestra de la entrada (`precioTanda`) usan ese valor: cambiar el precio de la tanda no modifica lo ya vendido.
 
 ### Validación de QR (CU-018)
 

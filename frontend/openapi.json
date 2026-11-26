@@ -2043,6 +2043,26 @@
         }
       }
     },
+    "/tickets/mi-tope": {
+      "get": {
+        "tags": [
+          "venta-controller"
+        ],
+        "operationId": "consultarMiTope",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TopeVendedorResponseDTO"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tickets/evento/{eventoId}": {
       "get": {
         "tags": [
@@ -3981,6 +4001,23 @@
             "items": {
               "$ref": "#/components/schemas/EntradaResponseDTO"
             }
+          }
+        }
+      },
+      "TopeVendedorResponseDTO": {
+        "type": "object",
+        "properties": {
+          "tope": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "vendidas": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "restantes": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },

@@ -64,6 +64,7 @@ export type ContratoConElBackend = [
   Afirma<Coincide<T.RestablecerPasswordRequestDTO, S["RestablecerPasswordRequestDTO"]>>,
   Afirma<Coincide<T.TandaResponseDTO, S["TandaResponseDTO"]>>,
   Afirma<Coincide<T.TandaRequestDTO, S["TandaRequestDTO"]>>,
+  Afirma<Coincide<T.TopeVendedorResponseDTO, S["TopeVendedorResponseDTO"]>>,
   Afirma<Coincide<T.EventoResponseDTO, S["EventoResponseDTO"]>>,
   Afirma<Coincide<T.EventoRequestDTO, S["EventoRequestDTO"]>>,
   Afirma<Coincide<T.ImagenSubidaResponseDTO, S["ImagenSubidaResponseDTO"]>>,

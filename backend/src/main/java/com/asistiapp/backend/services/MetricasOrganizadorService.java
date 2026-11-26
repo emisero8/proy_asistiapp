@@ -111,15 +111,16 @@ public class MetricasOrganizadorService {
 
         // Las cortesías ocupan cupo pero no cobraron nada: no suman a los ingresos.
         // (El pago externo sí: se cobró, aunque fuera de la plataforma.)
-        Map<Long, Long> cortesiasPorTanda = entradas.stream()
-                .filter(e -> e.getTipoEmision() == TipoEmision.Cortesia)
-                .collect(Collectors.groupingBy(e -> e.getTanda().getId(), Collectors.counting()));
+        // Cada entrada suma el precio con el que salió, no el actual de la tanda.
+        Map<Long, Double> ingresosPorTanda = entradas.stream()
+                .filter(e -> e.getTipoEmision() != TipoEmision.Cortesia)
+                .collect(Collectors.groupingBy(e -> e.getTanda().getId(), Collectors.summingDouble(Entrada::precio)));
 
         int cupoTotal = 0;
         int cupoDisponible = 0;
         double ingresosTotales = 0;
         List<TandaMetricasDTO> tandasMetricas = evento.getTandas().stream()
-                .map(t -> toTandaMetricasDTO(t, cortesiasPorTanda.getOrDefault(t.getId(), 0L).intValue(),
+                .map(t -> toTandaMetricasDTO(t, ingresosPorTanda.getOrDefault(t.getId(), 0.0),
                         anuladasPorTanda.getOrDefault(t.getId(), 0L).intValue()))
                 .toList();
 
@@ -143,7 +144,7 @@ public class MetricasOrganizadorService {
                 .build();
     }
 
-    private TandaMetricasDTO toTandaMetricasDTO(Tanda tanda, int cortesias, int anuladas) {
+    private TandaMetricasDTO toTandaMetricasDTO(Tanda tanda, double ingresos, int anuladas) {
         int vendidas = tanda.getCupoMaximo() - tanda.getCupoDisponible() - anuladas;
         return TandaMetricasDTO.builder()
                 .idTanda(tanda.getId())
@@ -151,7 +152,7 @@ public class MetricasOrganizadorService {
                 .cupoMaximo(tanda.getCupoMaximo())
                 .cupoDisponible(tanda.getCupoDisponible())
                 .vendidas(vendidas)
-                .ingresos(Math.max(0, vendidas - cortesias) * tanda.getPrecio())
+                .ingresos(ingresos)
                 .build();
     }
 }

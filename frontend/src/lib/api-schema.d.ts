@@ -820,6 +820,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tickets/mi-tope": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["consultarMiTope"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tickets/evento/{eventoId}": {
         parameters: {
             query?: never;
@@ -1653,6 +1669,14 @@ export interface components {
             nombreEvento?: string;
             nombreTanda?: string;
             entradas?: components["schemas"]["EntradaResponseDTO"][];
+        };
+        TopeVendedorResponseDTO: {
+            /** Format: int32 */
+            tope?: number;
+            /** Format: int64 */
+            vendidas?: number;
+            /** Format: int64 */
+            restantes?: number;
         };
         DisponibilidadCompradorResponseDTO: {
             /** Format: int32 */
@@ -3366,6 +3390,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["EstadoOrdenEntradasResponseDTO"];
+                };
+            };
+        };
+    };
+    consultarMiTope: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["TopeVendedorResponseDTO"];
                 };
             };
         };

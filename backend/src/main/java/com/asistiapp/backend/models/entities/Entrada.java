@@ -63,6 +63,14 @@ public class Entrada {
     @Column(name = "canal_venta", nullable = false, length = 20)
     private CanalVenta canalVenta;
 
+    /**
+     * Precio de la entrada cuando salió (sin el cargo por procesamiento). Es el que vale para ingresos, rendición
+     * del vendedor y reembolsos: si el Organizador cambia el precio de la tanda, lo ya vendido no se mueve.
+     * Null solo en filas anteriores a la columna sin migrar (ver {@link #precio()}).
+     */
+    @Column(name = "precio_venta")
+    private Double precioVenta;
+
     /** ID de la transacción de MercadoPago. Null si es venta Manual. */
     @Column(name = "id_transaccion_pago")
     private Long idTransaccionPago;
@@ -114,6 +122,14 @@ public class Entrada {
     /** Ya se le devolvió al Organizador el crédito de esta entrada (por anulada o reembolsada): una sola vez. */
     @Column(name = "credito_devuelto", nullable = false, columnDefinition = "boolean not null default false")
     private boolean creditoDevuelto;
+
+    /** Lo que vale esta entrada: el precio con el que salió; sin ese dato, el actual de su tanda (0 si no hay). */
+    public double precio() {
+        if (precioVenta != null) {
+            return precioVenta;
+        }
+        return tanda == null || tanda.getPrecio() == null ? 0 : tanda.getPrecio();
+    }
 
     @PrePersist
     protected void onCreate() {
