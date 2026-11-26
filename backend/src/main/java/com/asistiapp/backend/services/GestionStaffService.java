@@ -18,6 +18,8 @@ import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.StaffQRRepository;
 import com.asistiapp.backend.repositories.StaffVendedorRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
+import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -49,6 +51,7 @@ public class GestionStaffService {
     private final EmailService emailService;
 
     @Transactional
+    @Auditable(accion = "CREAR_STAFF_QR", entidad = "Staff")
     public StaffResponseDTO crearStaffQR(CrearStaffQRRequestDTO dto, Long idOrganizador) {
         Evento evento = eventoRepository.findById(dto.getIdEvento())
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + dto.getIdEvento()));
@@ -72,6 +75,10 @@ public class GestionStaffService {
         staff.setIdEvento(dto.getIdEvento());
 
         StaffQR saved = staffQRRepository.save(staff);
+        AuditoriaContexto.objetivo(saved.getId(), saved.getNombre());
+        AuditoriaContexto.detalle("Staff QR · " + saved.getEmail());
+        AuditoriaContexto.detalle("Evento: " + evento.getNombre() + " (#" + evento.getId() + ")");
+        AuditoriaContexto.detalle("Se le enviaron las credenciales por mail.");
         log.info("Staff QR creado: id={}, evento={}, organizador={}", saved.getId(), dto.getIdEvento(), idOrganizador);
 
         emailService.enviarCredencialesStaff(saved.getEmail(), saved.getNombre(), "Staff QR", passwordTemporal);
@@ -81,6 +88,7 @@ public class GestionStaffService {
     }
 
     @Transactional
+    @Auditable(accion = "CREAR_STAFF_VENDEDOR", entidad = "Staff")
     public StaffResponseDTO crearStaffVendedor(CrearStaffVendedorRequestDTO dto, Long idOrganizador) {
         Evento evento = eventoRepository.findById(dto.getIdEvento())
                 .orElseThrow(() -> new ResourceNotFoundException("Evento no encontrado con id: " + dto.getIdEvento()));
@@ -105,6 +113,11 @@ public class GestionStaffService {
         staff.setTopeEntradas(dto.getTopeEntradas());
 
         StaffVendedor saved = staffVendedorRepository.save(staff);
+        AuditoriaContexto.objetivo(saved.getId(), saved.getNombre());
+        AuditoriaContexto.detalle("Staff Vendedor · " + saved.getEmail());
+        AuditoriaContexto.detalle("Evento: " + evento.getNombre() + " (#" + evento.getId() + ")");
+        AuditoriaContexto.detalle("Tope de entradas: " + (saved.getTopeEntradas() == null ? "sin tope" : saved.getTopeEntradas()));
+        AuditoriaContexto.detalle("Se le enviaron las credenciales por mail.");
         log.info("Staff Vendedor creado: id={}, evento={}, organizador={}", saved.getId(), dto.getIdEvento(), idOrganizador);
 
         emailService.enviarCredencialesStaff(saved.getEmail(), saved.getNombre(), "Staff Vendedor", passwordTemporal);
@@ -117,6 +130,7 @@ public class GestionStaffService {
      * que venda más, o se lo fija a uno anterior a la regla. No puede quedar por debajo de lo que ya vendió.
      */
     @Transactional
+    @Auditable(accion = "CAMBIAR_TOPE_VENDEDOR", entidad = "Staff")
     public StaffResponseDTO cambiarTopeVendedor(Long idStaff, int nuevoTope, Long idOrganizador) {
         if (nuevoTope < 1) {
             throw new BusinessRuleException("El tope de entradas tiene que ser al menos 1");
@@ -131,6 +145,10 @@ public class GestionStaffService {
             throw new BusinessRuleException("Este vendedor ya vendió " + vendidas
                     + " entradas: el tope no puede ser menor a eso.");
         }
+        AuditoriaContexto.objetivo(sv.getId(), sv.getNombre());
+        AuditoriaContexto.detalle("Staff Vendedor · " + sv.getEmail());
+        AuditoriaContexto.cambio("Tope de entradas", sv.getTopeEntradas() == null ? "sin tope" : sv.getTopeEntradas(), nuevoTope);
+        AuditoriaContexto.detalle("Entradas ya vendidas: " + vendidas);
         sv.setTopeEntradas(nuevoTope);
         StaffVendedor saved = staffVendedorRepository.save(sv);
         log.info("Tope del Staff Vendedor id={} fijado en {} por el organizador id={}", idStaff, nuevoTope, idOrganizador);
@@ -182,6 +200,7 @@ public class GestionStaffService {
      * pasársela a mano (el email del staff puede no llegar en la demo).
      */
     @Transactional
+    @Auditable(accion = "RESETEAR_PASSWORD_STAFF", entidad = "Staff")
     public String resetearPasswordStaff(Long idStaff, Long idOrganizador) {
         var vendedor = staffVendedorRepository.findById(idStaff);
         Usuario staff;
@@ -207,6 +226,9 @@ public class GestionStaffService {
         String passwordTemporal = generarPasswordTemporal();
         staff.setPasswordHash(passwordEncoder.encode(passwordTemporal));
         usuarioRepository.save(staff);
+        AuditoriaContexto.objetivo(staff.getId(), staff.getNombre());
+        AuditoriaContexto.detalle(rolLabel + " · " + staff.getEmail());
+        AuditoriaContexto.detalle("Se le generó una contraseña temporal nueva y se le envió por mail.");
         log.info("Contraseña de staff id={} restablecida por el organizador id={}", idStaff, idOrganizador);
 
         emailService.enviarCredencialesStaff(staff.getEmail(), staff.getNombre(), rolLabel, passwordTemporal);
@@ -214,11 +236,13 @@ public class GestionStaffService {
     }
 
     @Transactional
+    @Auditable(accion = "DESACTIVAR_STAFF", entidad = "Staff")
     public StaffResponseDTO desactivarStaff(Long idStaff, Long idOrganizador) {
         return cambiarEstadoStaff(idStaff, idOrganizador, EstadoUsuario.Inactivo);
     }
 
     @Transactional
+    @Auditable(accion = "REACTIVAR_STAFF", entidad = "Staff")
     public StaffResponseDTO reactivarStaff(Long idStaff, Long idOrganizador) {
         return cambiarEstadoStaff(idStaff, idOrganizador, EstadoUsuario.Activo);
     }
@@ -234,6 +258,7 @@ public class GestionStaffService {
             if (sv.getEstado() == nuevoEstado) {
                 throw new BusinessRuleException("El staff ya está en ese estado");
             }
+            auditarCambioEstado(sv, "Staff Vendedor", nuevoEstado);
             sv.setEstado(nuevoEstado);
             StaffVendedor saved = staffVendedorRepository.save(sv);
             log.info("Staff Vendedor id={} pasa a estado={}", idStaff, nuevoEstado);
@@ -250,10 +275,17 @@ public class GestionStaffService {
         if (sq.getEstado() == nuevoEstado) {
             throw new BusinessRuleException("El staff ya está en ese estado");
         }
+        auditarCambioEstado(sq, "Staff QR", nuevoEstado);
         sq.setEstado(nuevoEstado);
         StaffQR saved = staffQRRepository.save(sq);
         log.info("Staff QR id={} pasa a estado={}", idStaff, nuevoEstado);
         return toResponseDTO(saved.getId(), saved.getNombre(), saved.getEmail(), RolUsuario.Staff_QR, saved.getEstado(), saved.getIdEvento());
+    }
+
+    private static void auditarCambioEstado(Usuario staff, String rol, EstadoUsuario nuevoEstado) {
+        AuditoriaContexto.objetivo(staff.getId(), staff.getNombre());
+        AuditoriaContexto.detalle(rol + " · " + staff.getEmail());
+        AuditoriaContexto.cambio("Estado", staff.getEstado(), nuevoEstado);
     }
 
     private void verificarEmailDisponible(String email) {

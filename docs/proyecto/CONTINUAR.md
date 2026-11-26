@@ -3,6 +3,8 @@
 > Escrito para el agente (o la persona) que continúa el proyecto en otra PC sin el contexto de las sesiones anteriores. Resume dónde estamos para no tener que re-investigar. **No contiene credenciales** (nunca poner acá contraseñas ni tokens).
 > Última actualización: 2026-11-17 · **Entrega del proyecto: 01/12/2026** · Rama: `feature-mercadopago` (remoto `https://github.com/emisero8/proy_asistiapp.git`, rama principal `master`). El último commit está en `git log`: este archivo se actualiza junto con el código.
 
+> ⚠️ **Si trajiste o mergeaste la rama `feature-auditoria` (2026-11-25) y tu base ya existía:** antes de arrancar el backend seguí **`docs/proyecto/INTEGRAR_AUDITORIA.md`**. La tabla `log_auditoria` cambió de columnas (`id_admin` → `id_emisor`) y `ddl-auto` no lo resuelve solo: hay que correr `backend/db/migraciones/2026-11-25-log-auditoria-legible.sql`.
+
 ## 1. Qué leer, en este orden
 
 1. `CLAUDE.md` — reglas del proyecto (se carga solo). Es el contrato de trabajo.

@@ -506,12 +506,30 @@ export interface PaqueteCreditoRequestDTO {
 
 export interface LogAuditoriaResponseDTO {
   id: number;
-  idAdmin: number;
+  /** Quién hizo la acción (Admin, Organizador o Staff). */
+  idEmisor: number;
+  /** Nombre del emisor al momento de la acción; null en registros viejos sin dato. */
+  emisorNombre: string | null;
+  /** Rol del emisor al momento de la acción. */
+  emisorRol: RolUsuario | null;
   accion: string;
   entidadAfectada: string;
   idEntidadAfectada: number | null;
+  /** Nombre del registro afectado al momento de la acción; null si no aplica o no se conoce. */
+  entidadNombre: string | null;
+  /** Texto legible, una línea por dato o cambio (separadas por "\n"). */
   detalle: string | null;
   fechaHora: string;
+}
+
+/** Una página de `GET /admin/auditoria`, de lo más reciente a lo más viejo. */
+export interface PaginaAuditoriaResponseDTO {
+  items: LogAuditoriaResponseDTO[];
+  /** Desde 0. */
+  pagina: number;
+  tamano: number;
+  totalElementos: number;
+  totalPaginas: number;
 }
 
 export interface AdminMetricasResponseDTO {

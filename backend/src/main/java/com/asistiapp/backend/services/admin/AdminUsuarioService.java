@@ -16,6 +16,7 @@ import com.asistiapp.backend.repositories.TransaccionCreditoRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import com.asistiapp.backend.security.SecurityUtils;
 import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
 import com.asistiapp.backend.security.audit.DatoSensible;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +63,8 @@ public class AdminUsuarioService {
             throw new BusinessRuleException("El usuario ya está suspendido");
         }
 
+        auditarUsuario(usuario);
+        AuditoriaContexto.cambio("Estado", usuario.getEstado(), EstadoUsuario.Suspendido);
         usuario.setEstado(EstadoUsuario.Suspendido);
         Usuario saved = usuarioRepository.save(usuario);
         log.info("Usuario suspendido: id={}", idUsuario);
@@ -77,6 +80,8 @@ public class AdminUsuarioService {
             throw new BusinessRuleException("El usuario ya está activo");
         }
 
+        auditarUsuario(usuario);
+        AuditoriaContexto.cambio("Estado", usuario.getEstado(), EstadoUsuario.Activo);
         usuario.setEstado(EstadoUsuario.Activo);
         Usuario saved = usuarioRepository.save(usuario);
         log.info("Usuario activado: id={}", idUsuario);
@@ -125,6 +130,8 @@ public class AdminUsuarioService {
         // Idem sus notificaciones in-app — nadie más puede leerlas.
         notificacionRepository.deleteByIdUsuarioDestino(idUsuario);
         usuarioRepository.delete(usuario);
+        auditarUsuario(usuario);
+        AuditoriaContexto.detalle("Se eliminó la cuenta definitivamente.");
         log.info("Usuario eliminado: id={}, rol={}", idUsuario, usuario.getRol());
     }
 
@@ -139,7 +146,15 @@ public class AdminUsuarioService {
         Usuario usuario = getUsuarioOrThrow(idUsuario);
         usuario.setPasswordHash(passwordEncoder.encode(nuevaPassword));
         usuarioRepository.save(usuario);
+        auditarUsuario(usuario);
+        AuditoriaContexto.detalle("Se le asignó una contraseña nueva.");
         log.info("Contraseña restablecida por el Admin para el usuario id={}", idUsuario);
+    }
+
+    /** Auditoría: el usuario afectado, y su rol y email como primera línea del detalle. */
+    private static void auditarUsuario(Usuario usuario) {
+        AuditoriaContexto.objetivo(usuario.getId(), usuario.getNombre());
+        AuditoriaContexto.detalle(AuditoriaContexto.texto(usuario.getRol()) + " · " + usuario.getEmail());
     }
 
     private Usuario getUsuarioOrThrow(Long idUsuario) {

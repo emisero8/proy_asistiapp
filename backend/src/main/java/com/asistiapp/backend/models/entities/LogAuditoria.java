@@ -8,15 +8,12 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 /**
- * Registro de auditoría para acciones administrativas críticas.
- * Se registra automáticamente desde los servicios de Admin (Fase 7).
- * Inmutable: nunca se actualiza, solo se inserta.
+ * Registro de auditoría de las acciones que cambian datos: las del Administrador (Fase 7) y,
+ * desde el 2026-11-25, también las del Organizador y su Staff. Lo escribe AuditoriaAspect
+ * en cada método @Auditable que termina bien. Inmutable: nunca se actualiza, solo se inserta.
  *
- * Ejemplos de acciones auditadas:
- *  - SUSPENDER_USUARIO
- *  - ELIMINAR_EVENTO
- *  - CAMBIAR_ROL
- *  - DESHABILITAR_PAQUETE
+ * Ejemplos: SUSPENDER_USUARIO (Admin), PUBLICAR_EVENTO (Organizador), VENTA_MANUAL (Staff
+ * Vendedor), VALIDAR_ENTRADA (Staff QR).
  */
 @Entity
 @Table(name = "log_auditoria")
@@ -29,9 +26,23 @@ public class LogAuditoria {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** ID del Administrador que realizó la acción. */
-    @Column(name = "id_admin", nullable = false)
-    private Long idAdmin;
+    /** ID del usuario que realizó la acción (Admin, Organizador o Staff). Columna antes llamada id_admin. */
+    @Column(name = "id_emisor", nullable = false)
+    private Long idEmisor;
+
+    /**
+     * Nombre del emisor al momento de la acción (foto: no cambia si después se renombra o se
+     * borra la cuenta).
+     */
+    @Column(name = "emisor_nombre", length = 150)
+    private String emisorNombre;
+
+    /**
+     * Rol del emisor (nombre de RolUsuario). Texto y no enum de JPA a propósito: un rol nuevo
+     * no necesita migrar un CHECK de esta tabla.
+     */
+    @Column(name = "emisor_rol", length = 30)
+    private String emisorRol;
 
     /** Descripción corta de la acción (ej. "SUSPENDER_USUARIO"). */
     @Column(nullable = false, length = 100)
@@ -49,7 +60,18 @@ public class LogAuditoria {
     @Column(name = "id_entidad_afectada")
     private Long idEntidadAfectada;
 
-    /** Detalle adicional o descripción legible del cambio. */
+    /**
+     * Nombre legible del registro afectado al momento de la acción (ej. el nombre del
+     * usuario o del evento). Es una foto: sigue diciendo quién era aunque el registro se
+     * haya eliminado. Null si no aplica o en filas viejas que no se pudieron completar.
+     */
+    @Column(name = "entidad_nombre", length = 300)
+    private String entidadNombre;
+
+    /**
+     * Qué pasó, en lenguaje natural, una línea por dato o cambio ("Precio: $1.000 → $1.500").
+     * Las filas anteriores al 2026-11-25 pueden tener el formato técnico viejo.
+     */
     @Column(columnDefinition = "TEXT")
     private String detalle;
 

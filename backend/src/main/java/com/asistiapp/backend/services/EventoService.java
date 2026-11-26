@@ -14,6 +14,9 @@ import com.asistiapp.backend.models.entities.Entrada;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.OrganizadorRepository;
+import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
+import com.asistiapp.backend.security.audit.FotosAuditoria;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -111,6 +114,7 @@ public class EventoService {
      * No consume créditos — la publicación es el paso que los consume.
      */
     @Transactional
+    @Auditable(accion = "CREAR_EVENTO", entidad = "Evento")
     public EventoResponseDTO crearEvento(EventoRequestDTO dto, Long idOrganizador) {
         // Verificar que el organizador existe
         organizadorRepository.findById(idOrganizador)
@@ -124,6 +128,10 @@ public class EventoService {
         // estado se setea en Borrador por el @PrePersist de la entidad
 
         Evento saved = eventoRepository.save(evento);
+        AuditoriaContexto.objetivo(saved.getId(), saved.getNombre());
+        java.util.Map<String, Object> campos = FotosAuditoria.evento(saved);
+        campos.remove("Descripción");
+        FotosAuditoria.detallarTodo(campos);
         log.info("Evento creado: id={}, organizador={}", saved.getId(), idOrganizador);
         return toResponseDTO(saved);
     }
@@ -137,6 +145,7 @@ public class EventoService {
      * Solo permitido si el evento está en estado Borrador.
      */
     @Transactional
+    @Auditable(accion = "EDITAR_EVENTO", entidad = "Evento")
     public EventoResponseDTO actualizarEvento(Long idEvento, EventoRequestDTO dto, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
@@ -148,6 +157,7 @@ public class EventoService {
         validarFechaHoraFutura(dto);
 
         String imagenAnterior = evento.getImagenPortadaUrl();
+        java.util.Map<String, Object> antes = FotosAuditoria.evento(evento);
         mapDtoToEvento(dto, evento);
 
         // Si se movió la fecha/hora, ninguna tanda puede quedar con la venta
@@ -162,6 +172,8 @@ public class EventoService {
         }
 
         Evento saved = eventoRepository.save(evento);
+        AuditoriaContexto.objetivo(saved.getId(), saved.getNombre());
+        AuditoriaContexto.cambios(antes, FotosAuditoria.evento(saved));
         log.info("Evento actualizado: id={}, estado={}", idEvento, evento.getEstado());
 
         // Se cambió o se quitó la portada: la anterior ya no la referencia nadie
@@ -187,6 +199,7 @@ public class EventoService {
      * @throws BusinessRuleException si no se cumplen las precondiciones.
      */
     @Transactional
+    @Auditable(accion = "PUBLICAR_EVENTO", entidad = "Evento")
     public EventoResponseDTO publicarEvento(Long idEvento, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
@@ -250,6 +263,12 @@ public class EventoService {
         evento.setUrlPublica(generarUrlPublica(evento));
         evento.setFechaPublicacion(LocalDateTime.now());
         Evento saved = eventoRepository.save(evento);
+        AuditoriaContexto.objetivo(saved.getId(), saved.getNombre());
+        AuditoriaContexto.cambio("Estado", EstadoEvento.Borrador, EstadoEvento.Publicado);
+        AuditoriaContexto.detalle("Fecha: " + AuditoriaContexto.texto(saved.getFechaEvento())
+                + " " + AuditoriaContexto.texto(saved.getHoraEvento()) + " · Lugar: " + saved.getLugar());
+        AuditoriaContexto.detalle("Consumió " + costoPublicacion + (costoPublicacion == 1 ? " crédito" : " créditos")
+                + " (saldo: " + organizador.getSaldoCreditos() + ").");
 
         log.info("Evento publicado: id={}, organizador={}, créditos restantes={}",
                 idEvento, idOrganizador, organizador.getSaldoCreditos());
@@ -267,6 +286,7 @@ public class EventoService {
      * tarifa por publicar, no por vender.
      */
     @Transactional
+    @Auditable(accion = "CANCELAR_EVENTO", entidad = "Evento")
     public EventoResponseDTO cancelarEvento(Long idEvento, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
@@ -275,6 +295,9 @@ public class EventoService {
             throw new BusinessRuleException("El evento ya está cancelado");
         }
 
+        AuditoriaContexto.objetivo(evento.getId(), evento.getNombre());
+        AuditoriaContexto.cambio("Estado", evento.getEstado(), EstadoEvento.Cancelado);
+        AuditoriaContexto.detalle("Se avisó a los compradores y se devolvieron los créditos de las entradas sin vender.");
         evento.setEstado(EstadoEvento.Cancelado);
         evento.setFechaCancelacion(LocalDateTime.now());
         Evento saved = eventoRepository.save(evento);
@@ -291,10 +314,15 @@ public class EventoService {
      * o quedan como registro.
      */
     @Transactional
+    @Auditable(accion = "ELIMINAR_EVENTO", entidad = "Evento")
     public void eliminarBorrador(Long idEvento, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
         verificarEstadoBorrador(evento, "eliminar");
+
+        AuditoriaContexto.objetivo(evento.getId(), evento.getNombre());
+        AuditoriaContexto.detalle("Fecha: " + AuditoriaContexto.texto(evento.getFechaEvento()) + " · Lugar: " + evento.getLugar());
+        AuditoriaContexto.detalle("Se eliminó el borrador definitivamente.");
 
         devolverCreditosDeEntradasSinVender(evento);
         String imagen = evento.getImagenPortadaUrl();

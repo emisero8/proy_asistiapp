@@ -34,6 +34,13 @@ public class EmailService {
     @Value("${app.frontend-base-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
+    /**
+     * Remitente de todos los mails (MAIL_FROM). Vacío = lo decide el servidor SMTP (con Gmail, la cuenta
+     * autenticada). Los servicios que exigen un remitente verificado (Brevo, etc.) lo necesitan.
+     */
+    @Value("${app.mail.from:}")
+    private String remitente;
+
     private static final int TAMANO_QR_EMAIL_PX = 300;
 
     /**
@@ -79,6 +86,7 @@ public class EmailService {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, "UTF-8");
             helper.setTo(emailDestino);
+            fijarRemitente(helper);
             helper.setSubject(total == 1
                     ? "✅ Tu entrada para " + nombreEvento + " — AsistíAPP"
                     : "✅ Tus " + total + " entradas para " + nombreEvento + " — AsistíAPP");
@@ -130,6 +138,7 @@ public class EmailService {
         try {
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setTo(emailDestino);
+            fijarRemitente(mensaje);
             mensaje.setSubject("Tus credenciales de acceso — AsistíAPP");
             mensaje.setText(String.format("""
                     Hola %s,
@@ -170,6 +179,7 @@ public class EmailService {
             MimeMessage mimeMessage = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setTo(emailDestino);
+            fijarRemitente(helper);
             helper.setSubject("Recuperar tu contraseña — AsistíAPP");
             helper.setText(construirCuerpoEmailRecuperacionHtml(nombre, resetUrl), true);
 
@@ -197,6 +207,7 @@ public class EmailService {
         try {
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setTo(emailDestino);
+            fijarRemitente(mensaje);
             mensaje.setSubject("Evento cancelado: " + nombreEvento + " — AsistíAPP");
             mensaje.setText(String.format("""
                     Hola %s,
@@ -229,6 +240,7 @@ public class EmailService {
         try {
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setTo(emailDestino);
+            fijarRemitente(mensaje);
             mensaje.setSubject("Te devolvimos tu pago — " + nombreEvento + " — AsistíAPP");
             mensaje.setText(String.format("""
                     Hola %s,
@@ -262,6 +274,7 @@ public class EmailService {
         try {
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setTo(emailDestino);
+            fijarRemitente(mensaje);
             mensaje.setSubject("Tu entrada fue anulada — " + nombreEvento + " — AsistíAPP");
             mensaje.setText(String.format("""
                     Hola %s,
@@ -287,6 +300,7 @@ public class EmailService {
         try {
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setTo(emailDestino);
+            fijarRemitente(mensaje);
             mensaje.setSubject("Te devolvimos tu dinero — " + nombreEvento + " — AsistíAPP");
             mensaje.setText(String.format(java.util.Locale.forLanguageTag("es-AR"), """
                     Hola %s,
@@ -315,6 +329,7 @@ public class EmailService {
             String descripcionCreditos = cantidadCreditos != null ? cantidadCreditos + " créditos" : "los créditos";
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setTo(emailDestino);
+            fijarRemitente(mensaje);
             mensaje.setSubject("Te devolvimos tu pago — AsistíAPP");
             mensaje.setText(String.format("""
                     Hola %s,
@@ -336,6 +351,14 @@ public class EmailService {
         } catch (Exception e) {
             log.error("Error al enviar notificación de reembolso de créditos a {}: {}", emailDestino, e.getMessage());
         }
+    }
+
+    private void fijarRemitente(SimpleMailMessage mensaje) {
+        if (remitente != null && !remitente.isBlank()) mensaje.setFrom(remitente.trim());
+    }
+
+    private void fijarRemitente(MimeMessageHelper helper) throws jakarta.mail.MessagingException {
+        if (remitente != null && !remitente.isBlank()) helper.setFrom(remitente.trim());
     }
 
     private static String cidDelQr(int indice) {

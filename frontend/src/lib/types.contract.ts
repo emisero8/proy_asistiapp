@@ -99,6 +99,7 @@ export type ContratoConElBackend = [
   Afirma<Coincide<T.PaqueteCreditoResponseDTO, S["PaqueteCreditoResponseDTO"]>>,
   Afirma<Coincide<T.PaqueteCreditoRequestDTO, S["PaqueteCreditoRequestDTO"]>>,
   Afirma<Coincide<T.LogAuditoriaResponseDTO, S["LogAuditoriaResponseDTO"]>>,
+  Afirma<Coincide<T.PaginaAuditoriaResponseDTO, S["PaginaAuditoriaResponseDTO"]>>,
   Afirma<Coincide<T.AdminMetricasResponseDTO, S["AdminMetricasResponseDTO"]>>,
   Afirma<Coincide<T.TandaMetricasDTO, S["TandaMetricasDTO"]>>,
   Afirma<Coincide<T.EventoMetricasResponseDTO, S["EventoMetricasResponseDTO"]>>,

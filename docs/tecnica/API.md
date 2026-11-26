@@ -59,7 +59,7 @@ Todos los `id` son `Long`. Las fechas sin zona son hora de Argentina.
 
 - **`notificaciones`:** `id_usuario_destino`, `origen` (`Admin`, `Sistema`), `titulo`, `mensaje`, `leida`, `tipo_entidad_relacionada`, `id_entidad_relacionada`, `fecha_creacion`.
 - **`configuraciones_sistema`:** `clave`, `valor`, `descripcion`. Claves usadas: `creditos_bienvenida`, `creditos_por_publicacion`, `max_entradas_por_comprador`, `email_soporte`, `whatsapp_soporte`.
-- **`log_auditoria`:** `id_admin`, `accion`, `entidad_afectada`, `id_entidad_afectada`, `detalle`, `fecha_hora`. Registra las acciones administrativas; los datos sensibles (contraseñas) se enmascaran.
+- **`log_auditoria`:** `id_emisor`, `emisor_nombre`, `emisor_rol`, `accion`, `entidad_afectada`, `id_entidad_afectada`, `entidad_nombre`, `detalle`, `fecha_hora`. Registra las acciones que cambian datos del Admin, del Organizador y de su Staff (`emisor_rol` es texto, no un CHECK de enum). `emisor_nombre` y `entidad_nombre` son una foto del momento (siguen legibles aunque después se borre el usuario o el evento); `detalle` es texto legible, una línea por dato o cambio (`Precio: $1.000 → $1.500`). Los datos sensibles (contraseñas) nunca se escriben.
 
 > Hoy varias relaciones son un `Long` suelto y no una clave foránea real (por ejemplo `id_organizador` en `eventos`). Está anotado como mejora para cuando se defina el despliegue (ver `docs/proyecto/PLAN_MEJORAS.md`, ítem 4.2).
 
@@ -144,7 +144,8 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 | `GET/POST/PUT /admin/paquetes-credito`, `PATCH …/{id}/habilitar`, `…/deshabilitar` | Paquetes de créditos. |
 | `GET /admin/configuraciones`, `PUT /admin/configuraciones/{clave}` | Parámetros del sistema. |
 | `POST /admin/notificaciones` | Anuncio global a todos los usuarios activos. |
-| `GET /admin/metricas`, `GET /admin/auditoria` | Métricas globales y registro de auditoría. |
+| `GET /admin/metricas` | Métricas globales. |
+| `GET /admin/auditoria` | Registro de auditoría de todos los roles, paginado (`PaginaAuditoriaResponseDTO`). Parámetros opcionales: `rol` (rol del emisor, se puede repetir), `idEmisor`, `accion`, `entidad` + `idEntidad` (un registro puntual), `desde`/`hasta` (`yyyy-MM-dd`, inclusive), `q` (nombre del emisor o de la entidad, detalle, código de acción o entidad; un número o `#12` busca por id), `pagina` (desde 0) y `tamano` (20 por defecto, máximo 100). |
 
 ## 5. Reglas de negocio
 
@@ -182,7 +183,7 @@ Aparecen en su campanita: primera venta de un evento, tanda agotada, reembolso d
 
 ### Auditoría
 
-Las acciones administrativas (cambiar contraseña, suspender, cancelar un evento, etc.) quedan en `log_auditoria` con el Admin, la acción y la entidad afectada. Los argumentos sensibles se enmascaran.
+Las acciones que cambian datos quedan en `log_auditoria` con quién las hizo (id, nombre y rol), la acción, la entidad afectada (id y nombre) y qué cambió: las del **Admin** (usuarios, eventos, tandas, paquetes, configuración, anuncios), las del **Organizador** (eventos, tandas, staff, perfil, entradas emitidas/anuladas/reembolsadas, cuenta de Mercado Pago), las del **Staff Vendedor** (venta en puerta) y las del **Staff QR** (ingreso validado o rechazado). Cada servicio anotado con `@Auditable` describe su acción con `AuditoriaContexto` (`objetivo`, `detalle`, `cambio`/`cambios`, y si hace falta `accion` o `emisor`); `AuditoriaAspect` escribe la fila solo si el método terminó bien, una sola vez aunque un método auditado llame a otro. Lo ve solo el Admin. Las contraseñas no se escriben, y una configuración cuya clave parece un secreto registra "modificado" en vez del valor.
 
 ## 6. Pautas de desarrollo
 

@@ -4,6 +4,9 @@ import com.asistiapp.backend.exceptions.PasarelaPagoException;
 import com.asistiapp.backend.models.dtos.entrada.EntradaResponseDTO;
 import com.asistiapp.backend.models.dtos.entrada.ResultadoAnulacionResponseDTO;
 import com.asistiapp.backend.models.dtos.entrada.ResultadoReembolsoMasivoResponseDTO;
+import com.asistiapp.backend.repositories.EventoRepository;
+import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,35 +32,50 @@ public class ReembolsoEntradaService {
     private final MercadoPagoService mercadoPagoService;
     private final CuentaCobroService cuentaCobroService;
     private final EmailService emailService;
+    private final EventoRepository eventoRepository;
 
     /**
      * Anula la entrada y, si se pidió, intenta devolver el dinero. Si el reembolso falla (por ejemplo, saldo
      * insuficiente en la cuenta del Organizador) la entrada queda anulada igual y el reembolso se puede reintentar.
      */
+    @Auditable(accion = "ANULAR_ENTRADA", entidad = "Entrada")
     public ResultadoAnulacionResponseDTO anular(Long idEntrada, Long idOrganizador, String motivo, boolean reembolsar) {
         AnulacionEntradaService.EntradaAnulada anulada = anulacionService.anular(idEntrada, idOrganizador, motivo);
         AnulacionEntradaService.DatosEntrada datos = anulada.datos();
         emailService.enviarNotificacionEntradaAnulada(datos.emailComprador(), datos.nombreComprador(), datos.nombreEvento());
+        auditarEntrada(datos);
+        AuditoriaContexto.detalle("Estado: Anulada");
+        if (motivo != null && !motivo.isBlank()) {
+            AuditoriaContexto.detalle("Motivo: " + AuditoriaContexto.recortar(motivo.trim(), 200));
+        }
 
         if (!reembolsar || !esReembolsable(anulada.entrada())) {
+            AuditoriaContexto.detalle(reembolsar ? "No se reembolsó: la entrada no se pagó online." : "Sin reembolso.");
             return ResultadoAnulacionResponseDTO.builder().entrada(anulada.entrada()).build();
         }
         try {
-            EntradaResponseDTO reembolsada = reembolsar(idEntrada, idOrganizador);
-            return ResultadoAnulacionResponseDTO.builder().entrada(reembolsada).reembolsada(true).build();
+            Reembolsado hecho = reembolsarConToken(idEntrada, idOrganizador, null, true);
+            AuditoriaContexto.detalle("Reembolso: " + AuditoriaContexto.pesos(hecho.monto()) + " devueltos por Mercado Pago.");
+            return ResultadoAnulacionResponseDTO.builder().entrada(hecho.entrada()).reembolsada(true).build();
         } catch (RuntimeException e) {
             log.warn("La entrada {} quedó anulada pero no se pudo reembolsar: {}", idEntrada, e.getMessage());
+            AuditoriaContexto.detalle("El reembolso falló y quedó pendiente: " + e.getMessage());
             return ResultadoAnulacionResponseDTO.builder().entrada(anulada.entrada())
                     .avisoReembolso(e.getMessage()).build();
         }
     }
 
     /** Devuelve el dinero de una entrada anulada (o de un evento cancelado). Sirve también para reintentar un reembolso fallido. */
+    @Auditable(accion = "REEMBOLSAR_ENTRADA", entidad = "Entrada")
     public EntradaResponseDTO reembolsar(Long idEntrada, Long idOrganizador) {
-        return reembolsarConToken(idEntrada, idOrganizador, null, true).entrada();
+        Reembolsado hecho = reembolsarConToken(idEntrada, idOrganizador, null, true);
+        auditarEntrada(hecho.datos());
+        AuditoriaContexto.detalle("Reembolso: " + AuditoriaContexto.pesos(hecho.monto()) + " devueltos por Mercado Pago.");
+        return hecho.entrada();
     }
 
     /** Reembolsa todas las compras de un evento cancelado. Las que fallan quedan pendientes, listas para reintentar. */
+    @Auditable(accion = "REEMBOLSAR_EVENTO", entidad = "Evento")
     public ResultadoReembolsoMasivoResponseDTO reembolsarTodo(Long idEvento, Long idOrganizador) {
         List<Long> ids = anulacionService.idsParaReembolsoMasivo(idEvento, idOrganizador);
         List<ResultadoReembolsoMasivoResponseDTO.Falla> fallidas = new ArrayList<>();
@@ -76,6 +94,13 @@ public class ReembolsoEntradaService {
                 }
             }
         }
+        if (AuditoriaContexto.activo()) {
+            AuditoriaContexto.objetivo(idEvento, eventoRepository.findById(idEvento).map(e -> e.getNombre()).orElse(null));
+            AuditoriaContexto.detalle("Reembolsadas: " + reembolsadas + " · Total devuelto: " + AuditoriaContexto.pesos(monto));
+            if (!fallidas.isEmpty()) {
+                AuditoriaContexto.detalle("Fallaron " + fallidas.size() + " (quedan pendientes para reintentar).");
+            }
+        }
         return ResultadoReembolsoMasivoResponseDTO.builder()
                 .reembolsadas(reembolsadas)
                 .montoReembolsado(monto)
@@ -91,7 +116,14 @@ public class ReembolsoEntradaService {
      *                   cuenta utilizable se suelta el turno
      */
     /** Lo que devolvió un reembolso: la entrada y el monto (precio + cargo por procesamiento, si se cobró). */
-    private record Reembolsado(EntradaResponseDTO entrada, double monto) {}
+    private record Reembolsado(EntradaResponseDTO entrada, double monto, AnulacionEntradaService.DatosEntrada datos) {}
+
+    /** Auditoría: la entrada se identifica por su comprador, y el evento va en el detalle. */
+    private static void auditarEntrada(AnulacionEntradaService.DatosEntrada datos) {
+        AuditoriaContexto.objetivo(datos.idEntrada(), "Entrada de " + datos.nombreComprador());
+        AuditoriaContexto.detalle("Evento: " + datos.nombreEvento() + " (#" + datos.idEvento() + ")");
+        AuditoriaContexto.detalle("Comprador: " + datos.emailComprador());
+    }
 
     private Reembolsado reembolsarConToken(Long idEntrada, Long idOrganizador, String token, boolean pedirToken) {
         AnulacionEntradaService.PlanReembolso plan = anulacionService.prepararReembolso(idEntrada, idOrganizador);
@@ -112,7 +144,7 @@ public class ReembolsoEntradaService {
         }
         AnulacionEntradaService.DatosEntrada datos = plan.entrada();
         emailService.enviarNotificacionReembolsoOrganizador(datos.emailComprador(), datos.nombreComprador(), datos.nombreEvento(), datos.precio());
-        return new Reembolsado(dto, plan.monto().doubleValue());
+        return new Reembolsado(dto, plan.monto().doubleValue(), datos);
     }
 
     private boolean esReembolsable(EntradaResponseDTO entrada) {

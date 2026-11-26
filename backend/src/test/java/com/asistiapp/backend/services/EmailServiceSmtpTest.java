@@ -9,6 +9,7 @@ import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mockito.Mockito;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import java.io.InputStream;
@@ -46,6 +47,21 @@ class EmailServiceSmtpTest {
         MimeMessage[] recibidos = smtp.getReceivedMessages();
         assertThat(recibidos).hasSize(1);
         return recibidos[0];
+    }
+
+    @Test
+    void conMailFromConfigurado_todosLosMailsSalenConEseRemitente() throws Exception {
+        EmailService servicio = servicio(smtp.getSmtp().getPort());
+        ReflectionTestUtils.setField(servicio, "remitente", "demo@asistiapp.com");
+
+        servicio.enviarNotificacionCancelacion("maria@ejemplo.com", "María", "Festival");   // texto plano
+        servicio.enviarEmailRecuperacion("maria@ejemplo.com", "María", "token-123");         // HTML
+
+        MimeMessage[] recibidos = smtp.getReceivedMessages();
+        assertThat(recibidos).hasSize(2);
+        for (MimeMessage mail : recibidos) {
+            assertThat(mail.getFrom()[0].toString()).isEqualTo("demo@asistiapp.com");
+        }
     }
 
     @Test

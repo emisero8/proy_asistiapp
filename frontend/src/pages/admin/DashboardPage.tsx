@@ -5,7 +5,7 @@ import { Card, EmptyState, ErrorState, PageHeader, Skeleton, StatCard } from "..
 import { api, ApiError } from "../../lib/api";
 import { describirAccion } from "../../lib/auditoria";
 import { fmt, formatRelativo } from "../../lib/format";
-import type { AdminMetricasResponseDTO, LogAuditoriaResponseDTO } from "../../lib/types";
+import type { AdminMetricasResponseDTO, LogAuditoriaResponseDTO, PaginaAuditoriaResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 
 /**
@@ -25,8 +25,8 @@ export function AdminDashboardPage() {
       .then(setMetrics)
       .catch((e: unknown) => setError(e instanceof ApiError ? e.message : "No pudimos cargar las métricas."));
     api
-      .get<LogAuditoriaResponseDTO[]>("/admin/auditoria")
-      .then((logs) => setActividad(logs.slice(0, 6)))
+      .get<PaginaAuditoriaResponseDTO>("/admin/auditoria?tamano=6")
+      .then((pagina) => setActividad(pagina.items))
       .catch(() => setActividad([]));
   }
 
