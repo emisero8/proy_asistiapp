@@ -10,6 +10,7 @@ import com.asistiapp.backend.models.enums.OrigenNotificacion;
 import com.asistiapp.backend.repositories.NotificacionRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
 import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -68,6 +69,10 @@ public class NotificacionService {
             return notificacion;
         }).toList();
         notificacionRepository.saveAll(lote);
+        AuditoriaContexto.objetivo(null, "Todos los usuarios activos");
+        AuditoriaContexto.detalle("Título: " + titulo);
+        AuditoriaContexto.detalle("Mensaje: " + AuditoriaContexto.recortar(mensaje, 300));
+        AuditoriaContexto.detalle("Enviado a " + lote.size() + (lote.size() == 1 ? " usuario." : " usuarios."));
         log.info("Anuncio global creado: '{}' enviado a {} usuarios", titulo, lote.size());
         return lote.size();
     }

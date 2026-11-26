@@ -79,6 +79,7 @@ public class VinculacionMercadoPagoService {
      *
      * @return el Organizador que quedó vinculado
      */
+    @com.asistiapp.backend.security.audit.Auditable(accion = "VINCULAR_MP", entidad = "CuentaMercadoPago")
     public Long completar(String state, String code) {
         IntentoVinculacionMp intento = intentoRepository.findById(state)
                 .orElseThrow(() -> new BusinessRuleException("El pedido de vinculación no existe o ya se usó. Volvé a intentarlo."));
@@ -96,6 +97,10 @@ public class VinculacionMercadoPagoService {
         cuenta.setEstado(EstadoCuentaMp.Vinculada);
         guardarTokens(cuenta, tokens);
         cuentaRepository.save(cuenta);
+        // La vuelta de Mercado Pago llega sin sesión: el emisor es el Organizador que inició la vinculación.
+        com.asistiapp.backend.security.audit.AuditoriaContexto.emisor(intento.getIdOrganizador());
+        com.asistiapp.backend.security.audit.AuditoriaContexto.objetivo(cuenta.getId(), "Cuenta de Mercado Pago");
+        com.asistiapp.backend.security.audit.AuditoriaContexto.detalle("Usuario de Mercado Pago: " + tokens.userId());
         log.info("Organizador id={} vinculó su cuenta de Mercado Pago (user_id={})", intento.getIdOrganizador(), tokens.userId());
         return intento.getIdOrganizador();
     }
@@ -120,8 +125,12 @@ public class VinculacionMercadoPagoService {
 
     /** Borra los tokens guardados. El acceso de la aplicación también se puede quitar desde la cuenta de Mercado Pago. */
     @Transactional
+    @com.asistiapp.backend.security.audit.Auditable(accion = "DESVINCULAR_MP", entidad = "CuentaMercadoPago")
     public void desvincular(Long idOrganizador) {
         cuentaRepository.findByIdOrganizador(idOrganizador).ifPresent(cuenta -> {
+            com.asistiapp.backend.security.audit.AuditoriaContexto.objetivo(cuenta.getId(), "Cuenta de Mercado Pago");
+            com.asistiapp.backend.security.audit.AuditoriaContexto.detalle("Usuario de Mercado Pago: " + cuenta.getMpUserId());
+            com.asistiapp.backend.security.audit.AuditoriaContexto.detalle("Se borraron los tokens guardados.");
             cuentaRepository.delete(cuenta);
             log.info("Organizador id={} desvinculó su cuenta de Mercado Pago", idOrganizador);
         });

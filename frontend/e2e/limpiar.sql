@@ -17,6 +17,8 @@ DELETE FROM staff_qr WHERE id_usuario IN (SELECT id FROM e2e_usuarios);
 DELETE FROM staff_vendedores WHERE id_usuario IN (SELECT id FROM e2e_usuarios) OR id_organizador IN (SELECT id FROM e2e_usuarios);
 DELETE FROM notificaciones WHERE id_usuario_destino IN (SELECT id FROM e2e_usuarios);
 DELETE FROM tokens_recuperacion WHERE id_usuario IN (SELECT id FROM e2e_usuarios);
+-- La auditoría es inmutable en la app, pero lo que hizo la suite (publicar, vender, escanear) es ruido de prueba.
+DELETE FROM log_auditoria WHERE id_emisor IN (SELECT id FROM e2e_usuarios);
 DELETE FROM organizadores WHERE id_usuario IN (SELECT id FROM e2e_usuarios);
 DELETE FROM usuarios WHERE id IN (SELECT id FROM e2e_usuarios);
 

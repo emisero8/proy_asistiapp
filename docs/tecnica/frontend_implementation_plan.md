@@ -804,3 +804,34 @@ No existía ninguna noción de cargo al comprador: se agregó en el backend (ver
 ### Verificación
 `npx tsc -b` limpio · `npm run lint` (solo los 4 warnings viejos de fast-refresh) · `npx vitest run` **46 archivos / 419 tests** (nuevos: `comisionesMp.test.ts`, `ComisionMpPanel.test.tsx`, 2 casos de `CheckoutPage.test.tsx`) · `npm run build` OK · backend `mvn test` **568 tests** · `npm run e2e` **4/4** contra el backend nuevo. **Playwright** contra el backend real (puerto 8081, build en 3000): Mi perfil en claro/oscuro × 1440/390, desplegable abierto, guardar la preferencia (PUT real), detalle y checkout con el cargo en claro/oscuro × 1440/390, y `comprar-online` real: orden de $1.584,15 (=$1.500 + $84,15, 10 días/general) y **Mercado Pago sandbox aceptó la preferencia con los dos ítems**. 0 errores de consola. Datos de prueba borrados con `e2e/limpiar.sql`.
 
+## Fase 16: Auditoría del Admin rediseñada ✅ (2026-11-25, rama `feature-auditoria`, sin commitear)
+
+**Pedido del usuario:** mejorar la pantalla de Auditoría visual y técnicamente: qué acción se hizo, quién (nombre completo + id) y sobre quién o qué (nombre + id).
+
+### Qué se hizo
+1. **Tabla con las columnas pedidas:** Fecha y hora (fecha + hora 24 h) · Acción (badge con ícono y tono: rojo lo destructivo, verde lo que habilita, azul lo que edita) · Emisor ("Nombre (#id)") · Entidad afectada ("Nombre (#id)" + tipo debajo; "Sin nombre registrado" si es un registro viejo de algo borrado) · Detalle (una línea por dato; en los cambios, el valor viejo tachado y el nuevo en negrita, con "pasó a" para lectores de pantalla).
+2. **Filtros en el backend:** búsqueda con debounce (nombre, detalle, código o `#id`), tipo de entidad, acción (agrupada por entidad con `<optgroup>`), rango de fechas (`DateRangeFilter`) y "Limpiar filtros". Paginación de a 25 con "Anterior/Siguiente" y "1–25 de N".
+3. **Mobile:** misma `<table>` que en desktop pasa a tarjetas (patrón de DESIGN.md): acción y fecha arriba, "Emisor" y "Sobre" rotulados y el detalle en un recuadro.
+4. **`lib/auditoria.ts`:** mapa único de acciones (`etiqueta`, `verbo`, `tono`, `icono`) y de entidades. El dashboard usa la frase "Ana Gómez suspendió a Juan Pérez" y pide `/admin/auditoria?tamano=6`.
+
+### Adaptaciones
+- Los filtros van **fuera** de la tarjeta de la tabla: la tarjeta tiene `overflow-hidden` y recortaba el popover de `DateRangeFilter`.
+- Textos de los selects acortados a "Entidad: todas" / "Acción: todas": en 390 px se cortaban.
+
+### Gap de backend corregido
+El endpoint devolvía todo sin paginar, sin nombres y con un detalle técnico; se resolvió en el backend (`backend_implementation_plan.md`, Fase 23) y se regeneró el contrato (`openapi.json`, `api-schema.d.ts`; `PaginaAuditoriaResponseDTO` sumado a `types.contract.ts`).
+
+### Verificación
+`npx tsc -b` limpio · `npx vitest run` **46 archivos / 425 tests** · Playwright contra el backend real: desktop claro/oscuro (1440), mobile (390), búsqueda "tanda", filtro por acción, paginación forzada a 5 por página (1–5 → 6–10 de 14) y el dashboard; 0 errores de consola.
+
+### Fase 16.2: Auditoría de todos los roles, filtros y filas por página ✅ (2026-11-25, rama `feature-auditoria`, sin commitear)
+
+1. **Filtro principal por rol** de quien hizo la acción: chips Todos · Administradores · Organizadores · Staff Vendedor · Staff QR (`aria-pressed`; en mobile se desplazan en horizontal).
+2. **Filtros puntuales:** tocar el nombre del emisor muestra solo lo que hizo esa persona; tocar el de la entidad afectada, todo lo que pasó con ese registro. Quedan como chips removibles ("Hecho por: … ×"). El botón lleva el texto de ayuda oculto para lectores de pantalla.
+3. **Emisor con su rol** (badge `TONO_ROL`), acciones agrupadas en el filtro por tema (Usuarios y plataforma, Eventos, Tandas, Staff, Entradas y ventas, Ingreso al evento, Perfil y Mercado Pago) desde un único mapa (`lib/auditoria.ts`), y entidades nuevas (Organizador, Staff, Entrada, Cuenta de Mercado Pago).
+4. **Filas por página:** 10/20/50/100 (20 por defecto), recordado en `localStorage` con try/catch; "Página X de Y" y "1–20 de N".
+5. Columnas Emisor y Entidad con ancho mínimo en desktop (el nombre y el `(#id)` ya no se parten en tres líneas).
+
+**Arreglos de paso:** `e2e/publicacion.spec.ts` elegía el día con un nombre parcial ("5 de diciembre" también encuentra el 15 y el 25) y fallaba según la fecha en que se corriera; ahora usa `exact: true`. `e2e/limpiar.sql` borra también la auditoría de las cuentas e2e.
+
+**Verificación:** `npx tsc -b` limpio · lint (solo los 4 warnings viejos) · `npx vitest run` **47 archivos / 430 tests** (nuevo `lib/auditoria.test.ts`) · `npm run e2e` 4/4 · Playwright con datos reales de los tres roles: desktop claro/oscuro, mobile 390 px sin scroll horizontal, chip Staff QR (2 filas), filtro por emisor (1 fila), 10 por página (1–10 → 11–20 de 42); 0 errores de consola.

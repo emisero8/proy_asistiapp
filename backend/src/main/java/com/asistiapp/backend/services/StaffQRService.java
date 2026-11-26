@@ -9,6 +9,8 @@ import com.asistiapp.backend.models.entities.Entrada;
 import com.asistiapp.backend.models.entities.StaffQR;
 import com.asistiapp.backend.models.enums.EstadoEntrada;
 import com.asistiapp.backend.repositories.EntradaRepository;
+import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -49,6 +51,7 @@ public class StaffQRService {
      * @return resultado de la validación con datos del comprador
      */
     @Transactional
+    @Auditable(accion = "INGRESO_VALIDADO", entidad = "Entrada")
     public ValidacionQRResponseDTO validarQR(ValidacionQRRequestDTO dto, StaffQR staffQR) {
         // ── Paso 1: Buscar la entrada por código QR ──────────────────────
         Entrada entrada = entradaRepository.findByCodigoQr(dto.getCodigoQr())
@@ -67,8 +70,13 @@ public class StaffQRService {
                     "Esta entrada pertenece a un evento diferente al que tenés asignado");
         }
 
+        AuditoriaContexto.objetivo(entrada.getId(), "Entrada de " + entrada.getNombreComprador());
+        AuditoriaContexto.detalle("Evento: " + nombreEvento + " (#" + idEventoEntrada + ") · Tanda: " + nombreTanda);
+
         // ── Paso 2b: una entrada anulada por el Organizador no vale (8.6) ─
         if (entrada.getEstado() == EstadoEntrada.Anulada) {
+            AuditoriaContexto.accion("INGRESO_RECHAZADO");
+            AuditoriaContexto.detalle("Rechazada: la entrada está anulada.");
             log.warn("Intento de usar una entrada anulada. QR={}, entrada={}", dto.getCodigoQr(), entrada.getId());
             return ValidacionQRResponseDTO.builder()
                     .valido(false)
@@ -84,6 +92,8 @@ public class StaffQRService {
 
         // ── Paso 3: Verificar que la entrada NO esté ya Usada ────────────
         if (entrada.getEstado() == EstadoEntrada.Usada) {
+            AuditoriaContexto.accion("INGRESO_RECHAZADO");
+            AuditoriaContexto.detalle("Rechazada: ya se había usado el " + AuditoriaContexto.texto(entrada.getFechaUso()) + ".");
             log.warn("Intento de re-uso de entrada ya utilizada. QR={}, entrada={}",
                     dto.getCodigoQr(), entrada.getId());
             return ValidacionQRResponseDTO.builder()
@@ -109,6 +119,7 @@ public class StaffQRService {
         entrada.setIdStaffQrValidador(staffQR.getId());
 
         entradaRepository.save(entrada);
+        AuditoriaContexto.cambio("Estado", estadoAnterior, EstadoEntrada.Usada);
 
         log.info("QR validado exitosamente: entrada={}, evento={}, staff={}, comprador={}",
                 entrada.getId(), nombreEvento, staffQR.getId(), entrada.getNombreComprador());

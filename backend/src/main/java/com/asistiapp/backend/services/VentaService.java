@@ -20,6 +20,8 @@ import com.asistiapp.backend.repositories.StaffVendedorRepository;
 import com.asistiapp.backend.repositories.TandaRepository;
 import com.asistiapp.backend.repositories.TransaccionPagoRepository;
 import com.asistiapp.backend.security.SecurityUtils;
+import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -364,6 +366,7 @@ public class VentaService {
      * @return las entradas generadas, cada una con su código QR
      */
     @Transactional
+    @Auditable(accion = "VENTA_MANUAL", entidad = "Entrada")
     public List<EntradaResponseDTO> realizarVentaManual(VentaManualRequestDTO dto, Long idStaffVendedor) {
         // Verificar que el staff vendedor existe
         StaffVendedor staffVendedor = staffVendedorRepository.findById(idStaffVendedor)
@@ -420,6 +423,9 @@ public class VentaService {
         }
 
         avisarVentaAlOrganizador(tanda, cantidad);
+        auditarEntradasGeneradas(generadas, dto.getNombreComprador(), dto.getEmailComprador(), tanda);
+        AuditoriaContexto.detalle("Total: " + AuditoriaContexto.pesos(tanda.getPrecio() * cantidad)
+                + " (" + AuditoriaContexto.pesos(tanda.getPrecio()) + " c/u, cobrado en puerta)");
         return generadas;
     }
 
@@ -456,6 +462,7 @@ public class VentaService {
      * @param idOrganizador Organizador autenticado; la tanda tiene que ser de uno de sus eventos
      */
     @Transactional
+    @Auditable(accion = "EMITIR_ENTRADAS", entidad = "Entrada")
     public List<EntradaResponseDTO> emitirEntradasOrganizador(EmisionOrganizadorRequestDTO dto, Long idOrganizador) {
         Tanda tanda = tandaRepository.findByIdWithLock(dto.getIdTanda())
                 .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada con id: " + dto.getIdTanda()));
@@ -493,9 +500,34 @@ public class VentaService {
             generadas.add(toResponseDTOParaOrganizador(entradaRepository.save(entrada)));
         }
 
+        auditarEntradasGeneradas(generadas, dto.getNombreDestinatario().trim(), dto.getEmailDestinatario().trim(), tanda);
+        AuditoriaContexto.detalle("Tipo: " + (dto.getTipo() == com.asistiapp.backend.models.enums.TipoEmision.Cortesia
+                ? "cortesía" : "pago por fuera de la plataforma"));
+        if (motivo != null) {
+            AuditoriaContexto.detalle("Motivo: " + AuditoriaContexto.recortar(motivo, 200));
+        }
         log.info("Emisión del organizador: {} entrada(s) de tipo {} en la tanda {} del evento {} (organizador {})",
                 cantidad, dto.getTipo(), tanda.getId(), tanda.getEvento().getNombre(), idOrganizador);
         return generadas;
+    }
+
+    /**
+     * Auditoría de una venta o emisión: con una sola entrada, el objetivo es esa entrada; con varias,
+     * la primera, y el detalle lista todas.
+     */
+    private static void auditarEntradasGeneradas(List<EntradaResponseDTO> generadas, String nombre, String email, Tanda tanda) {
+        if (generadas.isEmpty()) {
+            return;
+        }
+        String cantidad = generadas.size() == 1 ? "" : " (" + generadas.size() + " entradas)";
+        AuditoriaContexto.objetivo(generadas.get(0).getId(), "Entrada de " + nombre + cantidad);
+        AuditoriaContexto.detalle("Evento: " + tanda.getEvento().getNombre() + " (#" + tanda.getEvento().getId() + ")"
+                + " · Tanda: " + tanda.getNombre());
+        AuditoriaContexto.detalle("Comprador: " + email);
+        if (generadas.size() > 1) {
+            AuditoriaContexto.detalle("Entradas: " + generadas.stream().map(e -> "#" + e.getId())
+                    .collect(java.util.stream.Collectors.joining(", ")));
+        }
     }
 
     /**

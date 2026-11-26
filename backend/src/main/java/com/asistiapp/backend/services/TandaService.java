@@ -12,6 +12,9 @@ import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EventoRepository;
 import com.asistiapp.backend.repositories.OrganizadorRepository;
 import com.asistiapp.backend.repositories.TandaRepository;
+import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
+import com.asistiapp.backend.security.audit.FotosAuditoria;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -81,6 +84,7 @@ public class TandaService {
      * El @PrePersist de Tanda inicializa cupo_disponible = cupo_maximo.
      */
     @Transactional
+    @Auditable(accion = "CREAR_TANDA", entidad = "Tanda")
     public TandaResponseDTO crearTanda(Long idEvento, TandaRequestDTO dto, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
@@ -96,6 +100,9 @@ public class TandaService {
 
         Tanda saved = tandaRepository.save(tanda);
         creditoLedgerService.registrarConsumoTanda(organizador, dto.getCupoMaximo(), idEvento);
+        AuditoriaContexto.objetivo(saved.getId(), FotosAuditoria.nombreTanda(saved.getNombre(), evento));
+        FotosAuditoria.detallarTodo(FotosAuditoria.tanda(saved));
+        AuditoriaContexto.detalle("Consumió " + creditos(dto.getCupoMaximo()) + ".");
         log.info("Tanda creada: id={}, evento={}, créditos consumidos={}", saved.getId(), idEvento, dto.getCupoMaximo());
         return toResponseDTO(saved);
     }
@@ -111,6 +118,7 @@ public class TandaService {
      * Esto preserva los cupos ya vendidos.
      */
     @Transactional
+    @Auditable(accion = "EDITAR_TANDA", entidad = "Tanda")
     public TandaResponseDTO actualizarTanda(Long idEvento, Long idTanda, TandaRequestDTO dto, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
@@ -145,10 +153,18 @@ public class TandaService {
                     "No podés cambiar si la tanda es de cortesía: ya tiene entradas emitidas o vendidas.");
         }
 
+        java.util.Map<String, Object> antes = FotosAuditoria.tanda(tanda);
         mapDtoToTanda(dto, tanda);
         tanda.setCupoDisponible(nuevoCupoDisponible);
 
         Tanda saved = tandaRepository.save(tanda);
+        AuditoriaContexto.objetivo(saved.getId(), FotosAuditoria.nombreTanda(saved.getNombre(), evento));
+        AuditoriaContexto.cambios(antes, FotosAuditoria.tanda(saved));
+        if (deltaMaximo > 0) {
+            AuditoriaContexto.detalle("Consumió " + creditos(deltaMaximo) + " más.");
+        } else if (deltaMaximo < 0) {
+            AuditoriaContexto.detalle("Se devolvió " + creditos(-deltaMaximo) + ".");
+        }
         log.info("Tanda actualizada: id={}", idTanda);
         return toResponseDTO(saved);
     }
@@ -162,6 +178,7 @@ public class TandaService {
      * y la tanda no tiene entradas vendidas.
      */
     @Transactional
+    @Auditable(accion = "ELIMINAR_TANDA", entidad = "Tanda")
     public void eliminarTanda(Long idEvento, Long idTanda, Long idOrganizador) {
         Evento evento = getEventoOrThrow(idEvento);
         verificarPropietario(evento, idOrganizador);
@@ -190,6 +207,11 @@ public class TandaService {
         if (tanda.getCupoMaximo() > 0) {
             creditoLedgerService.registrarDevolucionTanda(
                     getOrganizadorOrThrow(idOrganizador), tanda.getCupoMaximo(), idEvento);
+        }
+        AuditoriaContexto.objetivo(tanda.getId(), FotosAuditoria.nombreTanda(tanda.getNombre(), evento));
+        FotosAuditoria.detallarTodo(FotosAuditoria.tanda(tanda));
+        if (tanda.getCupoMaximo() > 0) {
+            AuditoriaContexto.detalle("Se devolvió " + creditos(tanda.getCupoMaximo()) + ".");
         }
         tandaRepository.delete(tanda);
         log.info("Tanda eliminada: id={}", idTanda);
@@ -295,5 +317,10 @@ public class TandaService {
                 .fechaInicioVigencia(tanda.getFechaInicioVigencia())
                 .fechaFinVigencia(tanda.getFechaFinVigencia())
                 .build();
+    }
+
+    /** "1 crédito" / "3 créditos", para el detalle de la auditoría. */
+    private static String creditos(int cantidad) {
+        return cantidad + (cantidad == 1 ? " crédito" : " créditos");
     }
 }

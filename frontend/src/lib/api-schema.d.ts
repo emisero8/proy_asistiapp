@@ -1227,7 +1227,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["listarTodos_2"];
+        get: operations["listar_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1868,14 +1868,29 @@ export interface components {
             /** Format: int64 */
             id?: number;
             /** Format: int64 */
-            idAdmin?: number;
+            idEmisor?: number;
+            emisorNombre?: string;
+            /** @enum {string} */
+            emisorRol?: "Administrador" | "Organizador" | "Staff_QR" | "Staff_Vendedor";
             accion?: string;
             entidadAfectada?: string;
             /** Format: int64 */
             idEntidadAfectada?: number;
+            entidadNombre?: string;
             detalle?: string;
             /** Format: date-time */
             fechaHora?: string;
+        };
+        PaginaAuditoriaResponseDTO: {
+            items?: components["schemas"]["LogAuditoriaResponseDTO"][];
+            /** Format: int32 */
+            pagina?: number;
+            /** Format: int32 */
+            tamano?: number;
+            /** Format: int64 */
+            totalElementos?: number;
+            /** Format: int32 */
+            totalPaginas?: number;
         };
     };
     responses: never;
@@ -3872,9 +3887,20 @@ export interface operations {
             };
         };
     };
-    listarTodos_2: {
+    listar_1: {
         parameters: {
-            query?: never;
+            query?: {
+                rol?: ("Administrador" | "Organizador" | "Staff_QR" | "Staff_Vendedor")[];
+                idEmisor?: number;
+                accion?: string;
+                entidad?: string;
+                idEntidad?: number;
+                desde?: string;
+                hasta?: string;
+                q?: string;
+                pagina?: number;
+                tamano?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -3887,7 +3913,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "*/*": components["schemas"]["LogAuditoriaResponseDTO"][];
+                    "*/*": components["schemas"]["PaginaAuditoriaResponseDTO"];
                 };
             };
         };

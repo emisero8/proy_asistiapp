@@ -11,6 +11,8 @@ import com.asistiapp.backend.models.enums.PlazoLiberacionMp;
 import com.asistiapp.backend.models.enums.ZonaComisionMp;
 import com.asistiapp.backend.repositories.OrganizadorRepository;
 import com.asistiapp.backend.repositories.UsuarioRepository;
+import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,7 @@ public class PerfilService {
     }
 
     @Transactional
+    @Auditable(accion = "EDITAR_PERFIL", entidad = "Organizador")
     public PerfilResponseDTO actualizarPerfil(Long idUsuario, PerfilRequestDTO dto) {
         Usuario usuario = getUsuarioOrThrow(idUsuario);
         String fotoAnterior = usuario.getFotoPerfilUrl();
@@ -46,6 +49,14 @@ public class PerfilService {
                 : dto.getFotoPerfilUrl().trim();
         if (foto != null) {
             validarFotoDeNuestroCloudinary(foto);
+        }
+        AuditoriaContexto.objetivo(usuario.getId(), dto.getNombre().trim());
+        AuditoriaContexto.cambio("Nombre", usuario.getNombre(), dto.getNombre().trim());
+        if (!java.util.Objects.equals(fotoAnterior, foto)) {
+            AuditoriaContexto.detalle(foto == null ? "Foto de perfil: quitada" : "Foto de perfil: modificada");
+        }
+        if (java.util.Objects.equals(usuario.getNombre(), dto.getNombre().trim()) && java.util.Objects.equals(fotoAnterior, foto)) {
+            AuditoriaContexto.detalle("Se guardó sin cambios.");
         }
         usuario.setNombre(dto.getNombre().trim());
         usuario.setFotoPerfilUrl(foto);
@@ -60,12 +71,16 @@ public class PerfilService {
 
     /** El Organizador fija cuántas entradas puede tener una misma persona para sus eventos; null vuelve al de la plataforma. */
     @Transactional
+    @Auditable(accion = "CAMBIAR_TOPE_COMPRADOR", entidad = "Organizador")
     public PerfilResponseDTO cambiarTopeComprador(Long idUsuario, Integer tope) {
         if (tope != null && (tope < 1 || tope > 100)) {
             throw new BusinessRuleException("El tope de entradas por comprador tiene que estar entre 1 y 100");
         }
         Organizador organizador = organizadorRepository.findById(idUsuario)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        AuditoriaContexto.objetivo(organizador.getId(), organizador.getNombre());
+        AuditoriaContexto.cambio("Entradas por comprador",
+                textoTope(organizador.getMaxEntradasPorComprador()), textoTope(tope));
         organizador.setMaxEntradasPorComprador(tope);
         organizadorRepository.save(organizador);
         return toResponseDTO(organizador);
@@ -76,6 +91,7 @@ public class PerfilService {
      * dígitos (código de país incluido) para armar el link wa.me; vacío en ambos borra el contacto.
      */
     @Transactional
+    @Auditable(accion = "CAMBIAR_CONTACTO", entidad = "Organizador")
     public PerfilResponseDTO cambiarContacto(Long idUsuario, String whatsapp, String email) {
         String wa = whatsapp == null ? "" : whatsapp.replaceAll("[\\s+()\\-.]", "");
         if (!wa.isEmpty() && !wa.matches("\\d{8,15}")) {
@@ -87,6 +103,9 @@ public class PerfilService {
         }
         Organizador organizador = organizadorRepository.findById(idUsuario)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        AuditoriaContexto.objetivo(organizador.getId(), organizador.getNombre());
+        AuditoriaContexto.cambio("WhatsApp de contacto", organizador.getContactoWhatsapp(), wa.isEmpty() ? null : wa);
+        AuditoriaContexto.cambio("Email de contacto", organizador.getContactoEmail(), mail.isEmpty() ? null : mail);
         organizador.setContactoWhatsapp(wa.isEmpty() ? null : wa);
         organizador.setContactoEmail(mail.isEmpty() ? null : mail);
         organizadorRepository.save(organizador);
@@ -99,6 +118,7 @@ public class PerfilService {
      * guarda su propio cargo.
      */
     @Transactional
+    @Auditable(accion = "CAMBIAR_COMISION_MP", entidad = "Organizador")
     public PerfilResponseDTO cambiarComisionMp(Long idUsuario, boolean trasladarAlComprador,
                                                PlazoLiberacionMp plazo, ZonaComisionMp zona) {
         if (plazo == null || zona == null) {
@@ -106,6 +126,12 @@ public class PerfilService {
         }
         Organizador organizador = organizadorRepository.findById(idUsuario)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
+        AuditoriaContexto.objetivo(organizador.getId(), organizador.getNombre());
+        AuditoriaContexto.cambio("Comisión de Mercado Pago",
+                organizador.isTrasladarCargoMp() ? "la paga el comprador" : "la absorbe el organizador",
+                trasladarAlComprador ? "la paga el comprador" : "la absorbe el organizador");
+        AuditoriaContexto.cambio("Plazo de liberación", textoPlazo(CargoServicioMp.plazoDe(organizador)), textoPlazo(plazo));
+        AuditoriaContexto.cambio("Zona", textoZona(CargoServicioMp.zonaDe(organizador)), textoZona(zona));
         organizador.setTrasladarCargoMp(trasladarAlComprador);
         organizador.setPlazoLiberacionMp(plazo);
         organizador.setZonaComisionMp(zona);
@@ -114,6 +140,7 @@ public class PerfilService {
     }
 
     @Transactional
+    @Auditable(accion = "CAMBIAR_PASSWORD_PROPIA", entidad = "Organizador")
     public void cambiarPassword(Long idUsuario, CambiarPasswordRequestDTO dto) {
         Usuario usuario = getUsuarioOrThrow(idUsuario);
         if (!passwordEncoder.matches(dto.getPasswordActual(), usuario.getPasswordHash())) {
@@ -124,6 +151,25 @@ public class PerfilService {
         }
         usuario.setPasswordHash(passwordEncoder.encode(dto.getPasswordNueva()));
         usuarioRepository.save(usuario);
+        AuditoriaContexto.objetivo(usuario.getId(), usuario.getNombre());
+        AuditoriaContexto.detalle("Cambió su propia contraseña.");
+    }
+
+    private static String textoPlazo(PlazoLiberacionMp plazo) {
+        return switch (plazo) {
+            case AlInstante -> "al instante";
+            case Dias10 -> "10 días";
+            case Dias18 -> "18 días";
+            case Dias35 -> "35 días";
+        };
+    }
+
+    private static String textoZona(ZonaComisionMp zona) {
+        return zona == ZonaComisionMp.General ? "general" : "Buenos Aires / Entre Ríos / Chubut";
+    }
+
+    private static String textoTope(Integer tope) {
+        return tope == null ? "el de la plataforma" : String.valueOf(tope);
     }
 
     private void validarFotoDeNuestroCloudinary(String url) {

@@ -2707,17 +2707,113 @@
         "tags": [
           "admin-auditoria-controller"
         ],
-        "operationId": "listarTodos_2",
+        "operationId": "listar_1",
+        "parameters": [
+          {
+            "name": "rol",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "Administrador",
+                  "Organizador",
+                  "Staff_QR",
+                  "Staff_Vendedor"
+                ]
+              }
+            }
+          },
+          {
+            "name": "idEmisor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "accion",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "idEntidad",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "desde",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "hasta",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagina",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "tamano",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "*/*": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/LogAuditoriaResponseDTO"
-                  }
+                  "$ref": "#/components/schemas/PaginaAuditoriaResponseDTO"
                 }
               }
             }
@@ -4378,9 +4474,21 @@
             "type": "integer",
             "format": "int64"
           },
-          "idAdmin": {
+          "idEmisor": {
             "type": "integer",
             "format": "int64"
+          },
+          "emisorNombre": {
+            "type": "string"
+          },
+          "emisorRol": {
+            "type": "string",
+            "enum": [
+              "Administrador",
+              "Organizador",
+              "Staff_QR",
+              "Staff_Vendedor"
+            ]
           },
           "accion": {
             "type": "string"
@@ -4392,12 +4500,42 @@
             "type": "integer",
             "format": "int64"
           },
+          "entidadNombre": {
+            "type": "string"
+          },
           "detalle": {
             "type": "string"
           },
           "fechaHora": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "PaginaAuditoriaResponseDTO": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LogAuditoriaResponseDTO"
+            }
+          },
+          "pagina": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "tamano": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalElementos": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "totalPaginas": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       }

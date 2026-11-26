@@ -8,6 +8,7 @@ import com.asistiapp.backend.models.entities.PaqueteCredito;
 import com.asistiapp.backend.models.enums.EstadoPaquete;
 import com.asistiapp.backend.repositories.PaqueteCreditoRepository;
 import com.asistiapp.backend.security.audit.Auditable;
+import com.asistiapp.backend.security.audit.AuditoriaContexto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,9 @@ public class AdminPaqueteCreditoService {
         mapDtoToPaquete(dto, paquete);
 
         PaqueteCredito saved = paqueteCreditoRepository.save(paquete);
+        AuditoriaContexto.objetivo(saved.getId(), saved.getNombre());
+        AuditoriaContexto.detalle(saved.getCantidadCreditos() + " créditos · "
+                + AuditoriaContexto.pesos(saved.getPrecio()));
         log.info("Paquete de crédito creado: id={}, nombre={}", saved.getId(), saved.getNombre());
         return toResponseDTO(saved);
     }
@@ -49,9 +53,17 @@ public class AdminPaqueteCreditoService {
     @Auditable(accion = "ACTUALIZAR_PAQUETE", entidad = "PaqueteCredito")
     public PaqueteCreditoResponseDTO actualizar(Long idPaquete, PaqueteCreditoRequestDTO dto) {
         PaqueteCredito paquete = getPaqueteOrThrow(idPaquete);
+        String nombreAntes = paquete.getNombre();
+        Integer creditosAntes = paquete.getCantidadCreditos();
+        String precioAntes = AuditoriaContexto.pesos(paquete.getPrecio());
         mapDtoToPaquete(dto, paquete);
 
         PaqueteCredito saved = paqueteCreditoRepository.save(paquete);
+        AuditoriaContexto.objetivo(saved.getId(), saved.getNombre());
+        AuditoriaContexto.cambios(
+                ordenado("Nombre", nombreAntes, "Créditos", creditosAntes, "Precio", precioAntes),
+                ordenado("Nombre", saved.getNombre(), "Créditos", saved.getCantidadCreditos(),
+                        "Precio", AuditoriaContexto.pesos(saved.getPrecio())));
         log.info("Paquete de crédito actualizado: id={}", idPaquete);
         return toResponseDTO(saved);
     }
@@ -65,6 +77,8 @@ public class AdminPaqueteCreditoService {
             throw new BusinessRuleException("El paquete ya está deshabilitado");
         }
 
+        AuditoriaContexto.objetivo(paquete.getId(), paquete.getNombre());
+        AuditoriaContexto.cambio("Estado", paquete.getEstado(), EstadoPaquete.Deshabilitado);
         paquete.setEstado(EstadoPaquete.Deshabilitado);
         PaqueteCredito saved = paqueteCreditoRepository.save(paquete);
         log.info("Paquete de crédito deshabilitado: id={}", idPaquete);
@@ -80,10 +94,21 @@ public class AdminPaqueteCreditoService {
             throw new BusinessRuleException("El paquete ya está activo");
         }
 
+        AuditoriaContexto.objetivo(paquete.getId(), paquete.getNombre());
+        AuditoriaContexto.cambio("Estado", paquete.getEstado(), EstadoPaquete.Activo);
         paquete.setEstado(EstadoPaquete.Activo);
         PaqueteCredito saved = paqueteCreditoRepository.save(paquete);
         log.info("Paquete de crédito habilitado: id={}", idPaquete);
         return toResponseDTO(saved);
+    }
+
+    /** Mapa con las claves en el orden dado (Map.of no conserva orden). */
+    private static java.util.Map<String, Object> ordenado(Object... claveValor) {
+        java.util.Map<String, Object> mapa = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < claveValor.length; i += 2) {
+            mapa.put((String) claveValor[i], claveValor[i + 1]);
+        }
+        return mapa;
     }
 
     private PaqueteCredito getPaqueteOrThrow(Long idPaquete) {
