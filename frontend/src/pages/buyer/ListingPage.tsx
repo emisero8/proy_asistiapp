@@ -57,7 +57,7 @@ const EN_CARRUSEL = 6;
 const EN_GRILLA = 8;
 
 const TICKER_ITEMS = [
-  "Sin comisión para el organizador",
+  "Sin comisión de AsistíAPP por venta",
   "Entradas 100% digitales",
   "Validación QR en la puerta",
   "Sin filas, sin papel",

@@ -299,6 +299,11 @@ public class EventoService {
         if (evento.estaCerrado()) {
             throw new BusinessRuleException("El evento ya finalizó: no se puede cancelar.");
         }
+        // Con la fiesta en marcha, cancelar dejaría afuera a quien ya compró: solo lo puede hacer el Admin.
+        if (evento.getEstado() == EstadoEvento.Publicado && evento.yaComenzo()) {
+            throw new BusinessRuleException(
+                    "El evento ya comenzó: no lo podés cancelar. Si hubo una emergencia, pedíselo al Administrador.");
+        }
 
         AuditoriaContexto.objetivo(evento.getId(), evento.getNombre());
         AuditoriaContexto.cambio("Estado", evento.getEstado(), EstadoEvento.Cancelado);
@@ -463,6 +468,7 @@ public class EventoService {
                 .fechaCreacion(evento.getFechaCreacion())
                 .fechaPublicacion(evento.getFechaPublicacion())
                 .fechaCancelacion(evento.getFechaCancelacion())
+                .comenzado(evento.yaComenzo())
                 .finalizado(evento.yaFinalizo())
                 .tandas(tandaResponses)
                 .build();

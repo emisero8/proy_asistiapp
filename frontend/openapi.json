@@ -3137,6 +3137,9 @@
             "type": "string",
             "format": "date-time"
           },
+          "comenzado": {
+            "type": "boolean"
+          },
           "finalizado": {
             "type": "boolean"
           },

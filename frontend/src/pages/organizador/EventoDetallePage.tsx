@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Alert, Button, Card, EmptyState, ErrorState, Input, PageHeader, Skeleton, StatCard, StatusBadge, claseBoton } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
-import { estadoVisibleEvento, eventoCerrado } from "../../lib/estados";
+import { estadoVisibleEvento, eventoCerrado, organizadorPuedeCancelar } from "../../lib/estados";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -398,9 +398,11 @@ export function OrganizadorEventoDetallePage() {
                   <Button size="sm" leftIcon={<Pencil size={15} />} onClick={() => navigate(`/organizador/eventos/${evento.id}/editar`)}>
                     Editar
                   </Button>
-                  <Button variant="secondary" size="sm" leftIcon={<Ban size={15} />} loading={cancelando} onClick={cancelarEvento}>
-                    Cancelar evento
-                  </Button>
+                  {organizadorPuedeCancelar(evento) && (
+                    <Button variant="secondary" size="sm" leftIcon={<Ban size={15} />} loading={cancelando} onClick={cancelarEvento}>
+                      Cancelar evento
+                    </Button>
+                  )}
                 </>
               )}
               {evento.estado === "Borrador" && (
@@ -418,6 +420,12 @@ export function OrganizadorEventoDetallePage() {
       {eventoCerrado(evento) && (
         <Alert tone="info" title="Este evento finalizó.">
           Ya no se puede editar ni cancelar, y sus entradas no sirven para ingresar. Las ventas y el listado quedan para consulta.
+        </Alert>
+      )}
+
+      {evento.estado === "Publicado" && evento.comenzado && !evento.finalizado && (
+        <Alert tone="info" title="Este evento ya comenzó.">
+          Ya no lo podés cancelar. Si hubo una emergencia, pedíselo al Administrador.
         </Alert>
       )}
 

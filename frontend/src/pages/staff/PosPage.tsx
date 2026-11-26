@@ -388,7 +388,7 @@ export function StaffPosPage() {
               options={evento.tandas.map((t) => ({
                 value: t.id,
                 label: t.nombre,
-                description: t.cupoDisponible === 0 ? "Agotada" : `${t.cupoDisponible} disponibles`,
+                description: t.cupoDisponible === 0 ? "Agotada" : `${t.cupoDisponible} ${t.cupoDisponible === 1 ? "disponible" : "disponibles"}`,
                 aside: <span className="text-sm font-bold tabular-nums text-foreground">{fmt(t.precio)}</span>,
                 disabled: t.cupoDisponible === 0,
               }))}

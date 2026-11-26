@@ -36,7 +36,7 @@ const EVENTO: EventoResponseDTO = {
   fechaCreacion: "2026-01-01T00:00:00",
   fechaPublicacion: "2026-01-02T00:00:00",
   fechaCancelacion: null,
-  finalizado: false,
+  comenzado: false, finalizado: false,
   tandas: [],
 };
 
@@ -214,6 +214,16 @@ describe("OrganizadorEventoDetallePage — render", () => {
     expect(screen.queryByRole("button", { name: "Editar" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancelar evento" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Ver página pública" })).not.toBeInTheDocument();
+  });
+
+  it("un evento que ya comenzó se puede editar pero no cancelar, y explica a quién pedírselo", async () => {
+    mockGets({ ...EVENTO, comenzado: true });
+    renderPage();
+    await screen.findByRole("heading", { name: "Festival de Jazz" });
+
+    expect(screen.getByRole("button", { name: "Editar" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancelar evento" })).not.toBeInTheDocument();
+    expect(screen.getByText(/pedíselo al Administrador/)).toBeInTheDocument();
   });
 
   it("muestra el mensaje del backend si no se puede cargar el evento", async () => {

@@ -184,6 +184,8 @@ export interface EventoResponseDTO {
   fechaPublicacion: string | null;
   fechaCancelacion: string | null;
   /** Pasaron 12 horas desde el inicio. Lo decide el backend: no se recalcula con la hora del navegador. */
+  /** Llegó la hora de inicio: publicado así, el Organizador ya no lo puede cancelar. */
+  comenzado: boolean;
   finalizado: boolean;
   tandas: TandaResponseDTO[];
 }

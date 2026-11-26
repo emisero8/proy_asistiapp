@@ -36,6 +36,9 @@ public class EventoResponseDTO {
     private LocalDateTime fechaPublicacion;
     private LocalDateTime fechaCancelacion;
 
+    /** Llegó la hora de inicio (Evento.yaComenzo): publicado así, el Organizador ya no lo puede cancelar. */
+    private boolean comenzado;
+
     /** Pasaron las horas de gracia desde el inicio (Evento.yaFinalizo): publicado así, es solo historial. */
     private boolean finalizado;
 

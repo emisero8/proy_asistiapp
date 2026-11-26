@@ -114,6 +114,20 @@ class AdminEventoServiceTest {
     }
 
     @Test
+    void cancelarEvento_yaComenzadoPeroSinFinalizar_elAdminSiPuede() {
+        java.time.LocalDateTime inicio = java.time.LocalDateTime.now().minusHours(1);
+        evento.setFechaEvento(inicio.toLocalDate());
+        evento.setHoraEvento(inicio.toLocalTime());
+        when(eventoRepository.findById(50L)).thenReturn(Optional.of(evento));
+        when(eventoRepository.save(any(Evento.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(eventoService.toResponseDTO(any(Evento.class))).thenReturn(EventoResponseDTO.builder().build());
+
+        adminEventoService.cancelarEvento(50L);
+
+        assertThat(evento.getEstado()).isEqualTo(EstadoEvento.Cancelado);
+    }
+
+    @Test
     void eliminarEvento_conEntradasVendidas_lanzaBusinessRuleExceptionYNoElimina() {
         when(eventoRepository.findById(50L)).thenReturn(Optional.of(evento));
         when(entradaRepository.countByEventoId(50L)).thenReturn(3L);

@@ -168,6 +168,10 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 - La compra de créditos usa el mismo mecanismo de MercadoPago que las entradas (misma preferencia y webhook firmado; las órdenes se distinguen por su `external_reference`). Con el pago verificado se registran la transacción y el movimiento y se actualiza el saldo, exactamente una vez.
 - Un evento con compras en curso no se puede borrar.
 
+### Cancelar un evento
+
+- El Organizador puede cancelar su evento hasta la **hora de inicio**. Uno publicado que ya comenzó (`comenzado` en el DTO) solo lo cancela el `Administrador`, hasta que finaliza.
+
 ### Evento finalizado
 
 - **Finalizó:** pasaron 12 horas desde el inicio (`Evento.HORAS_HASTA_FINALIZAR`; los eventos no tienen hora de fin). Hasta entonces se vende (online y en puerta), se emiten entradas, el evento está en el catálogo y la ventana de venta de una tanda puede llegar hasta ese momento. Desde que finaliza, nada de eso; y si estaba publicado, ya no se puede editar, cancelar ni cambiar sus tandas (tampoco el Admin, que sí puede eliminarlo), anular una entrada no devuelve créditos, el QR no permite ingresar y no se le puede asignar staff. Las ventas, métricas, listados y reembolsos siguen disponibles, y su página pública se muestra como "Evento finalizado".

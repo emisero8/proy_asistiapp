@@ -454,7 +454,7 @@ function FilaAuditoria({
           {info.etiqueta}
         </Badge>
       </td>
-      <td className="order-2 basis-full text-sm lg:table-cell lg:min-w-52 lg:px-4 lg:py-3.5 lg:align-top">
+      <td className="order-2 basis-full text-sm lg:table-cell lg:min-w-28 lg:px-4 lg:py-3.5 lg:align-top">
         <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground lg:hidden">Emisor · </span>
         <NombreFiltrable onClick={() => onEmisor(log)} titulo={`Ver solo lo que hizo ${emisor}`}>
           {emisor}
@@ -468,7 +468,7 @@ function FilaAuditoria({
           </span>
         )}
       </td>
-      <td className="order-3 basis-full text-sm lg:table-cell lg:min-w-60 lg:px-4 lg:py-3.5 lg:align-top">
+      <td className="order-3 basis-full text-sm lg:table-cell lg:min-w-32 lg:px-4 lg:py-3.5 lg:align-top">
         <span className="text-2xs font-semibold uppercase tracking-wider text-muted-foreground lg:hidden">Sobre · </span>
         {nombre && log.idEntidadAfectada != null ? (
           <NombreFiltrable onClick={() => onRegistro(log)} titulo={`Ver todo lo que pasó con ${nombre}`}>
@@ -482,12 +482,12 @@ function FilaAuditoria({
         <Id id={log.idEntidadAfectada} />
         <span className="block text-xs text-muted-foreground lg:mt-0.5">{etiquetaEntidad(log.entidadAfectada)}</span>
       </td>
-      <td className="order-4 basis-full lg:table-cell lg:px-5 lg:py-3.5 lg:align-top">
+      <td className="order-4 basis-full lg:table-cell lg:min-w-36 lg:px-5 lg:py-3.5 lg:align-top">
         {lineas.length > 0 ? (
           <ul className="space-y-0.5 rounded-lg bg-surface-sunken px-3 py-2 text-xs text-muted-foreground lg:bg-transparent lg:p-0">
             {lineas.map((linea, i) => (
               // El detalle es inmutable y puede repetir una línea: el índice es estable acá.
-              <li key={`${i}-${linea}`} className="break-words">
+              <li key={`${i}-${linea}`} className="wrap-anywhere">
                 <Linea texto={linea} />
               </li>
             ))}

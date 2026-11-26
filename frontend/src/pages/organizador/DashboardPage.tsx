@@ -7,7 +7,7 @@ import { Button, Card, EmptyState, ErrorState, Input, Menu, PageHeader, SelectMe
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { cn } from "../../lib/cn";
-import { estadoVisibleEvento, eventoCerrado, type EstadoEventoVisible } from "../../lib/estados";
+import { estadoVisibleEvento, eventoCerrado, organizadorPuedeCancelar, type EstadoEventoVisible } from "../../lib/estados";
 import { fmt, formatFecha } from "../../lib/format";
 import type { EventoResponseDTO, ResumenOrganizadorResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -285,8 +285,10 @@ function FilaEvento({ evento: ev, cancelando, onEditar, onVerPublica, onCancelar
     ...(ev.estado !== "Cancelado" && !cerrado
       ? [
           { label: "Editar", icon: Pencil, onSelect: onEditar },
-          { label: "Cancelar evento", icon: Ban, onSelect: onCancelar, tone: "danger" as const, separatorBefore: true },
         ]
+      : []),
+    ...(organizadorPuedeCancelar(ev)
+      ? [{ label: "Cancelar evento", icon: Ban, onSelect: onCancelar, tone: "danger" as const, separatorBefore: true }]
       : []),
   ];
 

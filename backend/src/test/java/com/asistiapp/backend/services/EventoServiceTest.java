@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -388,6 +389,22 @@ class EventoServiceTest {
         assertThatThrownBy(() -> eventoService.cancelarEvento(evento.getId(), ID_ORGANIZADOR))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("ya finalizó");
+        assertThat(evento.getEstado()).isEqualTo(EstadoEvento.Publicado);
+        verifyNoInteractions(creditoLedgerService);
+        verify(eventoRepository, never()).save(any());
+    }
+
+    @Test
+    void cancelarEvento_publicadoYaComenzado_elOrganizadorNoPuede() {
+        evento.setEstado(EstadoEvento.Publicado);
+        LocalDateTime inicio = LocalDateTime.now().minusHours(1);
+        evento.setFechaEvento(inicio.toLocalDate());
+        evento.setHoraEvento(inicio.toLocalTime());
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> eventoService.cancelarEvento(evento.getId(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("ya comenzó");
         assertThat(evento.getEstado()).isEqualTo(EstadoEvento.Publicado);
         verifyNoInteractions(creditoLedgerService);
         verify(eventoRepository, never()).save(any());
