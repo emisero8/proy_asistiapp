@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ClipboardCheck } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -83,6 +83,11 @@ export function StaffLoginPage() {
           Ingresar
         </Button>
       </form>
+      <p className="mt-5 text-center text-sm">
+        <Link to="/ayuda/staff" className="font-semibold text-primary underline underline-offset-4">
+          ¿Cómo vender o escanear? Ver la guía
+        </Link>
+      </p>
     </AuthLayout>
   );
 }

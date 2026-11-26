@@ -19,6 +19,7 @@ export function OrganizadorLayout() {
 
   return (
     <AppShell
+      ayudaTo="/ayuda/organizadores"
       nav={NAV}
       mobileNav={MOBILE_NAV}
       usuario={{
