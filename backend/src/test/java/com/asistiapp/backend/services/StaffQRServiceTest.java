@@ -9,6 +9,7 @@ import com.asistiapp.backend.models.entities.Evento;
 import com.asistiapp.backend.models.entities.StaffQR;
 import com.asistiapp.backend.models.entities.Tanda;
 import com.asistiapp.backend.models.enums.EstadoEntrada;
+import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -154,6 +155,22 @@ class StaffQRServiceTest {
         assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Pagada);
         verify(entradaRepository, never()).save(any());
         assertThat(staffQRService.consultarEstadoQR(entrada.getCodigoQr(), staffQR).getMensaje()).contains("finalizó");
+    }
+
+    @Test
+    void validarQR_conElEventoCancelado_rechazaSinMarcarLaEntrada() {
+        entrada.getTanda().getEvento().setEstado(EstadoEvento.Cancelado);
+        when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
+        ValidacionQRRequestDTO dto = new ValidacionQRRequestDTO();
+        dto.setCodigoQr(entrada.getCodigoQr());
+
+        ValidacionQRResponseDTO response = staffQRService.validarQR(dto, staffQR);
+
+        assertThat(response.isValido()).isFalse();
+        assertThat(response.getMensaje()).contains("EVENTO CANCELADO");
+        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Pagada);
+        verify(entradaRepository, never()).save(any());
+        assertThat(staffQRService.consultarEstadoQR(entrada.getCodigoQr(), staffQR).getMensaje()).contains("cancelado");
     }
 
     @Test

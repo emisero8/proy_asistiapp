@@ -36,7 +36,6 @@ const EVENTO: EventoResponseDTO = {
   fechaCreacion: "2026-01-01T00:00:00",
   fechaPublicacion: "2026-01-02T00:00:00",
   fechaCancelacion: null,
-  comenzado: false,
   finalizado: false,
   tandas: [],
 };
@@ -61,7 +60,7 @@ function entrada(id: number, nombre: string, extra: Partial<EntradaResponseDTO> 
     idTanda: 11,
     idEvento: 5,
     nombreEvento: "Festival de Jazz",
-    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null, eventoFinalizado: false,
+    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null, eventoFinalizado: false, eventoCancelado: false,
     nombreTanda: "Anticipada",
     precioTanda: 5000,
     codigoQr: `QR-${id}`,

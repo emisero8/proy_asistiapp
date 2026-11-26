@@ -94,17 +94,15 @@ public class Evento {
     /** Un evento no tiene hora de fin: se da por finalizado pasadas estas horas desde que empieza. */
     public static final int HORAS_HASTA_FINALIZAR = 12;
 
-    /**
-     * Llegó (o pasó) la fecha y hora de inicio: desde acá no se venden ni emiten entradas y el evento
-     * deja de ofrecerse en el catálogo. Un evento sin fecha u hora todavía no comenzó.
-     */
+    /** Llegó (o pasó) la fecha y hora de inicio. Un evento sin fecha u hora todavía no comenzó. */
     public boolean yaComenzo() {
         return pasaron(0);
     }
 
     /**
      * Pasaron {@value #HORAS_HASTA_FINALIZAR} horas desde el inicio. Única definición de "finalizado": el
-     * frontend no la recalcula, la recibe en los DTO. Hasta entonces el escáner sigue validando.
+     * frontend no la recalcula, la recibe en los DTO. Hasta entonces se siguen vendiendo y emitiendo
+     * entradas, el evento está en el catálogo y el escáner valida.
      */
     public boolean yaFinalizo() {
         return pasaron(HORAS_HASTA_FINALIZAR);
@@ -116,6 +114,14 @@ public class Evento {
      */
     public boolean estaCerrado() {
         return estado == EstadoEvento.Publicado && yaFinalizo();
+    }
+
+    /** Cuándo finaliza: el inicio más {@value #HORAS_HASTA_FINALIZAR} horas; null sin fecha u hora. */
+    public LocalDateTime fin() {
+        if (fechaEvento == null || horaEvento == null) {
+            return null;
+        }
+        return LocalDateTime.of(fechaEvento, horaEvento).plusHours(HORAS_HASTA_FINALIZAR);
     }
 
     private boolean pasaron(int horas) {

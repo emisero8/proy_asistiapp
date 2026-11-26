@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizadorWizardPage, validarTandaContraEvento } from "./WizardPage";
+import { cierreDeVenta } from "../../lib/tandas";
 import { api, ApiError } from "../../lib/api";
 import type { MovimientoCreditoResponseDTO } from "../../lib/types";
 import { elegirFecha, elegirHora } from "../../testing/pickers";
@@ -447,7 +448,7 @@ describe("OrganizadorWizardPage — paso 2 (tandas y publicación)", () => {
     await user.click(screen.getByRole("button", { name: "Publicar evento" }));
 
     await screen.findByText("¡Evento publicado!");
-    expect(api.post).toHaveBeenLastCalledWith("/eventos/77/tandas", expect.objectContaining({ fechaFinVigencia: `${FECHA_EVENTO}T21:00:00` }));
+    expect(api.post).toHaveBeenLastCalledWith("/eventos/77/tandas", expect.objectContaining({ fechaFinVigencia: cierreDeVenta(FECHA_EVENTO, FECHA_EVENTO, "21:00") }));
   });
 
   it("si la publicación falla (ej. saldo insuficiente en el backend) muestra el error y no muestra éxito", async () => {

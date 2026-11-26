@@ -62,11 +62,11 @@ describe("DetailPage", () => {
     expect(screen.queryByRole("button", { name: /Comprar|Venta cerrada/ })).not.toBeInTheDocument();
   });
 
-  it("un evento que ya empezó (sin finalizar) muestra la venta cerrada", async () => {
+  it("un evento que ya empezó pero no finalizó se sigue vendiendo", async () => {
     renderDetalle({ ...EVENTO_BASE, fechaEvento: "2020-01-01", finalizado: false, tandas: [tanda(1, "General", 12000, 50)] });
-    expect(await screen.findByText("Este evento ya comenzó: la venta de entradas está cerrada.")).toBeInTheDocument();
+    expect(await screen.findByText("Entradas disponibles")).toBeInTheDocument();
     expect(screen.queryByText("Evento finalizado")).not.toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Venta cerrada" })[0]).toBeDisabled();
+    expect(screen.getAllByRole("button", { name: "Comprar entradas" })[0]).toBeEnabled();
   });
 
   it("un evento sin tandas muestra que no hay entradas a la venta (no se queda cargando)", async () => {

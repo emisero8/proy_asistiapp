@@ -183,8 +183,6 @@ export interface EventoResponseDTO {
   fechaCreacion: string;
   fechaPublicacion: string | null;
   fechaCancelacion: string | null;
-  /** Ya llegó la hora de inicio: no se venden ni emiten entradas. */
-  comenzado: boolean;
   /** Pasaron 12 horas desde el inicio. Lo decide el backend: no se recalcula con la hora del navegador. */
   finalizado: boolean;
   tandas: TandaResponseDTO[];
@@ -262,6 +260,8 @@ export interface EntradaResponseDTO {
   imagenPortadaUrl: string | null;
   /** El evento ya finalizó: la entrada no sirve más para ingresar. */
   eventoFinalizado: boolean;
+  /** El evento se canceló: la entrada no sirve para ingresar. */
+  eventoCancelado: boolean;
   nombreTanda: string;
   precioTanda: number;
   codigoQr: string;

@@ -161,9 +161,12 @@ export function MiEntradaPage() {
   const usada = entrada.estado === "Usada";
   // Anulada por el Organizador (8.6): ya no sirve para entrar, aunque el QR siga existiendo.
   const anulada = entrada.estado === "Anulada";
+  const cancelado = entrada.eventoCancelado;
   const finalizado = entrada.eventoFinalizado;
-  // Usada, anulada o de un evento terminado: el QR ya no sirve para entrar.
-  const inactiva = usada || anulada || finalizado;
+  // Con el evento cancelado o terminado no queda nada para descargar ni compartir.
+  const sinEvento = cancelado || finalizado;
+  // Usada, anulada o sin evento: el QR ya no sirve para entrar.
+  const inactiva = usada || anulada || sinEvento;
 
   return (
     <div className="min-h-dvh bg-background">
@@ -182,7 +185,12 @@ export function MiEntradaPage() {
           </Alert>
         )}
 
-        {finalizado && !anulada && !usada && (
+        {cancelado && !anulada && !usada && (
+          <Alert tone="danger" title="El evento fue cancelado">
+            Esta entrada ya no sirve para ingresar. Por la devolución del pago, contactá al Organizador.
+          </Alert>
+        )}
+        {finalizado && !cancelado && !anulada && !usada && (
           <Alert tone="info" title="El evento ya finalizó">
             Esta entrada ya no sirve para ingresar.
           </Alert>
@@ -197,14 +205,14 @@ export function MiEntradaPage() {
             {/* Portada: la imagen del evento con overlay oscuro; si no tiene, un degradé de la marca con patrón. */}
             <div className="relative flex h-48 flex-col justify-between overflow-hidden px-5 pb-5 pt-4 text-white" style={entrada.imagenPortadaUrl ? undefined : PORTADA_SIN_IMAGEN}>
               {entrada.imagenPortadaUrl ? (
-                <img src={entrada.imagenPortadaUrl} alt="" className={`absolute inset-0 size-full object-cover ${finalizado ? "grayscale" : ""}`} />
+                <img src={entrada.imagenPortadaUrl} alt="" className={`absolute inset-0 size-full object-cover ${sinEvento ? "grayscale" : ""}`} />
               ) : (
                 <Ticket aria-hidden="true" size={150} strokeWidth={1} className="absolute -right-6 top-10 rotate-[-14deg] text-accent/25" />
               )}
               <div aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/85 via-black/35 to-black/10" />
               <div className="relative flex items-start justify-between gap-3">
                 <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-white/85">Pase digital</p>
-                <EstadoChip usada={usada} anulada={anulada} finalizado={finalizado} />
+                <EstadoChip usada={usada} anulada={anulada} cancelado={cancelado} finalizado={finalizado} />
               </div>
               <h1 className="relative font-display text-[26px] font-extrabold leading-[1.05] tracking-[-0.02em] [overflow-wrap:anywhere] [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">
                 {entrada.nombreEvento}
@@ -263,7 +271,7 @@ export function MiEntradaPage() {
 
         {/* Acciones */}
         <div className="space-y-3">
-          {!finalizado && (
+          {!sinEvento && (
             <>
               <Button variant="accent" block leftIcon={<Download size={16} />} disabled={descargando} onClick={() => descargar(entrada, qrImageUrl)}>
                 {descargando ? "Generando imagen…" : "Descargar entrada"}
@@ -275,8 +283,8 @@ export function MiEntradaPage() {
               )}
             </>
           )}
-          <div className={finalizado ? "grid gap-3" : "grid grid-cols-2 gap-3"}>
-            {!finalizado && (
+          <div className={sinEvento ? "grid gap-3" : "grid grid-cols-2 gap-3"}>
+            {!sinEvento && (
               <Button variant="secondary" leftIcon={linkCopiado ? <Check size={16} /> : <Share2 size={16} />} onClick={() => compartir(entrada)}>
                 {linkCopiado ? "Link copiado ✓" : "Compartir"}
               </Button>
@@ -332,14 +340,16 @@ function CampoChico({ label, children, mono }: { label: string; children: ReactN
  * Estado sobre la portada: fondo sólido del color del estado con texto oscuro y un punto,
  * así se lee sobre cualquier imagen (los colores son fijos: la portada siempre es oscura).
  */
-function EstadoChip({ usada, anulada, finalizado }: { usada: boolean; anulada: boolean; finalizado: boolean }) {
+function EstadoChip({ usada, anulada, cancelado, finalizado }: { usada: boolean; anulada: boolean; cancelado: boolean; finalizado: boolean }) {
   const { texto, caja } = anulada
     ? { texto: "Anulada", caja: "bg-[#f87171] text-[#2a0707]" }
     : usada
       ? { texto: "Usada", caja: "bg-[#d6d4cc] text-[#141311]" }
-      : finalizado
-        ? { texto: "Finalizado", caja: "bg-[#d6d4cc] text-[#141311]" }
-        : { texto: "Válida", caja: "bg-[#6ee7a4] text-[#05200f]" };
+      : cancelado
+        ? { texto: "Cancelado", caja: "bg-[#f87171] text-[#2a0707]" }
+        : finalizado
+          ? { texto: "Finalizado", caja: "bg-[#d6d4cc] text-[#141311]" }
+          : { texto: "Válida", caja: "bg-[#6ee7a4] text-[#05200f]" };
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ${caja}`}>
       <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />

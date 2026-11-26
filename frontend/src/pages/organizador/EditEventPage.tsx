@@ -5,6 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { estadoVisibleEvento, eventoCerrado } from "../../lib/estados";
 import { fmt, hoyLocal } from "../../lib/format";
+import { cierreDeVenta } from "../../lib/tandas";
 import type { Coords } from "../../components/EventMap";
 import { Alert, Button, Card, ErrorState, PageHeader, Skeleton, StatusBadge } from "../../components/ui";
 import { DatosEventoCampos, TandaCard } from "./EventoFormCampos";
@@ -29,7 +30,9 @@ function toTandaFecha(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";
 }
 
-function tandaFromResponse(t: TandaResponseDTO): EditTanda {
+function tandaFromResponse(t: TandaResponseDTO, fechaEvento: string): EditTanda {
+  // "Hasta que termine el evento" puede guardarse con fecha del día siguiente: en el formulario es el día del evento.
+  const hasta = toTandaFecha(t.fechaFinVigencia);
   return {
     id: t.id,
     nombre: t.nombre,
@@ -37,7 +40,7 @@ function tandaFromResponse(t: TandaResponseDTO): EditTanda {
     cupoMaximo: String(t.cupoMaximo),
     cupoDisponible: t.cupoDisponible,
     desde: toTandaFecha(t.fechaInicioVigencia),
-    hasta: toTandaFecha(t.fechaFinVigencia),
+    hasta: hasta > fechaEvento ? fechaEvento : hasta,
     soloEmision: t.soloEmision,
   };
 }
@@ -83,7 +86,7 @@ export function OrganizadorEditEventPage() {
     setVenue(ev.lugar);
     setCoords(ev.latitud != null && ev.longitud != null ? { lat: ev.latitud, lng: ev.longitud } : null);
     setImg(ev.imagenPortadaUrl ?? "");
-    setTandas(ev.tandas.map(tandaFromResponse));
+    setTandas(ev.tandas.map((t) => tandaFromResponse(t, ev.fechaEvento)));
   }
 
   useEffect(() => {
@@ -179,14 +182,13 @@ export function OrganizadorEditEventPage() {
   }
 
   function tandaDto(t: EditTanda): TandaRequestDTO {
-    const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
     return {
       nombre: t.nombre.trim(),
       precio: t.soloEmision ? 0 : Number(t.precio),
       cupoMaximo: Number(t.cupoMaximo),
       ...(t.soloEmision ? { soloEmision: true } : {}),
       fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
-      fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
+      fechaFinVigencia: t.hasta ? cierreDeVenta(t.hasta, date, time) : undefined,
     };
   }
 

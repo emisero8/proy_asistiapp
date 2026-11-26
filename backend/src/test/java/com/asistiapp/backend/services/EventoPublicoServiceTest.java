@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -90,18 +91,20 @@ class EventoPublicoServiceTest {
 
     @Test
     void listarPublicados_eventoYaPasado_seExcluye() {
-        Evento pasado = evento(2L, LocalDate.now().minusDays(1), LocalTime.of(21, 0));
+        Evento pasado = evento(2L, LocalDate.now().minusDays(2), LocalTime.of(21, 0));
         when(eventoRepository.findByEstado(EstadoEvento.Publicado)).thenReturn(List.of(pasado));
 
         assertThat(eventoPublicoService.listarPublicados()).isEmpty();
     }
 
     @Test
-    void listarPublicados_eventoHoyPeroHoraYaPaso_seExcluye() {
-        Evento hoyTemprano = evento(3L, LocalDate.now(), LocalTime.MIDNIGHT);
-        when(eventoRepository.findByEstado(EstadoEvento.Publicado)).thenReturn(List.of(hoyTemprano));
+    void listarPublicados_eventoEnCurso_seSigueOfreciendo() {
+        LocalDateTime haceUnRato = LocalDateTime.now().minusHours(1);
+        Evento enCurso = evento(3L, haceUnRato.toLocalDate(), haceUnRato.toLocalTime());
+        enCurso.setTandas(List.of());
+        when(eventoRepository.findByEstado(EstadoEvento.Publicado)).thenReturn(List.of(enCurso));
 
-        assertThat(eventoPublicoService.listarPublicados()).isEmpty();
+        assertThat(eventoPublicoService.listarPublicados()).hasSize(1);
     }
 
     @Test

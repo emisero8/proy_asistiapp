@@ -28,7 +28,6 @@ const EVENTO = {
   fechaCreacion: "2026-01-01T00:00:00",
   fechaPublicacion: "2026-01-02T00:00:00",
   fechaCancelacion: null,
-  comenzado: false,
   finalizado: false,
   tandas: [{ id: 1, idEvento: 7, nombre: "General", precio: 1000, cupoMaximo: 100, cupoDisponible: 90, fechaInicioVigencia: null, fechaFinVigencia: null }],
 } as EventoResponseDTO;
@@ -61,7 +60,7 @@ async function abrirCancelar(user: ReturnType<typeof userEvent.setup>) {
 
 describe("AdminEventsPage — evento finalizado", () => {
   it("se muestra como Finalizado y solo se puede eliminar", async () => {
-    vi.mocked(api.get).mockResolvedValue([{ ...EVENTO, comenzado: true, finalizado: true }]);
+    vi.mocked(api.get).mockResolvedValue([{ ...EVENTO, finalizado: true }]);
     const user = userEvent.setup();
     renderPage();
 

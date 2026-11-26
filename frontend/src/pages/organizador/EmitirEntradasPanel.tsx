@@ -61,7 +61,7 @@ export function EmitirEntradasPanel({ evento, onEmitidas }: Props) {
     if (idTanda !== null && !tandas.some((t) => t.id === idTanda && t.cupoDisponible > 0)) setIdTanda(null);
   }, [tandas, idTanda]);
 
-  if (evento.estado !== "Publicado" || evento.comenzado) return null;
+  if (evento.estado !== "Publicado" || evento.finalizado) return null;
 
   const cupo = tanda?.cupoDisponible ?? 0;
   const n = Number(cantidad);

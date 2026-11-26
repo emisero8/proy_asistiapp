@@ -41,6 +41,14 @@ function renderEntrada(entrada: EntradaResponseDTO) {
 describe("MiEntradaPage", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it("con el evento cancelado lo dice y la entrada no figura como válida", async () => {
+    renderEntrada({ ...BASE, eventoCancelado: true });
+    expect(await screen.findByText("El evento fue cancelado")).toBeInTheDocument();
+    expect(screen.getByText("Cancelado")).toBeInTheDocument();
+    expect(screen.queryByText("Válida")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Descargar entrada/ })).not.toBeInTheDocument();
+  });
+
   it("con el evento finalizado la entrada ya no figura como válida ni se descarga o comparte", async () => {
     renderEntrada({ ...BASE, eventoFinalizado: true });
     expect(await screen.findByText("El evento ya finalizó")).toBeInTheDocument();

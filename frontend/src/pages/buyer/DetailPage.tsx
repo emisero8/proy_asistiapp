@@ -104,17 +104,15 @@ export function DetailPage() {
   const sel = evento.tandas.find((t) => t.id === selId) ?? evento.tandas[0];
   const maxPorCompra = Math.max(1, Math.min(sel.cupoDisponible || 1, evento.maxEntradasPorCompra ?? 6));
   const qtyEfectivo = Math.min(qty, maxPorCompra);
-  // "Finalizado" lo decide el backend. La venta cierra antes, a la hora de inicio: el backend ya la
-  // rechaza (VentaService.validarEventoVendible); acá solo evitamos que el comprador llegue a intentarlo.
+  // "Finalizado" lo decide el backend; hasta entonces se vende, aunque el evento ya haya empezado.
   const finalizado = evento.finalizado;
-  const ventaCerrada = finalizado || new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
   const estadoSel = estadoVentaTanda(sel);
-  const hayDisponibles = !ventaCerrada && evento.tandas.some((t) => estadoVentaTanda(t) === "abierta");
-  const puedeComprar = !ventaCerrada && estadoSel === "abierta";
+  const hayDisponibles = !finalizado && evento.tandas.some((t) => estadoVentaTanda(t) === "abierta");
+  const puedeComprar = !finalizado && estadoSel === "abierta";
   // Con la comisión de Mercado Pago trasladada al comprador, el total ya incluye el cargo (desglosado en el checkout).
   const { cargo, total } = desglosePedido(sel.precio, sel.cargoServicio, qtyEfectivo);
-  const textoBoton = ventaCerrada
-    ? "Venta cerrada"
+  const textoBoton = finalizado
+    ? "Evento finalizado"
     : estadoSel === "abierta"
       ? "Comprar entradas"
       : estadoSel === "proximamente"
@@ -129,9 +127,7 @@ export function DetailPage() {
 
   const estadoChip = finalizado
     ? "Evento finalizado"
-    : ventaCerrada
-      ? "Venta cerrada"
-      : hayDisponibles
+    : hayDisponibles
         ? "Entradas disponibles"
         : "Sin entradas disponibles";
 
@@ -190,8 +186,7 @@ export function DetailPage() {
           </header>
 
           {finalizado && <Alert tone="warning">Este evento ya finalizó: no se pueden comprar entradas.</Alert>}
-          {!finalizado && ventaCerrada && <Alert tone="warning">Este evento ya comenzó: la venta de entradas está cerrada.</Alert>}
-          {!ventaCerrada && !hayDisponibles && <Alert tone="warning">{mensajeSinVenta(evento.tandas)}</Alert>}
+          {!finalizado && !hayDisponibles && <Alert tone="warning">{mensajeSinVenta(evento.tandas)}</Alert>}
 
           {evento.descripcion && (
             <section>
@@ -228,7 +223,7 @@ export function DetailPage() {
                       </>
                     ),
                     aside: fmt(t.precio),
-                    disabled: ventaCerrada || est !== "abierta",
+                    disabled: finalizado || est !== "abierta",
                   };
                 })}
               />
