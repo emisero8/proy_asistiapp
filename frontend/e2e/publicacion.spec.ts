@@ -24,7 +24,9 @@ test("un Organizador crea un evento con el asistente, lo publica y aparece en el
     if (encabezado === `${MESES[mes - 1]} ${anio}`) break;
     await page.getByRole("button", { name: "Mes siguiente" }).click();
   }
-  await page.getByRole("button", { name: new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(anio, mes - 1, dia)) }).click();
+  // exact: con substring, "5 de diciembre de 2026" también encuentra el 15 y el 25 y el click falla.
+  const etiquetaDia = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric" }).format(new Date(anio, mes - 1, dia));
+  await page.getByRole("button", { name: etiquetaDia, exact: true }).click();
 
   await page.getByRole("button", { name: /Elegí un horario/ }).click();
   await page.getByRole("button", { name: "Hora 21" }).click();
