@@ -21,6 +21,7 @@ function evento(extra: Partial<EventoResponseDTO> = {}): EventoResponseDTO {
     id: 5,
     nombre: "Festival de Jazz",
     estado: "Publicado",
+    comenzado: false,
     finalizado: false,
     tandas: [tanda(11, "Anticipada", 8), tanda(12, "VIP", 0)],
     ...extra,
@@ -33,7 +34,7 @@ function entradaEmitida(id: number): EntradaResponseDTO {
     idTanda: 11,
     idEvento: 5,
     nombreEvento: "Festival de Jazz",
-    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null,
+    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null, eventoFinalizado: false,
     nombreTanda: "Anticipada",
     precioTanda: 5000,
     codigoQr: `QR-${id}`,
@@ -61,12 +62,12 @@ async function completar({ nombre = "Ana Invitada", email = "ana@mail.com" } = {
 }
 
 describe("EmitirEntradasPanel", () => {
-  it("solo se ofrece en un evento publicado que todavía no terminó", () => {
+  it("solo se ofrece en un evento publicado que todavía no empezó", () => {
     const { unmount } = render(<EmitirEntradasPanel evento={evento({ estado: "Borrador" })} onEmitidas={() => {}} />);
     expect(screen.queryByRole("button", { name: /Emitir entradas/ })).not.toBeInTheDocument();
     unmount();
 
-    const { unmount: unmount2 } = render(<EmitirEntradasPanel evento={evento({ finalizado: true })} onEmitidas={() => {}} />);
+    const { unmount: unmount2 } = render(<EmitirEntradasPanel evento={evento({ comenzado: true })} onEmitidas={() => {}} />);
     expect(screen.queryByRole("button", { name: /Emitir entradas/ })).not.toBeInTheDocument();
     unmount2();
 

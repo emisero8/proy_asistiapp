@@ -91,15 +91,37 @@ public class Evento {
         }
     }
 
+    /** Un evento no tiene hora de fin: se da por finalizado pasadas estas horas desde que empieza. */
+    public static final int HORAS_HASTA_FINALIZAR = 12;
+
     /**
-     * Única definición de "el evento ya finalizó": llegó (o pasó) su fecha y hora de inicio.
-     * La usan la venta de entradas, los listados y el alta de staff; el frontend no la recalcula,
-     * la recibe en EventoResponseDTO.finalizado. Un evento sin fecha u hora todavía no finalizó.
+     * Llegó (o pasó) la fecha y hora de inicio: desde acá no se venden ni emiten entradas y el evento
+     * deja de ofrecerse en el catálogo. Un evento sin fecha u hora todavía no comenzó.
+     */
+    public boolean yaComenzo() {
+        return pasaron(0);
+    }
+
+    /**
+     * Pasaron {@value #HORAS_HASTA_FINALIZAR} horas desde el inicio. Única definición de "finalizado": el
+     * frontend no la recalcula, la recibe en los DTO. Hasta entonces el escáner sigue validando.
      */
     public boolean yaFinalizo() {
+        return pasaron(HORAS_HASTA_FINALIZAR);
+    }
+
+    /**
+     * Un evento Publicado que finalizó es historial: no se edita, no se cancela, no se tocan sus tandas
+     * ni se devuelven créditos. (Un Borrador con fecha vieja sigue editable: todavía no ocurrió.)
+     */
+    public boolean estaCerrado() {
+        return estado == EstadoEvento.Publicado && yaFinalizo();
+    }
+
+    private boolean pasaron(int horas) {
         if (fechaEvento == null || horaEvento == null) {
             return false;
         }
-        return !LocalDateTime.of(fechaEvento, horaEvento).isAfter(LocalDateTime.now());
+        return !LocalDateTime.of(fechaEvento, horaEvento).plusHours(horas).isAfter(LocalDateTime.now());
     }
 }

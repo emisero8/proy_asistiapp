@@ -36,7 +36,10 @@ public class EventoResponseDTO {
     private LocalDateTime fechaPublicacion;
     private LocalDateTime fechaCancelacion;
 
-    /** El evento ya empezó o terminó (su fecha y hora de inicio quedaron atrás): ya no se vende ni se le asigna staff. */
+    /** Llegó la hora de inicio: ya no se venden ni emiten entradas. */
+    private boolean comenzado;
+
+    /** Pasaron las horas de gracia desde el inicio (Evento.yaFinalizo): publicado así, es solo historial. */
     private boolean finalizado;
 
     /** Lista de tandas del evento. Vacía si el evento aún no tiene tandas. */

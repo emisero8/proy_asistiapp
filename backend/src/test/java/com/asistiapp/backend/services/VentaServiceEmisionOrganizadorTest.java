@@ -210,7 +210,7 @@ class VentaServiceEmisionOrganizadorTest {
 
         assertThatThrownBy(() -> ventaService.emitirEntradasOrganizador(pedido(1, TipoEmision.Cortesia), ID_ORGANIZADOR))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("ya finalizó");
+                .hasMessageContaining("ya comenzó");
     }
 
     @Test

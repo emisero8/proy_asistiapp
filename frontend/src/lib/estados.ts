@@ -4,6 +4,7 @@ import type {
   EstadoPaquete,
   EstadoTransaccion,
   EstadoUsuario,
+  EventoResponseDTO,
   RolUsuario,
 } from "./types";
 
@@ -29,11 +30,27 @@ export type Tono =
   | "danger"
   | "info";
 
-export const TONO_ESTADO_EVENTO: Record<EstadoEvento, Tono> = {
+/**
+ * "Finalizado" no es un estado guardado: es un evento Publicado que ya terminó
+ * (`EventoResponseDTO.finalizado`, lo decide el backend).
+ */
+export type EstadoEventoVisible = EstadoEvento | "Finalizado";
+
+export const TONO_ESTADO_EVENTO: Record<EstadoEventoVisible, Tono> = {
   Publicado: "live",
   Borrador: "warning",
   Cancelado: "danger",
+  Finalizado: "neutral",
 };
+
+/** Publicado y ya terminado: queda solo para consulta (sin editar ni cancelar). */
+export function eventoCerrado(evento: Pick<EventoResponseDTO, "estado" | "finalizado">): boolean {
+  return evento.estado === "Publicado" && evento.finalizado;
+}
+
+export function estadoVisibleEvento(evento: Pick<EventoResponseDTO, "estado" | "finalizado">): EstadoEventoVisible {
+  return eventoCerrado(evento) ? "Finalizado" : evento.estado;
+}
 
 export const TONO_ESTADO_USUARIO: Record<EstadoUsuario, Tono> = {
   Activo: "live",

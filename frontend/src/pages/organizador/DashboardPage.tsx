@@ -7,8 +7,9 @@ import { Button, Card, EmptyState, ErrorState, Input, Menu, PageHeader, SelectMe
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { cn } from "../../lib/cn";
+import { estadoVisibleEvento, eventoCerrado, type EstadoEventoVisible } from "../../lib/estados";
 import { fmt, formatFecha } from "../../lib/format";
-import type { EventoResponseDTO, EstadoEvento, ResumenOrganizadorResponseDTO } from "../../lib/types";
+import type { EventoResponseDTO, ResumenOrganizadorResponseDTO } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
 
@@ -42,7 +43,7 @@ export function OrganizadorDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [cancelandoId, setCancelandoId] = useState<number | null>(null);
   const [busqueda, setBusqueda] = useState("");
-  const [estadoFiltro, setEstadoFiltro] = useState<"todos" | EstadoEvento>("todos");
+  const [estadoFiltro, setEstadoFiltro] = useState<"todos" | EstadoEventoVisible>("todos");
 
   // Si el panel ya cargó una vez, un fallo del refresco de fondo no lo tapa con el error:
   // se siguen mostrando los últimos datos y el próximo refresco vuelve a intentar.
@@ -108,7 +109,7 @@ export function OrganizadorDashboardPage() {
   // no se reordena acá, solo se filtra manteniendo ese orden.
   const termino = busqueda.trim().toLowerCase();
   const eventosFiltrados = (eventos ?? []).filter((ev) => {
-    if (estadoFiltro !== "todos" && ev.estado !== estadoFiltro) return false;
+    if (estadoFiltro !== "todos" && estadoVisibleEvento(ev) !== estadoFiltro) return false;
     if (!termino) return true;
     return ev.nombre.toLowerCase().includes(termino) || ev.lugar.toLowerCase().includes(termino);
   });
@@ -231,6 +232,7 @@ export function OrganizadorDashboardPage() {
                   { value: "Publicado", label: "Publicados" },
                   { value: "Borrador", label: "Borradores" },
                   { value: "Cancelado", label: "Cancelados" },
+                  { value: "Finalizado", label: "Finalizados" },
                 ]}
               />
             </div>
@@ -275,10 +277,12 @@ function FilaEvento({ evento: ev, cancelando, onEditar, onVerPublica, onCancelar
   const capacidad = capacidadDe(ev);
   const publicado = ev.estado === "Publicado";
   const porcentaje = capacidad > 0 ? Math.min(100, Math.round((vendidas / capacidad) * 100)) : 0;
+  // Un evento terminado queda en gris y solo para consulta.
+  const cerrado = eventoCerrado(ev);
 
   const acciones = [
     ...(publicado ? [{ label: "Ver página pública", icon: ExternalLink, onSelect: onVerPublica }] : []),
-    ...(ev.estado !== "Cancelado"
+    ...(ev.estado !== "Cancelado" && !cerrado
       ? [
           { label: "Editar", icon: Pencil, onSelect: onEditar },
           { label: "Cancelar evento", icon: Ban, onSelect: onCancelar, tone: "danger" as const, separatorBefore: true },
@@ -293,16 +297,19 @@ function FilaEvento({ evento: ev, cancelando, onEditar, onVerPublica, onCancelar
         cancelando && "opacity-50",
       )}
     >
-      <EventoImagen src={ev.imagenPortadaUrl} alt="" nombre={ev.nombre} className="size-12 flex-none rounded-lg object-cover" />
+      <EventoImagen src={ev.imagenPortadaUrl} alt="" nombre={ev.nombre} className={cn("size-12 flex-none rounded-lg object-cover", cerrado && "opacity-60 grayscale")} />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-2">
           <Link
             to={`/organizador/eventos/${ev.id}`}
-            className="truncate rounded-sm text-sm font-semibold text-foreground after:absolute after:inset-0 after:content-['']"
+            className={cn(
+              "truncate rounded-sm text-sm font-semibold after:absolute after:inset-0 after:content-['']",
+              cerrado ? "text-muted-foreground" : "text-foreground",
+            )}
           >
             {ev.nombre}
           </Link>
-          <StatusBadge tipo="evento" estado={ev.estado} size="sm" />
+          <StatusBadge tipo="evento" estado={estadoVisibleEvento(ev)} size="sm" />
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {formatFecha(ev.fechaEvento)} · {ev.tandas.length} tanda{ev.tandas.length !== 1 ? "s" : ""}
@@ -317,7 +324,7 @@ function FilaEvento({ evento: ev, cancelando, onEditar, onVerPublica, onCancelar
             <span className="font-semibold text-foreground">{vendidas}</span> / {capacidad} vendidas
           </p>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
-            <div className="h-full rounded-full bg-primary" style={{ width: `${porcentaje}%` }} />
+            <div className={cn("h-full rounded-full", cerrado ? "bg-muted-foreground" : "bg-primary")} style={{ width: `${porcentaje}%` }} />
           </div>
         </div>
       )}

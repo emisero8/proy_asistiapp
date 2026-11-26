@@ -247,6 +247,9 @@ public class TandaService {
         if (evento.getEstado() == EstadoEvento.Cancelado) {
             throw new BusinessRuleException("No podés modificar las tandas de un evento cancelado.");
         }
+        if (evento.estaCerrado()) {
+            throw new BusinessRuleException("El evento ya finalizó: sus tandas no se pueden modificar.");
+        }
     }
 
     /**

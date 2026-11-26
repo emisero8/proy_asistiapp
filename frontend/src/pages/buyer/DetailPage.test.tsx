@@ -54,6 +54,21 @@ function renderDetalle(evento: EventoPublicoDetalleDTO) {
 describe("DetailPage", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it("un evento finalizado se muestra como tal, sin nada para comprar", async () => {
+    renderDetalle({ ...EVENTO_BASE, fechaEvento: "2020-01-01", finalizado: true, tandas: [tanda(1, "General", 12000, 50)] });
+    expect(await screen.findByText("Evento finalizado")).toBeInTheDocument();
+    expect(screen.getByText("Este evento ya finalizó: no se pueden comprar entradas.")).toBeInTheDocument();
+    expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Comprar|Venta cerrada/ })).not.toBeInTheDocument();
+  });
+
+  it("un evento que ya empezó (sin finalizar) muestra la venta cerrada", async () => {
+    renderDetalle({ ...EVENTO_BASE, fechaEvento: "2020-01-01", finalizado: false, tandas: [tanda(1, "General", 12000, 50)] });
+    expect(await screen.findByText("Este evento ya comenzó: la venta de entradas está cerrada.")).toBeInTheDocument();
+    expect(screen.queryByText("Evento finalizado")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Venta cerrada" })[0]).toBeDisabled();
+  });
+
   it("un evento sin tandas muestra que no hay entradas a la venta (no se queda cargando)", async () => {
     renderDetalle({ ...EVENTO_BASE, tandas: [] });
     expect(await screen.findByText("Este evento todavía no tiene entradas a la venta.")).toBeInTheDocument();

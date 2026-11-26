@@ -380,6 +380,33 @@ class EventoServiceTest {
     }
 
     @Test
+    void cancelarEvento_publicadoYFinalizado_seRechazaSinDevolverCreditosNiAvisar() {
+        evento.setEstado(EstadoEvento.Publicado);
+        evento.setFechaEvento(LocalDate.now().minusDays(2));
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> eventoService.cancelarEvento(evento.getId(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("ya finalizó");
+        assertThat(evento.getEstado()).isEqualTo(EstadoEvento.Publicado);
+        verifyNoInteractions(creditoLedgerService);
+        verify(eventoRepository, never()).save(any());
+    }
+
+    @Test
+    void actualizarEvento_publicadoYFinalizado_noSePuedeEditarNiReprogramar() {
+        evento.setEstado(EstadoEvento.Publicado);
+        evento.setFechaEvento(LocalDate.now().minusDays(2));
+        when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));
+
+        // El pedido trae una fecha futura: es justamente lo que no tiene que revivir el evento.
+        assertThatThrownBy(() -> eventoService.actualizarEvento(evento.getId(), new EventoRequestDTO(), ID_ORGANIZADOR))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("ya finalizó");
+        verify(eventoRepository, never()).save(any());
+    }
+
+    @Test
     void cancelarEvento_sinTandas_noHayNadaQueDevolver() {
         evento.setEstado(EstadoEvento.Publicado);
         when(eventoRepository.findById(evento.getId())).thenReturn(Optional.of(evento));

@@ -43,6 +43,7 @@ function evento(id: number, nombre: string, lugar: string, estado: EventoRespons
     fechaCreacion: "2026-01-01T00:00:00",
     fechaPublicacion: null,
     fechaCancelacion: null,
+    comenzado: false,
     finalizado: false,
     tandas: [],
   } as unknown as EventoResponseDTO;
@@ -120,6 +121,44 @@ describe("OrganizadorDashboardPage — Mis eventos", () => {
     await userEvent.type(screen.getByLabelText("Buscar eventos por nombre o lugar"), "no existe");
 
     expect(screen.getByText("Ningún evento coincide con la búsqueda.")).toBeInTheDocument();
+  });
+});
+
+describe("OrganizadorDashboardPage — eventos finalizados", () => {
+  beforeEach(() => {
+    vi.mocked(api.get).mockImplementation(async (path: string) => {
+      if (path === "/eventos") return [{ ...evento(4, "Peña pasada", "Club Norte", "Publicado"), comenzado: true, finalizado: true }, ...LISTA];
+      if (path === "/eventos/resumen") return RESUMEN;
+      return undefined;
+    });
+  });
+
+  it("lo marca como Finalizado y solo deja ver la página pública (sin editar ni cancelar)", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+
+    const fila = (await screen.findByText("Peña pasada")).closest("li") as HTMLElement;
+    expect(within(fila).getByText("Finalizado")).toBeInTheDocument();
+    await user.click(within(fila).getByRole("button", { name: "Acciones de Peña pasada" }));
+
+    expect(screen.getByRole("menuitem", { name: "Ver página pública" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Editar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Cancelar evento" })).not.toBeInTheDocument();
+  });
+
+  it("se filtra aparte de los publicados", async () => {
+    const user = userEvent.setup();
+    renderDashboard();
+    await screen.findByText("Peña pasada");
+
+    await user.click(screen.getByRole("combobox", { name: "Filtrar por estado" }));
+    await user.click(await screen.findByRole("option", { name: "Publicados" }));
+    expect(screen.queryByText("Peña pasada")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Filtrar por estado" }));
+    await user.click(await screen.findByRole("option", { name: "Finalizados" }));
+    expect(screen.getByText("Peña pasada")).toBeInTheDocument();
+    expect(screen.queryByText("Recital de rock")).not.toBeInTheDocument();
   });
 });
 

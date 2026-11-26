@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { Plus, Save } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { estadoVisibleEvento, eventoCerrado } from "../../lib/estados";
 import { fmt, hoyLocal } from "../../lib/format";
 import type { Coords } from "../../components/EventMap";
 import { Alert, Button, Card, ErrorState, PageHeader, Skeleton, StatusBadge } from "../../components/ui";
@@ -101,7 +102,8 @@ export function OrganizadorEditEventPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, base]);
 
-  const bloqueado = evento?.estado === "Cancelado";
+  const cerrado = evento != null && eventoCerrado(evento);
+  const bloqueado = evento?.estado === "Cancelado" || cerrado;
   const publicado = evento?.estado === "Publicado";
   const fechaEnPasado = date !== "" && date < hoyStr;
   const datosValidos = title.trim() && date && time && venue.trim() && !fechaEnPasado;
@@ -288,12 +290,14 @@ export function OrganizadorEditEventPage() {
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6 md:px-6 lg:px-8 lg:py-8">
       <PageHeader
         back={{ label: volverLabel, onClick: () => navigate(volverA) }}
-        eyebrow={<StatusBadge tipo="evento" estado={evento.estado} />}
+        eyebrow={<StatusBadge tipo="evento" estado={estadoVisibleEvento(evento)} />}
         title="Editar evento"
         description={evento.nombre}
       />
 
-      {bloqueado && <Alert tone="info">Este evento está cancelado. No se puede editar.</Alert>}
+      {bloqueado && (
+        <Alert tone="info">{cerrado ? "Este evento finalizó. No se puede editar." : "Este evento está cancelado. No se puede editar."}</Alert>
+      )}
 
       {publicado && !bloqueado && (
         <Alert tone="warning" title="Este evento está publicado y en venta.">

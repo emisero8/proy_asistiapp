@@ -183,7 +183,9 @@ export interface EventoResponseDTO {
   fechaCreacion: string;
   fechaPublicacion: string | null;
   fechaCancelacion: string | null;
-  /** El backend es la única fuente de "ya finalizó": el inicio del evento quedó atrás. */
+  /** Ya llegó la hora de inicio: no se venden ni emiten entradas. */
+  comenzado: boolean;
+  /** Pasaron 12 horas desde el inicio. Lo decide el backend: no se recalcula con la hora del navegador. */
   finalizado: boolean;
   tandas: TandaResponseDTO[];
 }
@@ -241,6 +243,8 @@ export interface EventoPublicoDetalleDTO {
   contactoEmail: string | null;
   /** Recargo por procesamiento de pago (Mercado Pago) que paga el comprador, en % sobre el precio; null si lo absorbe el Organizador. */
   porcentajeCargoServicio: number | null;
+  /** Pasaron 12 horas desde el inicio: la página se muestra como "Evento finalizado". */
+  finalizado: boolean;
 }
 
 // ── Entradas / Ventas ─────────────────────────────────
@@ -256,6 +260,8 @@ export interface EntradaResponseDTO {
   lugarEvento: string;
   /** Portada del evento; null si no tiene. */
   imagenPortadaUrl: string | null;
+  /** El evento ya finalizó: la entrada no sirve más para ingresar. */
+  eventoFinalizado: boolean;
   nombreTanda: string;
   precioTanda: number;
   codigoQr: string;

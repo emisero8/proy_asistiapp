@@ -30,6 +30,8 @@ public class EntradaResponseDTO {
     private String lugarEvento;
     /** Portada del evento; null si no tiene. */
     private String imagenPortadaUrl;
+    /** El evento ya finalizó: la entrada no sirve más para ingresar. */
+    private boolean eventoFinalizado;
     private String nombreTanda;
     private Double precioTanda;
     private String codigoQr;

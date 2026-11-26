@@ -131,7 +131,7 @@ class VentaServiceTest {
 
         assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("ya finalizó");
+                .hasMessageContaining("ya comenzó");
     }
 
     @Test

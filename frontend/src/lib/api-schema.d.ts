@@ -1361,6 +1361,7 @@ export interface components {
             fechaPublicacion?: string;
             /** Format: date-time */
             fechaCancelacion?: string;
+            comenzado?: boolean;
             finalizado?: boolean;
             tandas?: components["schemas"]["TandaResponseDTO"][];
         };
@@ -1446,6 +1447,7 @@ export interface components {
             horaEvento?: string;
             lugarEvento?: string;
             imagenPortadaUrl?: string;
+            eventoFinalizado?: boolean;
             nombreTanda?: string;
             /** Format: double */
             precioTanda?: number;
@@ -1715,6 +1717,7 @@ export interface components {
             longitud?: number;
             imagenPortadaUrl?: string;
             urlPublica?: string;
+            finalizado?: boolean;
             tandas?: components["schemas"]["TandaResponseDTO"][];
             /** Format: int32 */
             maxEntradasPorCompra?: number;

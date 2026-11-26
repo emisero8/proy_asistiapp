@@ -22,6 +22,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -188,6 +189,18 @@ class MetricasOrganizadorServiceTest {
 
         assertThat(r.getProximoEvento()).isNotNull();
         assertThat(r.getProximoEvento().getId()).isEqualTo(3L);
+    }
+
+    @Test
+    void resumen_proximoEventoNoIncluyeUnoDeHoyQueYaEmpezo() {
+        Evento deHoy = evento(1L, EstadoEvento.Publicado, LocalDate.now(), 10, 10, 100);
+        deHoy.setHoraEvento(LocalTime.MIN);
+        when(eventoRepository.findByIdOrganizador(ID_ORG)).thenReturn(List.of(deHoy));
+        when(eventoRepository.findById(1L)).thenReturn(Optional.of(deHoy));
+        when(entradaRepository.findByEventoId(1L)).thenReturn(List.of());
+        when(movimientoCreditoRepository.findByIdOrganizadorOrderByFechaMovimientoDesc(ID_ORG)).thenReturn(List.of());
+
+        assertThat(metricasService.obtenerResumen(organizador).getProximoEvento()).isNull();
     }
 
     @Test

@@ -157,7 +157,7 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 4. Si un pago aprobado ya no se puede honrar (tanda agotada, evento que ya no está publicado, tope por comprador), se **reembolsa automáticamente** y la orden queda `Reembolsada`. Un segundo pago aprobado para una orden ya resuelta también se reembolsa.
 5. Todo es **idempotente**: avisos repetidos o simultáneos del mismo pago no entregan dos veces.
 6. Un trabajo programado (cada 10 minutos) marca como `Expirada` las órdenes vencidas que nunca se pagaron, después de reconciliarlas.
-7. Un evento ya finalizado o dado de baja no se puede comprar.
+7. Un evento que ya comenzó (aunque no haya finalizado) o dado de baja no se puede comprar.
 
 ### Eventos, tandas y créditos (CU-007, CU-010, CU-014)
 
@@ -167,9 +167,15 @@ Convenciones: **Público** = sin login. Un endpoint sin rol aclarado exige estar
 - La compra de créditos usa el mismo mecanismo de MercadoPago que las entradas (misma preferencia y webhook firmado; las órdenes se distinguen por su `external_reference`). Con el pago verificado se registran la transacción y el movimiento y se actualiza el saldo, exactamente una vez.
 - Un evento con compras en curso no se puede borrar.
 
+### Evento comenzado y evento finalizado
+
+- **Comenzó:** llegó la fecha y hora de inicio. Cierra la venta online, en puerta y la emisión, y el evento sale del catálogo.
+- **Finalizó:** pasaron 12 horas desde el inicio (`Evento.HORAS_HASTA_FINALIZAR`; los eventos no tienen hora de fin). Si estaba publicado, ya no se puede editar, cancelar ni cambiar sus tandas (tampoco el Admin, que sí puede eliminarlo), anular una entrada no devuelve créditos, el QR no permite ingresar y no se le puede asignar staff. Las ventas, métricas, listados y reembolsos siguen disponibles, y su página pública se muestra como "Evento finalizado".
+- No es un estado guardado: se calcula y viaja en los DTOs (`comenzado`, `finalizado`, `eventoFinalizado`). El frontend no lo recalcula, salvo para cerrar la venta en la página pública.
+
 ### Validación de QR (CU-018)
 
-El `Staff_QR` valida un código: debe existir, pertenecer al evento asignado a ese staff y no estar usado. Si es válido, la entrada pasa a `Usada` con su fecha y el staff que la validó; escanearla de nuevo se rechaza.
+El `Staff_QR` valida un código: debe existir, pertenecer al evento asignado a ese staff, no estar usado y el evento no debe haber finalizado. Si es válido, la entrada pasa a `Usada` con su fecha y el staff que la validó; escanearla de nuevo se rechaza.
 
 ### Venta manual (CU-019)
 

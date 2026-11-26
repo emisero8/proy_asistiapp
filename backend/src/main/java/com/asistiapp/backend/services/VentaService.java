@@ -617,17 +617,18 @@ public class VentaService {
     // Helpers privados
     // ─────────────────────────────────────────────
 
-    /** El evento tiene que estar Publicado y no haber terminado, sea cual sea la ventana de venta de la tanda. */
+    /** El evento tiene que estar Publicado y no haber comenzado, sea cual sea la ventana de venta de la tanda. */
     private void validarEventoVendible(Tanda tanda) {
         if (tanda.getEvento().getEstado() != EstadoEvento.Publicado) {
             throw new BusinessRuleException(
                     "El evento no está disponible para la venta. " +
                     "Estado: " + tanda.getEvento().getEstado());
         }
-        if (tanda.getEvento().yaFinalizo()) {
+        if (tanda.getEvento().yaComenzo()) {
             // Independiente de la vigencia propia de la tanda (que es opcional): un evento que
-            // ya pasó no se puede seguir comprando, tenga o no la tanda su propia fecha de cierre.
-            throw new BusinessRuleException("El evento \"" + tanda.getEvento().getNombre() + "\" ya finalizó.");
+            // ya empezó no se puede seguir comprando, tenga o no la tanda su propia fecha de cierre.
+            throw new BusinessRuleException(
+                    "La venta de \"" + tanda.getEvento().getNombre() + "\" está cerrada: el evento ya comenzó.");
         }
     }
 
@@ -740,6 +741,7 @@ public class VentaService {
                 .horaEvento(tanda.getEvento().getHoraEvento())
                 .lugarEvento(tanda.getEvento().getLugar())
                 .imagenPortadaUrl(tanda.getEvento().getImagenPortadaUrl())
+                .eventoFinalizado(tanda.getEvento().yaFinalizo())
                 .nombreTanda(tanda.getNombre())
                 .precioTanda(tanda.getPrecio())
                 .codigoQr(entrada.getCodigoQr())
