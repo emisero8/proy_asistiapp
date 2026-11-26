@@ -20,7 +20,7 @@ afterEach(() => {
 
 function pendiente(id: number, nombre: string, precio = 5000): EntradaResponseDTO {
   return {
-    id, idTanda: 11, idEvento: 5, nombreEvento: "Festival", fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null, nombreTanda: "General", precioTanda: precio, codigoQr: `QR-${id}`,
+    id, idTanda: 11, idEvento: 5, nombreEvento: "Festival", fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null, eventoFinalizado: false, nombreTanda: "General", precioTanda: precio, codigoQr: `QR-${id}`,
     nombreComprador: nombre, emailComprador: `${nombre.toLowerCase()}@test.com`, estado: "Pagada", canalVenta: "Online",
     fechaCompra: "2026-03-01T10:00:00", fechaUso: null, tipoEmision: null, motivoEmision: null,
     fechaAnulacion: null, motivoAnulacion: null, reembolsadaEn: null,

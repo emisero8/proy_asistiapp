@@ -111,6 +111,18 @@ class AnulacionEntradaServiceTest {
     }
 
     @Test
+    void anular_enUnEventoFinalizado_anulaPeroNoDevuelveElCredito() {
+        evento.setFechaEvento(java.time.LocalDate.now().minusDays(2));
+        evento.setHoraEvento(java.time.LocalTime.of(22, 0));
+
+        service.anular(ID_ENTRADA, ORG, null);
+
+        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Anulada);
+        assertThat(entrada.isCreditoDevuelto()).isFalse();
+        verifyNoInteractions(creditoLedgerService);
+    }
+
+    @Test
     void anular_sinMotivo_loDejaNull() {
         service.anular(ID_ENTRADA, ORG, "   ");
 

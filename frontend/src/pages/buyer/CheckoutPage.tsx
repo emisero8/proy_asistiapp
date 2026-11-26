@@ -67,12 +67,14 @@ export function CheckoutPage() {
   // Validación temprana (espeja al backend): si la tanda llegó fuera de su ventana de venta o el
   // evento ya pasó, se avisa apenas se entra, sin obligar a llenar el formulario para enterarse
   // recién al enviar. La validación real (la que corta) sigue siendo la del backend.
-  const eventoFinalizado = new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
+  const eventoComenzado = new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
   const estadoTanda = estadoVentaTanda(tanda);
-  const disponible = !eventoFinalizado && estadoTanda === "abierta";
-  const avisoNoDisponible = eventoFinalizado
+  const disponible = !evento.finalizado && !eventoComenzado && estadoTanda === "abierta";
+  const avisoNoDisponible = evento.finalizado
     ? "Este evento ya finalizó: no se pueden comprar entradas."
-    : estadoTanda === "proximamente"
+    : eventoComenzado
+      ? "Este evento ya comenzó: la venta de entradas está cerrada."
+      : estadoTanda === "proximamente"
       ? `La venta de la tanda "${tanda.nombre}" todavía no está abierta.`
       : estadoTanda === "cerrada"
         ? `La venta de la tanda "${tanda.nombre}" ya cerró.`

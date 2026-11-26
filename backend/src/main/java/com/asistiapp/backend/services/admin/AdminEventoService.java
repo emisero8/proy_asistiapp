@@ -135,6 +135,9 @@ public class AdminEventoService {
         if (evento.getEstado() == EstadoEvento.Cancelado) {
             throw new BusinessRuleException("El evento ya está cancelado");
         }
+        if (evento.estaCerrado()) {
+            throw new BusinessRuleException("El evento ya finalizó: no se puede cancelar.");
+        }
 
         AuditoriaContexto.objetivo(evento.getId(), evento.getNombre());
         AuditoriaContexto.detalle(organizadorDe(evento));

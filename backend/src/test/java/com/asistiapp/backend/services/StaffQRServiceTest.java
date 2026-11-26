@@ -121,6 +121,41 @@ class StaffQRServiceTest {
         assertThat(response.getMensaje()).contains("anulada").doesNotContain("utilizada");
     }
 
+    /** Deja el evento de la entrada empezado hace las horas indicadas. */
+    private void eventoEmpezadoHace(int horas) {
+        LocalDateTime inicio = LocalDateTime.now().minusHours(horas);
+        Evento evento = entrada.getTanda().getEvento();
+        evento.setFechaEvento(inicio.toLocalDate());
+        evento.setHoraEvento(inicio.toLocalTime());
+    }
+
+    @Test
+    void validarQR_conElEventoEnCurso_dejaEntrar() {
+        eventoEmpezadoHace(3);
+        when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
+        ValidacionQRRequestDTO dto = new ValidacionQRRequestDTO();
+        dto.setCodigoQr(entrada.getCodigoQr());
+
+        assertThat(staffQRService.validarQR(dto, staffQR).isValido()).isTrue();
+        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Usada);
+    }
+
+    @Test
+    void validarQR_conElEventoFinalizado_rechazaSinMarcarLaEntrada() {
+        eventoEmpezadoHace(Evento.HORAS_HASTA_FINALIZAR + 1);
+        when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
+        ValidacionQRRequestDTO dto = new ValidacionQRRequestDTO();
+        dto.setCodigoQr(entrada.getCodigoQr());
+
+        ValidacionQRResponseDTO response = staffQRService.validarQR(dto, staffQR);
+
+        assertThat(response.isValido()).isFalse();
+        assertThat(response.getMensaje()).contains("EVENTO FINALIZADO");
+        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Pagada);
+        verify(entradaRepository, never()).save(any());
+        assertThat(staffQRService.consultarEstadoQR(entrada.getCodigoQr(), staffQR).getMensaje()).contains("finalizó");
+    }
+
     @Test
     void validarQR_entradaYaUsada_devuelveInvalidoSinLanzarExcepcion() {
         entrada.setEstado(EstadoEntrada.Usada);

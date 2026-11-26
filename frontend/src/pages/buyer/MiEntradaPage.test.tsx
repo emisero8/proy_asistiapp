@@ -41,6 +41,15 @@ function renderEntrada(entrada: EntradaResponseDTO) {
 describe("MiEntradaPage", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it("con el evento finalizado la entrada ya no figura como válida ni se descarga o comparte", async () => {
+    renderEntrada({ ...BASE, eventoFinalizado: true });
+    expect(await screen.findByText("El evento ya finalizó")).toBeInTheDocument();
+    expect(screen.getByText("Finalizado")).toBeInTheDocument();
+    expect(screen.queryByText("Válida")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Descargar entrada/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Compartir/ })).not.toBeInTheDocument();
+  });
+
   it("una entrada vigente se muestra como válida, sin avisos", async () => {
     renderEntrada(BASE);
     expect(await screen.findByText("Válida")).toBeInTheDocument();

@@ -110,6 +110,24 @@ public class StaffQRService {
                     .build();
         }
 
+        // ── Paso 3b: Verificar que el evento no haya finalizado ──────────
+        if (entrada.getTanda().getEvento().yaFinalizo()) {
+            AuditoriaContexto.accion("INGRESO_RECHAZADO");
+            AuditoriaContexto.detalle("Rechazada: el evento ya finalizó.");
+            log.warn("Intento de usar una entrada de un evento finalizado. QR={}, entrada={}",
+                    dto.getCodigoQr(), entrada.getId());
+            return ValidacionQRResponseDTO.builder()
+                    .valido(false)
+                    .mensaje("❌ EVENTO FINALIZADO — La entrada ya no sirve para ingresar")
+                    .idEntrada(entrada.getId())
+                    .nombreComprador(entrada.getNombreComprador())
+                    .emailComprador(entrada.getEmailComprador())
+                    .nombreEvento(nombreEvento)
+                    .nombreTanda(nombreTanda)
+                    .estadoAnterior(entrada.getEstado())
+                    .build();
+        }
+
         // ── Paso 4: Entrada válida — marcar como Usada ───────────────────
         EstadoEntrada estadoAnterior = entrada.getEstado();
         LocalDateTime ahora = LocalDateTime.now();
@@ -158,12 +176,16 @@ public class StaffQRService {
                     "Esta entrada pertenece a un evento diferente al que tenés asignado");
         }
 
-        boolean esValida = entrada.getEstado() == EstadoEntrada.Pagada;
+        boolean pagada = entrada.getEstado() == EstadoEntrada.Pagada;
+        boolean finalizado = entrada.getTanda().getEvento().yaFinalizo();
+        boolean esValida = pagada && !finalizado;
         String mensaje = esValida
                 ? "✅ Entrada disponible para validar"
                 : entrada.getEstado() == EstadoEntrada.Anulada
                         ? "❌ Entrada anulada por el organizador"
-                        : "❌ Entrada ya utilizada el " + entrada.getFechaUso();
+                        : pagada
+                                ? "❌ El evento ya finalizó"
+                                : "❌ Entrada ya utilizada el " + entrada.getFechaUso();
 
         return ValidacionQRResponseDTO.builder()
                 .valido(esValida)

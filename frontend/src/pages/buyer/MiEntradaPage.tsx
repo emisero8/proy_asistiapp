@@ -161,6 +161,9 @@ export function MiEntradaPage() {
   const usada = entrada.estado === "Usada";
   // Anulada por el Organizador (8.6): ya no sirve para entrar, aunque el QR siga existiendo.
   const anulada = entrada.estado === "Anulada";
+  const finalizado = entrada.eventoFinalizado;
+  // Usada, anulada o de un evento terminado: el QR ya no sirve para entrar.
+  const inactiva = usada || anulada || finalizado;
 
   return (
     <div className="min-h-dvh bg-background">
@@ -179,6 +182,12 @@ export function MiEntradaPage() {
           </Alert>
         )}
 
+        {finalizado && !anulada && !usada && (
+          <Alert tone="info" title="El evento ya finalizó">
+            Esta entrada ya no sirve para ingresar.
+          </Alert>
+        )}
+
         {/* Borde en degradé (1px) con la tarjeta adentro: un brillo sutil de la marca arriba. */}
         <section
           aria-label="Tu entrada"
@@ -188,14 +197,14 @@ export function MiEntradaPage() {
             {/* Portada: la imagen del evento con overlay oscuro; si no tiene, un degradé de la marca con patrón. */}
             <div className="relative flex h-48 flex-col justify-between overflow-hidden px-5 pb-5 pt-4 text-white" style={entrada.imagenPortadaUrl ? undefined : PORTADA_SIN_IMAGEN}>
               {entrada.imagenPortadaUrl ? (
-                <img src={entrada.imagenPortadaUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                <img src={entrada.imagenPortadaUrl} alt="" className={`absolute inset-0 size-full object-cover ${finalizado ? "grayscale" : ""}`} />
               ) : (
                 <Ticket aria-hidden="true" size={150} strokeWidth={1} className="absolute -right-6 top-10 rotate-[-14deg] text-accent/25" />
               )}
               <div aria-hidden="true" className="absolute inset-0 bg-linear-to-t from-black/85 via-black/35 to-black/10" />
               <div className="relative flex items-start justify-between gap-3">
                 <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-white/85">Pase digital</p>
-                <EstadoChip usada={usada} anulada={anulada} />
+                <EstadoChip usada={usada} anulada={anulada} finalizado={finalizado} />
               </div>
               <h1 className="relative font-display text-[26px] font-extrabold leading-[1.05] tracking-[-0.02em] [overflow-wrap:anywhere] [text-shadow:0_1px_12px_rgba(0,0,0,0.5)]">
                 {entrada.nombreEvento}
@@ -235,7 +244,7 @@ export function MiEntradaPage() {
 
             {/* Talón: QR siempre negro sobre blanco, también en modo oscuro, para que se lea */}
             <div className="flex flex-col items-center gap-3 bg-surface-sunken px-5 pb-4 pt-6">
-              <div className={`rounded-3xl bg-white p-4 shadow-raised ${usada || anulada ? "opacity-40 grayscale" : ""}`}>
+              <div className={`rounded-3xl bg-white p-4 shadow-raised ${inactiva ? "opacity-40 grayscale" : ""}`}>
                 <img src={qrImageUrl} alt="Código QR de tu entrada" width={232} height={232} className="block size-[min(232px,58vw)]" />
               </div>
               <code className="block max-w-full select-all break-all text-center font-mono text-[11px] leading-relaxed tracking-wider text-foreground">
@@ -254,25 +263,31 @@ export function MiEntradaPage() {
 
         {/* Acciones */}
         <div className="space-y-3">
-          <Button variant="accent" block leftIcon={<Download size={16} />} disabled={descargando} onClick={() => descargar(entrada, qrImageUrl)}>
-            {descargando ? "Generando imagen…" : "Descargar entrada"}
-          </Button>
-          {errorDescarga && (
-            <p role="alert" className="text-sm text-destructive">
-              {errorDescarga}
-            </p>
+          {!finalizado && (
+            <>
+              <Button variant="accent" block leftIcon={<Download size={16} />} disabled={descargando} onClick={() => descargar(entrada, qrImageUrl)}>
+                {descargando ? "Generando imagen…" : "Descargar entrada"}
+              </Button>
+              {errorDescarga && (
+                <p role="alert" className="text-sm text-destructive">
+                  {errorDescarga}
+                </p>
+              )}
+            </>
           )}
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="secondary" leftIcon={linkCopiado ? <Check size={16} /> : <Share2 size={16} />} onClick={() => compartir(entrada)}>
-              {linkCopiado ? "Link copiado ✓" : "Compartir"}
-            </Button>
+          <div className={finalizado ? "grid gap-3" : "grid grid-cols-2 gap-3"}>
+            {!finalizado && (
+              <Button variant="secondary" leftIcon={linkCopiado ? <Check size={16} /> : <Share2 size={16} />} onClick={() => compartir(entrada)}>
+                {linkCopiado ? "Link copiado ✓" : "Compartir"}
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => navigate("/eventos")}>
               Ver más eventos
             </Button>
           </div>
         </div>
 
-        {!usada && !anulada && (
+        {!inactiva && (
           <ul className="space-y-2 rounded-xl border border-border bg-card/60 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
             <li className="flex items-start gap-2.5">
               <Ticket size={14} aria-hidden="true" className="mt-0.5 flex-none text-secondary" />
@@ -317,12 +332,14 @@ function CampoChico({ label, children, mono }: { label: string; children: ReactN
  * Estado sobre la portada: fondo sólido del color del estado con texto oscuro y un punto,
  * así se lee sobre cualquier imagen (los colores son fijos: la portada siempre es oscura).
  */
-function EstadoChip({ usada, anulada }: { usada: boolean; anulada: boolean }) {
+function EstadoChip({ usada, anulada, finalizado }: { usada: boolean; anulada: boolean; finalizado: boolean }) {
   const { texto, caja } = anulada
     ? { texto: "Anulada", caja: "bg-[#f87171] text-[#2a0707]" }
     : usada
       ? { texto: "Usada", caja: "bg-[#d6d4cc] text-[#141311]" }
-      : { texto: "Válida", caja: "bg-[#6ee7a4] text-[#05200f]" };
+      : finalizado
+        ? { texto: "Finalizado", caja: "bg-[#d6d4cc] text-[#141311]" }
+        : { texto: "Válida", caja: "bg-[#6ee7a4] text-[#05200f]" };
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold leading-none ${caja}`}>
       <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />

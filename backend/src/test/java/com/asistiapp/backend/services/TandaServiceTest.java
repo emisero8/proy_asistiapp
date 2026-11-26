@@ -119,6 +119,18 @@ class TandaServiceTest {
         verifyNoInteractions(creditoLedgerService);
     }
 
+    @Test
+    void tandasDeUnEventoFinalizado_noSeCreanNiEditanNiBorran() {
+        evento.setEstado(EstadoEvento.Publicado);
+        evento.setFechaEvento(LocalDate.now().minusDays(2));
+        when(eventoRepository.findById(ID_EVENTO)).thenReturn(Optional.of(evento));
+
+        assertThatThrownBy(() -> tandaService.crearTanda(ID_EVENTO, dto(1), ID_ORG)).hasMessageContaining("ya finalizó");
+        assertThatThrownBy(() -> tandaService.actualizarTanda(ID_EVENTO, ID_TANDA, dto(1), ID_ORG)).hasMessageContaining("ya finalizó");
+        assertThatThrownBy(() -> tandaService.eliminarTanda(ID_EVENTO, ID_TANDA, ID_ORG)).hasMessageContaining("ya finalizó");
+        verifyNoInteractions(creditoLedgerService);
+    }
+
     // ── Actualizar cupo ─────────────────────────────────────
 
     @Test

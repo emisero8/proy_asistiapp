@@ -61,6 +61,7 @@ function evento(id: number, nombre: string, tandas: TandaResponseDTO[]): EventoR
     fechaCreacion: "2026-11-01T10:00:00",
     fechaPublicacion: "2026-11-01T10:00:00",
     fechaCancelacion: null,
+    comenzado: false,
     finalizado: false,
     tandas,
   };
@@ -72,7 +73,7 @@ function entrada(id: number, codigoQr: string): EntradaResponseDTO {
     idTanda: 1,
     idEvento: 1,
     nombreEvento: "Festival",
-    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null,
+    fechaEvento: "2026-12-05", horaEvento: "22:00:00", lugarEvento: "Club Central", imagenPortadaUrl: null, eventoFinalizado: false,
     nombreTanda: "General",
     precioTanda: 2000,
     codigoQr,

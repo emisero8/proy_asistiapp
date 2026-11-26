@@ -10,6 +10,7 @@ import { useDocumentTitle } from "../../lib/useDocumentTitle";
 import { useDialog } from "../../lib/dialogs";
 import { Card, EmptyState, ErrorState, Input, Menu, PageHeader, Skeleton, StatusBadge } from "../../components/ui";
 import { cn } from "../../lib/cn";
+import { estadoVisibleEvento, eventoCerrado } from "../../lib/estados";
 
 export function AdminEventsPage() {
   useDocumentTitle("Eventos · Admin");
@@ -142,9 +143,11 @@ export function AdminEventsPage() {
                   >
                     <td className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] lg:px-5 lg:py-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <EventoImagen src={e.imagenPortadaUrl} alt="" nombre={e.nombre} className="aspect-[3/4] w-8 flex-none rounded-md object-cover" />
+                        <EventoImagen src={e.imagenPortadaUrl} alt="" nombre={e.nombre} className={cn("aspect-[3/4] w-8 flex-none rounded-md object-cover", eventoCerrado(e) && "opacity-60 grayscale")} />
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-foreground lg:max-w-64">{e.nombre}</p>
+                          <p className={cn("truncate font-semibold lg:max-w-64", eventoCerrado(e) ? "text-muted-foreground" : "text-foreground")}>
+                            {e.nombre}
+                          </p>
                           <p className="truncate text-xs text-muted-foreground lg:hidden">
                             {formatFecha(e.fechaEvento)} · Organizador #{e.idOrganizador}
                           </p>
@@ -158,7 +161,7 @@ export function AdminEventsPage() {
                       <span className="lg:hidden"> vendidas</span>
                     </td>
                     <td className="order-3 pl-11 lg:order-none lg:table-cell lg:px-4 lg:py-3">
-                      <StatusBadge tipo="evento" estado={e.estado} size="sm" />
+                      <StatusBadge tipo="evento" estado={estadoVisibleEvento(e)} size="sm" />
                     </td>
                     <td className="order-2 flex-none lg:order-none lg:table-cell lg:px-5 lg:py-3 lg:text-right">
                       <Menu
@@ -166,8 +169,11 @@ export function AdminEventsPage() {
                         disabled={busyId === e.id}
                         placement="bottom-end"
                         items={[
-                          { label: "Editar", icon: Pencil, onSelect: () => navigate(`/admin/eventos/${e.id}/editar`) },
-                          ...(e.estado !== "Cancelado"
+                          // Un evento finalizado no se edita ni se cancela.
+                          ...(!eventoCerrado(e)
+                            ? [{ label: "Editar", icon: Pencil, onSelect: () => navigate(`/admin/eventos/${e.id}/editar`) }]
+                            : []),
+                          ...(e.estado !== "Cancelado" && !eventoCerrado(e)
                             ? [{ label: "Cancelar evento", icon: CircleX, tone: "danger" as const, separatorBefore: true, onSelect: () => cancelarEvento(e) }]
                             : []),
                           {

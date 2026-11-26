@@ -3117,6 +3117,9 @@
             "type": "string",
             "format": "date-time"
           },
+          "comenzado": {
+            "type": "boolean"
+          },
           "finalizado": {
             "type": "boolean"
           },
@@ -3332,6 +3335,9 @@
           },
           "imagenPortadaUrl": {
             "type": "string"
+          },
+          "eventoFinalizado": {
+            "type": "boolean"
           },
           "nombreTanda": {
             "type": "string"
@@ -4110,6 +4116,9 @@
           },
           "urlPublica": {
             "type": "string"
+          },
+          "finalizado": {
+            "type": "boolean"
           },
           "tandas": {
             "type": "array",

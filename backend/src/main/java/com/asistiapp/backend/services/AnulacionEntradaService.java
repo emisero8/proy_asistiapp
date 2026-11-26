@@ -172,6 +172,10 @@ public class AnulacionEntradaService {
         if (entrada.isCreditoDevuelto()) {
             return;
         }
+        // En un evento que ya se hizo, la entrada se puede anular y reembolsar, pero el crédito ya se usó.
+        if (entrada.getTanda().getEvento().estaCerrado()) {
+            return;
+        }
         Organizador organizador = organizadorRepository.findById(idOrganizador)
                 .orElseThrow(() -> new ResourceNotFoundException("Organizador no encontrado"));
         creditoLedgerService.registrarDevolucionTanda(organizador, 1, entrada.getTanda().getEvento().getId());

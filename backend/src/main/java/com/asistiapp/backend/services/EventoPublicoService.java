@@ -35,7 +35,7 @@ public class EventoPublicoService {
     @Transactional(readOnly = true)
     public List<EventoPublicoListItemDTO> listarPublicados() {
         return eventoRepository.findByEstado(EstadoEvento.Publicado).stream()
-                .filter(e -> !e.yaFinalizo())
+                .filter(e -> !e.yaComenzo())
                 .map(this::toListItemDTO)
                 .toList();
     }
@@ -119,6 +119,7 @@ public class EventoPublicoService {
                 .longitud(evento.getLongitud())
                 .imagenPortadaUrl(evento.getImagenPortadaUrl())
                 .urlPublica(evento.getUrlPublica())
+                .finalizado(evento.yaFinalizo())
                 .tandas(tandas)
                 .maxEntradasPorCompra(limiteCompradorService.limiteParaOrganizador(evento.getIdOrganizador()))
                 .contactoWhatsapp(organizador == null ? null : organizador.getContactoWhatsapp())

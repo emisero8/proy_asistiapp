@@ -83,7 +83,7 @@ public class EventoService {
     public List<EventoResponseDTO> listarEventosPublicadosDeOrganizador(Long idOrganizador) {
         return eventoRepository.findByIdOrganizadorAndEstado(idOrganizador, EstadoEvento.Publicado)
                 .stream()
-                .filter(e -> !e.yaFinalizo())
+                .filter(e -> !e.yaComenzo())
                 .map(this::toResponseDTOSoloTandasDeVenta)
                 .toList();
     }
@@ -92,7 +92,7 @@ public class EventoService {
      * El evento asignado a un Staff Vendedor (CU-019). Devuelve una lista de 0 o
      * 1 elemento: vacía si el evento no existe, no pertenece al organizador del
      * vendedor, no está Publicado, o ya pasó su fecha y hora — vender para un
-     * evento que ya terminó es inútil (el backend lo rechaza igual al confirmar
+     * evento que ya comenzó es inútil (el backend lo rechaza igual al confirmar
      * la venta), así que ni se lo ofrecemos como opción.
      */
     @Transactional(readOnly = true)
@@ -100,7 +100,7 @@ public class EventoService {
         return eventoRepository.findById(idEvento)
                 .filter(e -> e.getIdOrganizador().equals(idOrganizador))
                 .filter(e -> e.getEstado() == EstadoEvento.Publicado)
-                .filter(e -> !e.yaFinalizo())
+                .filter(e -> !e.yaComenzo())
                 .map(e -> List.of(toResponseDTOSoloTandasDeVenta(e)))
                 .orElseGet(List::of);
     }
@@ -152,6 +152,9 @@ public class EventoService {
 
         if (evento.getEstado() == EstadoEvento.Cancelado) {
             throw new BusinessRuleException("No podés editar un evento cancelado.");
+        }
+        if (evento.estaCerrado()) {
+            throw new BusinessRuleException("El evento ya finalizó: no se puede editar.");
         }
 
         validarFechaHoraFutura(dto);
@@ -293,6 +296,9 @@ public class EventoService {
 
         if (evento.getEstado() == EstadoEvento.Cancelado) {
             throw new BusinessRuleException("El evento ya está cancelado");
+        }
+        if (evento.estaCerrado()) {
+            throw new BusinessRuleException("El evento ya finalizó: no se puede cancelar.");
         }
 
         AuditoriaContexto.objetivo(evento.getId(), evento.getNombre());
@@ -458,6 +464,7 @@ public class EventoService {
                 .fechaCreacion(evento.getFechaCreacion())
                 .fechaPublicacion(evento.getFechaPublicacion())
                 .fechaCancelacion(evento.getFechaCancelacion())
+                .comenzado(evento.yaComenzo())
                 .finalizado(evento.yaFinalizo())
                 .tandas(tandaResponses)
                 .build();

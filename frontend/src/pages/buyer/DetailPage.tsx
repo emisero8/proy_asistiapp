@@ -104,16 +104,17 @@ export function DetailPage() {
   const sel = evento.tandas.find((t) => t.id === selId) ?? evento.tandas[0];
   const maxPorCompra = Math.max(1, Math.min(sel.cupoDisponible || 1, evento.maxEntradasPorCompra ?? 6));
   const qtyEfectivo = Math.min(qty, maxPorCompra);
-  // El backend ya rechaza la compra de un evento vencido (VentaService.validarTandaDisponible);
-  // acá solo evitamos que el comprador llegue a intentarlo.
-  const eventoFinalizado = new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
+  // "Finalizado" lo decide el backend. La venta cierra antes, a la hora de inicio: el backend ya la
+  // rechaza (VentaService.validarEventoVendible); acá solo evitamos que el comprador llegue a intentarlo.
+  const finalizado = evento.finalizado;
+  const ventaCerrada = finalizado || new Date(`${evento.fechaEvento}T${evento.horaEvento}`) < new Date();
   const estadoSel = estadoVentaTanda(sel);
-  const hayDisponibles = !eventoFinalizado && evento.tandas.some((t) => estadoVentaTanda(t) === "abierta");
-  const puedeComprar = !eventoFinalizado && estadoSel === "abierta";
+  const hayDisponibles = !ventaCerrada && evento.tandas.some((t) => estadoVentaTanda(t) === "abierta");
+  const puedeComprar = !ventaCerrada && estadoSel === "abierta";
   // Con la comisión de Mercado Pago trasladada al comprador, el total ya incluye el cargo (desglosado en el checkout).
   const { cargo, total } = desglosePedido(sel.precio, sel.cargoServicio, qtyEfectivo);
-  const textoBoton = eventoFinalizado
-    ? "Evento finalizado"
+  const textoBoton = ventaCerrada
+    ? "Venta cerrada"
     : estadoSel === "abierta"
       ? "Comprar entradas"
       : estadoSel === "proximamente"
@@ -126,13 +127,26 @@ export function DetailPage() {
     navigate("/checkout", { state: { evento, tanda: sel, qty: qtyEfectivo } });
   }
 
-  const estadoChip = eventoFinalizado ? "Evento finalizado" : hayDisponibles ? "Entradas disponibles" : "Sin entradas disponibles";
+  const estadoChip = finalizado
+    ? "Evento finalizado"
+    : ventaCerrada
+      ? "Venta cerrada"
+      : hayDisponibles
+        ? "Entradas disponibles"
+        : "Sin entradas disponibles";
 
   return (
     <div className="min-h-dvh bg-background">
       <PublicHeader back="historial" />
 
-      <div className="mx-auto max-w-6xl px-4 pt-4 pb-44 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-10 lg:px-8 lg:py-10 lg:pb-10">
+      <div
+        className={cn(
+          "mx-auto px-4 pt-4 lg:px-8 lg:py-10",
+          finalizado
+            ? "max-w-3xl pb-10"
+            : "max-w-6xl pb-44 lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start lg:gap-10 lg:pb-10",
+        )}
+      >
         <article className="min-w-0 space-y-7">
           {/* Portada */}
           <div className="overflow-hidden rounded-2xl border border-border-strong">
@@ -141,7 +155,7 @@ export function DetailPage() {
               alt={evento.nombre}
               nombre={evento.nombre}
               loading="eager"
-              className="aspect-[16/9] w-full object-cover"
+              className={cn("aspect-[16/9] w-full object-cover", finalizado && "opacity-60 grayscale")}
             />
           </div>
 
@@ -175,8 +189,9 @@ export function DetailPage() {
             </ul>
           </header>
 
-          {eventoFinalizado && <Alert tone="warning">Este evento ya finalizó: no se pueden comprar entradas.</Alert>}
-          {!eventoFinalizado && !hayDisponibles && <Alert tone="warning">{mensajeSinVenta(evento.tandas)}</Alert>}
+          {finalizado && <Alert tone="warning">Este evento ya finalizó: no se pueden comprar entradas.</Alert>}
+          {!finalizado && ventaCerrada && <Alert tone="warning">Este evento ya comenzó: la venta de entradas está cerrada.</Alert>}
+          {!ventaCerrada && !hayDisponibles && <Alert tone="warning">{mensajeSinVenta(evento.tandas)}</Alert>}
 
           {evento.descripcion && (
             <section>
@@ -185,45 +200,47 @@ export function DetailPage() {
             </section>
           )}
 
-          {/* Selección de tanda + cantidad */}
-          <section className="space-y-5 rounded-2xl border border-border-strong bg-card p-5 lg:p-6">
-            <RadioCardGroup
-              label="Elegí tu tanda"
-              value={sel.id}
-              onChange={(id) => setSelId(id)}
-              options={evento.tandas.map((t) => {
-                const est = estadoVentaTanda(t);
-                const ventana = ventanaVentaTexto(t);
-                const disponibilidad =
-                  est === "abierta"
-                    ? `${t.cupoDisponible} disponibles`
-                    : est === "proximamente"
-                      ? "Próximamente"
-                      : est === "cerrada"
-                        ? "Venta cerrada"
-                        : "Agotada";
-                return {
-                  value: t.id,
-                  label: t.nombre,
-                  description: (
-                    <>
-                      <span className={est === "abierta" ? undefined : "font-medium text-warning"}>{disponibilidad}</span>
-                      {ventana && <span className="mt-0.5 block font-mono text-2xs tabular-nums">{ventana}</span>}
-                    </>
-                  ),
-                  aside: fmt(t.precio),
-                  disabled: eventoFinalizado || est !== "abierta",
-                };
-              })}
-            />
-            <div className="flex items-center justify-between gap-4 border-t border-border pt-5">
-              <div>
-                <p className="text-sm font-semibold text-foreground">Cantidad</p>
-                <p className="font-mono text-2xs uppercase tracking-[0.08em] text-muted-foreground">Hasta {maxPorCompra} por compra</p>
+          {/* Selección de tanda + cantidad (con el evento finalizado no hay nada para elegir) */}
+          {!finalizado && (
+            <section className="space-y-5 rounded-2xl border border-border-strong bg-card p-5 lg:p-6">
+              <RadioCardGroup
+                label="Elegí tu tanda"
+                value={sel.id}
+                onChange={(id) => setSelId(id)}
+                options={evento.tandas.map((t) => {
+                  const est = estadoVentaTanda(t);
+                  const ventana = ventanaVentaTexto(t);
+                  const disponibilidad =
+                    est === "abierta"
+                      ? `${t.cupoDisponible} disponibles`
+                      : est === "proximamente"
+                        ? "Próximamente"
+                        : est === "cerrada"
+                          ? "Venta cerrada"
+                          : "Agotada";
+                  return {
+                    value: t.id,
+                    label: t.nombre,
+                    description: (
+                      <>
+                        <span className={est === "abierta" ? undefined : "font-medium text-warning"}>{disponibilidad}</span>
+                        {ventana && <span className="mt-0.5 block font-mono text-2xs tabular-nums">{ventana}</span>}
+                      </>
+                    ),
+                    aside: fmt(t.precio),
+                    disabled: ventaCerrada || est !== "abierta",
+                  };
+                })}
+              />
+              <div className="flex items-center justify-between gap-4 border-t border-border pt-5">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Cantidad</p>
+                  <p className="font-mono text-2xs uppercase tracking-[0.08em] text-muted-foreground">Hasta {maxPorCompra} por compra</p>
+                </div>
+                <QuantityStepper value={qtyEfectivo} onChange={setQty} max={maxPorCompra} disabled={!puedeComprar} />
               </div>
-              <QuantityStepper value={qtyEfectivo} onChange={setQty} max={maxPorCompra} disabled={!puedeComprar} />
-            </div>
-          </section>
+            </section>
+          )}
 
           {evento.latitud != null && evento.longitud != null && (
             <section>
@@ -242,43 +259,47 @@ export function DetailPage() {
         </article>
 
         {/* Resumen de compra — talón de ticket troquelado, sticky en desktop */}
-        <aside className="hidden lg:sticky lg:top-24 lg:block">
-          <div className="relative rounded-2xl border border-foreground bg-card shadow-hard">
-            <div className="p-5">
-              <p className="font-mono text-2xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Tu compra</p>
-              <p className="mt-3 text-sm text-muted-foreground">
-                {qtyEfectivo} × {sel.nombre}
-              </p>
-              <p className="mt-1 font-display text-4xl font-extrabold tabular-nums leading-none text-foreground">{fmt(total)}</p>
-              {cargo > 0 && (
-                <p className="mt-2 font-mono text-2xs leading-relaxed text-muted-foreground">
-                  Incluye {fmt(cargo)} de cargo por procesamiento de pago (Mercado Pago)
+        {!finalizado && (
+          <aside className="hidden lg:sticky lg:top-24 lg:block">
+            <div className="relative rounded-2xl border border-foreground bg-card shadow-hard">
+              <div className="p-5">
+                <p className="font-mono text-2xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Tu compra</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {qtyEfectivo} × {sel.nombre}
                 </p>
-              )}
+                <p className="mt-1 font-display text-4xl font-extrabold tabular-nums leading-none text-foreground">{fmt(total)}</p>
+                {cargo > 0 && (
+                  <p className="mt-2 font-mono text-2xs leading-relaxed text-muted-foreground">
+                    Incluye {fmt(cargo)} de cargo por procesamiento de pago (Mercado Pago)
+                  </p>
+                )}
+              </div>
+              {/* Perforación con muescas */}
+              <div className="relative h-0 border-t border-dashed border-border-strong">
+                <span aria-hidden="true" className="absolute -left-2 -top-2 size-4 rounded-full border border-foreground bg-background" />
+                <span aria-hidden="true" className="absolute -right-2 -top-2 size-4 rounded-full border border-foreground bg-background" />
+              </div>
+              <div className="space-y-3 p-5">
+                <Button block size="lg" disabled={!puedeComprar} onClick={comprar}>
+                  {textoBoton}
+                </Button>
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <ShieldCheck size={14} aria-hidden="true" className="flex-none text-success" />
+                  Pago seguro con MercadoPago. Recibís las entradas por email.
+                </p>
+              </div>
             </div>
-            {/* Perforación con muescas */}
-            <div className="relative h-0 border-t border-dashed border-border-strong">
-              <span aria-hidden="true" className="absolute -left-2 -top-2 size-4 rounded-full border border-foreground bg-background" />
-              <span aria-hidden="true" className="absolute -right-2 -top-2 size-4 rounded-full border border-foreground bg-background" />
-            </div>
-            <div className="space-y-3 p-5">
-              <Button block size="lg" disabled={!puedeComprar} onClick={comprar}>
-                {textoBoton}
-              </Button>
-              <p className="flex items-center gap-2 text-xs text-muted-foreground">
-                <ShieldCheck size={14} aria-hidden="true" className="flex-none text-success" />
-                Pago seguro con MercadoPago. Recibís las entradas por email.
-              </p>
-            </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
 
-      <StickyActionBar summary={`${qtyEfectivo} × ${sel.nombre}`} amount={fmt(total)}>
-        <Button block size="lg" disabled={!puedeComprar} onClick={comprar}>
-          {textoBoton}
-        </Button>
-      </StickyActionBar>
+      {!finalizado && (
+        <StickyActionBar summary={`${qtyEfectivo} × ${sel.nombre}`} amount={fmt(total)}>
+          <Button block size="lg" disabled={!puedeComprar} onClick={comprar}>
+            {textoBoton}
+          </Button>
+        </StickyActionBar>
+      )}
     </div>
   );
 }

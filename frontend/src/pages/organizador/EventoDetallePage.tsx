@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Alert, Button, Card, EmptyState, ErrorState, Input, PageHeader, Skeleton, StatCard, StatusBadge, claseBoton } from "../../components/ui";
 import { api, ApiError } from "../../lib/api";
 import { cn } from "../../lib/cn";
+import { estadoVisibleEvento, eventoCerrado } from "../../lib/estados";
 import { fmt, formatFecha, formatHora } from "../../lib/format";
 import { MapView } from "../../components/EventMap";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -380,7 +381,7 @@ export function OrganizadorEventoDetallePage() {
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-6 lg:space-y-8 lg:px-8 lg:py-8">
       <PageHeader
         back={{ label: "Volver al panel", to: "/organizador/dashboard" }}
-        eyebrow={<StatusBadge tipo="evento" estado={evento.estado} />}
+        eyebrow={<StatusBadge tipo="evento" estado={estadoVisibleEvento(evento)} />}
         title={evento.nombre}
         description={`${formatFecha(evento.fechaEvento)} · ${formatHora(evento.horaEvento)} · ${evento.lugar}`}
         actions={
@@ -392,12 +393,16 @@ export function OrganizadorEventoDetallePage() {
                   Ver página pública
                 </Link>
               )}
-              <Button size="sm" leftIcon={<Pencil size={15} />} onClick={() => navigate(`/organizador/eventos/${evento.id}/editar`)}>
-                Editar
-              </Button>
-              <Button variant="secondary" size="sm" leftIcon={<Ban size={15} />} loading={cancelando} onClick={cancelarEvento}>
-                Cancelar evento
-              </Button>
+              {!eventoCerrado(evento) && (
+                <>
+                  <Button size="sm" leftIcon={<Pencil size={15} />} onClick={() => navigate(`/organizador/eventos/${evento.id}/editar`)}>
+                    Editar
+                  </Button>
+                  <Button variant="secondary" size="sm" leftIcon={<Ban size={15} />} loading={cancelando} onClick={cancelarEvento}>
+                    Cancelar evento
+                  </Button>
+                </>
+              )}
               {evento.estado === "Borrador" && (
                 <Button variant="danger-subtle" size="sm" leftIcon={<Trash2 size={15} />} loading={eliminando} onClick={eliminarBorrador}>
                   Eliminar borrador
@@ -409,6 +414,12 @@ export function OrganizadorEventoDetallePage() {
       />
 
       {error && <Alert tone="danger">{error}</Alert>}
+
+      {eventoCerrado(evento) && (
+        <Alert tone="info" title="Este evento finalizó.">
+          Ya no se puede editar ni cancelar, y sus entradas no sirven para ingresar. Las ventas y el listado quedan para consulta.
+        </Alert>
+      )}
 
       {evento.estado === "Borrador" && (
         <div className="space-y-3">

@@ -6,9 +6,10 @@ import {
   TONO_ESTADO_PAQUETE,
   TONO_ESTADO_TRANSACCION,
   TONO_ESTADO_USUARIO,
+  type EstadoEventoVisible,
   type Tono,
 } from "../../lib/estados";
-import type { EstadoEntrada, EstadoEvento, EstadoPaquete, EstadoTransaccion, EstadoUsuario } from "../../lib/types";
+import type { EstadoEntrada, EstadoPaquete, EstadoTransaccion, EstadoUsuario } from "../../lib/types";
 
 const TONOS: Record<Tono, string> = {
   neutral: "bg-muted text-muted-foreground",
@@ -67,7 +68,7 @@ export function Badge({ tone = "neutral", dot = false, size = "md", className, c
 }
 
 type StatusBadgeProps = { size?: "sm" | "md"; dot?: boolean; className?: string } & (
-  | { tipo: "evento"; estado: EstadoEvento }
+  | { tipo: "evento"; estado: EstadoEventoVisible }
   | { tipo: "usuario"; estado: EstadoUsuario }
   | { tipo: "entrada"; estado: EstadoEntrada }
   | { tipo: "transaccion"; estado: EstadoTransaccion }

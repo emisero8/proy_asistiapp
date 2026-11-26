@@ -1,5 +1,6 @@
 package com.asistiapp.backend.models.entities;
 
+import com.asistiapp.backend.models.enums.EstadoEvento;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -19,16 +20,40 @@ class EventoTest {
         return e;
     }
 
+    private static final long MARGEN = 5;
+    private static final long GRACIA = 60L * Evento.HORAS_HASTA_FINALIZAR;
+
     @Test
-    void conInicioEnElFuturo_noFinalizo() {
-        assertThat(enMinutos(5).yaFinalizo()).isFalse();
+    void conInicioEnElFuturo_niComenzoNiFinalizo() {
+        assertThat(enMinutos(MARGEN).yaComenzo()).isFalse();
+        assertThat(enMinutos(MARGEN).yaFinalizo()).isFalse();
         assertThat(enMinutos(60 * 24 * 30).yaFinalizo()).isFalse();
     }
 
     @Test
-    void conInicioEnElPasado_yaFinalizo() {
-        assertThat(enMinutos(-5).yaFinalizo()).isTrue();
+    void recienEmpezado_comenzoPeroSigueSinFinalizar() {
+        assertThat(enMinutos(-MARGEN).yaComenzo()).isTrue();
+        assertThat(enMinutos(-MARGEN).yaFinalizo()).isFalse();
+        assertThat(enMinutos(-GRACIA + MARGEN).yaFinalizo()).isFalse();
+    }
+
+    @Test
+    void pasadasDoceHorasDesdeElInicio_finalizo() {
+        assertThat(enMinutos(-GRACIA - MARGEN).yaFinalizo()).isTrue();
         assertThat(enMinutos(-60 * 24 * 30).yaFinalizo()).isTrue();
+    }
+
+    @Test
+    void soloUnEventoPublicadoYFinalizadoEstaCerrado() {
+        Evento pasado = enMinutos(-60 * 24 * 2);
+        pasado.setEstado(EstadoEvento.Borrador);
+        assertThat(pasado.estaCerrado()).isFalse();   // un borrador viejo se sigue pudiendo editar
+        pasado.setEstado(EstadoEvento.Publicado);
+        assertThat(pasado.estaCerrado()).isTrue();
+
+        Evento enCurso = enMinutos(-MARGEN);
+        enCurso.setEstado(EstadoEvento.Publicado);
+        assertThat(enCurso.estaCerrado()).isFalse();
     }
 
     @Test

@@ -73,7 +73,7 @@ public class MetricasOrganizadorService {
         // Próximo evento publicado que todavía no empezó
         LocalDate hoy = LocalDate.now();
         ResumenOrganizadorResponseDTO.ProximoEvento proximo = publicados.stream()
-                .filter(e -> e.getFechaEvento() != null && !e.getFechaEvento().isBefore(hoy))
+                .filter(e -> e.getFechaEvento() != null && !e.getFechaEvento().isBefore(hoy) && !e.yaComenzo())
                 .min(Comparator.comparing(Evento::getFechaEvento))
                 .map(e -> new ResumenOrganizadorResponseDTO.ProximoEvento(e.getId(), e.getNombre(), e.getFechaEvento()))
                 .orElse(null);

@@ -25,6 +25,8 @@ public class EventoPublicoDetalleDTO {
     private Double longitud;
     private String imagenPortadaUrl;
     private String urlPublica;
+    /** El evento ya terminó. Que haya comenzado (venta cerrada) lo indica su fecha y hora. */
+    private boolean finalizado;
     private List<TandaResponseDTO> tandas;
 
     /** Tope de entradas que una misma persona puede comprar para este evento. */

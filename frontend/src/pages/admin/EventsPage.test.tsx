@@ -28,6 +28,8 @@ const EVENTO = {
   fechaCreacion: "2026-01-01T00:00:00",
   fechaPublicacion: "2026-01-02T00:00:00",
   fechaCancelacion: null,
+  comenzado: false,
+  finalizado: false,
   tandas: [{ id: 1, idEvento: 7, nombre: "General", precio: 1000, cupoMaximo: 100, cupoDisponible: 90, fechaInicioVigencia: null, fechaFinVigencia: null }],
 } as EventoResponseDTO;
 
@@ -56,6 +58,21 @@ async function abrirCancelar(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("menuitem", { name: "Cancelar evento" }));
   return screen.findByRole("alertdialog", { name: "Cancelar evento" });
 }
+
+describe("AdminEventsPage — evento finalizado", () => {
+  it("se muestra como Finalizado y solo se puede eliminar", async () => {
+    vi.mocked(api.get).mockResolvedValue([{ ...EVENTO, comenzado: true, finalizado: true }]);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole("button", { name: "Acciones de Festival de Jazz" }));
+
+    expect(screen.getByText("Finalizado")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Eliminar" })).toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Editar" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Cancelar evento" })).not.toBeInTheDocument();
+  });
+});
 
 describe("AdminEventsPage — cancelar evento", () => {
   it("pide confirmación avisando a quién afecta; 'No, volver' no cancela nada", async () => {

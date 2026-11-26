@@ -18,6 +18,7 @@ const EVENTO = {
   estado: "Publicado",
   fechaEvento: "2099-12-31",
   horaEvento: "21:00:00",
+  comenzado: false,
   finalizado: false,
 } as EventoResponseDTO;
 
