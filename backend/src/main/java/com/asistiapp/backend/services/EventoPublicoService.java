@@ -21,8 +21,8 @@ import java.util.List;
 /**
  * Catálogo público de eventos para el Comprador (CU-015, CU-016).
  * Sin autenticación — el Comprador nunca inicia sesión (ver docs/Trabajo_PP2...).
- * Solo expone eventos en estado Publicado, y solo los que todavía no pasaron
- * su fecha y hora (el catálogo no es un archivo histórico).
+ * Solo expone eventos en estado Publicado, y solo los que todavía no finalizaron
+ * (el catálogo no es un archivo histórico).
  */
 @Service
 @RequiredArgsConstructor
@@ -35,7 +35,7 @@ public class EventoPublicoService {
     @Transactional(readOnly = true)
     public List<EventoPublicoListItemDTO> listarPublicados() {
         return eventoRepository.findByEstado(EstadoEvento.Publicado).stream()
-                .filter(e -> !e.yaComenzo())
+                .filter(e -> !e.yaFinalizo())
                 .map(this::toListItemDTO)
                 .toList();
     }

@@ -7,6 +7,7 @@ import type { Coords } from "../../components/EventMap";
 import { Alert, Button, Card, IconButton, PageHeader, claseBoton } from "../../components/ui";
 import { cn } from "../../lib/cn";
 import { comportamientoScroll } from "../../lib/motion";
+import { cierreDeVenta } from "../../lib/tandas";
 import { DatosEventoCampos, TandaCard } from "./EventoFormCampos";
 import type {
   CreditosResumenResponseDTO,
@@ -173,16 +174,13 @@ export function OrganizadorWizardPage() {
         creadas.delete(idLocal);
       }
       for (const t of tandas) {
-        // Si el "hasta" cae el mismo día del evento, la venta cierra cuando
-        // empieza el evento (no a las 23:59) para no chocar con la validación.
-        const finHora = t.hasta === date ? `${time}:00` : "23:59:59";
         const dto: TandaRequestDTO = {
           nombre: t.nombre,
           precio: t.soloEmision ? 0 : Number(t.precio),
           cupoMaximo: Number(t.cupoMaximo),
           ...(t.soloEmision ? { soloEmision: true } : {}),
           fechaInicioVigencia: t.desde ? `${t.desde}T00:00:00` : undefined,
-          fechaFinVigencia: t.hasta ? `${t.hasta}T${finHora}` : undefined,
+          fechaFinVigencia: t.hasta ? cierreDeVenta(t.hasta, date, time) : undefined,
         };
         const firma = JSON.stringify(dto);
         const yaCreada = creadas.get(t.id);

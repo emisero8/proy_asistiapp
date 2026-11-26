@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { estadoVentaTanda, mensajeSinVenta, ventanaVentaTexto } from "./tandas";
+import { cierreDeVenta, estadoVentaTanda, mensajeSinVenta, ventanaVentaTexto } from "./tandas";
 import type { TandaResponseDTO } from "./types";
 
 const AHORA = new Date("2026-06-15T12:00:00");
@@ -60,6 +60,17 @@ describe("ventanaVentaTexto", () => {
   });
   it("solo inicio → 'Abre …'", () => {
     expect(ventanaVentaTexto(tanda({ fechaInicioVigencia: "2026-06-20T12:00:00" }))).toMatch(/^Abre /);
+  });
+});
+
+describe("cierreDeVenta", () => {
+  it("el día del evento significa hasta que termine: 12 horas desde el inicio, aunque cruce la medianoche", () => {
+    expect(cierreDeVenta("2026-12-05", "2026-12-05", "21:00")).toBe("2026-12-06T09:00:00");
+    expect(cierreDeVenta("2026-12-05", "2026-12-05", "08:30:00")).toBe("2026-12-05T20:30:00");
+  });
+
+  it("un día anterior cierra al terminar ese día", () => {
+    expect(cierreDeVenta("2026-12-01", "2026-12-05", "21:00")).toBe("2026-12-01T23:59:59");
   });
 });
 

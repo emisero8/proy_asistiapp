@@ -3117,9 +3117,6 @@
             "type": "string",
             "format": "date-time"
           },
-          "comenzado": {
-            "type": "boolean"
-          },
           "finalizado": {
             "type": "boolean"
           },
@@ -3337,6 +3334,9 @@
             "type": "string"
           },
           "eventoFinalizado": {
+            "type": "boolean"
+          },
+          "eventoCancelado": {
             "type": "boolean"
           },
           "nombreTanda": {

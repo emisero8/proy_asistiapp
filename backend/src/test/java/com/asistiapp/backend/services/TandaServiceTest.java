@@ -120,6 +120,22 @@ class TandaServiceTest {
     }
 
     @Test
+    void crearTanda_laVentaPuedeSeguirDuranteElEventoPeroNoDespuesDeQueTermina() {
+        stubOrganizadorYEvento();
+        when(tandaRepository.save(any(Tanda.class))).thenAnswer(inv -> inv.getArgument(0));
+        TandaRequestDTO hastaElFinal = dto(1);
+        hastaElFinal.setFechaFinVigencia(evento.fin());
+        TandaRequestDTO pasada = dto(1);
+        pasada.setFechaFinVigencia(evento.fin().plusMinutes(1));
+
+        tandaService.crearTanda(ID_EVENTO, hastaElFinal, ID_ORG);
+
+        assertThatThrownBy(() -> tandaService.crearTanda(ID_EVENTO, pasada, ID_ORG))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("después del final del evento");
+    }
+
+    @Test
     void tandasDeUnEventoFinalizado_noSeCreanNiEditanNiBorran() {
         evento.setEstado(EstadoEvento.Publicado);
         evento.setFechaEvento(LocalDate.now().minusDays(2));

@@ -32,6 +32,8 @@ public class EntradaResponseDTO {
     private String imagenPortadaUrl;
     /** El evento ya finalizó: la entrada no sirve más para ingresar. */
     private boolean eventoFinalizado;
+    /** El evento se canceló: la entrada no sirve para ingresar. */
+    private boolean eventoCancelado;
     private String nombreTanda;
     private Double precioTanda;
     private String codigoQr;

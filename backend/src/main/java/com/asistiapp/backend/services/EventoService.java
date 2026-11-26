@@ -83,7 +83,7 @@ public class EventoService {
     public List<EventoResponseDTO> listarEventosPublicadosDeOrganizador(Long idOrganizador) {
         return eventoRepository.findByIdOrganizadorAndEstado(idOrganizador, EstadoEvento.Publicado)
                 .stream()
-                .filter(e -> !e.yaComenzo())
+                .filter(e -> !e.yaFinalizo())
                 .map(this::toResponseDTOSoloTandasDeVenta)
                 .toList();
     }
@@ -91,16 +91,15 @@ public class EventoService {
     /**
      * El evento asignado a un Staff Vendedor (CU-019). Devuelve una lista de 0 o
      * 1 elemento: vacía si el evento no existe, no pertenece al organizador del
-     * vendedor, no está Publicado, o ya pasó su fecha y hora — vender para un
-     * evento que ya comenzó es inútil (el backend lo rechaza igual al confirmar
-     * la venta), así que ni se lo ofrecemos como opción.
+     * vendedor, no está Publicado, o ya finalizó — el backend rechaza esa venta
+     * al confirmarla, así que ni se lo ofrecemos como opción.
      */
     @Transactional(readOnly = true)
     public List<EventoResponseDTO> listarEventoPublicadoDeVendedor(Long idEvento, Long idOrganizador) {
         return eventoRepository.findById(idEvento)
                 .filter(e -> e.getIdOrganizador().equals(idOrganizador))
                 .filter(e -> e.getEstado() == EstadoEvento.Publicado)
-                .filter(e -> !e.yaComenzo())
+                .filter(e -> !e.yaFinalizo())
                 .map(e -> List.of(toResponseDTOSoloTandasDeVenta(e)))
                 .orElseGet(List::of);
     }
@@ -164,13 +163,13 @@ public class EventoService {
         mapDtoToEvento(dto, evento);
 
         // Si se movió la fecha/hora, ninguna tanda puede quedar con la venta
-        // abierta más allá del nuevo comienzo del evento.
-        LocalDateTime inicioEvento = LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento());
+        // abierta más allá del nuevo final del evento.
+        LocalDateTime finEvento = evento.fin();
         for (Tanda t : evento.getTandas()) {
-            if (t.getFechaFinVigencia() != null && t.getFechaFinVigencia().isAfter(inicioEvento)) {
+            if (t.getFechaFinVigencia() != null && t.getFechaFinVigencia().isAfter(finEvento)) {
                 throw new BusinessRuleException(
                         "No podés mover el evento a esa fecha: la tanda \"" + t.getNombre() +
-                        "\" tiene la venta abierta hasta después del nuevo comienzo. Ajustá esa tanda primero.");
+                        "\" tiene la venta abierta hasta después del nuevo final. Ajustá esa tanda primero.");
             }
         }
 
@@ -219,16 +218,16 @@ public class EventoService {
         }
 
         // El evento no puede publicarse si ya pasó, ni con tandas cuya venta
-        // cierre después de que arranca.
+        // cierre después de que termina.
         LocalDateTime inicioEvento = LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento());
         if (inicioEvento.isBefore(LocalDateTime.now())) {
             throw new BusinessRuleException("No podés publicar un evento cuya fecha ya pasó.");
         }
         for (Tanda t : evento.getTandas()) {
-            if (t.getFechaFinVigencia() != null && t.getFechaFinVigencia().isAfter(inicioEvento)) {
+            if (t.getFechaFinVigencia() != null && t.getFechaFinVigencia().isAfter(evento.fin())) {
                 throw new BusinessRuleException(
                         "La tanda \"" + t.getNombre() + "\" tiene la venta abierta más allá del " +
-                        "comienzo del evento. Ajustá su ventana de venta antes de publicar.");
+                        "final del evento. Ajustá su ventana de venta antes de publicar.");
             }
         }
 
@@ -464,7 +463,6 @@ public class EventoService {
                 .fechaCreacion(evento.getFechaCreacion())
                 .fechaPublicacion(evento.getFechaPublicacion())
                 .fechaCancelacion(evento.getFechaCancelacion())
-                .comenzado(evento.yaComenzo())
                 .finalizado(evento.yaFinalizo())
                 .tandas(tandaResponses)
                 .build();

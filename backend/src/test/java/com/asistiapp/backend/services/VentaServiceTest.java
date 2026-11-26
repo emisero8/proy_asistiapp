@@ -122,16 +122,16 @@ class VentaServiceTest {
     }
 
     @Test
-    void iniciarCompraOnline_eventoYaPaso_lanzaBusinessRuleException() {
+    void iniciarCompraOnline_eventoFinalizado_lanzaBusinessRuleException() {
         // Encontrado probando el sistema: un evento Publicado cuya fecha/hora ya pasó se
         // podía seguir comprando si la tanda no tenía su propia fechaFinVigencia configurada.
-        evento.setFechaEvento(java.time.LocalDate.now().minusDays(1));
+        evento.setFechaEvento(java.time.LocalDate.now().minusDays(2));
         CompraOnlineRequestDTO dto = compraDto(tanda.getId());
         when(tandaRepository.findById(tanda.getId())).thenReturn(Optional.of(tanda));
 
         assertThatThrownBy(() -> ventaService.iniciarCompraOnline(dto))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("ya comenzó");
+                .hasMessageContaining("ya finalizó");
     }
 
     @Test

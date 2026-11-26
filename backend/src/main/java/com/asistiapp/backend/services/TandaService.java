@@ -255,11 +255,11 @@ public class TandaService {
     /**
      * La ventana de venta de una tanda tiene que ser coherente con el evento:
      *  - "desde" anterior a "hasta" (si ambas están cargadas);
-     *  - ni "desde" ni "hasta" pueden caer después del comienzo del evento —
-     *    no tiene sentido vender una entrada para un evento que ya arrancó.
+     *  - ni "desde" ni "hasta" pueden caer después del final del evento
+     *    ({@link Evento#fin()}): se vende mientras dure, nunca después.
      */
     private void validarVentana(TandaRequestDTO dto, Evento evento) {
-        LocalDateTime inicioEvento = LocalDateTime.of(evento.getFechaEvento(), evento.getHoraEvento());
+        LocalDateTime finEvento = evento.fin();
         LocalDateTime desde = dto.getFechaInicioVigencia();
         LocalDateTime hasta = dto.getFechaFinVigencia();
 
@@ -267,14 +267,14 @@ public class TandaService {
             throw new BusinessRuleException(
                     "El inicio de la venta de la tanda tiene que ser anterior al cierre.");
         }
-        if (hasta != null && hasta.isAfter(inicioEvento)) {
+        if (hasta != null && hasta.isAfter(finEvento)) {
             throw new BusinessRuleException(
-                    "La venta de la tanda no puede cerrar después del comienzo del evento (" +
-                    evento.getFechaEvento() + " " + evento.getHoraEvento() + ").");
+                    "La venta de la tanda no puede cerrar después del final del evento (" +
+                    Evento.HORAS_HASTA_FINALIZAR + " horas desde que empieza).");
         }
-        if (desde != null && desde.isAfter(inicioEvento)) {
+        if (desde != null && desde.isAfter(finEvento)) {
             throw new BusinessRuleException(
-                    "La venta de la tanda no puede empezar después del comienzo del evento.");
+                    "La venta de la tanda no puede empezar después del final del evento.");
         }
     }
 

@@ -43,7 +43,6 @@ function evento(id: number, nombre: string, lugar: string, estado: EventoRespons
     fechaCreacion: "2026-01-01T00:00:00",
     fechaPublicacion: null,
     fechaCancelacion: null,
-    comenzado: false,
     finalizado: false,
     tandas: [],
   } as unknown as EventoResponseDTO;
@@ -127,7 +126,7 @@ describe("OrganizadorDashboardPage — Mis eventos", () => {
 describe("OrganizadorDashboardPage — eventos finalizados", () => {
   beforeEach(() => {
     vi.mocked(api.get).mockImplementation(async (path: string) => {
-      if (path === "/eventos") return [{ ...evento(4, "Peña pasada", "Club Norte", "Publicado"), comenzado: true, finalizado: true }, ...LISTA];
+      if (path === "/eventos") return [{ ...evento(4, "Peña pasada", "Club Norte", "Publicado"), finalizado: true }, ...LISTA];
       if (path === "/eventos/resumen") return RESUMEN;
       return undefined;
     });

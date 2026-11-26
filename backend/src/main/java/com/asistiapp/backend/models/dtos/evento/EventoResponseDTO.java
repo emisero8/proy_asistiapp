@@ -36,9 +36,6 @@ public class EventoResponseDTO {
     private LocalDateTime fechaPublicacion;
     private LocalDateTime fechaCancelacion;
 
-    /** Llegó la hora de inicio: ya no se venden ni emiten entradas. */
-    private boolean comenzado;
-
     /** Pasaron las horas de gracia desde el inicio (Evento.yaFinalizo): publicado así, es solo historial. */
     private boolean finalizado;
 

@@ -8,6 +8,7 @@ import com.asistiapp.backend.models.dtos.validacion.ValidacionQRResponseDTO;
 import com.asistiapp.backend.models.entities.Entrada;
 import com.asistiapp.backend.models.entities.StaffQR;
 import com.asistiapp.backend.models.enums.EstadoEntrada;
+import com.asistiapp.backend.models.enums.EstadoEvento;
 import com.asistiapp.backend.repositories.EntradaRepository;
 import com.asistiapp.backend.security.audit.Auditable;
 import com.asistiapp.backend.security.audit.AuditoriaContexto;
@@ -110,7 +111,25 @@ public class StaffQRService {
                     .build();
         }
 
-        // ── Paso 3b: Verificar que el evento no haya finalizado ──────────
+        // ── Paso 3b: Verificar que el evento no esté cancelado ───────────
+        if (entrada.getTanda().getEvento().getEstado() == EstadoEvento.Cancelado) {
+            AuditoriaContexto.accion("INGRESO_RECHAZADO");
+            AuditoriaContexto.detalle("Rechazada: el evento está cancelado.");
+            log.warn("Intento de usar una entrada de un evento cancelado. QR={}, entrada={}",
+                    dto.getCodigoQr(), entrada.getId());
+            return ValidacionQRResponseDTO.builder()
+                    .valido(false)
+                    .mensaje("❌ EVENTO CANCELADO — La entrada no sirve para ingresar")
+                    .idEntrada(entrada.getId())
+                    .nombreComprador(entrada.getNombreComprador())
+                    .emailComprador(entrada.getEmailComprador())
+                    .nombreEvento(nombreEvento)
+                    .nombreTanda(nombreTanda)
+                    .estadoAnterior(entrada.getEstado())
+                    .build();
+        }
+
+        // ── Paso 3c: Verificar que el evento no haya finalizado ──────────
         if (entrada.getTanda().getEvento().yaFinalizo()) {
             AuditoriaContexto.accion("INGRESO_RECHAZADO");
             AuditoriaContexto.detalle("Rechazada: el evento ya finalizó.");
@@ -178,13 +197,14 @@ public class StaffQRService {
 
         boolean pagada = entrada.getEstado() == EstadoEntrada.Pagada;
         boolean finalizado = entrada.getTanda().getEvento().yaFinalizo();
-        boolean esValida = pagada && !finalizado;
+        boolean cancelado = entrada.getTanda().getEvento().getEstado() == EstadoEvento.Cancelado;
+        boolean esValida = pagada && !cancelado && !finalizado;
         String mensaje = esValida
                 ? "✅ Entrada disponible para validar"
                 : entrada.getEstado() == EstadoEntrada.Anulada
                         ? "❌ Entrada anulada por el organizador"
                         : pagada
-                                ? "❌ El evento ya finalizó"
+                                ? cancelado ? "❌ El evento está cancelado" : "❌ El evento ya finalizó"
                                 : "❌ Entrada ya utilizada el " + entrada.getFechaUso();
 
         return ValidacionQRResponseDTO.builder()

@@ -19,6 +19,21 @@ export function estadoVentaTanda(tanda: TandaResponseDTO, ahora: Date = new Date
   return "abierta";
 }
 
+/** Igual que `Evento.HORAS_HASTA_FINALIZAR` del backend: hasta dónde puede quedar abierta la venta. */
+const HORAS_HASTA_FINALIZAR = 12;
+
+/**
+ * Fecha y hora de cierre a partir del día elegido en "Venta hasta". El día del evento significa "hasta que
+ * termine" (puede caer en la madrugada siguiente); cualquier día anterior, hasta el final de ese día.
+ */
+export function cierreDeVenta(hasta: string, fechaEvento: string, horaEvento: string): string {
+  if (hasta !== fechaEvento || !horaEvento) return `${hasta}T23:59:59`;
+  const fin = new Date(`${fechaEvento}T${horaEvento.slice(0, 5)}:00`);
+  fin.setHours(fin.getHours() + HORAS_HASTA_FINALIZAR);
+  const dos = (n: number) => String(n).padStart(2, "0");
+  return `${fin.getFullYear()}-${dos(fin.getMonth() + 1)}-${dos(fin.getDate())}T${dos(fin.getHours())}:${dos(fin.getMinutes())}:00`;
+}
+
 /** Texto de la ventana de venta de una tanda, o `null` si no tiene vigencia configurada. */
 export function ventanaVentaTexto(tanda: TandaResponseDTO): string | null {
   const { fechaInicioVigencia: ini, fechaFinVigencia: fin } = tanda;

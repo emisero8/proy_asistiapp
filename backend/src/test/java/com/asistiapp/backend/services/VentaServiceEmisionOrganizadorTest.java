@@ -205,12 +205,12 @@ class VentaServiceEmisionOrganizadorTest {
 
     @Test
     void emitir_eventoYaFinalizado_seRechaza() {
-        evento.setFechaEvento(LocalDate.now().minusDays(1));
+        evento.setFechaEvento(LocalDate.now().minusDays(2));
         tandaConLock();
 
         assertThatThrownBy(() -> ventaService.emitirEntradasOrganizador(pedido(1, TipoEmision.Cortesia), ID_ORGANIZADOR))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("ya comenzó");
+                .hasMessageContaining("ya finalizó");
     }
 
     @Test
