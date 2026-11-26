@@ -82,7 +82,7 @@ public class AnulacionEntradaService {
         Entrada entrada = cargarDelOrganizador(idEntrada, idOrganizador);
         Evento evento = entrada.getTanda().getEvento();
 
-        if (entrada.getIdTransaccionPago() == null || entrada.getTanda().getPrecio() == null || entrada.getTanda().getPrecio() <= 0) {
+        if (entrada.getIdTransaccionPago() == null || entrada.precio() <= 0) {
             throw new BusinessRuleException("Esta entrada no se pagó por Mercado Pago: no hay nada que reembolsar desde acá");
         }
         if (entrada.getReembolsadaEn() != null) {
@@ -108,7 +108,7 @@ public class AnulacionEntradaService {
         }
         // Se devuelve lo que el comprador pagó por esta entrada: el precio y, si el Organizador le trasladó la
         // comisión de Mercado Pago, el cargo por entrada que quedó fijado en la orden.
-        BigDecimal monto = BigDecimal.valueOf(entrada.getTanda().getPrecio());
+        BigDecimal monto = BigDecimal.valueOf(entrada.precio());
         if (orden.getCargoServicioUnitario() != null && orden.getCargoServicioUnitario() > 0) {
             monto = monto.add(BigDecimal.valueOf(orden.getCargoServicioUnitario()));
         }
@@ -203,6 +203,6 @@ public class AnulacionEntradaService {
     private DatosEntrada datos(Entrada entrada) {
         Evento evento = entrada.getTanda().getEvento();
         return new DatosEntrada(entrada.getId(), evento.getId(), evento.getIdOrganizador(), entrada.getNombreComprador(),
-                entrada.getEmailComprador(), evento.getNombre(), entrada.getTanda().getPrecio() == null ? 0 : entrada.getTanda().getPrecio());
+                entrada.getEmailComprador(), evento.getNombre(), entrada.precio());
     }
 }

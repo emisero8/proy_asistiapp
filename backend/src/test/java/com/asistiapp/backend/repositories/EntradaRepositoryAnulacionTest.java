@@ -88,6 +88,19 @@ class EntradaRepositoryAnulacionTest {
     }
 
     @Test
+    void cambiarElPrecioDeLaTandaNoCambiaLoQueElVendedorTieneQueRendir() {
+        Entrada vendida = entrada("QR-PV-1", EstadoEntrada.Pagada, null, 77L);
+        vendida.setPrecioVenta(1000.0);
+        entradaRepository.save(vendida);
+        tanda.setPrecio(4000.0);
+        tandaRepository.save(tanda);
+
+        var resumen = entradaRepository.resumenPorVendedor(java.util.List.of(77L)).get(0);
+
+        assertThat(((Number) resumen[2]).doubleValue()).isEqualTo(1000.0);
+    }
+
+    @Test
     void lasAnuladasNoSumanIngresosNiEntradasVigentesGlobales() {
         double ingresosAntes = entradaRepository.sumaIngresosTotales();
         long vigentesAntes = entradaRepository.countVigentes();

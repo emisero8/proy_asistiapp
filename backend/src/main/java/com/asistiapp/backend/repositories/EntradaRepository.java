@@ -49,7 +49,7 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
     long countByIdStaffVendedor(@Param("idStaffVendedor") Long idStaffVendedor);
 
     /** Por vendedor: [idStaffVendedor, cantidad vendida, total que suman sus entradas]. Sin las anuladas. */
-    @Query("SELECT e.idStaffVendedor, COUNT(e), COALESCE(SUM(e.tanda.precio), 0) FROM Entrada e "
+    @Query("SELECT e.idStaffVendedor, COUNT(e), COALESCE(SUM(COALESCE(e.precioVenta, e.tanda.precio)), 0) FROM Entrada e "
             + "WHERE e.idStaffVendedor IN :ids AND e.estado <> com.asistiapp.backend.models.enums.EstadoEntrada.Anulada "
             + "GROUP BY e.idStaffVendedor")
     List<Object[]> resumenPorVendedor(@Param("ids") List<Long> ids);
@@ -58,7 +58,7 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
      * Suma de ingresos de las entradas del sistema (métricas globales del Admin, CU-027). Las cortesías
      * del Organizador no cobraron nada y no cuentan; el pago externo sí (cobrado, aunque fuera de la plataforma).
      */
-    @Query("SELECT COALESCE(SUM(e.tanda.precio), 0) FROM Entrada e "
+    @Query("SELECT COALESCE(SUM(COALESCE(e.precioVenta, e.tanda.precio)), 0) FROM Entrada e "
             + "WHERE e.estado <> com.asistiapp.backend.models.enums.EstadoEntrada.Anulada "
             + "AND (e.tipoEmision IS NULL OR e.tipoEmision <> com.asistiapp.backend.models.enums.TipoEmision.Cortesia)")
     Double sumaIngresosTotales();
@@ -72,7 +72,7 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
      * evento se canceló, todas. Las manuales y las emitidas por el Organizador no pasaron por Mercado Pago.
      */
     @Query("SELECT e FROM Entrada e WHERE e.tanda.evento.id = :eventoId AND e.idTransaccionPago IS NOT NULL "
-            + "AND e.reembolsadaEn IS NULL AND e.tanda.precio > 0 "
+            + "AND e.reembolsadaEn IS NULL AND COALESCE(e.precioVenta, e.tanda.precio) > 0 "
             + "AND (e.estado = com.asistiapp.backend.models.enums.EstadoEntrada.Anulada "
             + "OR e.tanda.evento.estado = com.asistiapp.backend.models.enums.EstadoEvento.Cancelado)")
     List<Entrada> findPendientesDeReembolso(@Param("eventoId") Long eventoId);

@@ -27,6 +27,7 @@ import java.util.List;
  *
  * Endpoints exclusivos Staff_Vendedor:
  *   POST /tickets/venta-manual         → Venta manual directa de 1..20 entradas, todo o nada (CU-019)
+ *   GET  /tickets/mi-tope              → Cuánto le queda del tope que le fijó el Organizador
  *
  * Endpoints para Organizador (reportes):
  *   GET  /tickets/evento/{eventoId}    → Listar entradas de un evento
@@ -123,6 +124,14 @@ public class VentaController {
             @RequestParam Long idEvento,
             @RequestParam(required = false) String email) {
         return ResponseEntity.ok(ventaService.consultarDisponibilidadComprador(idEvento, email));
+    }
+
+    /** El tope de entradas del vendedor autenticado y cuánto le queda. */
+    @GetMapping("/mi-tope")
+    @PreAuthorize("hasRole('Staff_Vendedor')")
+    public ResponseEntity<TopeVendedorResponseDTO> consultarMiTope() {
+        StaffVendedor staff = securityUtils.getStaffVendedorAutenticado();
+        return ResponseEntity.ok(ventaService.consultarTopeVendedor(staff.getId()));
     }
 
     // ─────────────────────────────────────────────

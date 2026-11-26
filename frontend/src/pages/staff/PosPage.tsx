@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CalendarX, CheckCircle2, Copy, LogOut, QrCode, RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, ApiError, API_BASE_URL } from "../../lib/api";
@@ -12,6 +12,7 @@ import type {
   EntradaResponseDTO,
   EventoResponseDTO,
   TandaResponseDTO,
+  TopeVendedorResponseDTO,
   VentaManualRequestDTO,
 } from "../../lib/types";
 import { useDocumentTitle } from "../../lib/useDocumentTitle";
@@ -60,6 +61,22 @@ export function StaffPosPage() {
   // que el backend vaya a rechazar a mitad de camino.
   const [disponibilidad, setDisponibilidad] = useState<DisponibilidadCompradorResponseDTO | null>(null);
 
+  // Tope que le fijó el Organizador: se muestra y limita la cantidad antes de vender. Si la consulta falla
+  // no se bloquea nada: el backend valida igual.
+  const [miTope, setMiTope] = useState<TopeVendedorResponseDTO | null>(null);
+
+  const cargarTope = useCallback(() => {
+    api
+      .get<TopeVendedorResponseDTO>("/tickets/mi-tope")
+      .then((t) => {
+        setMiTope(t);
+        if (t.restantes != null) setQty((q) => Math.min(q, Math.max(1, t.restantes!)));
+      })
+      .catch(() => setMiTope(null));
+  }, []);
+
+  useEffect(cargarTope, [cargarTope]);
+
   useEffect(() => {
     api
       .get<EventoResponseDTO[]>("/eventos/vendedor")
@@ -95,7 +112,13 @@ export function StaffPosPage() {
     return () => clearTimeout(handle);
   }, [evento, buyerEmail]);
 
-  const cupoMaximoVenta = Math.min(MAX_ENTRADAS_POR_VENTA, tanda?.cupoDisponible ?? 1, disponibilidad?.disponible ?? Infinity);
+  const restantesDelTope = miTope?.restantes ?? null;
+  const cupoMaximoVenta = Math.min(
+    MAX_ENTRADAS_POR_VENTA,
+    tanda?.cupoDisponible ?? 1,
+    disponibilidad?.disponible ?? Infinity,
+    restantesDelTope ?? Infinity,
+  );
 
   async function handleGenerate() {
     if (!tanda) return;
@@ -113,8 +136,11 @@ export function StaffPosPage() {
       } satisfies VentaManualRequestDTO);
       setEntradas(nuevas);
       setSoldToday((c) => c + nuevas.length);
+      cargarTope();
     } catch (e: unknown) {
       setSellError(e instanceof ApiError ? e.message : "No pudimos registrar la venta. Intentá de nuevo.");
+      // El rechazo puede ser por el tope (lo cambió el Organizador, o se vendió desde otro dispositivo).
+      cargarTope();
     } finally {
       setSelling(false);
     }
@@ -335,6 +361,23 @@ export function StaffPosPage() {
               </div>
             )
           )}
+
+          {miTope?.tope != null &&
+            (miTope.restantes === 0 ? (
+              <Alert tone="warning" title="Llegaste a tu tope de ventas">
+                Vendiste {miTope.vendidas} de {miTope.tope} entradas. Pedile al Organizador que lo amplíe para seguir vendiendo.
+              </Alert>
+            ) : (
+              <div className="rounded-2xl border border-border bg-card px-4 py-3 sm:max-w-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-foreground">Te quedan para vender</span>
+                  <span className="text-lg font-extrabold tabular-nums text-foreground">{miTope.restantes}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Vendiste {miTope.vendidas} de {miTope.tope} entradas de tu tope.
+                </p>
+              </div>
+            ))}
 
           {evento && (
             <RadioCardGroup<number>

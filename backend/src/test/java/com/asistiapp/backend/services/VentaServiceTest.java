@@ -448,6 +448,24 @@ class VentaServiceTest {
         verifyNoInteractions(emailService);
     }
 
+    @Test
+    void confirmarPagoEntradas_guardaElPrecioCobradoAunqueLaTandaHayaCambiado() {
+        TransaccionPago transaccion = transaccionPago(EstadoTransaccion.Pendiente);
+        transaccion.setCantidad(2);
+        transaccion.setMontoTotal(2247.14);              // 2 x (1000 + 123,57 de cargo)
+        transaccion.setCargoServicioUnitario(123.57);
+        tanda.setPrecio(5000.0);                         // el Organizador lo cambió mientras se pagaba
+        when(transaccionPagoRepository.findByExternalReferenceForUpdate("1")).thenReturn(Optional.of(transaccion));
+        when(tandaRepository.findByIdWithLock(tanda.getId())).thenReturn(Optional.of(tanda));
+        when(tandaRepository.decrementarCupo(tanda.getId(), 2)).thenReturn(1);
+        when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ventaService.confirmarPagoEntradas("1", 999L, BigDecimal.valueOf(2247.14), "ARS");
+
+        verify(entradaRepository, times(2)).save(argThat(e -> e.getPrecioVenta() == 1000.0));
+    }
+
     // ─────────────────────────────────────────────
     // marcarOrdenReembolsada
     // ─────────────────────────────────────────────
@@ -688,6 +706,41 @@ class VentaServiceTest {
 
         verify(tandaRepository, never()).decrementarCupo(anyLong(), anyInt());
         verify(entradaRepository, never()).save(any());
+    }
+
+    @Test
+    void realizarVentaManual_guardaElPrecioConElQueSeVendio() {
+        vendedorDeLaTanda();
+        when(tandaRepository.decrementarCupo(tanda.getId(), 1)).thenReturn(1);
+        when(entradaRepository.existsByCodigoQr(any())).thenReturn(false);
+        when(entradaRepository.save(any(Entrada.class))).thenAnswer(inv -> inv.getArgument(0));
+        double precio = tanda.getPrecio();
+
+        var vendida = ventaService.realizarVentaManual(ventaManualDto(1), 1L).get(0);
+
+        verify(entradaRepository).save(argThat(e -> e.getPrecioVenta() == precio));
+        assertThat(vendida.getPrecioTanda()).isEqualTo(precio);
+    }
+
+    @Test
+    void consultarTopeVendedor_diceCuantoLeQueda() {
+        StaffVendedor vendedor = new StaffVendedor();
+        vendedor.setTopeEntradas(10);
+        when(staffVendedorRepository.findById(1L)).thenReturn(Optional.of(vendedor));
+        when(entradaRepository.countByIdStaffVendedor(1L)).thenReturn(8L);
+
+        var tope = ventaService.consultarTopeVendedor(1L);
+
+        assertThat(tope.getTope()).isEqualTo(10);
+        assertThat(tope.getVendidas()).isEqualTo(8);
+        assertThat(tope.getRestantes()).isEqualTo(2);
+    }
+
+    @Test
+    void consultarTopeVendedor_sinTope_noInformaRestantes() {
+        when(staffVendedorRepository.findById(1L)).thenReturn(Optional.of(new StaffVendedor()));
+
+        assertThat(ventaService.consultarTopeVendedor(1L).getRestantes()).isNull();
     }
 
     @Test

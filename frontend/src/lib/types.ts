@@ -247,6 +247,13 @@ export interface EventoPublicoDetalleDTO {
 
 // ── Entradas / Ventas ─────────────────────────────────
 
+/** Tope de entradas del Staff Vendedor autenticado; `tope` y `restantes` null = sin tope. */
+export interface TopeVendedorResponseDTO {
+  tope: number | null;
+  vendidas: number;
+  restantes: number | null;
+}
+
 export interface EntradaResponseDTO {
   id: number;
   idTanda: number;
@@ -263,6 +270,7 @@ export interface EntradaResponseDTO {
   /** El evento se canceló: la entrada no sirve para ingresar. */
   eventoCancelado: boolean;
   nombreTanda: string;
+  /** Precio con el que salió esta entrada (no cambia si después se modifica la tanda). */
   precioTanda: number;
   codigoQr: string;
   nombreComprador: string;

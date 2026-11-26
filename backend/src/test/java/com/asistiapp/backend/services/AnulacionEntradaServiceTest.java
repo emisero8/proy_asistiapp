@@ -170,6 +170,17 @@ class AnulacionEntradaServiceTest {
     }
 
     @Test
+    void prepararReembolso_devuelveElPrecioPagadoYNoElActualDeLaTanda() {
+        entrada.setEstado(EstadoEntrada.Anulada);
+        entrada.setPrecioVenta(1500.0);
+        entrada.getTanda().setPrecio(9000.0);
+        ordenConPago("12345");
+        when(entradaRepository.reservarReembolso(ID_ENTRADA)).thenReturn(1);
+
+        assertThat(service.prepararReembolso(ID_ENTRADA, ORG).monto()).isEqualByComparingTo("1500");
+    }
+
+    @Test
     void prepararReembolso_siElCompradorPagoCargoPorProcesamiento_tambienSeLoDevuelve() {
         // El Organizador le trasladó la comisión de Mercado Pago: la entrada costó $1500 + $123,57 de cargo.
         entrada.setEstado(EstadoEntrada.Anulada);

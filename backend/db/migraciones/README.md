@@ -38,5 +38,6 @@ for f in db/migraciones/*.sql; do psql -h localhost -U postgres -d asistiapp_db 
 | `2026-11-24-organizador-terminos.sql` | 8.7: fecha y versión de los términos aceptados al registrarse |
 | `2026-11-25-cargo-servicio-mercadopago.sql` | Mi perfil: quién paga la comisión de Mercado Pago (plazo y zona) y el cargo por entrada de cada orden |
 | `2026-11-25-log-auditoria-legible.sql` | Auditoría de todos los roles: `id_admin` → `id_emisor`, columnas `emisor_nombre`, `emisor_rol` y `entidad_nombre`, nombres completados en las filas viejas, detalle técnico viejo pasado a texto y corrige el id de las acciones sobre tandas. **Conviene aplicarlo antes de arrancar el backend nuevo** (si ya arrancó, también funciona) |
+| `2026-11-26-entradas-precio-venta.sql` | Columna `precio_venta` de las entradas y su valor en las ya existentes. **Correrlo junto con el despliegue** |
 
 Al agregar un valor a un enum o cambiar una restricción, **creá un script nuevo acá** (nombre `AAAA-MM-DD-tema.sql`, idempotente, con un comentario que diga qué ítem lo pide) y agregalo a esta tabla.
