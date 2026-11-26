@@ -61,7 +61,7 @@ function evento(id: number, nombre: string, tandas: TandaResponseDTO[]): EventoR
     fechaCreacion: "2026-11-01T10:00:00",
     fechaPublicacion: "2026-11-01T10:00:00",
     fechaCancelacion: null,
-    finalizado: false,
+    comenzado: false, finalizado: false,
     tandas,
   };
 }

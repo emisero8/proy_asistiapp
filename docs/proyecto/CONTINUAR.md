@@ -1,73 +1,50 @@
-# Para retomar el trabajo en otra máquina — AsistíAPP
+# Para retomar el trabajo — AsistíAPP
 
-> Escrito para el agente (o la persona) que continúa el proyecto en otra PC sin el contexto de las sesiones anteriores. Resume dónde estamos para no tener que re-investigar. **No contiene credenciales** (nunca poner acá contraseñas ni tokens).
-> Última actualización: 2026-11-17 · **Entrega del proyecto: 01/12/2026** · Rama: `feature-mercadopago` (remoto `https://github.com/emisero8/proy_asistiapp.git`, rama principal `master`). El último commit está en `git log`: este archivo se actualiza junto con el código.
+> Para la persona o el agente que continúa el proyecto sin el contexto de las sesiones anteriores. **No contiene credenciales** (nunca poner acá contraseñas ni tokens).
+> Última actualización: 2026-11-26 · **Entrega del proyecto: 01/12/2026** · Rama principal: `master` (`https://github.com/emisero8/proy_asistiapp.git`). Cada cambio va en una rama propia y entra por PR.
 
-> ⚠️ **Si trajiste o mergeaste la rama `feature-auditoria` (2026-11-25) y tu base ya existía:** antes de arrancar el backend seguí **`docs/proyecto/INTEGRAR_AUDITORIA.md`**. La tabla `log_auditoria` cambió de columnas (`id_admin` → `id_emisor`) y `ddl-auto` no lo resuelve solo: hay que correr `backend/db/migraciones/2026-11-25-log-auditoria-legible.sql`.
+> ⚠️ **Si tu base local ya existía, corré las migraciones antes de arrancar el backend:** `backend/db/aplicar-migraciones.ps1` (ver `backend/db/migraciones/README.md`). Las últimas son del 25/11 (auditoría, ver `docs/proyecto/INTEGRAR_AUDITORIA.md`) y del 26/11 (precio de cada entrada).
 
 ## 1. Qué leer, en este orden
 
 1. `CLAUDE.md` — reglas del proyecto (se carga solo). Es el contrato de trabajo.
-2. **`docs/proyecto/PLAN_MEJORAS.md`**, sección "Estado actual — por dónde vamos" (arriba de todo) y la tabla de la etapa que toque. Es la fuente de verdad de qué está hecho y qué falta.
-3. `docs/proyecto/DECISIONES.md` — decisiones ya tomadas (con fecha, no se re-discuten), preguntas abiertas y deuda técnica. Las filas del 2026-11-16 son las más recientes.
-4. Solo si hace falta: `backend/README.md` (variables de entorno, SMTP, MercadoPago, cómo probar un pago en local), `frontend/README.md` (incluye "Contrato con el backend"), `docs/tecnica/backend_implementation_plan.md`, `docs/tecnica/frontend_implementation_plan.md`, `docs/tecnica/API.md`, `docs/tecnica/DESIGN.md`, `docs/tecnica/SECURITY.md`.
+2. Este archivo.
+3. `docs/proyecto/DECISIONES.md` — decisiones tomadas (con fecha, no se re-discuten), preguntas abiertas y deuda técnica.
+4. Según la tarea: `docs/README.md` es el índice de todo lo demás.
 
 ## 2. El proyecto en 5 líneas
 
-Monorepo: `backend/` (Java 17 + Spring Boot 3.3.2, PostgreSQL, JWT stateless) y `frontend/` (React + Vite + TypeScript 6 + Tailwind v4). Venta de entradas para eventos con roles Administrador, Organizador, Staff_QR y Staff_Vendedor. Pagos con **MercadoPago Checkout Pro** (backend e integración del frontend ya hechos), mails por SMTP, imágenes en Cloudinary. La documentación vive en `docs/` (índice en `docs/README.md`).
+Monorepo: `backend/` (Java 17 + Spring Boot 3.3.2, PostgreSQL, JWT stateless) y `frontend/` (React + Vite + TypeScript 6 + Tailwind v4). Venta de entradas para eventos con roles Administrador, Organizador, Staff_QR y Staff_Vendedor. El Organizador compra créditos a la plataforma y cobra las entradas en su cuenta de Mercado Pago. Mails por SMTP, imágenes en Cloudinary.
 
 ## 3. Dónde estamos
 
-Se trabaja ítem por ítem sobre `docs/proyecto/PLAN_MEJORAS.md` (8 etapas). Todo lo siguiente está **commiteado y pusheado a `feature-mercadopago`**. Suites: backend **369 tests, 0 fallos** (`cd backend && mvn clean test`); frontend **25 archivos, 228 tests, 0 fallos** (`cd frontend; npx vitest run`, desde PowerShell), además de `npx tsc -b`, `npm run lint` y `npm run build` limpios.
+- Las mejoras de `docs/proyecto/PLAN_MEJORAS.md` (Etapas 0–8), el rediseño del frontend y la auditoría están en `master`.
+- **Reglas de los eventos (26/11):** un evento finaliza 12 horas después de empezar; hasta entonces se vende y el escáner valida. Desde que empieza, el Organizador ya no lo puede cancelar (el Admin sí). Cada entrada guarda su precio de venta y el vendedor ve cuánto le queda de su tope.
+- **Hay una demo online** (Vercel + Render + Neon + Brevo, cobro con credenciales de prueba): `docs/tecnica/DEPLOY_DEMO.md`.
+- Suites: backend `cd backend && mvn clean test`; frontend `npx vitest run`, `npx tsc -b`, `npm run lint`, `npm run build` y `npm run e2e` (necesita los dos servidores levantados, ver `frontend/e2e/README.md`).
 
-**Hecho antes del 16/11:**
-- **Etapas 1, 2 y 3 completas** (2.4 queda para producción: `MP_VALIDAR_FIRMA=true`). Etapa 3: borrado de eventos con compras en curso, manejo global de errores 4xx (405/415/400 en vez de 500), el organizador puede borrar sus borradores, regla de "evento finalizado" unificada, zona horaria fija, venta manual con `cantidad`, espera de pago sin chocar con el límite de peticiones.
-- **Etapa 4: 4.3, 4.4, 4.5, 4.6.** Perfil `prod` (`application-prod.yml` + `ConfiguracionProdValidator`): 12 variables obligatorias, sin SQL en el log, log INFO/WARN, errores sin mensajes internos. Cloudinary exigido en prod. El mail de reembolso se prueba por SMTP real con GreenMail.
-- **Fuera del plan, el 12/11:** SMTP configurable por variables de entorno (Gmail sin editar `application.yml`); el backend lee un `backend/.env` opcional; el QR del mail de confirmación viaja como imagen inline `cid:` (Gmail bloqueaba la `data:` URI); el mail de confirmación lleva versión en texto plano.
+## 4. Lo que falta
 
-**Hecho el 17/11:**
-- **Limpieza del repo y documentación ordenada** (ver `DECISIONES.md`, 2026-11-17): la documentación vive en `docs/{entrega,tecnica,proyecto}/` con un índice en `docs/README.md`, hay un `README.md` raíz, y se borraron mockups y archivos sin uso. **Entrega: 01/12/2026.**
-- **Cierre de las mejoras previstas.** Felipe decidió que 7.4 (ramas más chicas) no tiene sentido ahora y que el despliegue (4.1, 4.2, 4.7, 4.8, 2.4) queda en pausa hasta que esté definido. **No queda ningún ítem crítico pendiente.** Otro integrante del grupo rediseña el frontend usando esta base: `frontend/GUIA_REDISENO.md` dice qué respetar (textos y nombres accesibles que usan los tests, el toggle de tema, `ThemeProvider` en los tests) y cómo verificar (vitest, e2e).
-- **6.2** — avisos automáticos al Organizador en la campanita: *primera venta de un evento*, *tanda agotada* (`VentaService`, venta online y del POS; el cupo restante se lee de la base con `TandaRepository.cupoDisponibleActual` porque `decrementarCupo` deja desactualizada la entidad en sesión), *reembolso de entradas* (`VentaService.marcarOrdenReembolsada`) y *créditos acreditados* (`CreditoService.confirmarPagoCredito`). **No se avisa al Staff asignado:** el Staff no tiene campanita en sus pantallas (POS y escáner), la notificación quedaría guardada sin que nadie la lea; si se quiere, primero hay que agregar la campanita al POS.
-- **5.2** — suite end-to-end fija en `frontend/e2e/` (Playwright, `npm run e2e`; instrucciones y trampas en `frontend/e2e/README.md`). 4 specs: publicación con el asistente, compra (hasta que se abre MercadoPago, que se intercepta: no se paga), venta del vendedor en el POS y escaneo del Staff QR por código manual. Siembra por la API real (Organizador nuevo con créditos de bienvenida, evento, tanda, staff) y no depende de datos previos. **Requiere backend y Vite levantados, y el backend con el SMTP apuntado a `localhost:1025`** para que no salgan mails reales. **Límite de login: 5/min** — una corrida usa 4, esperar un minuto entre corridas. Las cuentas `e2e.*@asistiapp.test` quedan en la base (con eventos no se pueden borrar desde el Admin): `psql -U postgres -d asistiapp_db -f e2e/limpiar.sql`. Vitest excluye `e2e/` y el e2e tiene su propio `tsconfig` (`npx tsc -p e2e/tsconfig.json`).
-- **5.5** — el botón de tema ya no es global ni flotante: `ThemeToggle` se coloca en el header de cada pantalla (`variante="normal"` en headers, `"sobre-imagen"` sobre la portada del evento, `"esquina"` fijo solo en pantallas sin header: login/registro vía `AuthBackground`). En `OrganizadorLayout`/`AdminLayout` va en el grupo de acciones (campanita, tema, salir). El escáner QR no lo tiene a propósito. **Los tests de páginas que renderizan `ThemeToggle` deben envolverse en `ThemeProvider`** (`useTheme` tira error fuera). Verificado con Playwright: 18 pantallas × desktop y mobile, 1 toggle, visible, sin tapar, sin errores de consola.
-- **5.3** — los tests de fecha y hora ya no usan el `<input>` nativo oculto que quedaba como puente: `DatePicker` y `TimePicker` tienen tests propios, `src/testing/pickers.ts` expone `elegirFecha`/`elegirHora` (abren el selector, navegan los meses y tocan el día/la hora como una persona) y `WizardPage`/`EditEventPage` los usan; el input oculto se eliminó de los componentes. Los días y horas ahora tienen nombre accesible ("28 de junio de 2030", "Hora 21"). **Ojo al escribir tests con fechas:** el calendario abre en el mes de hoy y cada mes es un clic, así que hay que congelar el reloj cerca con `vi.useFakeTimers({ toFake: ["Date"], now })` (solo `Date`, para no frenar a `userEvent`). Y con los selectores reales **no se puede elegir un día fuera de `min`/`max`** (por eso ya no hay un test que fuerce una fecha pasada o una venta posterior al evento: se prueba que esos días estén deshabilitados y, para el aviso de venta posterior al evento, el camino real de adelantar el evento).
+### 4.1 Antes de la entrega
 
-**Hecho el 16/11:**
-- **5.6** — borradas 5 órdenes `Pendiente` huérfanas de la base local (eran del flujo simulado previo a MercadoPago, sin `fecha_vencimiento`, por eso el job de vencimiento nunca las tocó).
-- **6.1** — la Auditoría del Admin pasa a ser la 5ª pestaña de la barra inferior en mobile (`AdminLayout`).
-- **6.3** — aviso de que "el enlace de la entrada es la entrada" en la pantalla de resultado del pago y en el POS.
-- **6.4** — la venta manual del POS manda **un solo mail con todas las entradas** al comprador (`VentaController.ventaManual`, mismo `EmailService` que la compra online). El envío va protegido: si falla se loguea y la venta igual responde 201 (un 500 con la venta ya guardada haría que el vendedor reintente y la duplique).
-- **5.4** — tests de `ListingPage` (17) y `PosPage` (22), verificados rompiendo el código a propósito.
-- **5.1** — **guardia de desfasajes entre `types.ts` y el OpenAPI del backend.** `types.ts` NO se reemplazó por tipos generados (el backend no declara campos obligatorios ni `null`: todo saldría opcional). Los tipos generados (`openapi.json` + `src/lib/api-schema.d.ts`) vigilan a `types.ts` mediante `src/lib/types.contract.ts`, y `OpenApiContratoTest` (backend) falla si el contrato cambia y la copia no se regeneró. De paso: se corrigió `CompraOnlineRequestDTO` (faltaba `cantidad`), se tipearon 3 DTOs de entrada y se arregló un error del backend (springdoc documentaba `horaEvento` como objeto). **Flujo cuando cambia un DTO/endpoint:** con el backend corriendo `cd frontend && npm run types:api`, luego `npx tsc -b`, actualizar `types.ts` donde marque, commitear todo junto (detalle en `frontend/README.md`).
-- **7.1, 7.2, 7.3** — `CLAUDE.md` actualizado (MercadoPago ya integrado en el frontend, el pago en local no necesita túnel, paleta azul marino, SMTP); `backend/README.md` con "Cómo probar un pago en local (sin túnel)" y el aviso de que las credenciales por defecto son públicas y solo de desarrollo.
-- **Decisiones de Felipe (en `docs/proyecto/DECISIONES.md`):** *por ahora no se despliega nada, se sigue en local* (4.8); *el POS sí manda mail* (6.4). Los ítems 0.3 (el `.xlsx` de la raíz) y 0.4 (el PR a `master`) salieron del plan: los resuelve Felipe por fuera.
+- Probar la demo de punta a punta (compra, mail, POS, escáner, cancelación).
+- Preparar los datos de la demo: eventos posteriores a la presentación con tandas abiertas, un Staff QR, un vendedor con tope y alguna venta.
+- El día de la presentación, abrir la demo unos minutos antes (el backend gratuito se duerme).
 
-## 4. Lo que falta, en detalle
+### 4.2 Antes de cualquier producción
 
-### 4.1 Código pendiente
+- `MP_VALIDAR_FIRMA=true`, comprobado con un pago real de bajo monto, y el checklist de la Fase 21 de `docs/tecnica/backend_implementation_plan.md`.
+- Credenciales productivas de Mercado Pago, dominio propio (con SPF/DKIM/DMARC para que los mails no caigan en spam) y rotar las credenciales de prueba que circularon durante el desarrollo.
+- Revisar `MP_OAUTH_REDIRECT_URI` en el servidor: la ruta debe incluir `/payments`.
+- Flyway (4.1), claves foráneas reales (4.2) y límite de peticiones compartido (4.7, solo con más de una instancia).
+- El reembolso con el precio guardado en cada entrada no se probó con dinero real.
+- Cobro con OAuth: no se puede probar con usuarios de prueba (`docs/tecnica/MERCADOPAGO_COBRO.md`, sección 7).
+- Lo fiscal (AAIP, contador): `docs/proyecto/LEGAL_Y_FISCAL.md`.
 
-**Las mejoras críticas previstas están hechas**, salvo las que dependen de decidir el despliegue (sección siguiente). **Lo que viene es la Etapa 8 de `docs/proyecto/PLAN_MEJORAS.md`: el modelo de cobro del Organizador** (decidido el 17/11; hoy el dinero de las entradas no tiene camino hacia el Organizador). Leer `docs/proyecto/MODELO_DE_COBRO.md` (especificación) y `docs/proyecto/LEGAL_Y_FISCAL.md` (lo que Felipe define con un abogado y un contador). **8.1 (aplicación y credenciales OAuth en Mercado Pago), 8.2 (entradas manuales), 8.3 (tope por vendedor), 8.9 (tope por comprador por Organizador) y 8.10 (tanda de cortesía) están hechos; 8.4 (vinculación OAuth) está hecho y probado con una cuenta real de Mercado Pago. 8.8 (botón de arrepentimiento) también está hecho: contacto por cuenta en Mi perfil, obligatorio para publicar. 8.5 (cobro con el token del Organizador y publicar solo con cuenta vinculada) tiene el código y los tests listos y falta probar un pago real. 8.6 (anular y reembolsar) tiene el código y los tests listos (backend 530, frontend 293) y falta probar un reembolso real; en bases existentes aplicar `backend/db/migraciones/2026-11-23-entradas-anulacion-reembolso.sql`. 8.7 (legal y fiscal): la parte de código está hecha (páginas `/terminos` y `/privacidad` con los textos definitivos, ya revisados por un abogado, y aceptación obligatoria al registrarse y al comprar; backend 534 tests, frontend 300) y falta lo fiscal de Felipe (AAIP y contador).** Las credenciales OAuth están en `backend/.env` (`MP_OAUTH_*`); el 8.4 en adelante (vinculación, cobro, reembolsos) las usa. Además, el rediseño del frontend está a cargo de otro integrante (`frontend/GUIA_REDISENO.md`): avisarle de las pantallas nuevas.
+### 4.3 Deuda menor
 
-### 4.2 En pausa mientras no se despliegue (decisión del 16/11)
-
-- **4.8** decidir si/dónde se despliega — **se reabre si Felipe pide una muestra en la web.** **4.1** Flyway (L), **4.2** claves foráneas reales (L, después de 4.1) y **4.7** límite de peticiones en memoria (M, solo con más de una instancia). Mientras tanto `ddl-auto: update` + los scripts de `backend/db/migraciones/` alcanzan en local.
-- **2.4** `MP_VALIDAR_FIRMA=true` antes de producción, comprobando con un pago real de bajo monto que las firmas coinciden (en el sandbox los avisos llegan firmados con una clave que no coincide con la del panel). Ver "Pendiente de la firma" en `docs/tecnica/backend_implementation_plan.md` (Fase 21). El **checklist de pase a producción** está en la misma Fase 21.
-- **Si se decide desplegar** (investigado el 16/11, **verificar precios y límites vigentes antes de decidir**, cambian seguido): Render (backend con Docker + su Postgres gratuito + sitio estático para el frontend, con HTTPS automático) es lo más simple. Límites de su capa gratuita: el servicio se duerme tras 15 min sin tráfico (el arranque del backend tarda ~27 s, así que hay que despertarlo antes de una presentación) y la base gratuita **expira a los 30 días**; Neon gratis no expira pero se duerme a los 5 min; Supabase gratis se pausa tras una semana sin uso; según las fuentes consultadas, Fly.io y Railway ya no ofrecen una capa gratuita real para cuentas nuevas (Railway solo crédito de prueba). **Faltaría en el proyecto:** un `Dockerfile` (no existe), SMTP real (no hay MailHog en la nube; Gmail con contraseña de aplicación o un proveedor transaccional; ojo con el spam, ver `docs/proyecto/DECISIONES.md` 2026-11-12), compilar el frontend con `VITE_API_BASE_URL`, `CORS_ALLOWED_ORIGINS`/`FRONTEND_BASE_URL`, que las rutas de React Router caigan en `index.html`, y las 12 variables obligatorias del perfil `prod` más `JWT_SECRET` (≥32 caracteres) y `ADMIN_INICIAL_PASSWORD`. Con HTTPS real el webhook de MercadoPago llega solo y la pestaña nueva del checkout se desactiva sola. Estimación: ~un día con pruebas de punta a punta.
-
-### 4.3 Pendiente de Felipe (fuera del código)
-
-- **Cobro con Mercado Pago (Etapa 8): leer `docs/tecnica/MERCADOPAGO_COBRO.md`** (modelo, flujos, entorno, pruebas, hallazgos). Estado al 17/11: el cobro de entradas con la cuenta del Organizador, el reembolso individual y el masivo **están probados con dinero real** ($10); con usuarios de prueba del sandbox **no se puede** con la aplicación OAuth (investigación abierta en la sección 7 de la guía). Para desarrollar sin dinero real: `MP_EXIGIR_CUENTA_VINCULADA=false` y token de prueba. Faltan: validar la firma del webhook con la clave de la aplicación OAuth, y lo de la sección 9 de la guía. En una base existente: `backend/db/aplicar-migraciones.ps1`.
-- **El merge `feature-mercadopago` → `master` está en pausa** (decisión del 18/11) hasta terminar la Etapa 8. Cuando se retome: PR desde la web, con título y descripción; el merge es limpio.
-- **Rotar credenciales:** el 16/11 pasaron por el chat de la sesión credenciales de sandbox (el token de prueba de MercadoPago, el secreto del webhook, el secreto de Cloudinary, el authtoken de ngrok y la contraseña del comprador de prueba). Son de desarrollo, pero conviene rotarlas. También hay que **borrar el `cargar-variables.ps1`** con valores en texto plano que se usó para pasarlas de PC (no está en el repo; está en alguna carpeta local).
-- El mail de confirmación cayó en **spam** de Gmail con la cuenta de prueba: se resuelve con dominio propio + SPF/DKIM/DMARC vía un proveedor transaccional (solo importa si se despliega).
-
-### 4.4 Deuda menor detectada el 16/11 (sin ítem en el plan)
-
-- La tabla de `/admin/auditoria` tiene `min-w-[720px]` y en mobile se desplaza en horizontal.
-- `ConfiguracionProdValidator` exige que las variables obligatorias **existan**, no que su valor sea fuerte: alguien podría desplegar con `DB_PASSWORD=1234`.
-- El OpenAPI expone un schema `JsonNode` (por el cuerpo del webhook de MercadoPago); es inofensivo pero ensucia el Swagger.
-- `entregable-sprint4/` (carpeta local sin versionar, armada para entregar a la cátedra) quedó **desactualizada**: Felipe indicó ignorarla.
+- `ConfiguracionProdValidator` exige que las variables obligatorias existan, no que su valor sea fuerte.
+- El OpenAPI expone un schema `JsonNode` (cuerpo del webhook); es inofensivo.
 
 ## 5. Reglas de trabajo (las mismas que en `CLAUDE.md`, con lo que hay que recordar)
 
@@ -123,7 +100,7 @@ cd frontend; npm install; npm run dev       # http://localhost:5173
 cd tools;    .\MailHog.exe                  # opcional: UI http://localhost:8025 (si no hay backend/.env de Gmail)
 ```
 
-**Verificación rápida de que todo está bien:** `cd backend; mvn clean test` (369 tests, 0 fallos) y, en `frontend`, `npx tsc -b`, `npm run lint` y `npx vitest run` (228 tests).
+**Verificación rápida de que todo está bien:** `cd backend; mvn clean test` (0 fallos) y, en `frontend`, `npx tsc -b`, `npm run lint` y `npx vitest run`.
 
 
 ## 8. Cosas del proyecto que no están en el código

@@ -21,7 +21,7 @@ function evento(extra: Partial<EventoResponseDTO> = {}): EventoResponseDTO {
     id: 5,
     nombre: "Festival de Jazz",
     estado: "Publicado",
-    finalizado: false,
+    comenzado: false, finalizado: false,
     tandas: [tanda(11, "Anticipada", 8), tanda(12, "VIP", 0)],
     ...extra,
   } as EventoResponseDTO;
@@ -66,7 +66,7 @@ describe("EmitirEntradasPanel", () => {
     expect(screen.queryByRole("button", { name: /Emitir entradas/ })).not.toBeInTheDocument();
     unmount();
 
-    const { unmount: unmount2 } = render(<EmitirEntradasPanel evento={evento({ finalizado: true })} onEmitidas={() => {}} />);
+    const { unmount: unmount2 } = render(<EmitirEntradasPanel evento={evento({ comenzado: false, finalizado: true })} onEmitidas={() => {}} />);
     expect(screen.queryByRole("button", { name: /Emitir entradas/ })).not.toBeInTheDocument();
     unmount2();
 

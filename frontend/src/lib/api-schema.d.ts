@@ -1377,6 +1377,7 @@ export interface components {
             fechaPublicacion?: string;
             /** Format: date-time */
             fechaCancelacion?: string;
+            comenzado?: boolean;
             finalizado?: boolean;
             tandas?: components["schemas"]["TandaResponseDTO"][];
         };

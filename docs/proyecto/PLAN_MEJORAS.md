@@ -31,35 +31,10 @@ Este documento junta todo lo que quedó pendiente después de cerrar las fases d
 
 ---
 
-## Estado actual — por dónde vamos (actualizado el 2026-11-17)
+## Estado actual — por dónde vamos (actualizado el 2026-11-26)
 
-> Para retomar desde otra máquina leer también `docs/proyecto/CONTINUAR.md`: tiene el detalle de lo que falta, las trampas conocidas y cómo montar el entorno.
+Las Etapas de este plan, el rediseño del frontend y la auditoría están en `master`, y hay una demo online (`docs/tecnica/DEPLOY_DEMO.md`). Lo que falta antes de la entrega y antes de producción está en `docs/proyecto/CONTINUAR.md`, sección 4. Las tablas de abajo son el registro de cada ítem.
 
-**Hecho (todo commiteado y pusheado a `feature-mercadopago`):**
-- Etapas **0, 1 y 3 completas** (0.3 y 0.4 salieron del plan: los resuelve Felipe por fuera); Etapa **2** completa salvo 2.4 (se cierra en producción); de la Etapa 4: **4.3, 4.4, 4.5 y 4.6**.
-- **Etapa 5:** 5.1 (guardia de desfasajes de `types.ts` contra el OpenAPI del backend), 5.4 (tests de `ListingPage` y `PosPage`) y 5.6, cerrados el 16/11; **5.3** (tests de fecha y hora contra los selectores reales) y **5.5** (botón de tema en el header de cada pantalla) y **5.2** (suite e2e con Playwright) cerrados el 17/11. **Etapa 6:** 6.1, 6.3 y 6.4 (16/11) y 6.2 (17/11). **Etapa 7:** 7.1, 7.2 y 7.3. Cerrados el 16/11.
-- Fuera del plan, el 12/11: SMTP configurable por variables de entorno (Gmail sin editar `application.yml`), lectura de un `backend/.env` opcional, el QR del mail de confirmación como imagen inline `cid:` y la versión en texto plano del mismo mail.
-- Suites: backend **369 tests, 0 fallos**; frontend **25 archivos, 228 tests, 0 fallos**; typecheck, lint y build limpios.
-
-**Decisiones de Felipe del 16/11** (en `docs/proyecto/DECISIONES.md`): **por ahora no se despliega nada, se sigue en local** (4.8); **el POS sí manda mail** al comprador (6.4).
-
-**Falta, en el orden que recomiendo** (detalle de cada uno en `docs/proyecto/CONTINUAR.md`, sección 4):
-0. **Nuevo (17/11): Etapa 8 — modelo de cobro del Organizador.** Hoy el dinero de las entradas no tiene camino hacia el Organizador (un solo token de MercadoPago de la plataforma). Está decidido el modelo y falta construirlo; ver la Etapa 8 y `docs/proyecto/MODELO_DE_COBRO.md`. Lo legal y fiscal está en `docs/proyecto/LEGAL_Y_FISCAL.md`. **Hechos: 8.1 (aplicación y credenciales OAuth), 8.2 (entradas manuales), 8.3 (tope por vendedor) y 8.9 (tope por comprador por Organizador) y 8.10 (tanda de cortesía). Siguen 8.4 a 8.6 (Mercado Pago) y 8.8.**
-1. **En pausa mientras no se despliegue:** 4.1 Flyway (L), 4.2 claves foráneas (L), 4.7 límite de peticiones en memoria (M) y 4.8. Si Felipe pide una muestra en la web, se reabre 4.8 (hay una recomendación de dónde y cómo en `docs/proyecto/CONTINUAR.md`, sección 4.2).
-2. **Antes de cualquier producción:** 2.4 (`MP_VALIDAR_FIRMA=true` comprobado con un pago real) y el checklist de la Fase 21 de `docs/tecnica/backend_implementation_plan.md`.
-
-**Preguntas abiertas / pendientes de Felipe (no asumir):**
-- La cuenta demo `staffvendedor@demo.com` no acepta `Demo1234!` (devuelve 401). Un 401 en el login es "credenciales inválidas" (email inexistente o contraseña distinta; el backend no distingue). En la base de la PC del 16/11 esa cuenta ni existe; en la de la PC anterior lo más probable es que se haya reseteado (el reseteo genera una contraseña al azar), pero no se pudo comprobar. Falta decidir: resetearla en esa base o corregir `docs/tecnica/GUIA_DEMO.md`.
-- **Rotar las credenciales de sandbox** que pasaron por el chat el 16/11 (MercadoPago, Cloudinary, ngrok, contraseña del comprador de prueba) y borrar el `cargar-variables.ps1` con valores en texto plano.
-- El mail de confirmación cayó en spam de Gmail con la cuenta de prueba: se resuelve con dominio propio y un proveedor transaccional (solo importa si se despliega; ver `docs/proyecto/DECISIONES.md` 2026-11-12).
-
-**Cómo está la máquina de desarrollo (PC del 16/11):**
-- Windows 10, JDK 17, Maven 3.8.8, Node 24, PostgreSQL 18; sin Python ni Docker. Backend en `localhost:8080` (PowerShell: `cd backend; mvn.cmd spring-boot:run`, con las variables `MP_*` y `CLOUDINARY_*` de usuario cargadas) y Vite en `localhost:5173`. MailHog standalone en `tools/MailHog.exe` (ignorado por Git).
-- **Hay un `backend/.env` con SMTP de Gmail** (ignorado por Git; nunca pegarlo en el chat ni commitearlo): mientras esté, **todo mail que mande la app sale de verdad**, incluidas las ventas del POS. Para probar contra MailHog hay que pisar `SMTP_*` con variables de entorno del proceso, sin editar el `.env` (ver `docs/proyecto/CONTINUAR.md`, trampas).
-- Los tests del frontend se corren desde PowerShell (`npx vitest run`), no desde Git Bash. Si un build raro falla con "cannot access…" usar `mvn clean test` (con el backend detenido).
-- Datos de prueba en la base local: Organizador demo `organizador.demo@asistiapp.test` con el evento 39 y un Staff QR. No viajan con el repo.
-
-**Reglas de trabajo vigentes:** una fase por vez y parar a preguntar antes de seguir; confirmar antes de cada commit/push; commits a nombre de Felipe (la identidad del repo local), sin ningún rastro de Claude; no stagear archivos sueltos (`arreglos.txt`, `entregable-sprint4/`, el `.xlsx` de la raíz, logs); credenciales solo en variables de entorno o en `.env`; verificar en vivo y limpiar los datos de prueba; documentar en `docs/proyecto/DECISIONES.md` y en este plan en el mismo cambio.
 ---
 
 ## Etapa 0 — Cerrar lo que está abierto

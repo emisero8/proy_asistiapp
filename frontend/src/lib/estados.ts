@@ -44,6 +44,11 @@ export const TONO_ESTADO_EVENTO: Record<EstadoEventoVisible, Tono> = {
 };
 
 /** Publicado y ya terminado: queda solo para consulta (sin editar ni cancelar). */
+export function organizadorPuedeCancelar(evento: Pick<EventoResponseDTO, "estado" | "comenzado" | "finalizado">): boolean {
+  // Un publicado que ya empezó solo lo cancela el Admin.
+  return evento.estado !== "Cancelado" && !(evento.estado === "Publicado" && (evento.comenzado || evento.finalizado));
+}
+
 export function eventoCerrado(evento: Pick<EventoResponseDTO, "estado" | "finalizado">): boolean {
   return evento.estado === "Publicado" && evento.finalizado;
 }

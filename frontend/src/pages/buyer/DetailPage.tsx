@@ -207,7 +207,7 @@ export function DetailPage() {
                   const ventana = ventanaVentaTexto(t);
                   const disponibilidad =
                     est === "abierta"
-                      ? `${t.cupoDisponible} disponibles`
+                      ? `${t.cupoDisponible} ${t.cupoDisponible === 1 ? "disponible" : "disponibles"}`
                       : est === "proximamente"
                         ? "Próximamente"
                         : est === "cerrada"
