@@ -20,6 +20,8 @@ const PagoResultadoPage = lazy(() => import("./pages/buyer/PagoResultadoPage").t
 const OrganizadorLoginPage = lazy(() => import("./pages/organizador/LoginPage").then((m) => ({ default: m.OrganizadorLoginPage })));
 const OrganizadorRegisterPage = lazy(() => import("./pages/organizador/RegisterPage").then((m) => ({ default: m.OrganizadorRegisterPage })));
 const OrganizadorResetPasswordPage = lazy(() => import("./pages/organizador/ResetPasswordPage").then((m) => ({ default: m.OrganizadorResetPasswordPage })));
+const AyudaPage = lazy(() => import("./pages/ayuda/AyudaPage").then((m) => ({ default: m.AyudaPage })));
+const GuiaPage = lazy(() => import("./pages/ayuda/GuiaPage").then((m) => ({ default: m.GuiaPage })));
 const OrganizadorLayout = lazy(() => import("./pages/organizador/OrganizadorLayout").then((m) => ({ default: m.OrganizadorLayout })));
 const OrganizadorDashboardPage = lazy(() => import("./pages/organizador/DashboardPage").then((m) => ({ default: m.OrganizadorDashboardPage })));
 const OrganizadorWizardPage = lazy(() => import("./pages/organizador/WizardPage").then((m) => ({ default: m.OrganizadorWizardPage })));
@@ -73,6 +75,8 @@ function AppRoutes() {
         <Route path="/eventos/:urlPublica" element={<DetailPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
         <Route path="/mi-entrada" element={<MiEntradaPage />} />
+        <Route path="/ayuda" element={<AyudaPage />} />
+        <Route path="/ayuda/:guia" element={<GuiaPage />} />
         <Route path="/terminos" element={<TerminosPage />} />
         <Route path="/privacidad" element={<PrivacidadPage />} />
         <Route path="/pago/resultado" element={<PagoResultadoPage />} />

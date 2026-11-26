@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import { NavLink } from "react-router";
-import { LogOut, type LucideIcon } from "lucide-react";
+import { Link, NavLink } from "react-router";
+import { CircleHelp, LogOut, type LucideIcon } from "lucide-react";
 import { cn } from "../lib/cn";
 import { AnimatedOutlet } from "./AnimatedOutlet";
 import { BrandLogo } from "./BrandLogo";
@@ -29,6 +29,8 @@ interface AppShellProps {
     perfilTo?: string;
   };
   onLogout: () => void;
+  /** Guía de ayuda del rol; si no hay una para ese rol, no se muestra el acceso. */
+  ayudaTo?: string;
 }
 
 function Avatar({ nombre, foto, className }: { nombre: string; foto?: string | null; className?: string }) {
@@ -53,7 +55,7 @@ function Avatar({ nombre, foto, className }: { nombre: string; foto?: string | n
  * - **Mobile:** barra superior (logo, campanita, tema, salir) y barra de pestañas inferior.
  * - El contenido de cada ruta entra por `<AnimatedOutlet>`: al navegar se remonta solo eso.
  */
-export function AppShell({ nav, mobileNav, usuario, onLogout }: AppShellProps) {
+export function AppShell({ nav, mobileNav, usuario, onLogout, ayudaTo }: AppShellProps) {
   const inicio = nav[0]?.to ?? "/";
   const columnas: CSSProperties = { gridTemplateColumns: `repeat(${mobileNav.length}, minmax(0, 1fr))` };
 
@@ -105,6 +107,15 @@ export function AppShell({ nav, mobileNav, usuario, onLogout }: AppShellProps) {
         </nav>
 
         <div className="flex-none space-y-1 border-t border-border p-3">
+          {ayudaTo && (
+            <Link
+              to={ayudaTo}
+              className="flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium text-muted-foreground transition-colors duration-(--duration-fast) hover:bg-muted hover:text-foreground"
+            >
+              <CircleHelp size={17} aria-hidden="true" className="flex-none" />
+              Ayuda
+            </Link>
+          )}
           {usuario.perfilTo ? (
             <NavLink
               to={usuario.perfilTo}
@@ -134,6 +145,11 @@ export function AppShell({ nav, mobileNav, usuario, onLogout }: AppShellProps) {
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border bg-background/90 pl-4 pr-2 backdrop-blur-md md:hidden">
         <BrandLogo to={inicio} />
         <div className="flex items-center gap-0.5">
+          {ayudaTo && (
+            <Link to={ayudaTo} aria-label="Ayuda" className="inline-flex size-9 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
+              <CircleHelp size={17} aria-hidden="true" />
+            </Link>
+          )}
           <NotificationBell placement="bottom-end" />
           <ThemeToggle />
           <IconButton label="Cerrar sesión" icon={<LogOut size={16} />} onClick={onLogout} round tooltip={false} />

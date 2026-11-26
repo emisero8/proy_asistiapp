@@ -3,6 +3,11 @@ import { ChevronLeft } from "lucide-react";
 import { BrandLogo } from "./BrandLogo";
 import { ThemeToggle } from "./ThemeToggle";
 
+const SECCIONES = [
+  { to: "/eventos", texto: "Eventos" },
+  { to: "/ayuda", texto: "Ayuda" },
+];
+
 interface PublicHeaderProps {
   /**
    * Botón "Volver" a la izquierda del logo. `"historial"` vuelve a la pantalla anterior
@@ -13,7 +18,7 @@ interface PublicHeaderProps {
 
 /**
  * Header de las pantallas públicas del comprador (detalle, checkout, resultado del pago,
- * mi entrada): logo (inicio), acceso al catálogo y el tema. Sticky y liviano: no compite con
+ * mi entrada): logo (inicio), acceso al catálogo y a la ayuda, y el tema. Sticky y liviano: no compite con
  * el contenido.
  */
 export function PublicHeader({ back }: PublicHeaderProps) {
@@ -48,17 +53,20 @@ export function PublicHeader({ back }: PublicHeaderProps) {
           <BrandLogo display={back ? "hidden sm:flex" : "flex"} />
         </div>
         <nav aria-label="Secciones" className="flex items-center gap-1">
-          <NavLink
-            to="/eventos"
-            end
-            className={({ isActive }) =>
-              `group relative inline-flex h-9 items-center px-2 text-sm font-semibold transition-colors duration-(--duration-fast) after:pointer-events-none after:absolute after:inset-x-2 after:bottom-1.5 after:h-0.5 after:origin-left after:bg-foreground after:transition-transform after:duration-300 ${
-                isActive ? "text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0 hover:after:scale-x-100"
-              }`
-            }
-          >
-            Eventos
-          </NavLink>
+          {SECCIONES.map(({ to, texto }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end
+              className={({ isActive }) =>
+                `group relative inline-flex h-9 items-center px-2 text-sm font-semibold transition-colors duration-(--duration-fast) after:pointer-events-none after:absolute after:inset-x-2 after:bottom-1.5 after:h-0.5 after:origin-left after:bg-foreground after:transition-transform after:duration-300 ${
+                  isActive ? "text-foreground after:scale-x-100" : "text-muted-foreground hover:text-foreground after:scale-x-0 hover:after:scale-x-100"
+                }`
+              }
+            >
+              {texto}
+            </NavLink>
+          ))}
           <ThemeToggle />
         </nav>
       </div>

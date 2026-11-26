@@ -666,6 +666,11 @@ export function ListingPage() {
                     Precios
                   </a>
                 </li>
+                <li>
+                  <Link to="/ayuda" className="text-muted-foreground transition-colors hover:text-foreground">
+                    Ayuda
+                  </Link>
+                </li>
               </ul>
             </nav>
             <nav aria-label="Cuenta">
