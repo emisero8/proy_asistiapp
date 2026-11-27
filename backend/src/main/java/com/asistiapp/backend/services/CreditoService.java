@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -49,6 +50,7 @@ public class CreditoService {
     private final ConfiguracionService configuracionService;
     private final MercadoPagoService mercadoPagoService;
     private final NotificacionService notificacionService;
+    private final TransactionOperations transacciones;
 
     /** Clave de configuración (Admin) y default del costo en créditos de publicar un evento. */
     public static final String CLAVE_CREDITOS_POR_PUBLICACION = "creditos_por_publicacion";
@@ -79,7 +81,12 @@ public class CreditoService {
                 creditosDisponiblesParaEntradas(organizador));
     }
 
-    @Transactional
+    /**
+     * Inicia una compra de créditos (CU-014): guarda la orden Pendiente y crea la preferencia.
+     *
+     * No es @Transactional a propósito: la llamada a MercadoPago va fuera de las transacciones,
+     * para no retener una conexión a la base mientras se espera la respuesta.
+     */
     public IniciarCompraCreditoResponseDTO iniciarCompraCredito(IniciarCompraCreditoRequestDTO dto, Long idOrganizador) {
         PaqueteCredito paquete = paqueteCreditoRepository.findById(dto.getIdPaquete())
                 .orElseThrow(() -> new ResourceNotFoundException("Paquete de crédito no encontrado con id: " + dto.getIdPaquete()));
@@ -98,20 +105,26 @@ public class CreditoService {
         transaccion.setEstado(EstadoTransaccion.Pendiente);
         transaccion.setFechaVencimiento(mercadoPagoService.calcularVencimiento());
 
+        // Queda confirmada antes de llamar a MercadoPago: un aviso de pago ya encuentra la orden.
         TransaccionCredito saved = transaccionCreditoRepository.save(transaccion);
 
-        // Si MercadoPago falla, la excepción revierte la transacción: no queda una orden huérfana.
-        MercadoPagoService.PreferenciaCreada preferencia = mercadoPagoService.crearPreferencia(
-                new MercadoPagoService.OrdenACobrar(
-                        "paquete-" + paquete.getId(),
-                        paquete.getCantidadCreditos() + " créditos AsistíAPP — Pack " + paquete.getNombre(),
-                        "Recarga de créditos para publicar eventos",
-                        1,
-                        BigDecimal.valueOf(paquete.getPrecio()),
-                        saved.getExternalReference(),
-                        MercadoPagoService.TIPO_CREDITOS,
-                        organizador.getEmail(),
-                        saved.getFechaVencimiento()));
+        MercadoPagoService.PreferenciaCreada preferencia;
+        try {
+            preferencia = mercadoPagoService.crearPreferencia(
+                    new MercadoPagoService.OrdenACobrar(
+                            "paquete-" + paquete.getId(),
+                            paquete.getCantidadCreditos() + " créditos AsistíAPP — Pack " + paquete.getNombre(),
+                            "Recarga de créditos para publicar eventos",
+                            1,
+                            BigDecimal.valueOf(paquete.getPrecio()),
+                            saved.getExternalReference(),
+                            MercadoPagoService.TIPO_CREDITOS,
+                            organizador.getEmail(),
+                            saved.getFechaVencimiento()));
+        } catch (RuntimeException e) {
+            descartarOrden(saved.getExternalReference());
+            throw e;
+        }
 
         log.info("Compra de créditos iniciada: transaccionId={}, ref={}, organizador={}, paquete={}",
                 saved.getId(), saved.getExternalReference(), idOrganizador, paquete.getNombre());
@@ -121,6 +134,22 @@ public class CreditoService {
                 .urlPago(preferencia.initPoint())
                 .mensaje("Redirigite a MercadoPago para completar tu compra de créditos")
                 .build();
+    }
+
+    /** MercadoPago no creó la preferencia: la orden no se puede pagar, así que no queda abierta. */
+    private void descartarOrden(String externalReference) {
+        try {
+            transacciones.executeWithoutResult(estado ->
+                    transaccionCreditoRepository.findByExternalReferenceForUpdate(externalReference)
+                            .filter(orden -> orden.getEstado() == EstadoTransaccion.Pendiente)
+                            .ifPresent(orden -> {
+                                orden.setEstado(EstadoTransaccion.Rechazada);
+                                transaccionCreditoRepository.save(orden);
+                            }));
+        } catch (RuntimeException e) {
+            // El Organizador tiene que ver el error original; la orden vence sola.
+            log.error("No se pudo descartar la orden de créditos {}", externalReference, e);
+        }
     }
 
     @Transactional(readOnly = true)
