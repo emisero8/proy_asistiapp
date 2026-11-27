@@ -10,11 +10,15 @@
 | `Diagrama de Arquitectura - AsistiAPP.png` | Arquitectura general. |
 | `Diagrama de Tablas - AsistiAPP.png` y `AsistiAPP_DER.drawio.png` | Modelo de datos. |
 | `AsistíAPP - Planificación Scrum.xlsx` | Planificación del trabajo. |
+| `AsistiAPP - Casos de Uso.pdf` | Especificación detallada de los 28 casos de uso. |
+
+Son los documentos tal como se entregaron. Lo que cambió después está en [`proyecto/PLANIFICADO_VS_CONSTRUIDO.md`](proyecto/PLANIFICADO_VS_CONSTRUIDO.md) y en [`tecnica/ARQUITECTURA.md`](tecnica/ARQUITECTURA.md).
 
 ## `tecnica/` — cómo está hecho
 
 | Archivo | Contenido |
 |---|---|
+| `ARQUITECTURA.md` | Diagramas actuales de componentes, modelo de datos y estados. |
 | `API.md` | Arquitectura del backend, modelo de datos y reglas de negocio. |
 | `DESIGN.md` | Sistema de diseño del frontend (colores, componentes, pantallas). |
 | `SECURITY.md` | Criterios de seguridad que se auditan en el código. |
@@ -28,6 +32,7 @@
 
 | Archivo | Contenido |
 |---|---|
+| `PLANIFICADO_VS_CONSTRUIDO.md` | Casos de uso, cronología y roles: lo diseñado frente a lo construido. |
 | `PLAN_MEJORAS.md` | Plan de mejoras por etapas y su estado (todo lo crítico está hecho). |
 | `DECISIONES.md` | Decisiones tomadas con fecha y su motivo, y deuda técnica conocida. |
 | `MODELO_DE_COBRO.md` | Modelo de cobro decidido (créditos para la plataforma, entradas directo al Organizador), entradas manuales, reembolsos y etapas de construcción. |
