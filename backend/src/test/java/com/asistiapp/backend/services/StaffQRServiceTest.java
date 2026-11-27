@@ -23,6 +23,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -89,8 +91,7 @@ class StaffQRServiceTest {
                 .isInstanceOf(ForbiddenActionException.class);
 
         // No debe haber marcado la entrada como usada al rechazarla
-        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Pagada);
-        verify(entradaRepository, never()).save(any());
+        verificarQueNoSeMarcoElIngreso();
     }
 
     @Test
@@ -107,8 +108,7 @@ class StaffQRServiceTest {
         assertThat(response.isValido()).isFalse();
         assertThat(response.getMensaje()).contains("ANULADA");
         assertThat(response.getEstadoAnterior()).isEqualTo(EstadoEntrada.Anulada);
-        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Anulada);
-        verify(entradaRepository, never()).save(any());
+        verificarQueNoSeMarcoElIngreso();
     }
 
     @Test
@@ -120,6 +120,11 @@ class StaffQRServiceTest {
 
         assertThat(response.isValido()).isFalse();
         assertThat(response.getMensaje()).contains("anulada").doesNotContain("utilizada");
+    }
+
+    private void verificarQueNoSeMarcoElIngreso() {
+        verify(entradaRepository, never()).marcarComoUsada(any(), any(), any());
+        verify(entradaRepository, never()).save(any());
     }
 
     /** Deja el evento de la entrada empezado hace las horas indicadas. */
@@ -137,8 +142,9 @@ class StaffQRServiceTest {
         ValidacionQRRequestDTO dto = new ValidacionQRRequestDTO();
         dto.setCodigoQr(entrada.getCodigoQr());
 
+        when(entradaRepository.marcarComoUsada(eq(1L), eq(5L), any())).thenReturn(1);
+
         assertThat(staffQRService.validarQR(dto, staffQR).isValido()).isTrue();
-        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Usada);
     }
 
     @Test
@@ -152,8 +158,7 @@ class StaffQRServiceTest {
 
         assertThat(response.isValido()).isFalse();
         assertThat(response.getMensaje()).contains("EVENTO FINALIZADO");
-        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Pagada);
-        verify(entradaRepository, never()).save(any());
+        verificarQueNoSeMarcoElIngreso();
         assertThat(staffQRService.consultarEstadoQR(entrada.getCodigoQr(), staffQR).getMensaje()).contains("finalizó");
     }
 
@@ -168,8 +173,7 @@ class StaffQRServiceTest {
 
         assertThat(response.isValido()).isFalse();
         assertThat(response.getMensaje()).contains("EVENTO CANCELADO");
-        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Pagada);
-        verify(entradaRepository, never()).save(any());
+        verificarQueNoSeMarcoElIngreso();
         assertThat(staffQRService.consultarEstadoQR(entrada.getCodigoQr(), staffQR).getMensaje()).contains("cancelado");
     }
 
@@ -186,12 +190,13 @@ class StaffQRServiceTest {
 
         assertThat(response.isValido()).isFalse();
         assertThat(response.getEstadoAnterior()).isEqualTo(EstadoEntrada.Usada);
-        verify(entradaRepository, never()).save(any()); // ya estaba usada, no hay nada que persistir de nuevo
+        verificarQueNoSeMarcoElIngreso(); // ya estaba usada, no se pisa el primer ingreso
     }
 
     @Test
     void validarQR_entradaValida_laMarcaComoUsadaYRegistraElStaffValidador() {
         when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
+        when(entradaRepository.marcarComoUsada(eq(1L), eq(5L), any())).thenReturn(1);
 
         ValidacionQRRequestDTO dto = new ValidacionQRRequestDTO();
         dto.setCodigoQr(entrada.getCodigoQr());
@@ -199,10 +204,28 @@ class StaffQRServiceTest {
         ValidacionQRResponseDTO response = staffQRService.validarQR(dto, staffQR);
 
         assertThat(response.isValido()).isTrue();
-        assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Usada);
-        assertThat(entrada.getIdStaffQrValidador()).isEqualTo(5L);
-        assertThat(entrada.getFechaUso()).isNotNull();
-        verify(entradaRepository).save(entrada);
+        assertThat(response.getEstadoAnterior()).isEqualTo(EstadoEntrada.Pagada);
+        assertThat(response.getFechaUso()).isNotNull();
+        verify(entradaRepository).marcarComoUsada(1L, 5L, response.getFechaUso());
+    }
+
+    @Test
+    void validarQR_siLaAnulanMientrasSeEscanea_laRechazaComoAnulada() {
+        // Se leyó "Pagada", pero al marcarla ya no lo estaba: la respuesta cuenta lo que pasó.
+        Entrada anulada = new Entrada();
+        anulada.setId(1L);
+        anulada.setEstado(EstadoEntrada.Anulada);
+        when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
+        when(entradaRepository.marcarComoUsada(eq(1L), eq(5L), any())).thenReturn(0);
+        when(entradaRepository.findById(1L)).thenReturn(Optional.of(anulada));
+        ValidacionQRRequestDTO dto = new ValidacionQRRequestDTO();
+        dto.setCodigoQr(entrada.getCodigoQr());
+
+        ValidacionQRResponseDTO response = staffQRService.validarQR(dto, staffQR);
+
+        assertThat(response.isValido()).isFalse();
+        assertThat(response.getMensaje()).contains("ANULADA");
+        assertThat(response.getEstadoAnterior()).isEqualTo(EstadoEntrada.Anulada);
     }
 
     @Test
@@ -213,6 +236,6 @@ class StaffQRServiceTest {
 
         assertThat(response.isValido()).isTrue();
         assertThat(entrada.getEstado()).isEqualTo(EstadoEntrada.Pagada); // sin cambios
-        verify(entradaRepository, never()).save(any());
+        verificarQueNoSeMarcoElIngreso();
     }
 }

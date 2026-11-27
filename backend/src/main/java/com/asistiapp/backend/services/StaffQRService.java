@@ -35,7 +35,9 @@ import java.time.LocalDateTime;
  *     - Cambiar estado a "Usada".
  *     - Registrar fecha_uso (timestamp actual).
  *     - Registrar id_staff_qr_validador.
- *     - Todo bajo @Transactional para garantizar atomicidad.
+ *     - En un único UPDATE condicionado a que siga "Pagada": si dos
+ *       dispositivos escanean el mismo QR a la vez, solo uno la marca.
+ *       (@Transactional solo no alcanza: ambos podrían leerla sin usar.)
  */
 @Slf4j
 @Service
@@ -74,41 +76,9 @@ public class StaffQRService {
         AuditoriaContexto.objetivo(entrada.getId(), "Entrada de " + entrada.getNombreComprador());
         AuditoriaContexto.detalle("Evento: " + nombreEvento + " (#" + idEventoEntrada + ") · Tanda: " + nombreTanda);
 
-        // ── Paso 2b: una entrada anulada por el Organizador no vale (8.6) ─
-        if (entrada.getEstado() == EstadoEntrada.Anulada) {
-            AuditoriaContexto.accion("INGRESO_RECHAZADO");
-            AuditoriaContexto.detalle("Rechazada: la entrada está anulada.");
-            log.warn("Intento de usar una entrada anulada. QR={}, entrada={}", dto.getCodigoQr(), entrada.getId());
-            return ValidacionQRResponseDTO.builder()
-                    .valido(false)
-                    .mensaje("❌ ENTRADA ANULADA — El organizador la dejó sin efecto")
-                    .idEntrada(entrada.getId())
-                    .nombreComprador(entrada.getNombreComprador())
-                    .emailComprador(entrada.getEmailComprador())
-                    .nombreEvento(nombreEvento)
-                    .nombreTanda(nombreTanda)
-                    .estadoAnterior(EstadoEntrada.Anulada)
-                    .build();
-        }
-
-        // ── Paso 3: Verificar que la entrada NO esté ya Usada ────────────
-        if (entrada.getEstado() == EstadoEntrada.Usada) {
-            AuditoriaContexto.accion("INGRESO_RECHAZADO");
-            AuditoriaContexto.detalle("Rechazada: ya se había usado el " + AuditoriaContexto.texto(entrada.getFechaUso()) + ".");
-            log.warn("Intento de re-uso de entrada ya utilizada. QR={}, entrada={}",
-                    dto.getCodigoQr(), entrada.getId());
-            return ValidacionQRResponseDTO.builder()
-                    .valido(false)
-                    .mensaje("❌ ENTRADA YA UTILIZADA — Esta entrada fue usada el " +
-                             entrada.getFechaUso())
-                    .idEntrada(entrada.getId())
-                    .nombreComprador(entrada.getNombreComprador())
-                    .emailComprador(entrada.getEmailComprador())
-                    .nombreEvento(nombreEvento)
-                    .nombreTanda(nombreTanda)
-                    .estadoAnterior(EstadoEntrada.Usada)
-                    .fechaUso(entrada.getFechaUso())
-                    .build();
+        // ── Pasos 2b y 3: ni anulada (8.6) ni ya usada ───────────────────
+        if (entrada.getEstado() != EstadoEntrada.Pagada) {
+            return rechazarPorEstado(entrada, nombreEvento, nombreTanda);
         }
 
         // ── Paso 3b: Verificar que el evento no esté cancelado ───────────
@@ -151,11 +121,12 @@ public class StaffQRService {
         EstadoEntrada estadoAnterior = entrada.getEstado();
         LocalDateTime ahora = LocalDateTime.now();
 
-        entrada.setEstado(EstadoEntrada.Usada);
-        entrada.setFechaUso(ahora);
-        entrada.setIdStaffQrValidador(staffQR.getId());
-
-        entradaRepository.save(entrada);
+        if (entradaRepository.marcarComoUsada(entrada.getId(), staffQR.getId(), ahora) == 0) {
+            // Cambió entre la lectura y la marca: se vuelve a leer para decir qué pasó.
+            Entrada actual = entradaRepository.findById(entrada.getId()).orElseThrow(
+                    () -> new ResourceNotFoundException("La entrada ya no existe"));
+            return rechazarPorEstado(actual, nombreEvento, nombreTanda);
+        }
         AuditoriaContexto.cambio("Estado", estadoAnterior, EstadoEntrada.Usada);
 
         log.info("QR validado exitosamente: entrada={}, evento={}, staff={}, comprador={}",
@@ -171,6 +142,30 @@ public class StaffQRService {
                 .nombreTanda(nombreTanda)
                 .estadoAnterior(estadoAnterior)
                 .fechaUso(ahora)
+                .build();
+    }
+
+    /** Respuesta para una entrada que no se puede usar porque está anulada o porque ya se usó. */
+    private ValidacionQRResponseDTO rechazarPorEstado(Entrada entrada, String nombreEvento, String nombreTanda) {
+        boolean anulada = entrada.getEstado() == EstadoEntrada.Anulada;
+        AuditoriaContexto.accion("INGRESO_RECHAZADO");
+        AuditoriaContexto.detalle(anulada
+                ? "Rechazada: la entrada está anulada."
+                : "Rechazada: ya se había usado el " + AuditoriaContexto.texto(entrada.getFechaUso()) + ".");
+        log.warn("Intento de usar una entrada {}. QR={}, entrada={}",
+                anulada ? "anulada" : "ya utilizada", entrada.getCodigoQr(), entrada.getId());
+        return ValidacionQRResponseDTO.builder()
+                .valido(false)
+                .mensaje(anulada
+                        ? "❌ ENTRADA ANULADA — El organizador la dejó sin efecto"
+                        : "❌ ENTRADA YA UTILIZADA — Esta entrada fue usada el " + entrada.getFechaUso())
+                .idEntrada(entrada.getId())
+                .nombreComprador(entrada.getNombreComprador())
+                .emailComprador(entrada.getEmailComprador())
+                .nombreEvento(nombreEvento)
+                .nombreTanda(nombreTanda)
+                .estadoAnterior(entrada.getEstado())
+                .fechaUso(anulada ? null : entrada.getFechaUso())
                 .build();
     }
 

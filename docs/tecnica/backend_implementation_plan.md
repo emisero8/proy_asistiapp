@@ -76,7 +76,7 @@ Este plan detalla el enfoque paso a paso para construir el backend del sistema d
 1.  **Servicio de Validación (`StaffQRService`):**
     *   Endpoint `POST /tickets/validate`.
     *   Lógica (`CU-018`): Buscar entrada por QR, verificar si corresponde al evento activo del Staff, comprobar que NO esté en estado `Usada`.
-    *   Si es válida: actualizar a `Usada`, registrar fecha/hora y el ID del Staff que validó. Todo bajo `@Transactional`.
+    *   Si es válida: actualizar a `Usada`, registrar fecha/hora y el ID del Staff que validó. Todo bajo `@Transactional`. *(Desde el 2026-11-27: `@Transactional` solo no impedía que dos validaciones simultáneas del mismo QR pasaran las dos; ahora se marca con un `UPDATE` condicionado a que siga `Pagada`. Ver `DECISIONES.md`.)*
 2.  **Controlador (`StaffQRController`):**
     *   Exponer el endpoint asegurando que solo usuarios con rol `Staff_QR` puedan acceder.
 
@@ -415,7 +415,7 @@ Cada fase está marcada con su prioridad:
 - `notification_url` y `auto_return` solo se mandan si la URL correspondiente es HTTPS (MP los rechaza/no puede usarlos con localhost); en desarrollo sin túnel se omiten y queda un warning.
 - `VentaService.iniciarCompraOnline`: valida cupo y tope por comprador para **toda la cantidad**, crea una sola `TransaccionPago` por el total y devuelve el `init_point`. **No descuenta cupo** (eso ocurre al confirmar el pago). Rechaza tandas de precio 0 (MP no cobra ítems de $0; las tandas gratuitas necesitarían otro circuito).
 - `CreditoService.iniciarCompraCredito`: misma idea, una preferencia por paquete.
-- Contrato HTTP: `ordenId` es ahora el UUID (`String`) en ambas respuestas; `urlPago` es el `init_point` real. Si MP falla → `PasarelaPagoException` (502) y la orden se revierte (no quedan órdenes huérfanas).
+- Contrato HTTP: `ordenId` es ahora el UUID (`String`) en ambas respuestas; `urlPago` es el `init_point` real. Si MP falla → `PasarelaPagoException` (502) y la orden se revierte (no quedan órdenes huérfanas). *(Desde el 2026-11-27 la orden no se revierte: se guarda antes de llamar a MP y, si MP falla, queda `Rechazada`; ver `DECISIONES.md`.)*
 - Verificado contra la API real de MP: la preferencia se crea y devuelve un `init_point` válido.
 
 ### 21.4 — Webhook real ✅

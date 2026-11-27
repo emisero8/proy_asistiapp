@@ -23,6 +23,7 @@ Entrar en `http://localhost:5173/admin/login`.
 
 ### Paso 2 — Organizador: crear y publicar un evento
 Entrar en `http://localhost:5173/organizador/registro` y **crear una cuenta nueva** (recibe los créditos de bienvenida) o iniciar sesión en `/organizador/login`.
+- **Mi perfil (antes de publicar):** cargar un contacto (WhatsApp o email) para el botón de arrepentimiento y vincular la cuenta de Mercado Pago. La vinculación no se exige si el backend corre con `MP_EXIGIR_CUENTA_VINCULADA=false`. Sin estos datos, publicar devuelve un error.
 - **Créditos:** ver el saldo y el historial (el movimiento de bienvenida). Mostrar la compra de un paquete (abre MercadoPago).
 - **Crear evento:** asistente de dos pasos. Paso 1: nombre, descripción, fecha, hora y lugar (con mapa; opcional una portada). Paso 2: una o más **tandas** (nombre, precio y cantidad de entradas) y **Publicar evento**. Publicar cuesta créditos, y cada entrada consume uno.
 - **Dashboard:** el evento aparece como publicado, con su enlace público.

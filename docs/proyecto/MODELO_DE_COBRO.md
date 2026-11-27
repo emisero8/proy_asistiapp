@@ -1,6 +1,6 @@
 # Modelo de cobro del Organizador — AsistíAPP
 
-Estado: **decidido, sin implementar** (definido el 2026-11-17). Este documento es la especificación para construirlo por etapas.
+Estado: **implementado** (decidido el 2026-11-17). Se conserva como especificación original; el funcionamiento actual y lo que falta probar están en [`../tecnica/MERCADOPAGO_COBRO.md`](../tecnica/MERCADOPAGO_COBRO.md).
 
 ## 1. El modelo
 

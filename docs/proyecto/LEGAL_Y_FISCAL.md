@@ -55,6 +55,6 @@ Deben cubrir, como mínimo:
 - [ ] Reunión con un contador: inscripción, facturación de créditos, Ingresos Brutos.
 - [ ] Inscribir la base de datos en la AAIP.
 - [x] Términos y privacidad **revisados por un abogado y publicados como definitivos** en `/terminos` y `/privacidad` (versión `2026-11-20`; si el texto cambia, subir `TerminosLegales.VERSION` y `frontend/src/lib/terminos.ts` juntos). La aceptación explícita en el registro del Organizador y en el checkout **ya está hecha**.
-- [ ] Definir el botón o aviso de arrepentimiento (punto 1).
-- [ ] Registrar la aplicación como marketplace en Mercado Pago.
+- [x] Botón de arrepentimiento que deriva al contacto del Organizador (implementado). Falta validar con un abogado que alcance (punto 1).
+- [ ] Registrar la aplicación como marketplace en Mercado Pago (la vinculación OAuth ya funciona; falta confirmar este punto en el panel).
 - [ ] Dominio propio y registros de mail.

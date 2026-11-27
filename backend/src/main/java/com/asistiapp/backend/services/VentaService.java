@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionOperations;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -80,6 +81,7 @@ public class VentaService {
     private final NotificacionService notificacionService;
     private final LimiteCompradorService limiteCompradorService;
     private final OrganizadorRepository organizadorRepository;
+    private final TransactionOperations transacciones;
 
     private static final int TAMANO_QR_DEFAULT_PX = 300;
 
@@ -94,70 +96,109 @@ public class VentaService {
      * Preferencia de Checkout Pro en MercadoPago por el total.
      * NO descuenta cupo todavía — eso ocurre cuando el webhook confirma el pago.
      *
+     * No es @Transactional a propósito: las llamadas a MercadoPago van fuera de las transacciones,
+     * para no retener una conexión a la base mientras se espera la respuesta. Cada paso de base
+     * tiene su propia transacción corta.
+     *
      * @param dto datos del comprador, la tanda y la cantidad de entradas
      * @return orden con el init_point de MercadoPago al que hay que redirigir al comprador
      */
-    @Transactional
     public IniciarCompraResponseDTO iniciarCompraOnline(CompraOnlineRequestDTO dto) {
-        Tanda tanda = tandaRepository.findById(dto.getIdTanda())
-                .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada con id: " + dto.getIdTanda()));
-
         int cantidad = dto.getCantidad();
-        validarTandaDisponible(tanda, cantidad);
-        validarLimitePorComprador(tanda, dto.getEmailComprador(), cantidad);
-
-        if (tanda.getPrecio() == null || tanda.getPrecio() <= 0) {
-            // MercadoPago no cobra ítems de $0; las tandas gratuitas necesitan otro circuito.
-            throw new BusinessRuleException("Esta tanda no tiene un precio válido para pagar online");
-        }
+        DatosCompra datos = transacciones.execute(estado -> validarCompra(dto));
 
         // 8.5: el dinero cae en la cuenta de Mercado Pago del Organizador. Se pide antes de crear la orden:
         // si no puede cobrar, el comprador lo sabe ya y no queda una orden huérfana.
-        Long idOrganizador = tanda.getEvento().getIdOrganizador();
-        String tokenCobro = cuentaCobroService.tokenParaCobrar(idOrganizador);
+        String tokenCobro = cuentaCobroService.tokenParaCobrar(datos.idOrganizador());
 
-        // Si el Organizador traslada la comisión de Mercado Pago, el comprador paga un cargo por entrada
-        // (CargoServicioMp). Se fija ahora en la orden: el webhook valida el monto contra este total.
-        BigDecimal precio = BigDecimal.valueOf(tanda.getPrecio());
-        BigDecimal cargoUnitario = CargoServicioMp.cargoUnitarioPara(
-                organizadorRepository.findById(idOrganizador).orElse(null), tanda.getPrecio());
-        BigDecimal total = precio.add(cargoUnitario).multiply(BigDecimal.valueOf(cantidad));
+        BigDecimal total = datos.precio().add(datos.cargoUnitario()).multiply(BigDecimal.valueOf(cantidad));
 
         TransaccionPago transaccion = new TransaccionPago();
-        transaccion.setIdTanda(tanda.getId());
+        transaccion.setIdTanda(dto.getIdTanda());
         transaccion.setCantidad(cantidad);
         transaccion.setMontoTotal(total.doubleValue());
-        transaccion.setCargoServicioUnitario(cargoUnitario.signum() > 0 ? cargoUnitario.doubleValue() : null);
+        transaccion.setCargoServicioUnitario(
+                datos.cargoUnitario().signum() > 0 ? datos.cargoUnitario().doubleValue() : null);
         transaccion.setNombreComprador(dto.getNombreComprador());
         transaccion.setEmailComprador(dto.getEmailComprador());
         transaccion.setEstado(EstadoTransaccion.Pendiente);
         transaccion.setFechaVencimiento(mercadoPagoService.calcularVencimiento());
 
+        // Queda confirmada antes de llamar a MercadoPago: un aviso de pago ya encuentra la orden.
         TransaccionPago saved = transaccionPagoRepository.save(transaccion);
 
-        // Si MercadoPago falla, la excepción revierte la transacción: no queda una orden huérfana.
-        MercadoPagoService.PreferenciaCreada preferencia = mercadoPagoService.crearPreferencia(
-                new MercadoPagoService.OrdenACobrar(
-                        "tanda-" + tanda.getId(),
-                        tanda.getEvento().getNombre() + " — " + tanda.getNombre(),
-                        "Entrada(s) para " + tanda.getEvento().getNombre(),
-                        cantidad,
-                        precio,
-                        saved.getExternalReference(),
-                        MercadoPagoService.TIPO_ENTRADAS,
-                        dto.getEmailComprador(),
-                        saved.getFechaVencimiento(),
-                        cargoUnitario),
-                tokenCobro);
+        MercadoPagoService.PreferenciaCreada preferencia;
+        try {
+            preferencia = mercadoPagoService.crearPreferencia(
+                    new MercadoPagoService.OrdenACobrar(
+                            "tanda-" + dto.getIdTanda(),
+                            datos.nombreEvento() + " — " + datos.nombreTanda(),
+                            "Entrada(s) para " + datos.nombreEvento(),
+                            cantidad,
+                            datos.precio(),
+                            saved.getExternalReference(),
+                            MercadoPagoService.TIPO_ENTRADAS,
+                            dto.getEmailComprador(),
+                            saved.getFechaVencimiento(),
+                            datos.cargoUnitario()),
+                    tokenCobro);
+        } catch (RuntimeException e) {
+            descartarOrden(saved.getExternalReference());
+            throw e;
+        }
 
         log.info("Compra iniciada: transaccionId={}, ref={}, tanda={}, cantidad={}, cargoPorEntrada={}, total={}, comprador={}",
-                saved.getId(), saved.getExternalReference(), dto.getIdTanda(), cantidad, cargoUnitario, total, dto.getEmailComprador());
+                saved.getId(), saved.getExternalReference(), dto.getIdTanda(), cantidad, datos.cargoUnitario(), total,
+                dto.getEmailComprador());
 
         return IniciarCompraResponseDTO.builder()
                 .ordenId(saved.getExternalReference())
                 .urlPago(preferencia.initPoint())
                 .mensaje("Redirigite a MercadoPago para completar tu compra.")
                 .build();
+    }
+
+    /** Lo que se lee de la base para armar la orden y la preferencia, ya fuera de la transacción. */
+    private record DatosCompra(Long idOrganizador, String nombreEvento, String nombreTanda,
+                               BigDecimal precio, BigDecimal cargoUnitario) {
+    }
+
+    private DatosCompra validarCompra(CompraOnlineRequestDTO dto) {
+        Tanda tanda = tandaRepository.findById(dto.getIdTanda())
+                .orElseThrow(() -> new ResourceNotFoundException("Tanda no encontrada con id: " + dto.getIdTanda()));
+
+        validarTandaDisponible(tanda, dto.getCantidad());
+        validarLimitePorComprador(tanda, dto.getEmailComprador(), dto.getCantidad());
+
+        if (tanda.getPrecio() == null || tanda.getPrecio() <= 0) {
+            // MercadoPago no cobra ítems de $0; las tandas gratuitas necesitan otro circuito.
+            throw new BusinessRuleException("Esta tanda no tiene un precio válido para pagar online");
+        }
+
+        // Si el Organizador traslada la comisión de Mercado Pago, el comprador paga un cargo por entrada
+        // (CargoServicioMp). Se fija ahora en la orden: el webhook valida el monto contra este total.
+        Long idOrganizador = tanda.getEvento().getIdOrganizador();
+        BigDecimal cargoUnitario = CargoServicioMp.cargoUnitarioPara(
+                organizadorRepository.findById(idOrganizador).orElse(null), tanda.getPrecio());
+
+        return new DatosCompra(idOrganizador, tanda.getEvento().getNombre(), tanda.getNombre(),
+                BigDecimal.valueOf(tanda.getPrecio()), cargoUnitario);
+    }
+
+    /** MercadoPago no creó la preferencia: la orden no se puede pagar, así que no queda abierta. */
+    private void descartarOrden(String externalReference) {
+        try {
+            transacciones.executeWithoutResult(estado ->
+                    transaccionPagoRepository.findByExternalReferenceForUpdate(externalReference)
+                            .filter(orden -> orden.getEstado() == EstadoTransaccion.Pendiente)
+                            .ifPresent(orden -> {
+                                orden.setEstado(EstadoTransaccion.Rechazada);
+                                transaccionPagoRepository.save(orden);
+                            }));
+        } catch (RuntimeException e) {
+            // Quien compra tiene que ver el error original; la orden vence sola.
+            log.error("No se pudo descartar la orden {}", externalReference, e);
+        }
     }
 
     // ─────────────────────────────────────────────

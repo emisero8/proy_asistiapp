@@ -32,21 +32,21 @@ Cada recurso se valida contra su dueño: un Organizador solo ve y modifica sus e
 
 ## 3. Modelo de datos
 
-Todos los `id` son `Long`. Las fechas sin zona son hora de Argentina.
+Todos los `id` son `Long` (salvo `intentos_vinculacion_mp`, que usa su `state`). Las fechas sin zona son hora de Argentina. El diagrama está en [`ARQUITECTURA.md`](ARQUITECTURA.md).
 
 ### Usuarios
 
-- **`usuarios`:** `nombre`, `email` (único), `password_hash`, `rol`, `estado` (`Activo`, `Suspendido`, `Inactivo`), `fecha_creacion`, `creado_por`. Es la base de la herencia.
-- **`organizadores`** (`id_usuario`): `saldo_creditos`.
+- **`usuarios`:** `nombre`, `email` (único), `password_hash`, `rol`, `estado` (`Activo`, `Suspendido`, `Inactivo`), `foto_perfil_url`, `fecha_creacion`, `creado_por`. Es la base de la herencia.
+- **`organizadores`** (`id_usuario`): `saldo_creditos`, `max_entradas_por_comprador`, `contacto_whatsapp`, `contacto_email`, `trasladar_cargo_mp`, `plazo_liberacion_mp`, `zona_comision_mp`, `terminos_aceptados_en`, `terminos_version`.
 - **`staff_qr`** (`id_usuario`): `id_evento`.
-- **`staff_vendedores`** (`id_usuario`): `id_organizador`, `id_evento`.
+- **`staff_vendedores`** (`id_usuario`): `id_organizador`, `id_evento`, `tope_entradas`.
 - **`tokens_recuperacion`:** `token`, `id_usuario`, `fecha_expiracion`, `usado` (recuperar contraseña).
 
 ### Eventos y entradas
 
 - **`eventos`:** `id_organizador`, `nombre`, `descripcion`, `fecha_evento`, `hora_evento`, `lugar`, `latitud`, `longitud`, `imagen_portada_url`, `estado` (`Borrador`, `Publicado`, `Cancelado`), `url_publica`, `fecha_creacion`, `fecha_publicacion`, `fecha_cancelacion`.
-- **`tandas`:** `id_evento`, `nombre`, `precio`, `cupo_maximo`, `cupo_disponible`, `fecha_inicio_vigencia`, `fecha_fin_vigencia`.
-- **`entradas`:** `id_tanda`, `codigo_qr` (único), `nombre_comprador`, `email_comprador`, `estado` (`Pagada`, `Usada`), `canal_venta` (`Online`, `Manual`), `id_transaccion_pago`, `id_staff_vendedor`, `id_staff_qr_validador`, `fecha_compra`, `fecha_uso`.
+- **`tandas`:** `id_evento`, `nombre`, `precio`, `cupo_maximo`, `cupo_disponible`, `fecha_inicio_vigencia`, `fecha_fin_vigencia`, `solo_emision` (tanda de cortesía).
+- **`entradas`:** `id_tanda`, `codigo_qr` (único), `nombre_comprador`, `email_comprador`, `estado` (`Pagada`, `Usada`, `Anulada`), `canal_venta` (`Online`, `Manual`), `precio_venta`, `id_transaccion_pago`, `id_staff_vendedor`, `id_organizador_emisor`, `tipo_emision` (`Cortesia`, `Pago_Externo`), `motivo_emision`, `id_staff_qr_validador`, `fecha_compra`, `fecha_uso`, `fecha_anulacion`, `motivo_anulacion`, `reembolsada_en`, `reembolso_en_curso`, `credito_devuelto`.
 
 ### Pagos y créditos
 
@@ -57,6 +57,8 @@ Todos los `id` son `Long`. Las fechas sin zona son hora de Argentina.
 
 ### Sistema
 
+- **`cuentas_mercadopago`:** `id_organizador` (único), `mp_user_id`, `access_token_cifrado`, `refresh_token_cifrado`, `expira_en`, `vinculada_en`, `estado` (`Vinculada`, `Revocada`).
+- **`intentos_vinculacion_mp`:** `state`, `id_organizador`, `code_verifier`, `creado_en` (vinculación OAuth en curso).
 - **`notificaciones`:** `id_usuario_destino`, `origen` (`Admin`, `Sistema`), `titulo`, `mensaje`, `leida`, `tipo_entidad_relacionada`, `id_entidad_relacionada`, `fecha_creacion`.
 - **`configuraciones_sistema`:** `clave`, `valor`, `descripcion`. Claves usadas: `creditos_bienvenida`, `creditos_por_publicacion`, `max_entradas_por_comprador`, `email_soporte`, `whatsapp_soporte`.
 - **`log_auditoria`:** `id_emisor`, `emisor_nombre`, `emisor_rol`, `accion`, `entidad_afectada`, `id_entidad_afectada`, `entidad_nombre`, `detalle`, `fecha_hora`. Registra las acciones que cambian datos del Admin, del Organizador y de su Staff (`emisor_rol` es texto, no un CHECK de enum). `emisor_nombre` y `entidad_nombre` son una foto del momento (siguen legibles aunque después se borre el usuario o el evento); `detalle` es texto legible, una línea por dato o cambio (`Precio: $1.000 → $1.500`). Los datos sensibles (contraseñas) nunca se escriben.
@@ -183,7 +185,7 @@ Cada entrada guarda el precio con el que salió (`entradas.precio_venta`, sin el
 
 ### Validación de QR (CU-018)
 
-El `Staff_QR` valida un código: debe existir, pertenecer al evento asignado a ese staff, no estar usado y el evento no debe estar cancelado ni finalizado. Si es válido, la entrada pasa a `Usada` con su fecha y el staff que la validó; escanearla de nuevo se rechaza.
+El `Staff_QR` valida un código: debe existir, pertenecer al evento asignado a ese staff, no estar usado y el evento no debe estar cancelado ni finalizado. Si es válido, la entrada pasa a `Usada` con su fecha y el staff que la validó; escanearla de nuevo se rechaza. La marca es un único `UPDATE` condicionado a que la entrada siga `Pagada` (`EntradaRepository.marcarComoUsada`): si dos dispositivos escanean el mismo QR a la vez, solo uno recibe "válida" (`StaffQRConcurrencyTest`).
 
 ### Venta manual (CU-019)
 

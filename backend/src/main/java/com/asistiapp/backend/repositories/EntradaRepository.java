@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,6 +77,17 @@ public interface EntradaRepository extends JpaRepository<Entrada, Long> {
             + "AND (e.estado = com.asistiapp.backend.models.enums.EstadoEntrada.Anulada "
             + "OR e.tanda.evento.estado = com.asistiapp.backend.models.enums.EstadoEvento.Cancelado)")
     List<Entrada> findPendientesDeReembolso(@Param("eventoId") Long eventoId);
+
+    /**
+     * Registra el ingreso solo si la entrada sigue sin usar: 1 si este pedido la marcó, 0 si mientras tanto la usó
+     * otro dispositivo o la anularon. Comprobar y marcar en un mismo UPDATE impide que un QR deje entrar dos veces.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Entrada e SET e.estado = com.asistiapp.backend.models.enums.EstadoEntrada.Usada, "
+            + "e.fechaUso = :fechaUso, e.idStaffQrValidador = :idStaffQr "
+            + "WHERE e.id = :id AND e.estado = com.asistiapp.backend.models.enums.EstadoEntrada.Pagada")
+    int marcarComoUsada(@Param("id") Long id, @Param("idStaffQr") Long idStaffQr,
+                        @Param("fechaUso") LocalDateTime fechaUso);
 
     /** Toma el turno para reembolsar una entrada: 1 si lo logró, 0 si otro pedido ya la reembolsó o la está reembolsando. */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
