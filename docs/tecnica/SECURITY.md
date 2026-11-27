@@ -17,7 +17,7 @@ Criterios de seguridad para el stack de AsistíAPP (React + Spring Boot + Postgr
 
 ## 3. Cross-Site Scripting (XSS)
 - **Frontend:** se confía en el escape automático de React; **no se usa `dangerouslySetInnerHTML`** en ninguna pantalla.
-- **Mails (backend):** el mail de confirmación de compra está armado en HTML con datos que escribe quien compra (nombre) o el organizador (evento, tanda). Esos textos se **escapan** antes de insertarlos (`EmailService`), y hay un test (`EmailServiceSmtpTest`) que verifica que un nombre con HTML no llega como HTML. Todo texto de usuario nuevo que vaya a un mail HTML debe escaparse igual.
+- **Mails (backend):** todos los mails están armados en HTML con datos que escribe quien compra (nombre) o el organizador (evento, tanda, nombre del Staff). Esos textos se **escapan** antes de insertarlos (`PlantillaEmail.escapar`, usado por `EmailService`), y hay tests (`EmailServiceSmtpTest`) que verifican que un dato con HTML no llega como HTML. Todo texto de usuario nuevo que vaya a un mail HTML debe escaparse igual.
 - **Entradas:** los DTO validan con `@Valid` (obligatorios, largos, formatos). El texto libre se guarda tal cual y se escapa al mostrarlo.
 
 ## 4. Cross-Site Request Forgery (CSRF)

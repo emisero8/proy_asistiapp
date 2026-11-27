@@ -5,15 +5,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.HtmlUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+
+import static com.asistiapp.backend.services.PlantillaEmail.*;
 
 /**
  * Servicio de envío de correos electrónicos vía SMTP.
@@ -22,6 +23,10 @@ import java.util.List;
  * El comprador recibe su confirmación mientras la respuesta ya llegó al cliente.
  *
  * Configuración SMTP en application.yml (spring.mail.*).
+ *
+ * Todos los mails salen en HTML con el diseño de {@link PlantillaEmail} y con una versión en texto plano
+ * (multipart/alternative): los filtros de spam desconfían de los mails solo-HTML y los clientes sin HTML
+ * igual muestran lo esencial.
  */
 @Slf4j
 @Service
@@ -83,25 +88,26 @@ public class EmailService {
                         .append("Ver mi entrada (con el QR): ").append(ticketUrl).append("\n\n");
             }
 
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, "UTF-8");
-            helper.setTo(emailDestino);
-            fijarRemitente(helper);
-            helper.setSubject(total == 1
+            String asunto = total == 1
                     ? "✅ Tu entrada para " + nombreEvento + " — AsistíAPP"
-                    : "✅ Tus " + total + " entradas para " + nombreEvento + " — AsistíAPP");
-            // Texto plano + HTML (multipart/alternative): los filtros de spam desconfían de los mails solo-HTML y
-            // los clientes sin HTML igual muestran lo esencial (evento, códigos y el link a cada entrada).
+                    : "✅ Tus " + total + " entradas para " + nombreEvento + " — AsistíAPP";
+            String cuantas = total == 1 ? "tu entrada" : "tus " + total + " entradas";
             String textoPlano = "¡Compra confirmada!\n"
-                    + "Hola " + nombreComprador + ", ya tenés " + (total == 1 ? "tu entrada" : "tus " + total + " entradas") + ".\n\n"
+                    + "Hola " + nombreComprador + ", ya tenés " + cuantas + ".\n\n"
                     + "Evento: " + nombreEvento + "\n"
                     + "Tanda: " + nombreTanda + "\n\n"
                     + textoEntradas
-                    + "Mostrá el código QR en la puerta del evento.\n— AsistíAPP\n";
+                    + "Mostrá el código QR en la puerta del evento.\n"
+                    + "Guardá este email como comprobante de tu compra.\n— AsistíAPP\n";
             // El nombre del comprador lo escribe cualquiera (la compra es pública): se escapa para que no
             // pueda meter HTML ni enlaces en un mail que sale con el remitente de AsistíAPP.
-            helper.setText(textoPlano, construirCuerpoEmailHtml(
-                    escaparHtml(nombreComprador), escaparHtml(nombreEvento), escaparHtml(nombreTanda), total, bloques.toString()));
+            String html = documento(Tono.COMPRA, "¡Compra confirmada!",
+                    "Hola " + destacado(escapar(nombreComprador)) + ", ya tenés " + cuantas + ".",
+                    fila(recuadro(dato("Evento", nombreEvento), dato("Tanda", nombreTanda)))
+                            + bloques);
+
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = armarMensaje(mimeMessage, emailDestino, asunto, textoPlano, html);
             // Las imágenes inline se agregan después del texto HTML que las referencia.
             for (int i = 0; i < imagenesQr.size(); i++) {
                 helper.addInline(cidDelQr(i), new ByteArrayResource(imagenesQr.get(i)), "image/png");
@@ -136,11 +142,7 @@ public class EmailService {
             String passwordTemporal) {
 
         try {
-            SimpleMailMessage mensaje = new SimpleMailMessage();
-            mensaje.setTo(emailDestino);
-            fijarRemitente(mensaje);
-            mensaje.setSubject("Tus credenciales de acceso — AsistíAPP");
-            mensaje.setText(String.format("""
+            String texto = String.format("""
                     Hola %s,
 
                     Fuiste dado de alta como %s en AsistíAPP. Estas son tus credenciales:
@@ -152,9 +154,14 @@ public class EmailService {
 
                     El equipo de AsistíAPP
                     """,
-                    nombre, rolDescripcion, emailDestino, passwordTemporal));
+                    nombre, rolDescripcion, emailDestino, passwordTemporal);
+            String html = documento(Tono.CUENTA, "Ya sos parte del equipo",
+                    "Hola " + destacado(escapar(nombre)) + ", fuiste dado de alta como "
+                            + destacado(escapar(rolDescripcion)) + " en AsistíAPP.",
+                    fila(recuadro(dato("Usuario", emailDestino), dato("Contraseña temporal", passwordTemporal))
+                            + parrafo("Por seguridad, te recomendamos cambiar la contraseña después de tu primer inicio de sesión.")));
 
-            mailSender.send(mensaje);
+            enviar(emailDestino, "Tus credenciales de acceso — AsistíAPP", texto, html);
             log.info("Credenciales de Staff enviadas a: {} ({})", emailDestino, rolDescripcion);
 
         } catch (Exception e) {
@@ -175,15 +182,31 @@ public class EmailService {
     public void enviarEmailRecuperacion(String emailDestino, String nombre, String token) {
         try {
             String resetUrl = frontendBaseUrl + "/organizador/recuperar-password?token=" + token;
+            String texto = String.format("""
+                    Hola %s,
 
-            MimeMessage mimeMessage = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
-            helper.setTo(emailDestino);
-            fijarRemitente(helper);
-            helper.setSubject("Recuperar tu contraseña — AsistíAPP");
-            helper.setText(construirCuerpoEmailRecuperacionHtml(nombre, resetUrl), true);
+                    Recibimos una solicitud para restablecer tu contraseña en AsistíAPP.
+                    Para crear una nueva contraseña, abrí este enlace (es válido por 30 minutos):
 
-            mailSender.send(mimeMessage);
+                    %s
+
+                    Si no solicitaste este cambio, podés ignorar este email con tranquilidad. Tu contraseña
+                    actual sigue siendo la misma.
+
+                    El equipo de AsistíAPP
+                    """,
+                    nombre, resetUrl);
+            String html = documento(Tono.CUENTA, "Restablecer contraseña",
+                    "Hola " + destacado(escapar(nombre)) + ", recibimos tu solicitud.",
+                    fila(centrado(parrafo("Recibimos una solicitud para restablecer tu contraseña en AsistíAPP. "
+                            + "Tocá el botón para crear una nueva. Este enlace es válido por " + destacado("30 minutos") + ".")
+                            + boton("Recuperar contraseña", resetUrl)
+                            + nota("Si el botón no funciona, copiá y pegá este enlace en tu navegador:")
+                            + codigo(resetUrl)
+                            + nota("Si no solicitaste este cambio, podés ignorar este email con tranquilidad. "
+                            + "Tu contraseña actual sigue siendo la misma."))));
+
+            enviar(emailDestino, "Recuperar tu contraseña — AsistíAPP", texto, html);
             log.info("Email de recuperación de contraseña enviado a: {}", emailDestino);
 
         } catch (Exception e) {
@@ -205,11 +228,7 @@ public class EmailService {
     @Async
     public void enviarNotificacionCancelacion(String emailDestino, String nombreComprador, String nombreEvento) {
         try {
-            SimpleMailMessage mensaje = new SimpleMailMessage();
-            mensaje.setTo(emailDestino);
-            fijarRemitente(mensaje);
-            mensaje.setSubject("Evento cancelado: " + nombreEvento + " — AsistíAPP");
-            mensaje.setText(String.format("""
+            String texto = String.format("""
                     Hola %s,
 
                     Lamentamos informarte que el evento "%s" fue cancelado por el organizador.
@@ -219,9 +238,15 @@ public class EmailService {
 
                     El equipo de AsistíAPP
                     """,
-                    nombreComprador, nombreEvento));
+                    nombreComprador, nombreEvento);
+            String html = documento(Tono.BAJA, "Evento cancelado",
+                    "Hola " + escapar(nombreComprador),
+                    fila(recuadro(dato("Evento", nombreEvento))
+                            + parrafo("Lamentamos informarte que el evento fue cancelado por el organizador.")
+                            + parrafo("Tu entrada ya no es válida para el ingreso. Por consultas sobre reembolsos, "
+                            + "contactá directamente al organizador del evento.")));
 
-            mailSender.send(mensaje);
+            enviar(emailDestino, "Evento cancelado: " + nombreEvento + " — AsistíAPP", texto, html);
             log.info("Notificación de cancelación enviada a: {} para el evento: {}", emailDestino, nombreEvento);
 
         } catch (Exception e) {
@@ -238,11 +263,7 @@ public class EmailService {
     @Async
     public void enviarNotificacionReembolsoEntradas(String emailDestino, String nombreComprador, String nombreEvento) {
         try {
-            SimpleMailMessage mensaje = new SimpleMailMessage();
-            mensaje.setTo(emailDestino);
-            fijarRemitente(mensaje);
-            mensaje.setSubject("Te devolvimos tu pago — " + nombreEvento + " — AsistíAPP");
-            mensaje.setText(String.format("""
+            String texto = String.format("""
                     Hola %s,
 
                     Lamentablemente tu compra para "%s" no se pudo completar (se agotaron las
@@ -255,9 +276,17 @@ public class EmailService {
 
                     El equipo de AsistíAPP
                     """,
-                    nombreComprador, nombreEvento));
+                    nombreComprador, nombreEvento);
+            String html = documento(Tono.REEMBOLSO, "Te devolvimos tu pago",
+                    "Hola " + escapar(nombreComprador),
+                    fila(recuadro(dato("Evento", nombreEvento))
+                            + parrafo("Lamentablemente tu compra no se pudo completar (se agotaron las entradas disponibles "
+                            + "justo antes de confirmar tu pago). Ya te devolvimos el dinero a través de MercadoPago — "
+                            + "deberías verlo reflejado en los próximos días según el medio de pago que hayas usado.")
+                            + parrafo("Disculpá las molestias. Podés volver a intentar la compra desde la página del evento "
+                            + "si todavía hay entradas disponibles.")));
 
-            mailSender.send(mensaje);
+            enviar(emailDestino, "Te devolvimos tu pago — " + nombreEvento + " — AsistíAPP", texto, html);
             log.info("Notificación de reembolso (entradas) enviada a: {} para el evento: {}", emailDestino, nombreEvento);
 
         } catch (Exception e) {
@@ -272,11 +301,7 @@ public class EmailService {
     @Async
     public void enviarNotificacionEntradaAnulada(String emailDestino, String nombreComprador, String nombreEvento) {
         try {
-            SimpleMailMessage mensaje = new SimpleMailMessage();
-            mensaje.setTo(emailDestino);
-            fijarRemitente(mensaje);
-            mensaje.setSubject("Tu entrada fue anulada — " + nombreEvento + " — AsistíAPP");
-            mensaje.setText(String.format("""
+            String texto = String.format("""
                     Hola %s,
 
                     El organizador de "%s" anuló tu entrada, por lo que ya no tiene validez para
@@ -286,9 +311,16 @@ public class EmailService {
 
                     El equipo de AsistíAPP
                     """,
-                    nombreComprador, nombreEvento));
-            mailSender.send(mensaje);
+                    nombreComprador, nombreEvento);
+            String html = documento(Tono.BAJA, "Tu entrada fue anulada",
+                    "Hola " + escapar(nombreComprador),
+                    fila(recuadro(dato("Evento", nombreEvento))
+                            + parrafo("El organizador anuló tu entrada, por lo que ya no tiene validez para ingresar al evento.")
+                            + parrafo("Si tenés dudas, comunicate directamente con el organizador del evento.")));
+
+            enviar(emailDestino, "Tu entrada fue anulada — " + nombreEvento + " — AsistíAPP", texto, html);
             log.info("Aviso de entrada anulada enviado a: {} para el evento: {}", emailDestino, nombreEvento);
+
         } catch (Exception e) {
             log.error("Error al enviar el aviso de entrada anulada a {}: {}", emailDestino, e.getMessage());
         }
@@ -298,21 +330,25 @@ public class EmailService {
     @Async
     public void enviarNotificacionReembolsoOrganizador(String emailDestino, String nombreComprador, String nombreEvento, double monto) {
         try {
-            SimpleMailMessage mensaje = new SimpleMailMessage();
-            mensaje.setTo(emailDestino);
-            fijarRemitente(mensaje);
-            mensaje.setSubject("Te devolvimos tu dinero — " + nombreEvento + " — AsistíAPP");
-            mensaje.setText(String.format(java.util.Locale.forLanguageTag("es-AR"), """
+            String importe = String.format(Locale.forLanguageTag("es-AR"), "$%,.2f", monto);
+            String texto = String.format("""
                     Hola %s,
 
-                    El organizador de "%s" te devolvió $%,.2f de tu compra, a través de Mercado Pago.
+                    El organizador de "%s" te devolvió %s de tu compra, a través de Mercado Pago.
                     Deberías verlo reflejado en los próximos días según el medio de pago que hayas usado.
 
                     El equipo de AsistíAPP
                     """,
-                    nombreComprador, nombreEvento, monto));
-            mailSender.send(mensaje);
+                    nombreComprador, nombreEvento, importe);
+            String html = documento(Tono.REEMBOLSO, "Te devolvimos tu dinero",
+                    "Hola " + escapar(nombreComprador),
+                    fila(recuadro(dato("Evento", nombreEvento), dato("Importe devuelto", importe))
+                            + parrafo("El organizador te devolvió ese importe de tu compra, a través de Mercado Pago. "
+                            + "Deberías verlo reflejado en los próximos días según el medio de pago que hayas usado.")));
+
+            enviar(emailDestino, "Te devolvimos tu dinero — " + nombreEvento + " — AsistíAPP", texto, html);
             log.info("Aviso de reembolso enviado a: {} para el evento: {}", emailDestino, nombreEvento);
+
         } catch (Exception e) {
             log.error("Error al enviar el aviso de reembolso a {}: {}", emailDestino, e.getMessage());
         }
@@ -327,11 +363,7 @@ public class EmailService {
     public void enviarNotificacionReembolsoCreditos(String emailDestino, String nombreOrganizador, Integer cantidadCreditos) {
         try {
             String descripcionCreditos = cantidadCreditos != null ? cantidadCreditos + " créditos" : "los créditos";
-            SimpleMailMessage mensaje = new SimpleMailMessage();
-            mensaje.setTo(emailDestino);
-            fijarRemitente(mensaje);
-            mensaje.setSubject("Te devolvimos tu pago — AsistíAPP");
-            mensaje.setText(String.format("""
+            String texto = String.format("""
                     Hola %s,
 
                     Tu compra de %s no se pudo acreditar y ya te devolvimos el dinero a través de
@@ -343,9 +375,17 @@ public class EmailService {
 
                     El equipo de AsistíAPP
                     """,
-                    nombreOrganizador, descripcionCreditos));
+                    nombreOrganizador, descripcionCreditos);
+            String html = documento(Tono.REEMBOLSO, "Te devolvimos tu pago",
+                    "Hola " + escapar(nombreOrganizador),
+                    fila((cantidadCreditos != null ? recuadro(dato("Compra", descripcionCreditos)) : "")
+                            + parrafo("Tu compra de " + descripcionCreditos + " no se pudo acreditar y ya te devolvimos el dinero "
+                            + "a través de MercadoPago — deberías verlo reflejado en los próximos días según el medio de "
+                            + "pago que hayas usado.")
+                            + parrafo("Disculpá las molestias. Podés volver a intentar la compra desde la sección de Créditos "
+                            + "de tu panel.")));
 
-            mailSender.send(mensaje);
+            enviar(emailDestino, "Te devolvimos tu pago — AsistíAPP", texto, html);
             log.info("Notificación de reembolso (créditos) enviada a: {}", emailDestino);
 
         } catch (Exception e) {
@@ -353,185 +393,37 @@ public class EmailService {
         }
     }
 
-    private void fijarRemitente(SimpleMailMessage mensaje) {
-        if (remitente != null && !remitente.isBlank()) mensaje.setFrom(remitente.trim());
+    private void enviar(String destino, String asunto, String textoPlano, String html)
+            throws jakarta.mail.MessagingException {
+        MimeMessage mimeMessage = mailSender.createMimeMessage();
+        armarMensaje(mimeMessage, destino, asunto, textoPlano, html);
+        mailSender.send(mimeMessage);
     }
 
-    private void fijarRemitente(MimeMessageHelper helper) throws jakarta.mail.MessagingException {
+    private MimeMessageHelper armarMensaje(MimeMessage mimeMessage, String destino, String asunto,
+                                           String textoPlano, String html) throws jakarta.mail.MessagingException {
+        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, "UTF-8");
+        helper.setTo(destino);
         if (remitente != null && !remitente.isBlank()) helper.setFrom(remitente.trim());
+        helper.setSubject(asunto);
+        helper.setText(textoPlano, html);
+        return helper;
     }
 
     private static String cidDelQr(int indice) {
         return "qr-entrada-" + (indice + 1);
     }
 
-    /** Un bloque de QR + botón por cada entrada. "Entrada N de M" solo si hay más de una. */
-    private String construirBloqueEntrada(int numero, int total, String qrSrc, String codigoQr, String ticketUrl) {
+    /** Corte punteado, QR y botón de cada entrada. "Entrada N de M" solo si hay más de una. */
+    private static String construirBloqueEntrada(int numero, int total, String qrSrc, String codigoQr, String ticketUrl) {
         String etiqueta = total > 1
-                ? "<p style=\"margin:0 0 12px;font-size:12px;color:#9cadd3;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;\">Entrada " + numero + " de " + total + "</p>"
+                ? "<p style=\"margin:0 0 6px;\">" + rotulo("Entrada " + numero + " de " + total) + "</p>"
                 : "";
-        return String.format("""
-                <tr>
-                  <td style="padding:28px 40px 8px;text-align:center;%s">
-                    %s
-                    <p style="margin:0 0 16px;font-size:14px;color:#374151;font-weight:600;">&#128197; Mostr&aacute; este c&oacute;digo QR en la puerta del evento</p>
-                    <div style="display:inline-block;background:#ffffff;border:3px solid #09090b;border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.12);">
-                      <img src="%s" alt="Código QR de tu entrada" width="220" height="220" style="display:block;">
-                    </div>
-                    <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;word-break:break-all;">Cód: %s</p>
-                    <table cellpadding="0" cellspacing="0" style="margin:16px auto 0;">
-                      <tr>
-                        <td style="border-radius:12px;background:#09090b;">
-                          <a href="%s" target="_blank"
-                             style="display:inline-block;padding:11px 24px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.2px;">
-                            &#127915; Ver mi entrada
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                """,
-                numero > 1 ? "border-top:1px solid #f3f4f6;" : "",
-                etiqueta,
-                qrSrc,
-                codigoQr,
-                ticketUrl
-        );
-    }
-
-    private static String escaparHtml(String texto) {
-        return texto == null ? "" : HtmlUtils.htmlEscape(texto);
-    }
-
-    private String construirCuerpoEmailHtml(
-            String nombreComprador,
-            String nombreEvento,
-            String nombreTanda,
-            int totalEntradas,
-            String bloquesEntradas) {
-
-        String saludo = totalEntradas == 1
-                ? "ya ten&eacute;s tu entrada."
-                : "ya ten&eacute;s tus " + totalEntradas + " entradas.";
-
-        return String.format("""
-                <html>
-                <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f7;">
-                  <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:32px 0;">
-                    <tr><td align="center">
-                      <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-
-                        <!-- Header -->
-                        <tr>
-                          <td style="background:#09090b;padding:28px 40px;text-align:center;">
-                            <span style="font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Asist&iacute;<span style="color:#9cadd3;">APP</span></span>
-                          </td>
-                        </tr>
-
-                        <!-- Hero: evento confirmado -->
-                        <tr>
-                          <td style="background:#f0f4ff;padding:28px 40px 20px;text-align:center;border-bottom:1px solid #e8eaf0;">
-                            <div style="font-size:36px;margin-bottom:8px;">&#127881;</div>
-                            <h2 style="margin:0 0 4px;font-size:20px;font-weight:800;color:#111827;">&#161;Compra confirmada!</h2>
-                            <p style="margin:0;font-size:14px;color:#6b7280;">Hola <strong style="color:#111827;">%s</strong>, %s</p>
-                          </td>
-                        </tr>
-
-                        <!-- Detalle del evento -->
-                        <tr>
-                          <td style="padding:28px 40px 0;">
-                            <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f9fafb;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-                              <tr>
-                                <td style="padding:16px 20px;border-bottom:1px solid #e5e7eb;">
-                                  <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600;">Evento</span><br>
-                                  <span style="font-size:16px;font-weight:700;color:#111827;">%s</span>
-                                </td>
-                              </tr>
-                              <tr>
-                                <td style="padding:16px 20px;">
-                                  <span style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600;">Tanda</span><br>
-                                  <span style="font-size:14px;font-weight:600;color:#374151;">%s</span>
-                                </td>
-                              </tr>
-                            </table>
-                          </td>
-                        </tr>
-
-                        <!-- Un bloque de QR + botón por cada entrada -->
-                        %s
-
-                        <!-- Footer -->
-                        <tr>
-                          <td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
-                            <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;">Guard&aacute; este email como comprobante de tu compra.</p>
-                            <p style="margin:0;font-size:12px;color:#9ca3af;">El equipo de <strong>AsistíAPP</strong></p>
-                          </td>
-                        </tr>
-
-                      </table>
-                    </td></tr>
-                  </table>
-                </body>
-                </html>
-                """,
-                nombreComprador,
-                saludo,
-                nombreEvento,
-                nombreTanda,
-                bloquesEntradas
-        );
-    }
-
-    private String construirCuerpoEmailRecuperacionHtml(String nombre, String resetUrl) {
-        return String.format("""
-                <html>
-                <body style="margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;background:#f4f4f7;">
-                  <table width="100%%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;padding:32px 0;">
-                    <tr><td align="center">
-                      <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-                        <!-- Header -->
-                        <tr>
-                          <td style="background:#09090b;padding:28px 40px;text-align:center;">
-                            <span style="font-size:26px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Asist&iacute;<span style="color:#9cadd3;">APP</span></span>
-                          </td>
-                        </tr>
-                        <!-- Body -->
-                        <tr>
-                          <td style="padding:40px 40px 32px;">
-                            <h2 style="margin:0 0 8px;font-size:20px;font-weight:700;color:#111827;">Restablecer contrase&ntilde;a</h2>
-                            <p style="margin:0 0 24px;font-size:15px;color:#6b7280;line-height:1.6;">Hola <strong style="color:#111827;">%s</strong>, recibimos una solicitud para restablecer tu contrase&ntilde;a en AsistíAPP.</p>
-                            <p style="margin:0 0 28px;font-size:14px;color:#6b7280;line-height:1.6;">Hac&eacute; clic en el bot&oacute;n de abajo para crear una nueva contrase&ntilde;a. Este enlace es v&aacute;lido por <strong style="color:#111827;">30 minutos</strong>.</p>
-                            <!-- CTA Button -->
-                            <table cellpadding="0" cellspacing="0" style="margin:0 auto 32px;">
-                              <tr>
-                                <td style="border-radius:12px;background:#09090b;">
-                                  <a href="%s" target="_blank"
-                                     style="display:inline-block;padding:14px 32px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.2px;">
-                                    🔑 Recuperar Contrase&ntilde;a
-                                  </a>
-                                </td>
-                              </tr>
-                            </table>
-                            <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Si el bot&oacute;n no funciona, copi&aacute; y peg&aacute; este enlace en tu navegador:</p>
-                            <p style="margin:0 0 24px;font-size:11px;color:#9cadd3;word-break:break-all;">%s</p>
-                            <hr style="border:none;border-top:1px solid #f3f4f6;margin:24px 0;">
-                            <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">Si no solicitaste este cambio, pod&eacute;s ignorar este email con tranquilidad. Tu contrase&ntilde;a actual sigue siendo la misma.</p>
-                          </td>
-                        </tr>
-                        <!-- Footer -->
-                        <tr>
-                          <td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
-                            <p style="margin:0;font-size:12px;color:#9ca3af;">El equipo de <strong>AsistíAPP</strong></p>
-                          </td>
-                        </tr>
-                      </table>
-                    </td></tr>
-                  </table>
-                </body>
-                </html>
-                """,
-                nombre, resetUrl, resetUrl
-        );
+        return troquel() + fila(centrado(etiqueta
+                + "<p style=\"margin:0 0 14px;font-size:14px;\">" + destacado("Mostrá este código QR en la puerta del evento") + "</p>"
+                + marcoQr(qrSrc)
+                + codigo(codigoQr)
+                + boton("Ver mi entrada", ticketUrl)
+                + (numero == total ? nota("Guardá este email como comprobante de tu compra.") : "")));
     }
 }
