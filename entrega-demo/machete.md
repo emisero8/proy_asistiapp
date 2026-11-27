@@ -11,7 +11,7 @@ Web para vender entradas con código QR y controlar el ingreso: el comprador pag
 | Casos de uso | 28: **17** coinciden · **10** con diferencias · **1** no está (CU-022, reasignar rol) |
 | Roles | 4 con cuenta + comprador sin cuenta |
 | Datos / API | 17 tablas · 5 claves foráneas · 92 endpoints |
-| Pruebas | **610** backend · **449** frontend · **4** punta a punta |
+| Pruebas | **615** backend · **449** frontend · **4** punta a punta |
 | Tiempos | Token 24 h · login 5 por minuto · panel cada 20 s · evento finaliza 12 h después del inicio |
 
 ## Stack
