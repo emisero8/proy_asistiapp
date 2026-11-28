@@ -159,7 +159,7 @@ Sí. Llamó a Mercado Pago dentro de una transacción contra una regla escrita, 
 - **Si las reglas no se cumplen, ¿para qué sirven?** Reducen errores y dan contra qué revisar: así detectamos el primero. No reemplazan la verificación.
 
 ### 35. ★ ¿Cómo saben que el código funciona si no lo escribieron línea por línea?
-615 pruebas de backend, 449 de frontend y 4 de punta a punta, prueba contra el sistema real en celular y computadora, y prueba manual.
+616 pruebas de backend, 449 de frontend y 4 de punta a punta, prueba contra el sistema real en celular y computadora, y prueba manual.
 - **Las pruebas también las hizo la IA.** Muchas, sí. Es un límite real: las del QR estaban en verde y el error existía. Por eso hace falta revisión humana y escribir la prueba del caso que importa.
 
 ### 36. ★ Expliquen una parte del código sin la IA.

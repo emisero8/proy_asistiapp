@@ -71,7 +71,7 @@ Quién habla: lo reparten ustedes más adelante.
 | 4 | Usuarios | Cinco perfiles y qué hace cada uno | 0:50 | 3:00 |
 | 5 | Un sistema de información | Qué decisiones permite tomar | 0:50 | 3:50 |
 | 6 | Planificación | De marzo a noviembre | 1:00 | 4:50 |
-| 7 | Planificado y construido | 27 de 28 casos de uso, con ajustes | 1:00 | 5:50 |
+| 7 | Planificado y construido | 28 casos de uso: coincidencias y diferencias | 1:00 | 5:50 |
 | 8 | Arquitectura | Cómo se conectan las piezas | 1:20 | 7:10 |
 | 9 | Backend en capas | Cómo está formado el proyecto | 0:50 | 8:00 |
 | 10 | Modelo de datos | Evento, tanda, entrada y orden | 1:00 | 9:00 |
@@ -87,7 +87,9 @@ Quién habla: lo reparten ustedes más adelante.
 
 El acumulado cuenta solo diapositivas.
 
-La diapositiva 7 dice "27 de 28" y aclara los ajustes: 17 coinciden, 10 tienen diferencias y 1 no está.
+La diapositiva 7 presenta los 28 casos de uso así: 17 coinciden, 10 tienen diferencias y 1 no está.
+
+Después del cierre hay seis diapositivas de respaldo (19 a 24) con capturas, una por paso de la demo. No suman tiempo.
 
 ## 4. Guion de la demo (adelanto)
 

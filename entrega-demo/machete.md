@@ -1,6 +1,6 @@
 # AsistíAPP — Machete
 
-**40 min** = diapositivas 18 (17:20 + margen) · demo 12 · preguntas 10
+**40 min** = diapositivas 18 (17:20 + margen; 19–24 son respaldo) · demo 12 · preguntas 10
 
 ## En una frase
 Web para vender entradas con código QR y controlar el ingreso: el comprador paga sin crear cuenta, recibe un QR y cada entrada sirve **una sola vez**.
@@ -11,7 +11,7 @@ Web para vender entradas con código QR y controlar el ingreso: el comprador pag
 | Casos de uso | 28: **17** coinciden · **10** con diferencias · **1** no está (CU-022, reasignar rol) |
 | Roles | 4 con cuenta + comprador sin cuenta |
 | Datos / API | 17 tablas · 5 claves foráneas · 92 endpoints |
-| Pruebas | **615** backend · **449** frontend · **4** punta a punta |
+| Pruebas | **616** backend · **449** frontend · **4** punta a punta |
 | Tiempos | Token 24 h · login 5 por minuto · panel cada 20 s · evento finaliza 12 h después del inicio |
 
 ## Stack
@@ -79,7 +79,7 @@ Sin modo sin conexión ni reserva de cupo · carreras en edición de tandas, cr�
 | 9–10 | Métricas | Evento preparado |
 | 10–11 | Auditoría | Recargar y filtrar |
 
-**Plan B:** entrada de reserva ya paga · código manual · video grabado. **No depurar en vivo.**
+**Plan B:** entrada de reserva ya paga · código manual · video grabado · capturas (diapositivas 19–24). **No depurar en vivo.**
 
 ## Respuesta segura
 **Directo → motivo → costo.** Si no saben: "No lo verificamos y preferimos no inventar."

@@ -1002,7 +1002,7 @@ const intervalo = setInterval(() => { /* vuelve a pedir las métricas */ }, 2000
 | **Monorepo** | Un cambio de API y su pantalla van juntos; la IA ve todo el proyecto | Crece todo en un lugar |
 | Dos repositorios | Permisos y ritmos separados | Coordinar versiones |
 
-**Pruebas:** 615 del backend (27/11), 449 del frontend y 4 de punta a punta (26–27/11). Los números cambian: verifíquenlos antes de la defensa.
+**Pruebas:** 616 del backend (27/11), 449 del frontend y 4 de punta a punta (26–27/11). Los números cambian: verifíquenlos antes de la defensa.
 **Se sacrifica:** las pruebas de punta a punta no corren en GitHub; se ejecutan a mano. El pago real no está automatizado.
 **30 segundos:** "Un solo repositorio para que cada cambio quede completo, y pruebas automáticas para que lo que ya andaba no se rompa, algo clave trabajando con IA."
 **Evidencia:** monorepo en `frontend_implementation_plan.md`; flujos en `.github/workflows` [DOCUMENTADA]; motivo [INFERIDA].
@@ -1170,7 +1170,7 @@ Más ejemplos en `entrega-demo/ejemplos-ia.md`.
 ### Cómo se verificaba lo que producía
 
 1. Plan escrito y aprobado antes de programar.
-2. Pruebas automáticas (615 backend, 449 frontend, 4 de punta a punta) y GitHub Actions.
+2. Pruebas automáticas (616 backend, 449 frontend, 4 de punta a punta) y GitHub Actions.
 3. Prueba contra el backend real, con capturas en celular y computadora. [DOCUMENTADA: `CLAUDE.md`]
 4. Prueba manual de las personas, incluido un pago con dinero real.
 5. Confirmación humana antes de cada commit y despliegue.
@@ -2321,7 +2321,7 @@ Una **prueba automática** es código que usa el sistema y comprueba el resultad
 
 | Nivel | Herramientas | Cantidad | Qué cubre |
 |---|---|---|---|
-| Backend | JUnit, Mockito, H2, GreenMail | **615** (27/11) | Reglas, permisos, pagos, concurrencia, correo, contrato |
+| Backend | JUnit, Mockito, H2, GreenMail | **616** (27/11) | Reglas, permisos, pagos, concurrencia, correo, contrato |
 | Frontend | Vitest, Testing Library | **449** en 48 archivos (27/11) | Pantallas y funciones |
 | Punta a punta | Playwright | **4** (27/11) | Publicar, comprar hasta abrir el pago, escanear, vender en puerta |
 
