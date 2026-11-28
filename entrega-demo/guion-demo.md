@@ -169,6 +169,7 @@ Regla: **no depurar en vivo.** Si algo no responde en 30 segundos, pasen al plan
 | La publicación falla | Leer el mensaje (contacto o créditos); si no se resuelve, usar el evento B | — |
 | Se cae internet del lugar | Compartir datos del celular | — |
 | Se cae todo | **Reproducir el video grabado** y narrarlo | "Les mostramos el recorrido grabado sobre la misma demo." |
+| Se cae todo y no hay video | **Diapositivas 19 a 24** (capturas con datos inventados, una por paso) y volver a la 15 | "Les mostramos el recorrido en capturas." |
 | El proyector falla | Mostrar desde la PC y los celulares a la mesa | — |
 
 ## 7. Después de la defensa
