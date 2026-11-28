@@ -194,6 +194,21 @@ class StaffQRServiceTest {
     }
 
     @Test
+    void entradaYaUsada_elMensajeMuestraLaFechaLegible() {
+        // Este texto lo lee el Staff en la puerta: nada de "2026-11-27T21:16:29.368264".
+        entrada.setEstado(EstadoEntrada.Usada);
+        entrada.setFechaUso(LocalDateTime.of(2026, 11, 27, 21, 16, 29, 368_264_000));
+        when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
+        ValidacionQRRequestDTO dto = new ValidacionQRRequestDTO();
+        dto.setCodigoQr(entrada.getCodigoQr());
+
+        assertThat(staffQRService.validarQR(dto, staffQR).getMensaje())
+                .endsWith("Esta entrada fue usada el 27/11/2026 21:16");
+        assertThat(staffQRService.consultarEstadoQR(entrada.getCodigoQr(), staffQR).getMensaje())
+                .endsWith("Entrada ya utilizada el 27/11/2026 21:16");
+    }
+
+    @Test
     void validarQR_entradaValida_laMarcaComoUsadaYRegistraElStaffValidador() {
         when(entradaRepository.findByCodigoQr(entrada.getCodigoQr())).thenReturn(Optional.of(entrada));
         when(entradaRepository.marcarComoUsada(eq(1L), eq(5L), any())).thenReturn(1);

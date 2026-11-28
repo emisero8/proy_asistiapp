@@ -158,7 +158,8 @@ public class StaffQRService {
                 .valido(false)
                 .mensaje(anulada
                         ? "❌ ENTRADA ANULADA — El organizador la dejó sin efecto"
-                        : "❌ ENTRADA YA UTILIZADA — Esta entrada fue usada el " + entrada.getFechaUso())
+                        : "❌ ENTRADA YA UTILIZADA — Esta entrada fue usada el "
+                                + AuditoriaContexto.texto(entrada.getFechaUso()))
                 .idEntrada(entrada.getId())
                 .nombreComprador(entrada.getNombreComprador())
                 .emailComprador(entrada.getEmailComprador())
@@ -200,7 +201,7 @@ public class StaffQRService {
                         ? "❌ Entrada anulada por el organizador"
                         : pagada
                                 ? cancelado ? "❌ El evento está cancelado" : "❌ El evento ya finalizó"
-                                : "❌ Entrada ya utilizada el " + entrada.getFechaUso();
+                                : "❌ Entrada ya utilizada el " + AuditoriaContexto.texto(entrada.getFechaUso());
 
         return ValidacionQRResponseDTO.builder()
                 .valido(esValida)
